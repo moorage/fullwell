@@ -67,6 +67,9 @@ export async function registerWebExperience(app: FastifyInstance, experience: We
   app.get("/*", async (request, reply) => {
     if (!isWebPath(request.url)) return reply.code(404).send({ error: { code: "NOT_FOUND", message: "Route was not found" } });
     const context = await experience.contextFor(request);
+    if (new URL(request.url, "https://local.invalid").pathname === "/account" && context.viewer.displayName === "") {
+      return reply.redirect("/sign-in?returnTo=%2Faccount", 303);
+    }
     return sendWebPage(reply, request.url, context, entry.file, entry.css ?? [], request.url.startsWith("/c/") || request.url.startsWith("/invite/"));
   });
 }

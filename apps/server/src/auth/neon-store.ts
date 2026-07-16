@@ -1,7 +1,7 @@
 import { ActorIdSchema, UserIdSchema, type UserId } from "@hfj/contracts";
 import { z } from "zod";
 import type { NeonConnection } from "../persistence/neon.js";
-import type { AuthChallenge, AuthStore, AuthUser, PasskeyCredential, WebSession } from "./types.js";
+import type { AuthChallenge, AuthStore, AuthUser, IdentityLinkResult, IdentityMethodProvider, MethodRemovalResult, PasskeyCredential, WebSession } from "./types.js";
 
 const TimestampSchema = z.union([z.date(), z.string()]).transform((value) => new Date(value).toISOString());
 const NullableTimestampSchema = z.union([z.date(), z.string()]).nullable().transform((value) => value === null ? null : new Date(value).toISOString());
@@ -29,7 +29,7 @@ const PasskeyRowSchema = z.object({
 });
 const SessionRowSchema = z.object({
   id: z.string(), user_id: UserIdSchema, token_hash: z.string(), csrf_hash: z.string(),
-  pending_intent: z.string().nullable(), expires_at: TimestampSchema, revoked_at: NullableTimestampSchema,
+  pending_intent: z.string().nullable(), authenticated_at: TimestampSchema, expires_at: TimestampSchema, revoked_at: NullableTimestampSchema,
   actor_id: ActorIdSchema.optional(), display_name: z.string().optional(),
 });
 
@@ -91,6 +91,70 @@ export class NeonAuthStore implements AuthStore {
     return rows[0] === undefined ? null : userFromRow(rows[0]);
   }
 
+  async updateUserDisplayName(userId: UserId, displayName: string, updatedAt: string): Promise<AuthUser | null> {
+    const rows = await this.connection.pooled<Record<string, unknown>[]>`
+      UPDATE users SET display_name = ${displayName}, updated_at = ${updatedAt}
+      WHERE id = ${userId} AND deleted_at IS NULL
+      RETURNING id, actor_id, display_name
+    `;
+    return rows[0] === undefined ? null : userFromRow(rows[0]);
+  }
+
+  async listIdentityMethods(userId: UserId): Promise<readonly IdentityMethodProvider[]> {
+    const rows = await this.connection.pooled<{ provider: IdentityMethodProvider }[]>`
+      SELECT DISTINCT provider FROM external_identities
+      WHERE user_id = ${userId} AND provider IN ('apple', 'magic_link')
+      ORDER BY provider
+    `;
+    return rows.map(({ provider }) => z.enum(["apple", "magic_link"]).parse(provider));
+  }
+
+  async linkIdentityMethod(userId: UserId, provider: IdentityMethodProvider, subjectHash: string): Promise<IdentityLinkResult> {
+    return await this.connection.pooled.begin(async (sql) => {
+      const users = await sql`SELECT id FROM users WHERE id = ${userId} AND deleted_at IS NULL FOR UPDATE`;
+      if (users.length === 0) return "user_not_found" as const;
+      await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${provider}:${subjectHash}`}, 0))`;
+      const identities = await sql<{ user_id: UserId }[]>`
+        SELECT user_id FROM external_identities
+        WHERE provider = ${provider} AND provider_subject_hash = ${subjectHash}
+      `;
+      const existing = identities[0];
+      if (existing?.user_id === userId) return "already_linked" as const;
+      if (existing !== undefined) return "identity_in_use" as const;
+      await sql`
+        INSERT INTO external_identities (provider, provider_subject_hash, user_id)
+        VALUES (${provider}, ${subjectHash}, ${userId})
+      `;
+      return "linked" as const;
+    }) as IdentityLinkResult;
+  }
+
+  async removeIdentityMethod(userId: UserId, provider: IdentityMethodProvider): Promise<MethodRemovalResult> {
+    return await this.connection.pooled.begin(async (sql) => {
+      await sql`SELECT id FROM users WHERE id = ${userId} AND deleted_at IS NULL FOR UPDATE`;
+      const existing = await sql`SELECT 1 FROM external_identities WHERE user_id = ${userId} AND provider = ${provider} LIMIT 1`;
+      if (existing.length === 0) return "not_found" as const;
+      if (await signInMethodCount(sql, userId) <= 1) return "last_method" as const;
+      await sql`DELETE FROM external_identities WHERE user_id = ${userId} AND provider = ${provider}`;
+      return "removed" as const;
+    }) as MethodRemovalResult;
+  }
+
+  async deleteUser(userId: UserId, formerMemberName: string, deletedAt: string): Promise<boolean> {
+    return await this.connection.pooled.begin(async (sql) => {
+      const rows = await sql<Record<string, unknown>[]>`
+        UPDATE users SET display_name = ${formerMemberName}, email_ciphertext = NULL, deleted_at = ${deletedAt}, updated_at = ${deletedAt}
+        WHERE id = ${userId} AND deleted_at IS NULL
+        RETURNING id
+      `;
+      if (rows.length === 0) return false;
+      await sql`UPDATE web_sessions SET revoked_at = ${deletedAt} WHERE user_id = ${userId} AND revoked_at IS NULL`;
+      await sql`UPDATE passkey_credentials SET revoked_at = ${deletedAt} WHERE user_id = ${userId} AND revoked_at IS NULL`;
+      await sql`DELETE FROM external_identities WHERE user_id = ${userId}`;
+      return true;
+    }) as boolean;
+  }
+
   async savePasskeyCredential(credential: PasskeyCredential): Promise<boolean> {
     const rows = await this.connection.pooled<Record<string, unknown>[]>`
       INSERT INTO passkey_credentials (
@@ -139,26 +203,34 @@ export class NeonAuthStore implements AuthStore {
     return rows[0] !== undefined;
   }
 
-  async revokePasskeyCredential(input: { readonly credentialId: string; readonly userId: UserId; readonly revokedAt: string }): Promise<boolean> {
-    const rows = await this.connection.pooled<Record<string, unknown>[]>`
-      UPDATE passkey_credentials SET revoked_at = ${input.revokedAt}
-      WHERE credential_id = ${input.credentialId} AND user_id = ${input.userId} AND revoked_at IS NULL
-      RETURNING credential_id
-    `;
-    return rows[0] !== undefined;
+  async revokePasskeyCredential(input: { readonly credentialId: string; readonly userId: UserId; readonly revokedAt: string }): Promise<MethodRemovalResult> {
+    return await this.connection.pooled.begin(async (sql) => {
+      await sql`SELECT id FROM users WHERE id = ${input.userId} AND deleted_at IS NULL FOR UPDATE`;
+      const existing = await sql`
+        SELECT 1 FROM passkey_credentials
+        WHERE credential_id = ${input.credentialId} AND user_id = ${input.userId} AND revoked_at IS NULL
+      `;
+      if (existing.length === 0) return "not_found" as const;
+      if (await signInMethodCount(sql, input.userId) <= 1) return "last_method" as const;
+      await sql`
+        UPDATE passkey_credentials SET revoked_at = ${input.revokedAt}
+        WHERE credential_id = ${input.credentialId} AND user_id = ${input.userId} AND revoked_at IS NULL
+      `;
+      return "removed" as const;
+    }) as MethodRemovalResult;
   }
 
   async saveSession(session: WebSession): Promise<void> {
     await this.connection.pooled`
-      INSERT INTO web_sessions (id, user_id, token_hash, csrf_hash, pending_intent, expires_at, revoked_at)
-      VALUES (${session.id}, ${session.userId}, ${session.tokenHash}, ${session.csrfHash}, ${session.pendingIntent === null ? null : this.connection.pooled.json({ path: session.pendingIntent })}, ${session.expiresAt}, ${session.revokedAt})
+      INSERT INTO web_sessions (id, user_id, token_hash, csrf_hash, pending_intent, expires_at, revoked_at, created_at)
+      VALUES (${session.id}, ${session.userId}, ${session.tokenHash}, ${session.csrfHash}, ${session.pendingIntent === null ? null : this.connection.pooled.json({ path: session.pendingIntent })}, ${session.expiresAt}, ${session.revokedAt}, ${session.authenticatedAt})
     `;
   }
 
   async getSessionByTokenHash(tokenHash: string): Promise<{ readonly session: WebSession; readonly user: AuthUser } | null> {
     const rows = await this.connection.pooled<Record<string, unknown>[]>`
       SELECT s.id, s.user_id, s.token_hash, s.csrf_hash, s.pending_intent->>'path' AS pending_intent,
-             s.expires_at, s.revoked_at, u.actor_id, u.display_name
+             s.created_at AS authenticated_at, s.expires_at, s.revoked_at, u.actor_id, u.display_name
       FROM web_sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = ${tokenHash} AND u.deleted_at IS NULL
     `;
@@ -188,8 +260,17 @@ function userFromRow(row: Record<string, unknown>): AuthUser {
 function sessionFromRow(row: z.infer<typeof SessionRowSchema>): WebSession {
   return {
     id: row.id, userId: row.user_id, tokenHash: row.token_hash, csrfHash: row.csrf_hash,
-    pendingIntent: row.pending_intent, expiresAt: row.expires_at, revokedAt: row.revoked_at,
+    pendingIntent: row.pending_intent, authenticatedAt: row.authenticated_at, expiresAt: row.expires_at, revokedAt: row.revoked_at,
   };
+}
+
+async function signInMethodCount(sql: import("postgres").TransactionSql, userId: UserId): Promise<number> {
+  const rows = await sql<{ method_count: number | string }[]>`
+    SELECT
+      (SELECT count(DISTINCT provider) FROM external_identities WHERE user_id = ${userId} AND provider IN ('apple', 'magic_link'))
+      + (SELECT count(*) FROM passkey_credentials WHERE user_id = ${userId} AND revoked_at IS NULL) AS method_count
+  `;
+  return z.coerce.number().int().nonnegative().parse(rows[0]?.method_count);
 }
 
 function passkeyFromRow(row: Record<string, unknown>): PasskeyCredential {

@@ -8,6 +8,7 @@ import { AppError } from "../core/errors.js";
 import { HealthService } from "../health/health.js";
 import { HouseholdFoodJournalService } from "../services/household-food-journal.js";
 import { registerBrowserAuthRoutes, type BrowserAuthRouteDependencies } from "../auth/routes.js";
+import { registerAccountRoutes, type AccountRouteDependencies } from "../account/routes.js";
 import { registerOAuthRoutes, type OAuthRouteDependencies } from "../oauth/routes.js";
 import { registerWebExperience, type WebExperience } from "./web.js";
 
@@ -35,6 +36,7 @@ export interface AppDependencies {
   readonly publicOrigin: URL;
   readonly web?: WebExperience;
   readonly browserAuth?: BrowserAuthRouteDependencies;
+  readonly account?: AccountRouteDependencies;
   readonly oauth?: OAuthRouteDependencies;
 }
 
@@ -51,6 +53,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     return reply.code(500).send({ error: { code: "INTERNAL_ERROR", message: "The request could not be completed" } });
   });
   if (dependencies.browserAuth !== undefined) await registerBrowserAuthRoutes(app, dependencies.browserAuth);
+  if (dependencies.account !== undefined) await registerAccountRoutes(app, dependencies.account);
   if (dependencies.oauth !== undefined) await registerOAuthRoutes(app, dependencies.oauth);
   app.addHook("onSend", async (_request, reply, payload) => {
     reply.header("x-content-type-options", "nosniff");

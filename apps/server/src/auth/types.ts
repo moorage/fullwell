@@ -24,11 +24,15 @@ export interface WebSession {
   readonly tokenHash: string;
   readonly csrfHash: string;
   readonly pendingIntent: string | null;
+  readonly authenticatedAt: string;
   readonly expiresAt: string;
   readonly revokedAt: string | null;
 }
 
 export type PasskeyTransport = "ble" | "cable" | "hybrid" | "internal" | "nfc" | "smart-card" | "usb";
+export type IdentityMethodProvider = "apple" | "magic_link";
+export type MethodRemovalResult = "removed" | "not_found" | "last_method";
+export type IdentityLinkResult = "linked" | "already_linked" | "identity_in_use" | "user_not_found";
 
 export interface PasskeyCredential {
   readonly credentialId: string;
@@ -59,6 +63,11 @@ export interface AuthStore {
     readonly candidateActorId: string;
   }): Promise<AuthUser>;
   getUserById(userId: UserId): Promise<AuthUser | null>;
+  updateUserDisplayName(userId: UserId, displayName: string, updatedAt: string): Promise<AuthUser | null>;
+  listIdentityMethods(userId: UserId): Promise<readonly IdentityMethodProvider[]>;
+  linkIdentityMethod(userId: UserId, provider: IdentityMethodProvider, subjectHash: string): Promise<IdentityLinkResult>;
+  removeIdentityMethod(userId: UserId, provider: IdentityMethodProvider): Promise<MethodRemovalResult>;
+  deleteUser(userId: UserId, formerMemberName: string, deletedAt: string): Promise<boolean>;
   savePasskeyCredential(credential: PasskeyCredential): Promise<boolean>;
   getPasskeyCredential(credentialId: string): Promise<PasskeyCredential | null>;
   listPasskeyCredentials(userId: UserId): Promise<readonly PasskeyCredential[]>;
@@ -68,7 +77,7 @@ export interface AuthStore {
     readonly newCounter: number;
     readonly usedAt: string;
   }): Promise<boolean>;
-  revokePasskeyCredential(input: { readonly credentialId: string; readonly userId: UserId; readonly revokedAt: string }): Promise<boolean>;
+  revokePasskeyCredential(input: { readonly credentialId: string; readonly userId: UserId; readonly revokedAt: string }): Promise<MethodRemovalResult>;
   saveSession(session: WebSession): Promise<void>;
   getSessionByTokenHash(tokenHash: string): Promise<{ readonly session: WebSession; readonly user: AuthUser } | null>;
   revokeSession(tokenHash: string, revokedAt: string): Promise<void>;

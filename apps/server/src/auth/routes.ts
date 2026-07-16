@@ -18,6 +18,9 @@ const PasskeyCompleteSchema = z.object({
 const PasskeyRegistrationStartSchema = z.object({ csrf: z.string().min(32).max(512) }).strict();
 const PasskeyRegistrationCompleteSchema = PasskeyCompleteSchema.extend({ csrf: z.string().min(32).max(512) }).strict();
 const PasskeyCredentialParamsSchema = z.object({ credentialId: z.string().min(1).max(2048).regex(/^[A-Za-z0-9_-]+$/) }).strict();
+const LinkMagicSchema = z.object({ csrf: z.string().min(32).max(512), email: z.email().max(320) }).strict();
+const LinkMagicCompleteSchema = z.object({ token: z.string().min(32).max(512) }).strict();
+const CsrfSchema = z.object({ csrf: z.string().min(32).max(512) }).strict();
 
 export interface BrowserAuthRouteDependencies {
   readonly auth: BrowserAuthService;
@@ -41,6 +44,21 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
     return reply.redirect(session.pendingIntent ?? "/households");
   });
 
+  app.post("/account/sign-in-methods/magic_link/start", async (request, reply) => {
+    const body = LinkMagicSchema.parse(request.body);
+    const sessionToken = requireSessionCookie(request);
+    await dependencies.auth.verifyCsrf(sessionToken, body.csrf);
+    const principal = await dependencies.auth.authenticateSession(sessionToken);
+    await dependencies.auth.requestMagicLinkIdentity(principal.userId, sessionToken, body.email);
+    return reply.redirect("/account?emailLinkSent=1", 303);
+  });
+
+  app.get("/account/sign-in-methods/magic_link/complete", async (request, reply) => {
+    const { token } = LinkMagicCompleteSchema.parse(request.query);
+    await dependencies.auth.completeMagicLinkIdentity(token, requireSessionCookie(request));
+    return reply.redirect("/account?methodLinked=magic_link", 302);
+  });
+
   app.post("/auth/apple/start", async (request, reply) => {
     const body = StartAuthSchema.parse(request.body ?? {});
     const started = await dependencies.auth.beginApple(body.pending_intent);
@@ -48,17 +66,20 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
       path: "/auth/apple/callback", httpOnly: true, secure: dependencies.secureCookies, sameSite: "lax", maxAge: 10 * 60,
     });
     if (dependencies.appleAuthorization === undefined) return reply.code(202).send({ state: started.state });
-    const authorization = new URL("https://appleid.apple.com/auth/authorize");
-    authorization.search = new URLSearchParams({
-      client_id: dependencies.appleAuthorization.clientId,
-      redirect_uri: dependencies.appleAuthorization.redirectUri,
-      response_type: "code",
-      response_mode: "form_post",
-      scope: "name email",
-      state: started.state,
-      nonce: started.state,
-    }).toString();
-    return reply.redirect(authorization.toString());
+    return reply.redirect(appleAuthorizationUrl(dependencies.appleAuthorization, started.state).toString());
+  });
+
+  app.post("/account/sign-in-methods/apple/start", async (request, reply) => {
+    const { csrf } = CsrfSchema.parse(request.body);
+    const sessionToken = requireSessionCookie(request);
+    await dependencies.auth.verifyCsrf(sessionToken, csrf);
+    const principal = await dependencies.auth.authenticateSession(sessionToken);
+    const started = await dependencies.auth.beginAppleIdentity(principal.userId, sessionToken);
+    reply.setCookie("hfj_auth_binding", started.browserBinding, {
+      path: "/auth/apple/callback", httpOnly: true, secure: dependencies.secureCookies, sameSite: "lax", maxAge: 10 * 60,
+    });
+    if (dependencies.appleAuthorization === undefined) return reply.code(503).send({ error: { code: "PROVIDER_UNAVAILABLE" } });
+    return reply.redirect(appleAuthorizationUrl(dependencies.appleAuthorization, started.state).toString());
   });
 
   app.post("/auth/apple/callback", async (request, reply) => {
@@ -72,11 +93,12 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
       state: body.state,
       browserBinding: body.browser_binding,
       redirectUri: dependencies.appleAuthorization?.redirectUri ?? body.redirect_uri ?? "",
+      ...(request.cookies.hfj_session === undefined ? {} : { rawSessionToken: request.cookies.hfj_session }),
     });
     setSessionCookie(reply, session.sessionToken, dependencies.secureCookies);
     setCsrfCookie(reply, session.csrfToken, dependencies.secureCookies);
     reply.clearCookie("hfj_auth_binding", { path: "/auth/apple/callback" });
-    return reply.send({ authenticated: true, redirect_to: session.pendingIntent ?? "/households" });
+    return reply.redirect(session.pendingIntent ?? "/households", 303);
   });
 
   app.post("/auth/passkey/options", async (request, reply) => {
@@ -199,4 +221,18 @@ async function startPasskeyAuthentication(
     maxAge: 5 * 60,
   });
   return { transaction: started.transaction, publicOptions: started.publicOptions };
+}
+
+function appleAuthorizationUrl(configuration: NonNullable<BrowserAuthRouteDependencies["appleAuthorization"]>, state: string): URL {
+  const authorization = new URL("https://appleid.apple.com/auth/authorize");
+  authorization.search = new URLSearchParams({
+    client_id: configuration.clientId,
+    redirect_uri: configuration.redirectUri,
+    response_type: "code",
+    response_mode: "form_post",
+    scope: "name email",
+    state,
+    nonce: state,
+  }).toString();
+  return authorization;
 }

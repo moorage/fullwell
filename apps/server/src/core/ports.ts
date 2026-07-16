@@ -87,6 +87,7 @@ export interface OperationalStorePort {
   getMembership(householdId: HouseholdId, userId: UserId): Promise<MembershipRecord | null>;
   listHouseholdMemberships(householdId: HouseholdId): Promise<ReadonlyArray<MembershipRecord>>;
   upsertMembership(membership: MembershipRecord): Promise<void>;
+  leaveMembership(userId: UserId, householdId: HouseholdId, removedAt: string): Promise<"left" | "not_found" | "sole_owner">;
   setDefaultHousehold(userId: UserId, householdId: HouseholdId): Promise<void>;
   getDefaultHousehold(userId: UserId): Promise<HouseholdId | null>;
   saveInvitation(invitation: InvitationRecord): Promise<void>;

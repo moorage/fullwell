@@ -1,6 +1,6 @@
 import type { UserId } from "@hfj/contracts";
 import { ActorIdSchema, UserIdSchema } from "@hfj/contracts";
-import type { AuthChallenge, AuthStore, AuthUser, PasskeyCredential, WebSession } from "./types.js";
+import type { AuthChallenge, AuthStore, AuthUser, IdentityLinkResult, IdentityMethodProvider, MethodRemovalResult, PasskeyCredential, WebSession } from "./types.js";
 
 export class MemoryAuthStore implements AuthStore {
   private readonly challenges = new Map<string, AuthChallenge>();
@@ -35,6 +35,51 @@ export class MemoryAuthStore implements AuthStore {
     return this.users.get(userId) ?? null;
   }
 
+  async updateUserDisplayName(userId: UserId, displayName: string, _updatedAt: string): Promise<AuthUser | null> {
+    const user = this.users.get(userId);
+    if (user === undefined) return null;
+    const updated = { ...user, displayName };
+    this.users.set(userId, updated);
+    for (const [key, identity] of this.identities) if (identity.id === userId) this.identities.set(key, updated);
+    return updated;
+  }
+
+  async listIdentityMethods(userId: UserId): Promise<readonly IdentityMethodProvider[]> {
+    return [...new Set([...this.identities.entries()]
+      .filter(([, user]) => user.id === userId)
+      .map(([key]) => key.slice(0, key.indexOf(":")) as IdentityMethodProvider))].sort();
+  }
+
+  async linkIdentityMethod(userId: UserId, provider: IdentityMethodProvider, subjectHash: string): Promise<IdentityLinkResult> {
+    const user = this.users.get(userId);
+    if (user === undefined) return "user_not_found";
+    const key = `${provider}:${subjectHash}`;
+    const existing = this.identities.get(key);
+    if (existing?.id === userId) return "already_linked";
+    if (existing !== undefined) return "identity_in_use";
+    this.identities.set(key, user);
+    return "linked";
+  }
+
+  async removeIdentityMethod(userId: UserId, provider: IdentityMethodProvider): Promise<MethodRemovalResult> {
+    const entries = [...this.identities.entries()].filter(([key, user]) => key.startsWith(`${provider}:`) && user.id === userId);
+    if (entries.length === 0) return "not_found";
+    if (this.signInMethodCount(userId) <= 1) return "last_method";
+    for (const [key] of entries) this.identities.delete(key);
+    return "removed";
+  }
+
+  async deleteUser(userId: UserId, formerMemberName: string, _deletedAt: string): Promise<boolean> {
+    const user = this.users.get(userId);
+    if (user === undefined) return false;
+    this.users.delete(userId);
+    for (const [key, identity] of this.identities) if (identity.id === userId) this.identities.delete(key);
+    for (const [id, credential] of this.passkeys) if (credential.userId === userId) this.passkeys.delete(id);
+    for (const [hash, session] of this.sessions) if (session.userId === userId) this.sessions.set(hash, { ...session, revokedAt: _deletedAt });
+    void formerMemberName;
+    return true;
+  }
+
   async savePasskeyCredential(credential: PasskeyCredential): Promise<boolean> {
     if (this.passkeys.has(credential.credentialId) || !this.users.has(credential.userId)) return false;
     this.passkeys.set(credential.credentialId, copyPasskey(credential));
@@ -63,10 +108,12 @@ export class MemoryAuthStore implements AuthStore {
     return true;
   }
 
-  async revokePasskeyCredential(input: { readonly credentialId: string; readonly userId: UserId; readonly revokedAt: string }): Promise<boolean> {
+  async revokePasskeyCredential(input: { readonly credentialId: string; readonly userId: UserId; readonly revokedAt: string }): Promise<MethodRemovalResult> {
     const credential = this.passkeys.get(input.credentialId);
-    if (credential === undefined || credential.userId !== input.userId) return false;
-    return this.passkeys.delete(input.credentialId);
+    if (credential === undefined || credential.userId !== input.userId) return "not_found";
+    if (this.signInMethodCount(input.userId) <= 1) return "last_method";
+    this.passkeys.delete(input.credentialId);
+    return "removed";
   }
 
   async saveSession(session: WebSession): Promise<void> { this.sessions.set(session.tokenHash, session); }
@@ -86,6 +133,12 @@ export class MemoryAuthStore implements AuthStore {
     for (const [hash, session] of this.sessions) {
       if (session.userId === userId) this.sessions.set(hash, { ...session, revokedAt });
     }
+  }
+
+  private signInMethodCount(userId: UserId): number {
+    const identities = new Set([...this.identities.entries()].filter(([, user]) => user.id === userId).map(([key]) => key.slice(0, key.indexOf(":"))));
+    const passkeys = [...this.passkeys.values()].filter((credential) => credential.userId === userId).length;
+    return identities.size + passkeys;
   }
 }
 

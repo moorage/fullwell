@@ -9,7 +9,7 @@ import {
   HmacTokenHasher,
   UnconfiguredAppleIdentityProvider,
 } from "../adapters/providers.js";
-import type { MailPort } from "../core/ports.js";
+import type { IdentityProviderPort, MailPort } from "../core/ports.js";
 import { MemoryAuthStore } from "./memory-store.js";
 import { UnsupportedPasskeyProvider } from "./providers.js";
 import { registerBrowserAuthRoutes } from "./routes.js";
@@ -40,14 +40,19 @@ class DeterministicPasskeyProvider implements PasskeyProvider {
   }
 }
 
+class DeterministicAppleProvider implements IdentityProviderPort {
+  async exchangeAppleCode() { return { subject: "linked-apple-subject", email: "member@icloud.test", name: "Apple Member" }; }
+}
+
 async function fixture(
   appleAuthorization?: { readonly clientId: string; readonly redirectUri: string },
   passkeys: PasskeyProvider = new UnsupportedPasskeyProvider(),
+  apple: IdentityProviderPort = new UnconfiguredAppleIdentityProvider(),
 ) {
   const mail = new CapturingMail();
   const auth = new BrowserAuthService(
     new MemoryAuthStore(), new FixedClock(new Date("2026-07-15T12:00:00.000Z")), new DeterministicRandomSource(),
-    new HmacTokenHasher("route-auth-pepper-long-enough"), mail, new UnconfiguredAppleIdentityProvider(),
+    new HmacTokenHasher("route-auth-pepper-long-enough"), mail, apple,
     passkeys, new URL("https://journal.example.test"),
   );
   const app = Fastify();
@@ -209,6 +214,58 @@ describe("browser auth routes", () => {
     expect(passkey.statusCode).toBe(503);
     const jsonSignOut = await app.inject({ method: "POST", url: "/auth/sign-out", headers: { cookie: secondCookieHeader }, payload: { csrf: secondCsrf } });
     expect(jsonSignOut.statusCode).toBe(204);
+    await app.close();
+  });
+
+  it("links an email identity through the authenticated browser and starts Apple linking", async () => {
+    const appleAuthorization = { clientId: "com.example.fullwell", redirectUri: "https://journal.example.test/auth/apple/callback" };
+    const { app, mail } = await fixture(appleAuthorization);
+    const authenticated = await authenticatedCookies(app, mail);
+    const startedEmail = await app.inject({
+      method: "POST", url: "/account/sign-in-methods/magic_link/start",
+      headers: { cookie: authenticated.cookie }, payload: { csrf: authenticated.csrf, email: "second@example.test" },
+    });
+    expect(startedEmail.statusCode).toBe(303);
+    expect(startedEmail.headers.location).toBe("/account?emailLinkSent=1");
+    const link = mail.url;
+    if (link === null) throw new Error("Identity link was not sent");
+    expect(link.pathname).toBe("/account/sign-in-methods/magic_link/complete");
+    const completed = await app.inject({
+      method: "GET", url: `${link.pathname}${link.search}`, headers: { cookie: authenticated.cookie },
+    });
+    expect(completed.statusCode).toBe(302);
+    expect(completed.headers.location).toBe("/account?methodLinked=magic_link");
+
+    const startedApple = await app.inject({
+      method: "POST", url: "/account/sign-in-methods/apple/start",
+      headers: { cookie: authenticated.cookie }, payload: { csrf: authenticated.csrf },
+    });
+    expect(startedApple.statusCode).toBe(302);
+    expect(new URL(startedApple.headers.location ?? "https://invalid.test").origin).toBe("https://appleid.apple.com");
+    expect(startedApple.headers["set-cookie"]).toContain("hfj_auth_binding=");
+    await app.close();
+  });
+
+  it("finishes Apple identity linking with the same signed-in browser and redirects to account", async () => {
+    const appleAuthorization = { clientId: "com.example.fullwell", redirectUri: "https://journal.example.test/auth/apple/callback" };
+    const { app, mail } = await fixture(appleAuthorization, new UnsupportedPasskeyProvider(), new DeterministicAppleProvider());
+    const authenticated = await authenticatedCookies(app, mail);
+    const started = await app.inject({
+      method: "POST", url: "/account/sign-in-methods/apple/start",
+      headers: { cookie: authenticated.cookie }, payload: { csrf: authenticated.csrf },
+    });
+    const authorization = new URL(started.headers.location ?? "https://invalid.test");
+    const state = authorization.searchParams.get("state");
+    const bindingSetCookie = started.headers["set-cookie"];
+    const bindingCookie = (Array.isArray(bindingSetCookie) ? bindingSetCookie[0] : bindingSetCookie)?.split(";", 1)[0];
+    if (state === null || bindingCookie === undefined) throw new Error("Apple link callback values missing");
+    const completed = await app.inject({
+      method: "POST", url: "/auth/apple/callback",
+      headers: { cookie: `${authenticated.cookie}; ${bindingCookie}` }, payload: { code: "code", state },
+    });
+    expect(completed.statusCode).toBe(303);
+    expect(completed.headers.location).toBe("/account");
+    expect(completed.headers["set-cookie"]).toEqual(expect.arrayContaining([expect.stringContaining("hfj_session="), expect.stringContaining("hfj_csrf=")]));
     await app.close();
   });
 

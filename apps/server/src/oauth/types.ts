@@ -24,6 +24,13 @@ export interface OAuthGrant {
   readonly revokedAt: string | null;
 }
 
+export interface OAuthGrantSummary {
+  readonly id: string;
+  readonly clientId: string;
+  readonly clientName: string;
+  readonly scopes: ReadonlyArray<OAuthScope>;
+}
+
 export interface OAuthTokenRecord {
   readonly id: string;
   readonly grantId: string;
@@ -52,6 +59,9 @@ export interface OAuthStore {
   registerClient(client: OAuthClient): Promise<void>;
   saveGrant(grant: OAuthGrant): Promise<void>;
   getGrant(grantId: string): Promise<OAuthGrant | null>;
+  listActiveGrants(userId: UserId): Promise<readonly OAuthGrantSummary[]>;
+  revokeGrantForUser(userId: UserId, grantId: string, revokedAt: string): Promise<boolean>;
+  revokeUserAccess(userId: UserId, revokedAt: string): Promise<void>;
   saveToken(token: OAuthTokenRecord): Promise<void>;
   consumeAuthorizationCode(input: {
     readonly tokenHash: string;

@@ -101,6 +101,33 @@ describe("memory adapters", () => {
     expect(await store.health()).toEqual({ ready: true, detail: "memory" });
   });
 
+  it("prevents the last owner from leaving and removes eligible account memberships atomically", async () => {
+    const store = new MemoryOperationalStore();
+    const head = GitObjectIdSchema.parse("9".repeat(40));
+    const coOwnerId = UserIdSchema.parse("usr_0000000000000802");
+    const coOwnerActorId = ActorIdSchema.parse("act_0000000000000802");
+    const secondHouseholdId = HouseholdIdSchema.parse("hsh_0000000000000802");
+    const owner = { householdId, userId, actorId, role: "owner" as const, projectionHead: head, removedAt: null };
+    await store.createHousehold(
+      { id: householdId, name: "Kitchen", repositoryHead: head, provisioningState: "ready", createdAt: "2026-07-15T12:00:00.000Z" },
+      owner,
+    );
+    await store.createHousehold(
+      { id: secondHouseholdId, name: "Pantry", repositoryHead: head, provisioningState: "ready", createdAt: "2026-07-15T12:00:00.000Z" },
+      { ...owner, householdId: secondHouseholdId },
+    );
+    await store.setDefaultHousehold(userId, householdId);
+    await expect(store.leaveMembership(userId, householdId, "2026-07-15T12:10:00.000Z")).resolves.toBe("sole_owner");
+    expect(await store.listMemberships(userId)).toHaveLength(2);
+
+    for (const id of [householdId, secondHouseholdId]) {
+      await store.upsertMembership({ householdId: id, userId: coOwnerId, actorId: coOwnerActorId, role: "owner", projectionHead: head, removedAt: null });
+    }
+    await expect(store.leaveMembership(userId, householdId, "2026-07-15T12:12:00.000Z")).resolves.toBe("left");
+    expect(await store.getDefaultHousehold(userId)).toBeNull();
+    await expect(store.leaveMembership(userId, householdId, "2026-07-15T12:13:00.000Z")).resolves.toBe("not_found");
+  });
+
   it("serializes JSON deterministically and rejects every unsafe repository path shape", () => {
     expect(stableJson({ z: [2, { b: true, a: null }], a: "first" })).toBe('{\n  "a": "first",\n  "z": [\n    2,\n    {\n      "a": null,\n      "b": true\n    }\n  ]\n}\n');
     expect(() => validateRepositoryPath("valid/path.json")).not.toThrow();

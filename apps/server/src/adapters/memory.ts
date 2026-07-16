@@ -144,6 +144,14 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
     return [...this.memberships.values()].filter((membership) => membership.householdId === householdId && membership.removedAt === null);
   }
   async upsertMembership(membership: MembershipRecord): Promise<void> { this.memberships.set(this.membershipKey(membership.householdId, membership.userId), membership); }
+  async leaveMembership(userId: UserId, householdId: HouseholdId, removedAt: string): Promise<"left" | "not_found" | "sole_owner"> {
+    const membership = this.memberships.get(this.membershipKey(householdId, userId));
+    if (membership === undefined || membership.removedAt !== null) return "not_found";
+    if (membership.role === "owner" && this.activeOwnerCount(householdId) <= 1) return "sole_owner";
+    this.memberships.set(this.membershipKey(householdId, userId), { ...membership, removedAt });
+    if (this.defaultHouseholds.get(userId) === householdId) this.defaultHouseholds.delete(userId);
+    return "left";
+  }
   async setDefaultHousehold(userId: UserId, householdId: HouseholdId): Promise<void> { this.defaultHouseholds.set(userId, householdId); }
   async getDefaultHousehold(userId: UserId): Promise<HouseholdId | null> { return this.defaultHouseholds.get(userId) ?? null; }
   async saveInvitation(invitation: InvitationRecord): Promise<void> { this.invitations.set(invitation.id, invitation); }
@@ -196,6 +204,9 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
   addSession(token: string, session: SessionRecord): void { this.sessions.set(token, session); }
 
   private membershipKey(householdId: HouseholdId, userId: UserId): string { return `${householdId}\0${userId}`; }
+  private activeOwnerCount(householdId: HouseholdId): number {
+    return [...this.memberships.values()].filter((membership) => membership.householdId === householdId && membership.removedAt === null && membership.role === "owner").length;
+  }
 }
 
 export function stableJson(value: object): string {

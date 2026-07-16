@@ -7,6 +7,8 @@ import { AppError } from "../core/errors.js";
 import type { AuthenticationPort, OperationalStorePort, RandomSource, TokenHasher } from "../core/ports.js";
 import type { HouseholdRecord, MembershipRecord, Principal } from "../core/types.js";
 import type { PasskeyCredential } from "../auth/types.js";
+import type { IdentityMethodProvider } from "../auth/types.js";
+import type { OAuthGrantSummary } from "../oauth/types.js";
 import { HouseholdFoodJournalService } from "../services/household-food-journal.js";
 import type { WebImportInput } from "./web.js";
 
@@ -35,6 +37,7 @@ export class WebViewModelService {
     private readonly resolvePrincipal: ((request: FastifyRequest) => Promise<Principal | null>) | undefined,
     private readonly verifyCsrf: ((request: FastifyRequest, submittedToken: string) => Promise<void>) | undefined,
     private readonly listPasskeys: ((userId: Principal["userId"]) => Promise<readonly PasskeyCredential[]>) | undefined,
+    private readonly accountSummary: ((userId: Principal["userId"]) => Promise<{ readonly methods: readonly IdentityMethodProvider[]; readonly grants: readonly OAuthGrantSummary[] }>) | undefined,
   ) {}
 
   static async create(options: {
@@ -48,6 +51,7 @@ export class WebViewModelService {
     resolvePrincipal?: (request: FastifyRequest) => Promise<Principal | null>;
     verifyCsrf?: (request: FastifyRequest, submittedToken: string) => Promise<void>;
     listPasskeys?: (userId: Principal["userId"]) => Promise<readonly PasskeyCredential[]>;
+    accountSummary?: (userId: Principal["userId"]) => Promise<{ readonly methods: readonly IdentityMethodProvider[]; readonly grants: readonly OAuthGrantSummary[] }>;
   }): Promise<WebViewModelService> {
     const metadata = InstallMetadataSchema.parse(JSON.parse(await readFile(options.installMetadataPath, "utf8")));
     return new WebViewModelService(
@@ -61,6 +65,7 @@ export class WebViewModelService {
       options.resolvePrincipal,
       options.verifyCsrf,
       options.listPasskeys,
+      options.accountSummary,
     );
   }
 
@@ -117,6 +122,9 @@ export class WebViewModelService {
     const passkeys = principal === null || pathname !== "/account" || this.listPasskeys === undefined
       ? []
       : await this.listPasskeys(principal.userId);
+    const account = principal === null || pathname !== "/account" || this.accountSummary === undefined
+      ? { methods: [], grants: [] }
+      : await this.accountSummary(principal.userId);
 
     return {
       security: { csrfToken, idempotencyPrefix: this.random.opaqueId("web") },
@@ -133,6 +141,8 @@ export class WebViewModelService {
           createdLabel: formatDate(credential.createdAt),
           lastUsedLabel: credential.lastUsedAt === null ? null : formatDate(credential.lastUsedAt),
         })),
+        methods: account.methods.map((provider) => ({ provider, label: provider === "apple" ? "Apple" : "Email magic link" })),
+        grants: account.grants.map((grant) => ({ id: grant.id, clientName: grant.clientName, scopes: [...grant.scopes] })),
       },
       viewer: { displayName: principal?.displayName ?? "", email: "" },
       households,

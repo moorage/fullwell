@@ -6,7 +6,7 @@ import {
   HmacTokenHasher,
   UnconfiguredAppleIdentityProvider,
 } from "../adapters/providers.js";
-import type { MailPort } from "../core/ports.js";
+import type { IdentityProviderPort, MailPort } from "../core/ports.js";
 import { MemoryAuthStore } from "./memory-store.js";
 import { UnsupportedPasskeyProvider } from "./providers.js";
 import { BrowserAuthService } from "./service.js";
@@ -46,13 +46,17 @@ class DeterministicPasskeyProvider implements PasskeyProvider {
   }
 }
 
-function fixture(passkeys: PasskeyProvider = new UnsupportedPasskeyProvider()) {
+class DeterministicAppleProvider implements IdentityProviderPort {
+  async exchangeAppleCode() { return { subject: "apple-subject", email: "member@icloud.test", name: "Apple Member" }; }
+}
+
+function fixture(passkeys: PasskeyProvider = new UnsupportedPasskeyProvider(), apple: IdentityProviderPort = new UnconfiguredAppleIdentityProvider()) {
   const mail = new CapturingMail();
   const clock = new FixedClock(new Date("2026-07-15T12:00:00.000Z"));
   const store = new MemoryAuthStore();
   const auth = new BrowserAuthService(
     store, clock, new DeterministicRandomSource(), new HmacTokenHasher("auth-test-pepper-long-enough"),
-    mail, new UnconfiguredAppleIdentityProvider(), passkeys, new URL("https://journal.example.test"),
+    mail, apple, passkeys, new URL("https://journal.example.test"),
   );
   return { auth, mail, clock, store };
 }
@@ -100,6 +104,55 @@ describe("BrowserAuthService", () => {
     await auth.verifyCsrf(session.sessionToken, session.csrfToken);
     await auth.signOut(session.sessionToken);
     await expect(auth.authenticateSession(session.sessionToken)).rejects.toMatchObject({ code: "AUTH_REQUIRED" });
+  });
+
+  it("links provider identities only through the signed-in browser session", async () => {
+    const { auth, mail, store } = fixture(new UnsupportedPasskeyProvider(), new DeterministicAppleProvider());
+    const session = await magicLinkSession(auth, mail);
+    const principal = await auth.authenticateSession(session.sessionToken);
+
+    await auth.requestMagicLinkIdentity(principal.userId, session.sessionToken, "second@example.test");
+    const emailToken = mail.magicLink?.searchParams.get("token") ?? "";
+    await expect(auth.completeMagicLinkIdentity(emailToken, "different-session-token"))
+      .rejects.toMatchObject({ code: "AUTH_REQUIRED" });
+    await auth.completeMagicLinkIdentity(emailToken, session.sessionToken);
+    await auth.requestMagicLink("second@example.test");
+    const linkedEmailSession = await auth.completeMagicLink(
+      mail.magicLink?.searchParams.get("token") ?? "",
+      mail.magicLink?.searchParams.get("transaction") ?? "",
+    );
+    expect(linkedEmailSession.user.id).toBe(principal.userId);
+
+    const apple = await auth.beginAppleIdentity(principal.userId, session.sessionToken);
+    await expect(auth.completeApple({ code: "code", state: apple.state, browserBinding: apple.browserBinding, redirectUri: "https://journal.example.test/auth/apple/callback" }))
+      .rejects.toMatchObject({ code: "AUTH_REQUIRED" });
+    const retry = await auth.beginAppleIdentity(principal.userId, session.sessionToken);
+    const linkedAppleSession = await auth.completeApple({
+      code: "code", state: retry.state, browserBinding: retry.browserBinding,
+      redirectUri: "https://journal.example.test/auth/apple/callback", rawSessionToken: session.sessionToken,
+    });
+    expect(linkedAppleSession.user.id).toBe(principal.userId);
+    expect(await store.listIdentityMethods(principal.userId)).toEqual(["apple", "magic_link"]);
+
+    await auth.requestMagicLink("another@example.test");
+    const otherSession = await auth.completeMagicLink(
+      mail.magicLink?.searchParams.get("token") ?? "",
+      mail.magicLink?.searchParams.get("transaction") ?? "",
+    );
+    await auth.requestMagicLinkIdentity(otherSession.user.id, otherSession.sessionToken, "member@example.test");
+    await expect(auth.completeMagicLinkIdentity(mail.magicLink?.searchParams.get("token") ?? "", otherSession.sessionToken))
+      .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  });
+
+  it("creates a browser session from a first-time Apple sign-in", async () => {
+    const { auth } = fixture(new UnsupportedPasskeyProvider(), new DeterministicAppleProvider());
+    const started = await auth.beginApple("/households");
+    const session = await auth.completeApple({
+      code: "code", state: started.state, browserBinding: started.browserBinding,
+      redirectUri: "https://journal.example.test/auth/apple/callback",
+    });
+    expect(session.pendingIntent).toBe("/households");
+    expect((await auth.authenticateSession(session.sessionToken)).userId).toBe(session.user.id);
   });
 
   it("fails explicitly when passkeys are not configured", async () => {

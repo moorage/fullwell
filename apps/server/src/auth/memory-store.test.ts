@@ -26,7 +26,7 @@ describe("MemoryAuthStore", () => {
     expect(await store.resolveOrCreateUser({ provider: "magic_link", subjectHash: "subject", displayName: "Ignored", candidateUserId: UserIdSchema.parse("usr_0000000000000999"), candidateActorId: ActorIdSchema.parse("act_0000000000000999") })).toBe(user);
     expect(await store.getSessionByTokenHash("missing")).toBeNull();
 
-    const orphan: WebSession = { id: "session-orphan", userId: UserIdSchema.parse("usr_0000000000000998"), tokenHash: "orphan", csrfHash: "csrf", pendingIntent: null, expiresAt: "2026-08-15T12:00:00.000Z", revokedAt: null };
+    const orphan: WebSession = { id: "session-orphan", userId: UserIdSchema.parse("usr_0000000000000998"), tokenHash: "orphan", csrfHash: "csrf", pendingIntent: null, authenticatedAt: "2026-07-15T12:00:00.000Z", expiresAt: "2026-08-15T12:00:00.000Z", revokedAt: null };
     await store.saveSession(orphan);
     expect(await store.getSessionByTokenHash(orphan.tokenHash)).toBeNull();
 
@@ -39,6 +39,17 @@ describe("MemoryAuthStore", () => {
     await store.revokeUserSessions(UserIdSchema.parse("usr_0000000000000997"), "2026-07-15T12:01:00.000Z");
     await store.revokeUserSessions(userId, "2026-07-15T12:02:00.000Z");
     expect((await store.getSessionByTokenHash(session.tokenHash))?.session.revokedAt).toBe("2026-07-15T12:02:00.000Z");
+
+    const otherId = UserIdSchema.parse("usr_0000000000000997");
+    await store.resolveOrCreateUser({
+      provider: "apple", subjectHash: "other-apple", displayName: "Other", candidateUserId: otherId,
+      candidateActorId: ActorIdSchema.parse("act_0000000000000997"),
+    });
+    await expect(store.linkIdentityMethod(userId, "apple", "linked-apple")).resolves.toBe("linked");
+    await expect(store.linkIdentityMethod(userId, "apple", "linked-apple")).resolves.toBe("already_linked");
+    await expect(store.linkIdentityMethod(userId, "apple", "other-apple")).resolves.toBe("identity_in_use");
+    await expect(store.linkIdentityMethod(UserIdSchema.parse("usr_0000000000000996"), "apple", "missing")).resolves.toBe("user_not_found");
+    expect(await store.listIdentityMethods(userId)).toEqual(["apple", "magic_link"]);
   });
 
   it("stores passkeys by user and updates counters without exposing mutable key bytes", async () => {
@@ -77,8 +88,8 @@ describe("MemoryAuthStore", () => {
     await expect(store.updatePasskeyCounter({ credentialId: credential.credentialId, expectedCounter: 1, newCounter: 0, usedAt: "2026-07-15T12:01:00.000Z" })).resolves.toBe(false);
     await expect(store.updatePasskeyCounter({ credentialId: credential.credentialId, expectedCounter: 1, newCounter: 2, usedAt: "2026-07-15T12:01:00.000Z" })).resolves.toBe(true);
     expect(await store.getPasskeyCredential(credential.credentialId)).toMatchObject({ counter: 2, lastUsedAt: "2026-07-15T12:01:00.000Z" });
-    await expect(store.revokePasskeyCredential({ credentialId: credential.credentialId, userId: UserIdSchema.parse("usr_0000000000000999"), revokedAt: "2026-07-15T12:02:00.000Z" })).resolves.toBe(false);
-    await expect(store.revokePasskeyCredential({ credentialId: credential.credentialId, userId, revokedAt: "2026-07-15T12:02:00.000Z" })).resolves.toBe(true);
+    await expect(store.revokePasskeyCredential({ credentialId: credential.credentialId, userId: UserIdSchema.parse("usr_0000000000000999"), revokedAt: "2026-07-15T12:02:00.000Z" })).resolves.toBe("not_found");
+    await expect(store.revokePasskeyCredential({ credentialId: credential.credentialId, userId, revokedAt: "2026-07-15T12:02:00.000Z" })).resolves.toBe("removed");
     expect(await store.getPasskeyCredential(credential.credentialId)).toBeNull();
   });
 });

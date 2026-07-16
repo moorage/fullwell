@@ -138,7 +138,12 @@ export const demoWebContext: WebRenderContext = {
       },
     },
   },
-  auth: { passkeysEnabled: false, passkeys: [] },
+  auth: {
+    passkeysEnabled: false,
+    passkeys: [],
+    methods: [{ provider: "magic_link", label: "Email magic link" }],
+    grants: [{ id: "grant-codex", clientName: "Codex", scopes: ["Read journal", "Update journal"] }],
+  },
   viewer: { displayName: "Maya Alvarez", email: "ren@example.test" },
   households,
   members,

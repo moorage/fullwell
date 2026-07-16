@@ -63,11 +63,19 @@ export type PasskeySummary = {
   lastUsedLabel: string | null;
 };
 
+export type SignInMethodSummary = { provider: "apple" | "magic_link"; label: string };
+export type ConnectedGrantSummary = { id: string; clientName: string; scopes: readonly string[] };
+
 export type WebRenderContext = {
   security: { csrfToken: string; idempotencyPrefix: string };
   canonicalUrl: string;
   install: { hosts: Record<"codex" | "claude", InstallHost> };
-  auth: { passkeysEnabled: boolean; passkeys: readonly PasskeySummary[] };
+  auth: {
+    passkeysEnabled: boolean;
+    passkeys: readonly PasskeySummary[];
+    methods: readonly SignInMethodSummary[];
+    grants: readonly ConnectedGrantSummary[];
+  };
   viewer: { displayName: string; email: string };
   households: readonly HouseholdSummary[];
   members: readonly Member[];

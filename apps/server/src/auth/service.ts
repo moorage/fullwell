@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Clock, IdentityProviderPort, MailPort, RandomSource, TokenHasher } from "../core/ports.js";
 import { AppError } from "../core/errors.js";
 import type { Principal } from "../core/types.js";
-import type { AuthChallengeKind, AuthStore, IssuedWebSession, PasskeyCredential, PasskeyProvider } from "./types.js";
+import type { AuthChallengeKind, AuthStore, AuthUser, IssuedWebSession, PasskeyCredential, PasskeyProvider } from "./types.js";
 
 const PendingIntentSchema = z.string().max(2048).refine((value) => value.startsWith("/"), "Pending intents must be local paths");
 
@@ -46,6 +46,31 @@ export class BrowserAuthService {
     return this.issueSession(user, challenge.payload.pending_intent ?? null);
   }
 
+  async requestMagicLinkIdentity(userId: Principal["userId"], rawSessionToken: string, emailInput: string): Promise<void> {
+    await this.assertSessionUser(rawSessionToken, userId);
+    const email = z.email().parse(emailInput).trim().toLowerCase();
+    const token = this.random.token(32);
+    await this.store.saveChallenge({
+      id: this.random.opaqueId("challenge"),
+      kind: "magic_link",
+      tokenHash: this.hasher.hash(token),
+      browserBindingHash: this.hasher.hash(rawSessionToken),
+      payload: { subject_hash: this.hasher.hash(email), link_user_id: userId },
+      expiresAt: addMinutes(this.clock.now(), 15),
+      consumedAt: null,
+    });
+    const url = new URL("/account/sign-in-methods/magic_link/complete", this.publicOrigin);
+    url.searchParams.set("token", token);
+    await this.mail.sendMagicLink(email, url);
+  }
+
+  async completeMagicLinkIdentity(token: string, rawSessionToken: string): Promise<void> {
+    const challenge = await this.consumeChallenge("magic_link", token, rawSessionToken);
+    const userId = UserIdSchema.parse(requiredPayload(challenge.payload, "link_user_id"));
+    await this.assertSessionUser(rawSessionToken, userId);
+    await this.linkIdentity(userId, "magic_link", requiredPayload(challenge.payload, "subject_hash"));
+  }
+
   async beginApple(pendingIntentInput?: string): Promise<{ readonly state: string; readonly browserBinding: string }> {
     const state = this.random.token(32);
     const browserBinding = this.random.token(32);
@@ -59,10 +84,26 @@ export class BrowserAuthService {
     return { state, browserBinding };
   }
 
-  async completeApple(input: { readonly code: string; readonly state: string; readonly browserBinding: string; readonly redirectUri: string }): Promise<IssuedWebSession> {
+  async beginAppleIdentity(userId: Principal["userId"], rawSessionToken: string): Promise<{ readonly state: string; readonly browserBinding: string }> {
+    await this.assertSessionUser(rawSessionToken, userId);
+    const state = this.random.token(32);
+    const browserBinding = this.random.token(32);
+    await this.store.saveChallenge({
+      id: this.random.opaqueId("challenge"), kind: "apple", tokenHash: this.hasher.hash(state),
+      browserBindingHash: this.hasher.hash(browserBinding), payload: { link_user_id: userId, pending_intent: "/account" },
+      expiresAt: addMinutes(this.clock.now(), 10), consumedAt: null,
+    });
+    return { state, browserBinding };
+  }
+
+  async completeApple(input: { readonly code: string; readonly state: string; readonly browserBinding: string; readonly redirectUri: string; readonly rawSessionToken?: string }): Promise<IssuedWebSession> {
     const challenge = await this.consumeChallenge("apple", input.state, input.browserBinding);
     const identity = await this.apple.exchangeAppleCode(input.code, input.redirectUri, input.state);
-    const user = await this.resolveOrCreateUser("apple", this.hasher.hash(identity.subject), identity.name?.trim() || "Household member");
+    const subjectHash = this.hasher.hash(identity.subject);
+    const linkUserId = challenge.payload.link_user_id;
+    const user = linkUserId === undefined
+      ? await this.resolveOrCreateUser("apple", subjectHash, identity.name?.trim() || "Household member")
+      : await this.completeAppleIdentity(UserIdSchema.parse(linkUserId), input.rawSessionToken, subjectHash);
     return this.issueSession(user, challenge.payload.pending_intent ?? null);
   }
 
@@ -161,9 +202,9 @@ export class BrowserAuthService {
   }
 
   async removePasskey(userId: Principal["userId"], credentialId: string): Promise<void> {
-    if (!await this.store.revokePasskeyCredential({ credentialId, userId, revokedAt: this.clock.now().toISOString() })) {
-      throw new AppError("NOT_FOUND", "Passkey not found");
-    }
+    const result = await this.store.revokePasskeyCredential({ credentialId, userId, revokedAt: this.clock.now().toISOString() });
+    if (result === "not_found") throw new AppError("NOT_FOUND", "Passkey not found");
+    if (result === "last_method") throw new AppError("VALIDATION_FAILED", "Add another sign-in method before removing this passkey");
   }
 
   async authenticateSession(rawToken: string): Promise<Principal> {
@@ -172,13 +213,7 @@ export class BrowserAuthService {
     if (resolved === null || resolved.session.revokedAt !== null || new Date(resolved.session.expiresAt) <= now) {
       throw new AppError("AUTH_REQUIRED", "The sign-in session is invalid or expired");
     }
-    return {
-      userId: resolved.user.id,
-      actorId: ActorIdSchema.parse(resolved.user.actorId),
-      displayName: resolved.user.displayName,
-      scopes: new Set(["journal:read", "journal:write", "household:manage", "collection:share", "journal:export"]),
-      client: "web",
-    };
+    return principalFor(resolved.user);
   }
 
   async verifyCsrf(rawSessionToken: string, submittedToken: string): Promise<void> {
@@ -190,6 +225,39 @@ export class BrowserAuthService {
 
   async signOut(rawSessionToken: string): Promise<void> {
     await this.store.revokeSession(this.hasher.hash(rawSessionToken), this.clock.now().toISOString());
+  }
+
+  async requireRecentAuthentication(rawSessionToken: string, maximumAgeMinutes = 15): Promise<Principal> {
+    const resolved = await this.store.getSessionByTokenHash(this.hasher.hash(rawSessionToken));
+    const cutoff = this.clock.now().getTime() - maximumAgeMinutes * 60_000;
+    if (
+      resolved === null || resolved.session.revokedAt !== null || new Date(resolved.session.expiresAt) <= this.clock.now() ||
+      Date.parse(resolved.session.authenticatedAt) < cutoff
+    ) {
+      throw new AppError("AUTH_REQUIRED", "Sign in again before completing this action");
+    }
+    return principalFor(resolved.user);
+  }
+
+  private async assertSessionUser(rawSessionToken: string, userId: Principal["userId"]): Promise<AuthUser> {
+    const principal = await this.authenticateSession(rawSessionToken);
+    if (principal.userId !== userId) throw new AppError("FORBIDDEN", "The sign-in method belongs to a different account");
+    const user = await this.store.getUserById(userId);
+    if (user === null) throw new AppError("AUTH_REQUIRED", "Sign in is required");
+    return user;
+  }
+
+  private async completeAppleIdentity(userId: Principal["userId"], rawSessionToken: string | undefined, subjectHash: string) {
+    if (rawSessionToken === undefined) throw new AppError("AUTH_REQUIRED", "Sign in is required to link Apple");
+    const user = await this.assertSessionUser(rawSessionToken, userId);
+    await this.linkIdentity(userId, "apple", subjectHash);
+    return user;
+  }
+
+  private async linkIdentity(userId: Principal["userId"], provider: "apple" | "magic_link", subjectHash: string): Promise<void> {
+    const result = await this.store.linkIdentityMethod(userId, provider, subjectHash);
+    if (result === "identity_in_use") throw new AppError("VALIDATION_FAILED", "That sign-in method belongs to another account");
+    if (result === "user_not_found") throw new AppError("AUTH_REQUIRED", "Sign in is required");
   }
 
   private async consumeChallenge(kind: AuthChallengeKind, rawToken: string, browserBinding: string) {
@@ -207,7 +275,7 @@ export class BrowserAuthService {
     const expiresAt = addMinutes(this.clock.now(), 60 * 24 * 30);
     await this.store.saveSession({
       id: this.random.opaqueId("ses"), userId: user.id, tokenHash: this.hasher.hash(sessionToken), csrfHash: this.hasher.hash(csrfToken),
-      pendingIntent, expiresAt, revokedAt: null,
+      pendingIntent, authenticatedAt: this.clock.now().toISOString(), expiresAt, revokedAt: null,
     });
     return { sessionToken, csrfToken, expiresAt, pendingIntent, user };
   }
@@ -239,6 +307,16 @@ export class BrowserAuthService {
       consumedAt: null,
     });
   }
+}
+
+function principalFor(user: Awaited<ReturnType<AuthStore["resolveOrCreateUser"]>>): Principal {
+  return {
+    userId: user.id,
+    actorId: ActorIdSchema.parse(user.actorId),
+    displayName: user.displayName,
+    scopes: new Set(["journal:read", "journal:write", "household:manage", "collection:share", "journal:export"]),
+    client: "web",
+  };
 }
 
 function requiredPayload(payload: Readonly<Record<string, string>>, key: string): string {

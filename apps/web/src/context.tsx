@@ -44,6 +44,8 @@ const webRenderContextSchema: z.ZodType<WebRenderContext> = z.object({
       createdLabel: z.string().min(1),
       lastUsedLabel: z.string().min(1).nullable(),
     })),
+    methods: z.array(z.object({ provider: z.enum(["apple", "magic_link"]), label: z.string().min(1) })),
+    grants: z.array(z.object({ id: z.string().min(1), clientName: z.string().min(1), scopes: z.array(z.string().min(1)) })),
   }),
   viewer: z.object({ displayName: z.string(), email: z.string() }),
   households: z.array(z.object({

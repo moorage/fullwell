@@ -108,6 +108,9 @@ describe("Fastify application", () => {
     expect(response.body).toContain("We could not open this collection");
     expect(response.body).not.toContain("Alvarez");
     expect(response.body).toMatch(/assets\/index-[^"]+\.js/);
+    const account = await app.inject({ method: "GET", url: "/account" });
+    expect(account.statusCode).toBe(303);
+    expect(account.headers.location).toBe("/sign-in?returnTo=%2Faccount");
     const noJavaScriptPlan = await app.inject({
       method: "POST",
       url: "/c/not-a-real-token/import/plan",

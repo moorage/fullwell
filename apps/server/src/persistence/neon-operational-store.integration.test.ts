@@ -11,9 +11,13 @@ import {
   UserIdSchema,
 } from "@hfj/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { AccountService } from "../account/service.js";
+import { MemoryHouseholdRepository } from "../adapters/memory.js";
+import { DeterministicRandomSource, FixedClock } from "../adapters/providers.js";
 import type { TokenHasher } from "../core/ports.js";
 import type { MembershipRecord, MutationRecord } from "../core/types.js";
 import { NeonAuthStore } from "../auth/neon-store.js";
+import { NeonOAuthStore } from "../oauth/neon-store.js";
 import { NeonConnection } from "./neon.js";
 import { NeonOperationalStore } from "./neon-operational-store.js";
 
@@ -34,15 +38,21 @@ describeDatabase("NeonOperationalStore", () => {
   let connection: NeonConnection;
   let store: NeonOperationalStore;
   let authStore: NeonAuthStore;
+  let oauthStore: NeonOAuthStore;
 
   beforeAll(async () => {
     connection = new NeonConnection(testDatabaseUrl, testDatabaseUrl);
     store = new NeonOperationalStore(connection, tokenHasher);
     authStore = new NeonAuthStore(connection);
+    oauthStore = new NeonOAuthStore(connection);
     await connection.direct`TRUNCATE households, users CASCADE`;
     await connection.direct`
       INSERT INTO users (id, actor_id, display_name)
       VALUES (${ownerId}, ${ownerActorId}, 'Kitchen Owner')
+    `;
+    await connection.direct`
+      INSERT INTO external_identities (provider, provider_subject_hash, user_id)
+      VALUES ('magic_link', 'owner-subject', ${ownerId})
     `;
   });
 
@@ -226,8 +236,58 @@ describeDatabase("NeonOperationalStore", () => {
     await expect(authStore.updatePasskeyCounter({ credentialId: credential.credentialId, expectedCounter: 1, newCounter: 0, usedAt: "2026-07-15T12:01:00.000Z" })).resolves.toBe(false);
     await expect(authStore.updatePasskeyCounter({ credentialId: credential.credentialId, expectedCounter: 1, newCounter: 2, usedAt: "2026-07-15T12:01:00.000Z" })).resolves.toBe(true);
     expect(await authStore.getPasskeyCredential(credential.credentialId)).toMatchObject({ counter: 2, lastUsedAt: "2026-07-15T12:01:00.000Z" });
-    await expect(authStore.revokePasskeyCredential({ credentialId: credential.credentialId, userId: UserIdSchema.parse("usr_0000000000000199"), revokedAt: "2026-07-15T12:02:00.000Z" })).resolves.toBe(false);
-    await expect(authStore.revokePasskeyCredential({ credentialId: credential.credentialId, userId: ownerId, revokedAt: "2026-07-15T12:02:00.000Z" })).resolves.toBe(true);
+    await expect(authStore.revokePasskeyCredential({ credentialId: credential.credentialId, userId: UserIdSchema.parse("usr_0000000000000199"), revokedAt: "2026-07-15T12:02:00.000Z" })).resolves.toBe("not_found");
+    await expect(authStore.revokePasskeyCredential({ credentialId: credential.credentialId, userId: ownerId, revokedAt: "2026-07-15T12:02:00.000Z" })).resolves.toBe("removed");
     expect(await authStore.getPasskeyCredential(credential.credentialId)).toBeNull();
+  });
+
+  it("links and removes external identities without orphaning the account", async () => {
+    await expect(authStore.linkIdentityMethod(ownerId, "apple", "owner-apple")).resolves.toBe("linked");
+    await expect(authStore.linkIdentityMethod(ownerId, "apple", "owner-apple")).resolves.toBe("already_linked");
+    expect(await authStore.listIdentityMethods(ownerId)).toEqual(["apple", "magic_link"]);
+    await expect(authStore.removeIdentityMethod(ownerId, "magic_link")).resolves.toBe("removed");
+    await expect(authStore.removeIdentityMethod(ownerId, "apple")).resolves.toBe("last_method");
+  });
+
+  it("enforces final-owner membership safety and revokes connected agent tokens", async () => {
+    const lifecycleHouseholdId = HouseholdIdSchema.parse("hsh_0000000000000102");
+    const lifecycleUserId = UserIdSchema.parse("usr_0000000000000102");
+    const lifecycleActorId = ActorIdSchema.parse("act_0000000000000102");
+    const coOwnerId = UserIdSchema.parse("usr_0000000000000103");
+    const coOwnerActorId = ActorIdSchema.parse("act_0000000000000103");
+    await connection.direct`
+      INSERT INTO users (id, actor_id, display_name) VALUES
+      (${lifecycleUserId}, ${lifecycleActorId}, 'Lifecycle Owner'),
+      (${coOwnerId}, ${coOwnerActorId}, 'Co-owner')
+    `;
+    const lifecycleRepository = new MemoryHouseholdRepository();
+    const lifecycleHead = await lifecycleRepository.provision(
+      lifecycleHouseholdId, "Lifecycle Kitchen", lifecycleActorId, "2026-07-15T12:00:00.000Z",
+    );
+    await store.createHousehold(
+      { id: lifecycleHouseholdId, name: "Lifecycle Kitchen", repositoryHead: lifecycleHead, provisioningState: "ready", createdAt: "2026-07-15T12:00:00.000Z" },
+      { householdId: lifecycleHouseholdId, userId: lifecycleUserId, actorId: lifecycleActorId, role: "owner", projectionHead: lifecycleHead, removedAt: null },
+    );
+    await expect(store.leaveMembership(lifecycleUserId, lifecycleHouseholdId, "2026-07-15T12:10:00.000Z")).resolves.toBe("sole_owner");
+    await store.upsertMembership({ householdId: lifecycleHouseholdId, userId: coOwnerId, actorId: coOwnerActorId, role: "owner", projectionHead: lifecycleHead, removedAt: null });
+    const accounts = new AccountService(
+      authStore, store, oauthStore, new FixedClock(new Date("2026-07-15T12:12:00.000Z")),
+      lifecycleRepository, new DeterministicRandomSource(),
+    );
+    await accounts.leaveHousehold(lifecycleUserId, lifecycleHouseholdId);
+    expect(await lifecycleRepository.read(lifecycleHouseholdId, `members/${lifecycleActorId}.md`)).toContain("former_member: true");
+    await expect(store.leaveMembership(lifecycleUserId, lifecycleHouseholdId, "2026-07-15T12:13:00.000Z")).resolves.toBe("not_found");
+
+    await oauthStore.registerClient({ clientId: "lifecycle-client", name: "Lifecycle Agent", redirectUris: ["https://example.test/callback"], tokenEndpointAuthMethod: "none" });
+    await oauthStore.saveGrant({ id: "lifecycle-grant", userId: lifecycleUserId, clientId: "lifecycle-client", scopes: ["journal:read"], resource: "https://journal.example.test/mcp", revokedAt: null });
+    await oauthStore.saveToken({
+      id: "lifecycle-token", grantId: "lifecycle-grant", kind: "access", tokenHash: "lifecycle-token-hash",
+      familyId: null, parentId: null, pkceChallenge: null, redirectUri: null, audience: "https://journal.example.test/mcp",
+      expiresAt: "2026-07-16T12:00:00.000Z", usedAt: null, revokedAt: null,
+    });
+    expect(await oauthStore.listActiveGrants(lifecycleUserId)).toEqual([{ id: "lifecycle-grant", clientId: "lifecycle-client", clientName: "Lifecycle Agent", scopes: ["journal:read"] }]);
+    await expect(oauthStore.revokeGrantForUser(lifecycleUserId, "lifecycle-grant", "2026-07-15T12:14:00.000Z")).resolves.toBe(true);
+    expect((await oauthStore.getToken("lifecycle-token-hash"))?.revokedAt).toBe("2026-07-15T12:14:00.000Z");
+    expect(await oauthStore.listActiveGrants(lifecycleUserId)).toEqual([]);
   });
 });

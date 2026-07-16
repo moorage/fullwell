@@ -2,7 +2,7 @@ import { OAuthScopeSchema, UserIdSchema } from "@hfj/contracts";
 import type { Sql, TransactionSql } from "postgres";
 import { z } from "zod";
 import type { NeonConnection } from "../persistence/neon.js";
-import type { OAuthAccessIdentity, OAuthClient, OAuthGrant, OAuthStore, OAuthTokenRecord } from "./types.js";
+import type { OAuthAccessIdentity, OAuthClient, OAuthGrant, OAuthGrantSummary, OAuthStore, OAuthTokenRecord } from "./types.js";
 
 const TimestampSchema = z.union([z.date(), z.string()]).transform((value) => new Date(value).toISOString());
 const NullableTimestampSchema = z.union([z.date(), z.string()]).nullable().transform((value) => value === null ? null : new Date(value).toISOString());
@@ -55,6 +55,41 @@ export class NeonOAuthStore implements OAuthStore {
       SELECT id, user_id, client_id, scopes, resource, revoked_at FROM oauth_grants WHERE id = ${grantId}
     `;
     return rows[0] === undefined ? null : grantFromRow(rows[0]);
+  }
+
+  async listActiveGrants(userId: OAuthGrant["userId"]): Promise<readonly OAuthGrantSummary[]> {
+    const rows = await this.connection.pooled<Record<string, unknown>[]>`
+      SELECT g.id, g.client_id, g.scopes, c.metadata->>'client_name' AS client_name
+      FROM oauth_grants g JOIN oauth_clients c ON c.client_id = g.client_id
+      WHERE g.user_id = ${userId} AND g.revoked_at IS NULL
+      ORDER BY g.created_at, g.id
+    `;
+    return rows.map((row) => ({
+      id: z.string().parse(row.id),
+      clientId: z.string().parse(row.client_id),
+      clientName: z.string().min(1).parse(row.client_name),
+      scopes: z.array(OAuthScopeSchema).parse(row.scopes),
+    }));
+  }
+
+  async revokeGrantForUser(userId: OAuthGrant["userId"], grantId: string, revokedAt: string): Promise<boolean> {
+    return await this.connection.pooled.begin(async (sql) => {
+      const rows = await sql`
+        UPDATE oauth_grants SET revoked_at = ${revokedAt}
+        WHERE id = ${grantId} AND user_id = ${userId} AND revoked_at IS NULL
+        RETURNING id
+      `;
+      if (rows.length === 0) return false;
+      await sql`UPDATE oauth_tokens SET revoked_at = ${revokedAt} WHERE grant_id = ${grantId} AND revoked_at IS NULL`;
+      return true;
+    }) as boolean;
+  }
+
+  async revokeUserAccess(userId: OAuthGrant["userId"], revokedAt: string): Promise<void> {
+    await this.connection.pooled.begin(async (sql) => {
+      await sql`UPDATE oauth_tokens SET revoked_at = ${revokedAt} WHERE grant_id IN (SELECT id FROM oauth_grants WHERE user_id = ${userId}) AND revoked_at IS NULL`;
+      await sql`UPDATE oauth_grants SET revoked_at = ${revokedAt} WHERE user_id = ${userId} AND revoked_at IS NULL`;
+    });
   }
 
   async saveToken(token: OAuthTokenRecord): Promise<void> { await insertToken(this.connection, token); }

@@ -219,6 +219,9 @@ main { flex: 1; }
 .agent-callout h2, .agent-callout p { margin-bottom: 3px; }
 .profile-form { display: grid; grid-template-columns: minmax(240px, 420px) auto; gap: 12px; align-items: end; padding: 18px 0; }
 .account-section > form:not(.profile-form), .account-section > details { margin-top: 16px; }
+.account-form label, .confirmation-form label { display: grid; gap: 5px; font-size: 13px; font-weight: 700; }
+.account-form input, .confirmation-form input { box-sizing: border-box; width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid #a8b0a9; border-radius: 4px; background: white; color: var(--ink); }
+.confirmation-form { display: flex; align-items: end; gap: 8px; }
 .advanced-export { padding: 12px 0; }
 .advanced-export > p { color: var(--muted); }
 .danger-zone { margin-top: 56px; padding: 20px; border: 1px solid #d99187; background: #fff8f6; }

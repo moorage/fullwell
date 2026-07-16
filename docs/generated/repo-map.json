@@ -248,6 +248,28 @@
               "children": [
                 {
                   "type": "dir",
+                  "name": "account",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "routes.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "routes.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "service.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "service.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
                   "name": "adapters",
                   "children": [
                     {

@@ -104,7 +104,7 @@ describe("web experience", () => {
     renderApp("/sign-in?returnTo=%2Fc%2Fshare", {
       ...demoWebContext,
       emailSent: true,
-      auth: { passkeysEnabled: true, passkeys: [] },
+      auth: { ...demoWebContext.auth, passkeysEnabled: true, passkeys: [] },
     });
     expect(screen.getByRole("button", { name: "Sign in with a passkey" })).toBeVisible();
     expect(screen.getByText("Check your email")).toBeVisible();
@@ -134,7 +134,7 @@ describe("web experience", () => {
   });
 
   it("renders default sign-in, initial Claude install, expired collections, and missing households", () => {
-    renderApp("/sign-in", { ...demoWebContext, emailSent: false, auth: { passkeysEnabled: false, passkeys: [] } });
+    renderApp("/sign-in", { ...demoWebContext, emailSent: false, auth: { ...demoWebContext.auth, passkeysEnabled: false, passkeys: [] } });
     expect(screen.queryByText("Check your email")).not.toBeInTheDocument();
     expect(screen.queryByText(/return to what you were doing/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sign in with a passkey" })).not.toBeInTheDocument();
@@ -172,20 +172,35 @@ describe("web experience", () => {
 
   it("uses the anonymous account label when no display name is available", () => {
     renderApp("/account", { ...demoWebContext, viewer: { ...demoWebContext.viewer, displayName: "" } });
-    expect(screen.getByRole("heading", { name: "Fullwell member" })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Display name" })).toHaveValue("Fullwell member");
+  });
+
+  it("renders account lifecycle forms with CSRF-bound provider linking and destructive confirmations", () => {
+    renderApp("/account", { ...demoWebContext, auth: { ...demoWebContext.auth, methods: [] } });
+    const addEmail = screen.getByRole("button", { name: "Add email" }).closest("form");
+    const addApple = screen.getByRole("button", { name: "Add Apple" }).closest("form");
+    expect(addEmail).toHaveAttribute("action", "/account/sign-in-methods/magic_link/start");
+    expect(addApple).toHaveAttribute("action", "/account/sign-in-methods/apple/start");
+    expect(addEmail?.querySelector('input[name="csrf"]')).toHaveValue(demoWebContext.security.csrfToken);
+    expect(screen.getAllByPlaceholderText("Type LEAVE")).toHaveLength(demoWebContext.households.length);
+    expect(screen.getAllByPlaceholderText("Type LEAVE")[0]).toHaveAttribute("name", "confirmation");
+    expect(screen.getByRole("button", { name: "Delete account" }).closest("form")).toHaveAttribute("action", "/account/delete");
   });
 
   it("renders enrolled passkeys with CSRF-bound removal and enrollment controls", () => {
     renderApp("/account", {
       ...demoWebContext,
       auth: {
+        ...demoWebContext.auth,
         passkeysEnabled: true,
         passkeys: [{ id: "credential_41", name: "Passkey", createdLabel: "Jul 15, 2026", lastUsedLabel: "Jul 16, 2026" }],
       },
     });
     expect(screen.getByRole("heading", { name: "Passkeys" })).toBeVisible();
     expect(screen.getByText(/Added Jul 15, 2026/)).toBeVisible();
-    const remove = screen.getByRole("button", { name: "Remove" }).closest("form");
+    const remove = screen.getAllByRole("button", { name: "Remove" })
+      .map((button) => button.closest("form"))
+      .find((form) => form?.getAttribute("action") === "/auth/passkeys/credential_41/remove");
     expect(remove).toHaveAttribute("action", "/auth/passkeys/credential_41/remove");
     expect(remove?.querySelector('input[name="csrf"]')).toHaveValue(demoWebContext.security.csrfToken);
     expect(screen.getByRole("button", { name: "Add a passkey" })).toBeVisible();

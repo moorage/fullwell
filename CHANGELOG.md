@@ -9,3 +9,4 @@
 - Documented the ChatGPT-assisted information architecture, visual system, operational runbooks, legal drafts, release gates, and known pre-launch limitations.
 - Expanded deterministic domain, service, adapter, worker, HTTP, and React coverage past the enforced repository threshold and fixed completed in-memory household lock queues being retained.
 - Added discoverable WebAuthn passkey enrollment, sign-in, account listing/removal, session-bound single-use challenges, a reversible Neon credential migration, and signature-counter replay protection using SimpleWebAuthn.
+- Added the complete authenticated browser account lifecycle: anonymous sign-in redirect, display-name changes, browser-bound Apple/email identity linking, last-method-safe unlinking, connected-agent grant revocation, Git-audited household leave, final-owner protection, recent-auth deletion, immediate credential revocation, and stable former-member pseudonyms.

@@ -17,6 +17,7 @@ import { NeonAuthStore } from "./auth/neon-store.js";
 import { WebAuthnPasskeyProvider } from "./auth/providers.js";
 import { browserCsrfVerifier, browserPrincipalResolver } from "./auth/routes.js";
 import { BrowserAuthService } from "./auth/service.js";
+import { AccountService } from "./account/service.js";
 import type { AuthStore } from "./auth/types.js";
 import { parseConfig } from "./config.js";
 import type { AuthenticationPort, OperationalStorePort, SessionStorePort } from "./core/ports.js";
@@ -64,6 +65,7 @@ const service = new HouseholdFoodJournalService(store, repository, clock, random
 const passkeys = new WebAuthnPasskeyProvider({ rpName: "Fullwell", rpId: publicOrigin.hostname, origin: publicOrigin.origin });
 const browserAuth = new BrowserAuthService(authStore, clock, random, hasher, mail, identity, passkeys, publicOrigin);
 const oauth = new OAuthService(oauthStore, clock, random, hasher, new URL("/mcp", publicOrigin));
+const accounts = new AccountService(authStore, store, oauthStore, clock, repository, random);
 const productionAuthentication = new OAuthBearerAuthenticator(oauth, async (clientId) => {
   const client = await oauthStore.getClient(clientId);
   return client?.name.toLocaleLowerCase("en-US").includes("claude") === true ? "claude" : "codex";
@@ -82,6 +84,7 @@ const webViewModels = await WebViewModelService.create({
   resolvePrincipal: async (request) => request.cookies.hfj_session === undefined ? null : browserAuth.authenticateSession(request.cookies.hfj_session),
   verifyCsrf: browserCsrfVerifier(browserAuth),
   listPasskeys: (userId) => browserAuth.listPasskeys(userId),
+  accountSummary: (userId) => accounts.summary(userId),
 });
 const app = await buildApp({
   service,
@@ -97,6 +100,7 @@ const app = await buildApp({
     secureCookies: config.NODE_ENV === "production",
     ...(config.APPLE_CLIENT_ID === undefined ? {} : { appleAuthorization: { clientId: config.APPLE_CLIENT_ID, redirectUri: new URL("/auth/apple/callback", publicOrigin).toString() } }),
   },
+  account: { auth: browserAuth, accounts },
   oauth: { oauth, resolveBrowserPrincipal: browserPrincipalResolver(browserAuth), verifyCsrf: browserCsrfVerifier(browserAuth) },
   web: {
     assetsRoot: resolve(repositoryRoot, "apps/web/dist"),

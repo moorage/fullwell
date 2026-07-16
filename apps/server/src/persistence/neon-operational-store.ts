@@ -199,6 +199,29 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
     await this.upsertMembershipWith(this.sql(), membership);
   }
 
+  async leaveMembership(userId: UserId, householdId: HouseholdId, removedAt: string): Promise<"left" | "not_found" | "sole_owner"> {
+    return await this.connection.pooled.begin(async (sql) => {
+      await sql`SELECT pg_advisory_xact_lock(hashtextextended(${householdId}, 0))`;
+      const rows = await sql<{ role: string }[]>`
+        SELECT role FROM memberships
+        WHERE household_id = ${householdId} AND user_id = ${userId} AND removed_at IS NULL
+        FOR UPDATE
+      `;
+      const role = rows[0]?.role;
+      if (role === undefined) return "not_found" as const;
+      if (role === "owner") {
+        const owners = await sql<{ count: number | string }[]>`
+          SELECT count(*) AS count FROM memberships
+          WHERE household_id = ${householdId} AND role = 'owner' AND removed_at IS NULL
+        `;
+        if (z.coerce.number().parse(owners[0]?.count) <= 1) return "sole_owner" as const;
+      }
+      await sql`UPDATE memberships SET removed_at = ${removedAt}, updated_at = ${removedAt} WHERE household_id = ${householdId} AND user_id = ${userId}`;
+      await sql`UPDATE user_preferences SET default_household_id = NULL, updated_at = ${removedAt} WHERE user_id = ${userId} AND default_household_id = ${householdId}`;
+      return "left" as const;
+    }) as "left" | "not_found" | "sole_owner";
+  }
+
   async setDefaultHousehold(userId: UserId, householdId: HouseholdId): Promise<void> {
     await this.sql()`
       INSERT INTO user_preferences (user_id, default_household_id, updated_at)

@@ -32,6 +32,8 @@ Retries resume or return the recorded result. Ambiguous states enter reconciliat
 
 WebAuthn challenges are consumed exactly once and expire after five minutes. Authentication issues a session only after cryptographic verification and an atomic credential-counter update; a stale or regressing counter fails the ceremony rather than producing a success-shaped fallback. Counterless authenticators may remain at zero but cannot reset a nonzero stored counter.
 
+Browser household leave and account deletion use the same transaction-scoped household lock and Git membership document as MCP membership changes. The account is not deleted while it solely owns a household. Once eligible, deletion revokes connected OAuth access and browser credentials; any post-commit projection failure surfaces reconciliation-required rather than reporting success.
+
 ## Startup and health
 
 - `GET /health/live` proves the process event loop is alive without touching dependencies.

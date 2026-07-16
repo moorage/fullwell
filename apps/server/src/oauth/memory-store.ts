@@ -2,6 +2,7 @@ import type {
   OAuthAccessIdentity,
   OAuthClient,
   OAuthGrant,
+  OAuthGrantSummary,
   OAuthStore,
   OAuthTokenRecord,
 } from "./types.js";
@@ -20,6 +21,24 @@ export class MemoryOAuthStore implements OAuthStore {
   async registerClient(client: OAuthClient): Promise<void> { this.clients.set(client.clientId, client); }
   async saveGrant(grant: OAuthGrant): Promise<void> { this.grants.set(grant.id, grant); }
   async getGrant(grantId: string): Promise<OAuthGrant | null> { return this.grants.get(grantId) ?? null; }
+  async listActiveGrants(userId: OAuthGrant["userId"]): Promise<readonly OAuthGrantSummary[]> {
+    return [...this.grants.values()]
+      .filter((grant) => grant.userId === userId && grant.revokedAt === null)
+      .map((grant) => ({ id: grant.id, clientId: grant.clientId, clientName: this.clients.get(grant.clientId)?.name ?? "Connected agent", scopes: [...grant.scopes] }))
+      .sort((left, right) => left.id.localeCompare(right.id));
+  }
+  async revokeGrantForUser(userId: OAuthGrant["userId"], grantId: string, revokedAt: string): Promise<boolean> {
+    const grant = this.grants.get(grantId);
+    if (grant === undefined || grant.userId !== userId || grant.revokedAt !== null) return false;
+    this.grants.set(grantId, { ...grant, revokedAt });
+    for (const [hash, token] of this.tokens) if (token.grantId === grantId && token.revokedAt === null) this.tokens.set(hash, { ...token, revokedAt });
+    return true;
+  }
+  async revokeUserAccess(userId: OAuthGrant["userId"], revokedAt: string): Promise<void> {
+    const grantIds = new Set([...this.grants.values()].filter((grant) => grant.userId === userId).map((grant) => grant.id));
+    for (const [id, grant] of this.grants) if (grantIds.has(id) && grant.revokedAt === null) this.grants.set(id, { ...grant, revokedAt });
+    for (const [hash, token] of this.tokens) if (grantIds.has(token.grantId) && token.revokedAt === null) this.tokens.set(hash, { ...token, revokedAt });
+  }
   async saveToken(token: OAuthTokenRecord): Promise<void> { this.tokens.set(token.tokenHash, token); }
 
   async consumeAuthorizationCode(input: { readonly tokenHash: string; readonly clientId: string; readonly redirectUri: string; readonly pkceChallenge: string; readonly usedAt: string }): Promise<{ readonly token: OAuthTokenRecord; readonly grant: OAuthGrant } | null> {

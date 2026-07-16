@@ -1617,6 +1617,16 @@
         },
         {
           "type": "dir",
+          "name": "load",
+          "children": [
+            {
+              "type": "file",
+              "name": "concurrency.test.ts"
+            }
+          ]
+        },
+        {
+          "type": "dir",
           "name": "restore",
           "children": [
             {

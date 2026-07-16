@@ -13,7 +13,7 @@ export default tseslint.config(
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
       parserOptions: {
-        projectService: { allowDefaultProject: ["*.config.ts", "tests/e2e/*.ts", "tests/security/*.ts", "tests/restore/*.ts"] },
+        projectService: { allowDefaultProject: ["*.config.ts", "tests/e2e/*.ts", "tests/load/*.ts", "tests/security/*.ts", "tests/restore/*.ts"] },
         tsconfigRootDir: import.meta.dirname,
       },
     },

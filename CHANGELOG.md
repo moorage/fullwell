@@ -16,3 +16,4 @@
 - Added fail-closed per-route rate limits, server-generated request correlation, redacted structured telemetry, protected OpenMetrics, and operator health for schema, reconciliation, backup gaps, signing, and repository-volume capacity.
 - Added encrypted immutable off-site backups through a generic S3-compatible Backblaze B2 adapter, Ed25519-signed manifests, compliance Object Lock verification, daily durable checkpoints, fsck/signature evidence, and automatic isolated restore drills.
 - Added automated WCAG 2.2 A/AA axe coverage across public, pending-intent, authenticated, desktop Safari, iPhone, 320-pixel, and reduced-motion states; removed transient low-contrast opacity from the page entrance animation.
+- Added a deterministic load/race gate for MCP discovery, public-preview shedding, request correlation, idempotent mutation fan-in, competing stale writes, cross-tenant reads, and same-household maintenance serialization.

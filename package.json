@@ -20,6 +20,7 @@
     "test:contract": "vitest run --project contracts && npm run test:packaging",
     "test:integration": "vitest run tests/integration apps/server --config vitest.integration.config.ts",
     "test:security": "vitest run tests/security",
+    "test:load": "vitest run tests/load",
     "test:packaging": "npm run test:packaging --workspace @fullwell/household-food-journal-agent",
     "test:evals": "npm run test:evals --workspace @fullwell/household-food-journal-agent",
     "test:e2e": "playwright test",

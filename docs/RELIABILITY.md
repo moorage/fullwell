@@ -64,6 +64,12 @@ The server generates request IDs and returns `X-Request-ID`; caller-supplied val
 
 Do not log or label metrics with access/refresh/share/invitation tokens, emails, household titles, food or recipe names, order IDs, source URLs, evidence bodies, user-authored notes, Git signing material, or raw provider responses.
 
+## Load and concurrency gates
+
+`npm run test:load` exercises the real Fastify, MCP, service, memory-store, and repository boundaries without external credentials. Its local budgets require 100 concurrent authenticated MCP discovery requests to settle within five seconds with unique server request IDs; public preview bursts may return only non-enumerating misses or bounded `RATE_LIMITED` responses; 32 identical writes must produce one response and one commit; competing writes from one HEAD must produce one commit and explicit conflicts; cross-household reads must reveal no private content; and 100 same-household lock operations must serialize while another household remains able to progress.
+
+This deterministic gate validates invariants, not production capacity. Staging still requires networked latency, sustained/soak, Neon pool and advisory-lock wait, OAuth token, collection import, maintenance overlap, and resource-saturation measurements on the selected Droplet size.
+
 ## Required verification
 
 As implementation lands, add real commands for unit, contract, Neon integration, Git integration, OAuth/MCP interoperability, security, agent eval, browser e2e, backup/restore, and deployed persistence smoke tests. The deployed smoke must prove that a canary repository survives a container restart and a controlled Droplet failover procedure without using production household data.
@@ -73,6 +79,7 @@ The repository verification entry points include:
 - `npm run test:unit`
 - `npm run test:integration`
 - `npm run test:security`
+- `npm run test:load`
 - `npm run test:e2e`
 - `npm run test:restore`
 - `npm run verify`

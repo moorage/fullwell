@@ -998,6 +998,8 @@ Cover:
 
 Include tests for cross-household ID substitution, token enumeration, CSRF, open redirects, stored/reflected XSS, malicious Markdown, prompt-injection text, path traversal, Git argument injection, symlink/submodule insertion, oversized input, replay, refresh-token reuse, share-token leakage through referrers, and log redaction.
 
+Malformed JSON, unsupported media types, and oversized request bodies must fail as bounded, non-reflecting 4xx responses. Browser-rendered URL fields must accept only HTTP(S), and production browser builds must not publish source maps or read server-secret environment variables.
+
 No new LLM-involved server behavior may ship without evals. The server should not call an LLM in version 1; semantic reasoning belongs to the connected Codex or Claude client.
 
 ## 22. Deployment

@@ -6,7 +6,7 @@
   - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
 
-- current milestone: completed deterministic local load/race hardening after automated accessibility; the active ExecPlan remains open on adversarial security, provisioned load, manual accessibility, recovery, staging, and release blockers recorded in `docs/release/verification-evidence.md`
+- current milestone: completed deterministic local adversarial security after automated accessibility and load/race hardening; the active ExecPlan remains open on external security review, provisioned load, manual accessibility, recovery, staging, and release blockers recorded in `docs/release/verification-evidence.md`
 - implemented React 19.2 SSR/hydration, server-authorized web contexts, public collection privacy states, no-JavaScript forms, Fastify MCP/OAuth, Apple/Resend adapters, Neon persistence, Git mutation/import provenance, reversible migrations, shared contracts, and the Codex/Claude agent package
 - implemented DigitalOcean OpenTofu, Block Storage initialization checks, pinned Node 24 Docker build, Compose/Caddy/systemd deployment, local deployment/MCP smokes, legal drafts, and operations/release runbooks
 - verified macOS Safari through Computer Use, including the native Codex/Claude toggle state, anonymous account redirect, preserved `/account` pending intent, labeled sign-in controls, and visible focus; 18 automated WebKit checks pass with six project-specific skips across desktop, iPhone, 320x568, and JavaScript-disabled modes
@@ -18,8 +18,9 @@
 - implemented daily fsck/signature-verified Git bundles, Ed25519-signed manifests, JWE authenticated encryption, generic S3-compatible Backblaze uploads with compliance retention checks, reversible backup-evidence migration, durable operator status, and automatic monthly isolated restore drills
 - added Deque axe WCAG 2.0/2.1/2.2 A/AA scans over five live public routes and nine production-SSR screens, fixed transient entrance-animation contrast, asserted reduced motion and responsive overflow, and made Playwright consume the production SSR bundle
 - added a real Fastify/MCP load gate covering 100-request discovery bursts, preview shedding, unique request IDs, 32-request idempotent fan-in, competing stale writes, 50 cross-tenant reads, and 100-operation household lock queues with cross-household progress
+- added adversarial Fastify and React coverage for bounded parser rejection, capability-safe telemetry, hostile/prompt-like public content, HTTP(S)-only web URLs, recognizable tracked-secret absence, and browser/server environment separation; disabled production browser source maps
 - fixed Neon account leave reusing its existing household transaction instead of opening a second transaction that waits on the same advisory lock
-- expanded deterministic unit, component, domain, service, adapter, worker, HTTP view-model, React interaction, and load coverage to 97.06% statements/lines, 95.07% functions, and 90.29% branches across 187 passing tests
+- expanded deterministic unit, component, domain, service, adapter, worker, HTTP view-model, React interaction, load, and security coverage to 97.07% statements/lines, 95.07% functions, and 90.46% branches across 191 passing tests
 - expanded WebKit evidence to 18 passing checks with six intentional project-specific skips, including axe, reduced motion, export layout, native disclosure, and overflow assertions; manual VoiceOver, full keyboard, zoom, and hardware-device review remain open
 - fixed in-memory household lock-tail cleanup so completed queues are released instead of retained; process composition roots and Neon adapters remain assigned to deployment/browser and isolated PostgreSQL integration gates
 - commands run include:

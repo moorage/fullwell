@@ -16,4 +16,10 @@
 - Export contains readable data and pseudonymous audit history without private identity mappings or credentials.
 - Logs contain request IDs and safe categories but no email, household title, food name, order ID, source URL, body, or token.
 
+## Local automated evidence
+
+- `npm run test:security` passes direct public-snapshot, unsafe-path/archive, malformed/unsupported/oversized-body, capability-log, hostile-rendering, prompt-content, URL-scheme, and tracked-secret probes.
+- The broader deterministic suite covers cross-household substitution, role/scope enforcement, CSRF, redirect validation, OAuth/passkey replay, refresh reuse, invitation/share non-enumeration, final-owner/idempotency races, Git object rejection, export claims, and central telemetry redaction.
+- This evidence is implementation proof only. Reviewer identity, build digest, staging configuration, external probing, and approval remain unrecorded and release-blocking.
+
 Record reviewers, date, build digest, schema and format versions, test evidence, findings, owners, and closure. Security/privacy severity high or critical blocks release. Any policy/runtime mismatch blocks publication.

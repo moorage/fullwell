@@ -3,6 +3,10 @@ import { z } from "zod";
 import type { WebRenderContext } from "./types.js";
 
 const WebContext = createContext<WebRenderContext | null>(null);
+const safeHttpUrlSchema = z.url().refine((value) => {
+  const protocol = new URL(value).protocol;
+  return protocol === "http:" || protocol === "https:";
+}, "Only http and https URLs are accepted");
 
 export function WebContextProvider({ context, children }: { context: WebRenderContext; children: ReactNode }) {
   return <WebContext.Provider value={context}>{children}</WebContext.Provider>;
@@ -24,7 +28,7 @@ const collectionItemSchema = z.object({
   kind: z.enum(["recipe", "snack"]),
   title: z.string().min(1),
   source: z.string(),
-  imageUrl: z.url().optional(),
+  imageUrl: safeHttpUrlSchema.optional(),
   imageAlt: z.string().optional(),
   note: z.string().optional(),
   selected: z.boolean(),
@@ -34,7 +38,7 @@ const installHostSchema = z.object({ label: z.string().min(1), command: z.string
 
 const webRenderContextSchema: z.ZodType<WebRenderContext> = z.object({
   security: z.object({ csrfToken: z.string().min(16), idempotencyPrefix: z.string().min(8) }),
-  canonicalUrl: z.url(),
+  canonicalUrl: safeHttpUrlSchema,
   install: z.object({ hosts: z.object({ codex: installHostSchema, claude: installHostSchema }) }),
   auth: z.object({
     passkeysEnabled: z.boolean(),
@@ -57,7 +61,7 @@ const webRenderContextSchema: z.ZodType<WebRenderContext> = z.object({
   })),
   collections: z.array(z.object({
     id: z.string().min(1), title: z.string().min(1), itemCount: z.number().int().nonnegative(),
-    status: z.enum(["private", "published", "expired"]), detail: z.string(), publicUrl: z.url().optional(),
+    status: z.enum(["private", "published", "expired"]), detail: z.string(), publicUrl: safeHttpUrlSchema.optional(),
   })),
   publicCollection: z.object({
     token: z.string().min(1), title: z.string().min(1), sharedBy: z.string().min(1), expiresLabel: z.string(),

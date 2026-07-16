@@ -32,6 +32,14 @@ const RateLimitErrorSchema = z.object({
   statusCode: z.literal(429),
   error: z.object({ code: z.literal("RATE_LIMITED"), message: z.string(), retry_after_seconds: z.number().int().positive() }).strict(),
 }).strict();
+const ContentParserErrorSchema = z.object({
+  code: z.enum([
+    "FST_ERR_CTP_BODY_TOO_LARGE",
+    "FST_ERR_CTP_EMPTY_JSON_BODY",
+    "FST_ERR_CTP_INVALID_JSON_BODY",
+    "FST_ERR_CTP_INVALID_MEDIA_TYPE",
+  ]),
+}).passthrough();
 
 export interface AppDependencies {
   readonly service: HouseholdFoodJournalService;
@@ -109,6 +117,14 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     if (rateLimitError.success) {
       dependencies.observability?.error("http.request_failed", new Error("RateLimitExceeded"), { request_id: String(request.id), method: request.method, route, status_code: 429, error_code: "RATE_LIMITED" });
       return reply.code(429).send({ error: rateLimitError.data.error });
+    }
+    const contentParserError = ContentParserErrorSchema.safeParse(error);
+    if (contentParserError.success) {
+      const statusCode = contentParserError.data.code === "FST_ERR_CTP_BODY_TOO_LARGE"
+        ? 413
+        : contentParserError.data.code === "FST_ERR_CTP_INVALID_MEDIA_TYPE" ? 415 : 400;
+      dependencies.observability?.error("http.request_failed", new Error("RequestContentRejected"), { request_id: String(request.id), method: request.method, route, status_code: statusCode, error_code: "VALIDATION_FAILED" });
+      return reply.code(statusCode).send({ error: { code: "VALIDATION_FAILED", message: "Request content was rejected" } });
     }
     if (error instanceof z.ZodError) {
       dependencies.observability?.error("http.request_failed", error, { request_id: String(request.id), method: request.method, route, status_code: 400, error_code: "VALIDATION_FAILED" });

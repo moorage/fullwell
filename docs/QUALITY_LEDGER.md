@@ -14,28 +14,28 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 
 ## Scorecard
 
-- Architecture legibility: 4 - product and deployment boundaries are explicit; implementation has not tested them.
-- Boundary parsing and type discipline: 1 - required by the harness, not implemented.
-- Test strength: 2 - harness tests exist; application, contract, eval, integration, security, and e2e suites do not.
-- Reliability and observability: 1 - requirements exist; service health, mutation recovery, backups, and telemetry do not.
-- Security hardening: 1 - trust boundaries are documented; application controls are not implemented.
-- Documentation freshness: 4 - harness guidance is specialized to the accepted specs and stack.
-- Operational simplicity: 3 - one service and one writer are simple, but Droplet failover and durable Git operations remain unproven.
+- Architecture legibility: 4 - product, authority, adapter, and deployment boundaries are explicit and represented in the implementation; external staging proof remains incomplete.
+- Boundary parsing and type discipline: 4 - strict TypeScript contracts and runtime schemas cover HTTP, MCP, Git, provider, and persistence boundaries; provisioned-provider verification remains incomplete.
+- Test strength: 4 - the enforced deterministic coverage gate, contracts, dual-host evals, PostgreSQL integration, migrations, security fixtures, WebKit e2e, Git restore, and deployment smokes pass; full accessibility, load, and external compatibility suites remain open.
+- Reliability and observability: 3 - health, mutation-state, reconciliation, backup, restore, and deployment primitives exist, but durable reconciliation, production telemetry, off-site backup, and failover drills remain release blockers.
+- Security hardening: 3 - trust boundaries, typed authorization, redaction, capability projection, OAuth controls, and security fixtures exist; passkeys, production rate limits, and the complete adversarial suite remain open.
+- Documentation freshness: 4 - product, architecture, operations, release evidence, and the active ExecPlan reflect the implemented foundation and known blockers.
+- Operational simplicity: 3 - one service and one writer are simple and locally deployable, but Droplet failover and durable off-site recovery remain unproven.
 
 ## Evidence
 
 - `docs/product-specs/household-food-journal-server.md` and `docs/product-specs/household-food-journal-client.md` define normative acceptance behavior.
 - `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, and `docs/RELIABILITY.md` define the target authorities and failure boundaries.
-- `scripts/git-hooks/` and `scripts/self-improvement/` have deterministic harness tests.
-- No `apps/`, `packages/`, `migrations/`, application tests, or deployment definitions exist yet.
+- Deterministic unit/component coverage passes with 111 tests at 96.93% statements/lines, 94.42% functions, and 90.04% branches; Neon integration adapters and process roots retain dedicated environment gates.
+- Contract, 20-case Codex/Claude eval, PostgreSQL integration, reversible migration, security-boundary, WebKit e2e, Git restore, local deployment, MCP discovery, Docker, Caddy, Compose, and OpenTofu checks pass.
+- `apps/`, `packages/`, `migrations/`, `infra/`, and `deploy/` contain the coordinated React 19.2, Fastify, Neon, Git, agent-package, and DigitalOcean foundation.
 
 ## Structural debt register
 
-- Foundation implementation is absent: React 19.2, TypeScript server, contracts, Neon migrations, Git adapter, and deployment artifacts remain to be built.
-- DigitalOcean Block Storage mount validation, single-writer failover fencing, off-site backup, and restore drills are unproven.
-- Neon transaction-scoped advisory-lock behavior and migration strategy need integration tests against isolated branches.
-- OAuth/MCP interoperability across Codex and Claude and the dual-host agent package need contract tests and evals.
-- Public collection privacy, import prompt-injection handling, and cross-household authorization need security fixtures before release.
+- Passkey enrollment/sign-in, the complete browser account lifecycle, readable ZIP delivery, durable post-commit reconciliation, and production rate limiting/telemetry remain incomplete.
+- DigitalOcean Block Storage failover fencing, immutable off-site backup, external restore drills, and provisioned staging rollback remain unproven.
+- Real Neon, Apple, email, Codex, and Claude interoperability still needs non-production credentials and external compatibility evidence.
+- Full accessibility, load/race, privacy, secret-rotation, and manual release reviews remain no-go gates.
 
 ## Maintenance rule
 

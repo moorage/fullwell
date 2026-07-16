@@ -175,11 +175,12 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
     const previous = this.lockTails.get(householdId) ?? Promise.resolve();
     let release = (): void => {};
     const current = new Promise<void>((resolve) => { release = resolve; });
-    this.lockTails.set(householdId, previous.then(() => current));
+    const tail = previous.then(() => current);
+    this.lockTails.set(householdId, tail);
     await previous;
     try { return await operation(); } finally {
       release();
-      if (this.lockTails.get(householdId) === current) this.lockTails.delete(householdId);
+      if (this.lockTails.get(householdId) === tail) this.lockTails.delete(householdId);
     }
   }
   async projection(householdId: HouseholdId): Promise<HouseholdProjection> {

@@ -252,6 +252,10 @@
                   "children": [
                     {
                       "type": "file",
+                      "name": "memory.test.ts"
+                    },
+                    {
+                      "type": "file",
                       "name": "memory.ts"
                     },
                     {
@@ -268,6 +272,10 @@
                   "type": "dir",
                   "name": "auth",
                   "children": [
+                    {
+                      "type": "file",
+                      "name": "memory-store.test.ts"
+                    },
                     {
                       "type": "file",
                       "name": "memory-store.ts"
@@ -306,6 +314,10 @@
                   "type": "dir",
                   "name": "backup",
                   "children": [
+                    {
+                      "type": "file",
+                      "name": "backup-service.test.ts"
+                    },
                     {
                       "type": "file",
                       "name": "backup-service.ts"
@@ -348,7 +360,15 @@
                   "children": [
                     {
                       "type": "file",
+                      "name": "authorization.test.ts"
+                    },
+                    {
+                      "type": "file",
                       "name": "authorization.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "journal-validation.test.ts"
                     },
                     {
                       "type": "file",
@@ -394,6 +414,10 @@
                     },
                     {
                       "type": "file",
+                      "name": "web-view-model.test.ts"
+                    },
+                    {
+                      "type": "file",
                       "name": "web-view-model.ts"
                     },
                     {
@@ -414,6 +438,10 @@
                   "type": "dir",
                   "name": "oauth",
                   "children": [
+                    {
+                      "type": "file",
+                      "name": "authenticator.test.ts"
+                    },
                     {
                       "type": "file",
                       "name": "authenticator.ts"
@@ -476,6 +504,10 @@
                   "children": [
                     {
                       "type": "file",
+                      "name": "household-food-journal.test.ts"
+                    },
+                    {
+                      "type": "file",
                       "name": "household-food-journal.ts"
                     },
                     {
@@ -488,6 +520,10 @@
                   "type": "dir",
                   "name": "workers",
                   "children": [
+                    {
+                      "type": "file",
+                      "name": "reconciliation-worker.test.ts"
+                    },
                     {
                       "type": "file",
                       "name": "reconciliation-worker.ts"
@@ -641,6 +677,10 @@
                     {
                       "type": "file",
                       "name": "setup.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "share-actions.test.tsx"
                     }
                   ]
                 },
@@ -984,68 +1024,6 @@
           "type": "dir",
           "name": "opentofu",
           "children": [
-            {
-              "type": "dir",
-              "name": ".terraform",
-              "children": [
-                {
-                  "type": "dir",
-                  "name": "providers",
-                  "children": [
-                    {
-                      "type": "dir",
-                      "name": "registry.opentofu.org",
-                      "children": [
-                        {
-                          "type": "dir",
-                          "name": "digitalocean",
-                          "children": [
-                            {
-                              "type": "dir",
-                              "name": "digitalocean",
-                              "children": [
-                                {
-                                  "type": "dir",
-                                  "name": "2.95.0",
-                                  "children": [
-                                    {
-                                      "type": "dir",
-                                      "name": "linux_arm64",
-                                      "children": [
-                                        {
-                                          "type": "file",
-                                          "name": "CHANGELOG.md"
-                                        },
-                                        {
-                                          "type": "file",
-                                          "name": "LICENSE"
-                                        },
-                                        {
-                                          "type": "file",
-                                          "name": "README.md"
-                                        },
-                                        {
-                                          "type": "file",
-                                          "name": "terraform-provider-digitalocean_v2.95.0"
-                                        }
-                                      ]
-                                    },
-                                    {
-                                      "type": "file",
-                                      "name": "linux_arm64.lock"
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
             {
               "type": "file",
               "name": ".terraform.lock.hcl"

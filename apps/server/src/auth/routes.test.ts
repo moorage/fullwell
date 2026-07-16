@@ -21,7 +21,7 @@ class CapturingMail implements MailPort {
   async sendInvitation(): Promise<void> {}
 }
 
-async function fixture() {
+async function fixture(appleAuthorization?: { readonly clientId: string; readonly redirectUri: string }) {
   const mail = new CapturingMail();
   const auth = new BrowserAuthService(
     new MemoryAuthStore(), new FixedClock(new Date("2026-07-15T12:00:00.000Z")), new DeterministicRandomSource(),
@@ -30,13 +30,13 @@ async function fixture() {
   );
   const app = Fastify();
   await app.register(cookie);
-  await registerBrowserAuthRoutes(app, { auth, secureCookies: true });
+  await registerBrowserAuthRoutes(app, { auth, secureCookies: true, ...(appleAuthorization === undefined ? {} : { appleAuthorization }) });
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof AppError) return reply.code(error.code === "PROVIDER_UNAVAILABLE" ? 503 : 400).send({ error: { code: error.code } });
     if (error instanceof z.ZodError) return reply.code(400).send({ error: { code: "VALIDATION_FAILED" } });
     return reply.code(500).send();
   });
-  return { app, mail };
+  return { app, auth, mail };
 }
 
 describe("browser auth routes", () => {
@@ -73,6 +73,93 @@ describe("browser auth routes", () => {
     const response = await app.inject({ method: "POST", url: "/auth/passkey/start", payload: {} });
     expect(response.statusCode).toBe(503);
     expect(response.json().error.code).toBe("PROVIDER_UNAVAILABLE");
+    const options = await app.inject({ method: "POST", url: "/auth/passkey/options", payload: {} });
+    expect(options.statusCode).toBe(503);
+    await app.close();
+  });
+
+  it("redirects HTML magic-link requests and signs out with cookie-bound CSRF", async () => {
+    const { app, mail } = await fixture();
+    const request = await app.inject({
+      method: "POST",
+      url: "/auth/magic-link",
+      headers: { accept: "text/html" },
+      payload: { email: "member@example.test" },
+    });
+    expect(request.statusCode).toBe(303);
+    expect(request.headers.location).toBe("/sign-in?emailSent=1");
+    const link = mail.url;
+    if (link === null) throw new Error("Magic link was not sent");
+    const completed = await app.inject({ method: "GET", url: `${link.pathname}${link.search}` });
+    expect(completed.headers.location).toBe("/households");
+    const setCookies = completed.headers["set-cookie"];
+    if (!Array.isArray(setCookies)) throw new Error("session cookies were not set");
+    const cookieHeader = setCookies.map((value) => value.split(";", 1)[0]).join("; ");
+    const csrf = /hfj_csrf=([^;]+)/.exec(cookieHeader)?.[1];
+    if (csrf === undefined) throw new Error("CSRF cookie was not set");
+    const signedOut = await app.inject({
+      method: "POST",
+      url: "/auth/sign-out",
+      headers: { accept: "text/html", cookie: cookieHeader },
+      payload: { csrf_token: csrf },
+    });
+    expect(signedOut.statusCode).toBe(303);
+    expect(signedOut.headers.location).toBe("/install");
+    expect(signedOut.headers["set-cookie"]).toEqual(expect.arrayContaining([expect.stringContaining("hfj_session=;"), expect.stringContaining("hfj_csrf=;")]));
+    const missingSession = await app.inject({ method: "POST", url: "/auth/sign-out", payload: { csrf: "c".repeat(32) } });
+    expect(missingSession.json().error.code).toBe("AUTH_REQUIRED");
+
+    await app.inject({ method: "POST", url: "/auth/magic-link", payload: { email: "member@example.test" } });
+    const secondLink = mail.url;
+    if (secondLink === null) throw new Error("Second magic link was not sent");
+    const secondCompleted = await app.inject({ method: "GET", url: `${secondLink.pathname}${secondLink.search}` });
+    const secondCookies = secondCompleted.headers["set-cookie"];
+    if (!Array.isArray(secondCookies)) throw new Error("Second session cookies were not set");
+    const secondCookieHeader = secondCookies.map((value) => value.split(";", 1)[0]).join("; ");
+    const secondCsrf = /hfj_csrf=([^;]+)/.exec(secondCookieHeader)?.[1];
+    if (secondCsrf === undefined) throw new Error("Second CSRF cookie was not set");
+    const passkey = await app.inject({ method: "POST", url: "/auth/passkey/start", headers: { cookie: secondCookieHeader }, payload: {} });
+    expect(passkey.statusCode).toBe(503);
+    const jsonSignOut = await app.inject({ method: "POST", url: "/auth/sign-out", headers: { cookie: secondCookieHeader }, payload: { csrf: secondCsrf } });
+    expect(jsonSignOut.statusCode).toBe(204);
+    await app.close();
+  });
+
+  it("builds the configured Apple authorization redirect and rejects invalid callbacks", async () => {
+    const { app } = await fixture({ clientId: "com.example.fullwell", redirectUri: "https://journal.example.test/auth/apple/callback" });
+    const started = await app.inject({ method: "POST", url: "/auth/apple/start", payload: {} });
+    expect(started.statusCode).toBe(302);
+    const authorization = new URL(started.headers.location ?? "https://invalid.test");
+    expect(authorization.origin).toBe("https://appleid.apple.com");
+    expect(authorization.searchParams.get("client_id")).toBe("com.example.fullwell");
+
+    const issuedState = authorization.searchParams.get("state");
+    const bindingCookies = started.headers["set-cookie"];
+    const bindingHeader = Array.isArray(bindingCookies) ? bindingCookies.join("; ") : bindingCookies ?? "";
+    const binding = /hfj_auth_binding=([^;]+)/.exec(bindingHeader)?.[1];
+    if (issuedState === null || binding === undefined) throw new Error("Apple start state or binding missing");
+    const missingBinding = await app.inject({ method: "POST", url: "/auth/apple/callback", payload: { code: "code", state: issuedState } });
+    expect(missingBinding.json().error.code).toBe("AUTH_REQUIRED");
+    const explicitBinding = await app.inject({
+      method: "POST",
+      url: "/auth/apple/callback",
+      payload: { code: "code", state: issuedState, browser_binding: binding, redirect_uri: "https://journal.example.test/auth/apple/callback" },
+    });
+    expect(explicitBinding.json().error.code).toBe("PROVIDER_UNAVAILABLE");
+
+    const cookieStarted = await app.inject({ method: "POST", url: "/auth/apple/start", payload: {} });
+    const cookieAuthorization = new URL(cookieStarted.headers.location ?? "https://invalid.test");
+    const cookieState = cookieAuthorization.searchParams.get("state");
+    const cookieSetHeader = cookieStarted.headers["set-cookie"];
+    const cookieHeader = Array.isArray(cookieSetHeader) ? cookieSetHeader.map((value) => value.split(";", 1)[0]).join("; ") : cookieSetHeader?.split(";", 1)[0];
+    if (cookieState === null || cookieHeader === undefined) throw new Error("Cookie callback fixture missing");
+    const cookieCallback = await app.inject({
+      method: "POST",
+      url: "/auth/apple/callback",
+      headers: { cookie: cookieHeader },
+      payload: { code: "code", state: cookieState },
+    });
+    expect(cookieCallback.json().error.code).toBe("PROVIDER_UNAVAILABLE");
     await app.close();
   });
 });

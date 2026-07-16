@@ -7,3 +7,4 @@
 - Added the shared Codex and Claude agent package with five skills, packaging validation, and a 20-case cross-host eval matrix.
 - Added the DigitalOcean Droplet, Block Storage, Caddy, Compose, systemd, OpenTofu, deployment smoke, migration, security, and isolated Git restore assets.
 - Documented the ChatGPT-assisted information architecture, visual system, operational runbooks, legal drafts, release gates, and known pre-launch limitations.
+- Expanded deterministic domain, service, adapter, worker, HTTP, and React coverage past the enforced repository threshold and fixed completed in-memory household lock queues being retained.

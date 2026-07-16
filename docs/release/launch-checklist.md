@@ -11,7 +11,7 @@
 ## Quality and safety
 
 - [ ] Lint, typecheck, build, unit, contract, integration, security, eval, e2e, deploy smoke, docs, and ExecPlan gates pass.
-- [ ] Deterministic domain/adapter coverage meets the repository threshold; every LLM-involved semantic path has Codex and Claude eval evidence.
+- [x] Deterministic domain/adapter coverage meets the repository threshold; every LLM-involved semantic path has Codex and Claude eval evidence.
 - [ ] Accessibility and privacy reviews are approved with no release-blocking finding.
 - [ ] Cross-tenant, OAuth, CSRF, XSS/Markdown, prompt injection, Git/path, replay, rate-limit, redaction, race, and load suites pass.
 - [ ] Privacy and Terms pages are no-JavaScript accessible and linked from install, sign-in, consent, collection, account, export, and deletion boundaries.

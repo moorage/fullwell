@@ -21,7 +21,8 @@ Version 1 deploys one containerized service on one DigitalOcean Droplet. `/data/
 - [x] 2026-07-16T01:35Z: Implemented and validated the shared five-skill Codex/Claude package, 22-tool catalog, 20-case dual-host eval matrix, DigitalOcean/OpenTofu topology, Node 24 Docker image, Compose/Caddy/systemd deployment, legal drafts, and operator runbooks.
 - [x] 2026-07-16T01:35Z: Passed unit, contract, packaging, eval, security-boundary, isolated Git restore, PostgreSQL 17 integration, migration up/down/up, WebKit e2e, Docker build, Compose render, Caddy, OpenTofu, local deploy, MCP discovery, and production dependency audit checks.
 - [x] 2026-07-16T01:35Z: Exercised the live install and invalid collection-capability states in macOS Safari through Computer Use; verified native accessible controls, Codex/Claude selection, and non-enumerating private-data behavior.
-- [ ] 2026-07-16T01:35Z: Coverage is 67.55% against the 90% gate. Passkeys, complete account lifecycle, durable reconciliation, encrypted off-site backup, readable ZIP delivery, production rate limiting/telemetry, and external staging/manual review remain blocking; see `docs/release/verification-evidence.md`.
+- [x] 2026-07-16T02:50Z: Closed the enforced coverage gate with 111 passing tests and 96.93% statements/lines, 94.42% functions, and 90.04% branches. Process roots and Neon adapters remain assigned to their deployment/browser and isolated PostgreSQL integration gates.
+- [ ] 2026-07-16T02:50Z: Passkeys, complete account lifecycle, durable reconciliation, encrypted off-site backup, readable ZIP delivery, production rate limiting/telemetry, and external staging/manual review remain blocking; see `docs/release/verification-evidence.md`.
 - [ ] Milestone 0 - validate platform assumptions and approve ChatGPT-assisted information architecture and UI design.
 - [ ] Milestone 1 - establish the monorepo, shared contracts, generated schemas, fakes, and real quality gates.
 - [ ] Milestone 2 - implement Neon persistence, household Git repositories, the mutation state machine, reconciliation, export, and local recovery proof.
@@ -42,6 +43,7 @@ Version 1 deploys one containerized service on one DigitalOcean Droplet. `/data/
 - 2026-07-15: Neon transaction-mode pooling cannot safely hold session-scoped advisory locks. Every household mutation must use a transaction-scoped lock on one checked-out connection and transaction; migrations and session-dependent administration use a direct connection.
 - 2026-07-15: Failure-oriented critique found three release gaps in the first draft: dual Codex/Claude manifests and catalogs were not named as deliverables, public privacy/legal surfaces were only implicit, and the Droplet secret lifecycle lacked a selected delivery and rotation mechanism. The milestones below now make all three blocking work.
 - 2026-07-16: A real coverage run exposed that broad application composition and provider branches are not sufficiently tested: 67.55% lines versus the 90% configured threshold. The gate remains enabled and failing rather than being lowered.
+- 2026-07-16: Focused domain, service, adapter, worker, HTTP, and React tests raised deterministic coverage to 96.93% statements/lines, 94.42% functions, and 90.04% branches. The same work exposed and fixed an in-memory lock-tail retention defect.
 - 2026-07-16: Native Safari review found no layout or privacy defect in the tested install and invalid-capability states. Automated WebKit also passed at desktop, iPhone, 320x568, and with JavaScript disabled.
 - 2026-07-16: Local deployment smoke initially returned Fastify's default 500 for unauthenticated MCP requests after the static plugin registered. Moving the application error boundary before route/plugin registration restored the required 401 challenge and added a regression assertion with the web plugin enabled.
 
@@ -58,10 +60,11 @@ Version 1 deploys one containerized service on one DigitalOcean Droplet. `/data/
 - 2026-07-15: Do not add browser-side snack or recipe editing in version 1. The authenticated household UI exposes role/member/invitation/collection/export administration and links users to the agent installation flow.
 - 2026-07-15: Release backend, web, contracts, and agent client as one coordinated version until backward-compatible schema evolution and an explicit client compatibility window are proven.
 - 2026-07-15: Publish accessible `/privacy` and `/terms` pages and link them from install, sign-in, OAuth consent, public collection, account, and deletion flows. Their claims must match implemented collection, retention, export, deletion, support, and subprocessors behavior.
+- 2026-07-16: Keep the enforced deterministic coverage threshold at 90%. Exclude only process composition roots and Neon integration adapters from that unit denominator because they require process, browser, deployment, or PostgreSQL execution; keep those dedicated gates mandatory and separately evidenced.
 
 ## Context and Orientation
 
-The repository currently has no application code. The long-lived sources of truth are:
+The repository now contains the coordinated application foundation. The long-lived sources of truth are:
 
 - `AGENTS.md` for workflow and invariants;
 - `docs/ARCHITECTURE.md` for authority and dependency boundaries;
@@ -721,4 +724,4 @@ Required public contracts include:
 
 ## Outcomes & Retrospective
 
-The coordinated version 1 foundation is implemented and locally exercised across web, MCP/OAuth, Git, PostgreSQL, agent packaging, and DigitalOcean deployment assets. The plan remains active because the product specifications' release definition is not yet met: coverage, passkeys, account lifecycle, reconciliation, encrypted backup, readable export delivery, production telemetry/rate limits, external staging, cross-host compatibility, and manual privacy/accessibility/operations approvals remain blocking. Evidence and exact local results live in `docs/release/verification-evidence.md`. Move this plan to `docs/exec-plans/completed/` only after those gates pass.
+The coordinated version 1 foundation is implemented and locally exercised across web, MCP/OAuth, Git, PostgreSQL, agent packaging, and DigitalOcean deployment assets. The enforced deterministic coverage gate now passes. The plan remains active because the product specifications' release definition is not yet met: passkeys, account lifecycle, reconciliation, encrypted backup, readable export delivery, production telemetry/rate limits, external staging, cross-host compatibility, and manual privacy/accessibility/operations approvals remain blocking. Evidence and exact local results live in `docs/release/verification-evidence.md`. Move this plan to `docs/exec-plans/completed/` only after those gates pass.

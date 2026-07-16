@@ -116,9 +116,64 @@ describe("Fastify application", () => {
     });
     expect(noJavaScriptPlan.statusCode).toBe(200);
     expect(noJavaScriptPlan.body).toContain("We could not open this collection");
+    const repeatedSelectionPlan = await app.inject({
+      method: "POST",
+      url: "/c/not-a-real-token/import/plan",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: "itemIds=collection-item-1&itemIds=collection-item-2&csrf=cccccccccccccccc&idempotencyKey=plan-key-0002",
+    });
+    expect(repeatedSelectionPlan.statusCode).toBe(200);
+    const unconfiguredImport = await app.inject({
+      method: "POST",
+      url: "/c/not-a-real-token/import",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: "householdId=household-1&itemIds=collection-item-1&csrf=cccccccccccccccc&idempotencyKey=import-key-0001",
+    });
+    expect(unconfiguredImport.statusCode).toBe(501);
+    const nonWeb = await app.inject({ method: "GET", url: "/not-a-web-route" });
+    expect(nonWeb.statusCode).toBe(404);
     const unauthorizedMcp = await app.inject({ method: "GET", url: "/mcp" });
     expect(unauthorizedMcp.statusCode).toBe(401);
     expect(unauthorizedMcp.headers["www-authenticate"]).toContain("resource_metadata");
+    await app.close();
+  });
+
+  it("maps tool and public-preview failures to stable HTTP statuses", async () => {
+    const { app } = await fixture();
+    const headers = { authorization: "Bearer test-owner-token" };
+    const created = await app.inject({ method: "POST", url: "/api/tools/hfj_create_household", headers, payload: { name: "Status Kitchen", idempotency_key: "status-household-0001" } });
+    const householdId = created.json().data.household_id;
+    const head = created.json().repository_head;
+
+    const forbidden = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_get_profile",
+      headers: { authorization: "Bearer test-member-token" },
+      payload: { household_id: householdId, profile: "household" },
+    });
+    expect(forbidden.statusCode).toBe(403);
+
+    const missing = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_get_item",
+      headers,
+      payload: { household_id: householdId, item_id: "itm_0000000000000999" },
+    });
+    expect(missing.statusCode).toBe(404);
+
+    const conflict = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_update_profile",
+      headers,
+      payload: { household_id: householdId, expected_head: "f".repeat(40), profile: "household", markdown: "# Stale", idempotency_key: "status-conflict-0001" },
+    });
+    expect(conflict.statusCode).toBe(409);
+    expect(head).not.toBe("f".repeat(40));
+
+    const preview = await app.inject({ method: "GET", url: "/api/collections/short" });
+    expect(preview.statusCode).toBe(400);
+    expect(preview.headers["cache-control"]).toBe("no-store");
+    expect(preview.headers["x-robots-tag"]).toBe("noindex, nofollow");
     await app.close();
   });
 });

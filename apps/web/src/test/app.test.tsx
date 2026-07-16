@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { App } from "../app.js";
 import { parseWebRenderContext } from "../context.js";
 import { demoWebContext } from "../fixtures.js";
@@ -20,6 +20,22 @@ describe("web experience", () => {
     await user.click(screen.getByRole("button", { name: "Use with Claude" }));
     expect(screen.getByText(/claude plugin install/)).toBeVisible();
     expect(screen.queryByText(/codex plugins install/)).not.toBeInTheDocument();
+  });
+
+  it("reports install-command copy success and failure", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    renderApp("/install");
+    await user.click(screen.getByRole("button", { name: "Copy" }));
+    expect(writeText).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Copied" })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Use with Claude" }));
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn(async () => { throw new Error("clipboard unavailable"); }) } });
+    await user.click(screen.getByRole("button", { name: "Copy" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Copy failed");
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
   });
 
   it("does not accept an invitation when its preview opens", () => {
@@ -69,6 +85,8 @@ describe("web experience", () => {
   });
 
   it.each([
+    ["/sign-in?returnTo=%2Fc%2Fshare", "Sign in to Fullwell"],
+    ["/authorize", "Let Codex use your food journal?"],
     ["/households", "Your households"],
     ["/households/alvarez-home", "Alvarez home"],
     ["/households/alvarez-home/members", "People in Alvarez home"],
@@ -76,9 +94,85 @@ describe("web experience", () => {
     ["/account", "Account"],
     ["/privacy", "Privacy Policy"],
     ["/terms", "Terms of Service"],
+    ["/missing", "Page not found"],
   ])("renders the %s route", (url, heading) => {
     renderApp(url);
     expect(screen.getByRole("heading", { name: heading, level: 1 })).toBeVisible();
+  });
+
+  it("renders passkey, email-sent, and unavailable public states from server context", () => {
+    renderApp("/sign-in?returnTo=%2Fc%2Fshare", {
+      ...demoWebContext,
+      emailSent: true,
+      auth: { passkeysEnabled: true },
+    });
+    expect(screen.getByRole("button", { name: "Sign in with a passkey" })).toBeVisible();
+    expect(screen.getByText("Check your email")).toBeVisible();
+    expect(screen.getAllByDisplayValue("/c/share")).toHaveLength(2);
+
+    renderApp("/c/unavailable", { ...demoWebContext, collectionState: "unavailable" });
+    expect(screen.getByRole("heading", { name: "We could not open this collection" })).toBeVisible();
+
+    renderApp("/c/unavailable/import/plan", { ...demoWebContext, collectionState: "revoked" });
+    expect(screen.getByRole("heading", { name: "This collection is no longer shared" })).toBeVisible();
+  });
+
+  it.each([
+    ["expired", "The invitation expired"],
+    ["revoked", "The invitation was withdrawn"],
+  ] as const)("renders the %s invitation terminal state", (state, notice) => {
+    renderApp("/invite/family/terminal", { ...demoWebContext, invite: { ...demoWebContext.invite, state } });
+    expect(screen.getByRole("heading", { name: "This invitation is no longer available" })).toBeVisible();
+    expect(screen.getByText(notice)).toBeVisible();
+  });
+
+  it("renders joined invitations with and without a household destination", () => {
+    renderApp("/invite/family/joined", { ...demoWebContext, invite: { ...demoWebContext.invite, state: "joined" } });
+    expect(screen.getByRole("link", { name: "Open household" })).toHaveAttribute("href", expect.stringMatching(/^\/households\//));
+    renderApp("/invite/family/joined", { ...demoWebContext, households: [], invite: { ...demoWebContext.invite, state: "joined" } });
+    expect(screen.getAllByRole("link", { name: "Open household" }).at(-1)).toHaveAttribute("href", "/households");
+  });
+
+  it("renders default sign-in, initial Claude install, expired collections, and missing households", () => {
+    renderApp("/sign-in", { ...demoWebContext, emailSent: false, auth: { passkeysEnabled: false } });
+    expect(screen.queryByText("Check your email")).not.toBeInTheDocument();
+    expect(screen.queryByText(/return to what you were doing/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in with a passkey" })).not.toBeInTheDocument();
+
+    renderApp("/install?host=claude");
+    expect(screen.getByText(/claude plugin install/)).toBeVisible();
+    renderApp("/c/expired", { ...demoWebContext, collectionState: "expired" });
+    expect(screen.getByRole("heading", { name: "This collection has expired" })).toBeVisible();
+
+    for (const url of ["/households/missing", "/households/missing/members", "/households/missing/collections"]) {
+      renderApp(url);
+    }
+    expect(screen.getAllByRole("heading", { name: "Page not found" })).toHaveLength(3);
+  });
+
+  it("hides owner-only member controls from non-owners and renders collection status actions", () => {
+    const viewerContext = {
+      ...demoWebContext,
+      households: demoWebContext.households.map((household) => ({ ...household, role: "viewer" as const })),
+      members: demoWebContext.members.map((member) => ({ ...member, isCurrentUser: false })),
+      collections: [
+        { id: "published", title: "Published", itemCount: 1, status: "published" as const, detail: "Live", publicUrl: "https://journal.example.test/c/live" },
+        { id: "private", title: "Private", itemCount: 1, status: "private" as const, detail: "Private" },
+        { id: "expired", title: "Expired", itemCount: 1, status: "expired" as const, detail: "Inactive" },
+      ],
+    };
+    renderApp(`/households/${viewerContext.households[0]?.id}/members`, viewerContext);
+    expect(screen.queryByText("Invite a family member")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save role" })).not.toBeInTheDocument();
+    renderApp(`/households/${viewerContext.households[0]?.id}/collections`, viewerContext);
+    expect(screen.getByRole("link", { name: "Preview" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Copy link" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Revoke link" })).toBeVisible();
+  });
+
+  it("uses the anonymous account label when no display name is available", () => {
+    renderApp("/account", { ...demoWebContext, viewer: { ...demoWebContext.viewer, displayName: "" } });
+    expect(screen.getByRole("heading", { name: "Fullwell member" })).toBeVisible();
   });
 
   it("renders resilient HTML forms on the server", () => {

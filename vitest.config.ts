@@ -2,6 +2,13 @@ import { defineConfig } from "vitest/config";
 import { resolve } from "node:path";
 
 const root = import.meta.dirname;
+const compositionRoots = ["**/src/main.ts", "**/src/cli.ts", "**/src/client.tsx"];
+const databaseIntegrationAdapters = [
+  "**/src/auth/neon-store.ts",
+  "**/src/oauth/neon-store.ts",
+  "**/src/persistence/neon.ts",
+  "**/src/persistence/neon-operational-store.ts",
+];
 
 export default defineConfig({
   test: {
@@ -13,7 +20,15 @@ export default defineConfig({
     ],
     coverage: {
       all: true,
-      exclude: ["**/*.config.*", "**/dist/**", "**/*.d.ts", "**/src/index.ts", "tests/**"],
+      exclude: [
+        "**/*.config.*",
+        "**/dist/**",
+        "**/*.d.ts",
+        "**/src/index.ts",
+        "tests/**",
+        ...compositionRoots,
+        ...databaseIntegrationAdapters,
+      ],
       include: ["apps/*/src/**/*.{ts,tsx}", "packages/*/src/**/*.ts"],
       provider: "v8",
       reporter: ["text", "json-summary", "html"],

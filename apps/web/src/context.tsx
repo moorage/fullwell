@@ -36,7 +36,15 @@ const webRenderContextSchema: z.ZodType<WebRenderContext> = z.object({
   security: z.object({ csrfToken: z.string().min(16), idempotencyPrefix: z.string().min(8) }),
   canonicalUrl: z.url(),
   install: z.object({ hosts: z.object({ codex: installHostSchema, claude: installHostSchema }) }),
-  auth: z.object({ passkeysEnabled: z.boolean() }),
+  auth: z.object({
+    passkeysEnabled: z.boolean(),
+    passkeys: z.array(z.object({
+      id: z.string().min(1),
+      name: z.string().min(1),
+      createdLabel: z.string().min(1),
+      lastUsedLabel: z.string().min(1).nullable(),
+    })),
+  }),
   viewer: z.object({ displayName: z.string(), email: z.string() }),
   households: z.array(z.object({
     id: z.string().min(1), name: z.string().min(1), role: householdRoleSchema, members: z.number().int().nonnegative(),

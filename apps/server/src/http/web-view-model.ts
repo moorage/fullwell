@@ -6,6 +6,7 @@ import { z } from "zod";
 import { AppError } from "../core/errors.js";
 import type { AuthenticationPort, OperationalStorePort, RandomSource, TokenHasher } from "../core/ports.js";
 import type { HouseholdRecord, MembershipRecord, Principal } from "../core/types.js";
+import type { PasskeyCredential } from "../auth/types.js";
 import { HouseholdFoodJournalService } from "../services/household-food-journal.js";
 import type { WebImportInput } from "./web.js";
 
@@ -33,6 +34,7 @@ export class WebViewModelService {
     private readonly install: z.infer<typeof InstallMetadataSchema>,
     private readonly resolvePrincipal: ((request: FastifyRequest) => Promise<Principal | null>) | undefined,
     private readonly verifyCsrf: ((request: FastifyRequest, submittedToken: string) => Promise<void>) | undefined,
+    private readonly listPasskeys: ((userId: Principal["userId"]) => Promise<readonly PasskeyCredential[]>) | undefined,
   ) {}
 
   static async create(options: {
@@ -45,9 +47,21 @@ export class WebViewModelService {
     installMetadataPath: string;
     resolvePrincipal?: (request: FastifyRequest) => Promise<Principal | null>;
     verifyCsrf?: (request: FastifyRequest, submittedToken: string) => Promise<void>;
+    listPasskeys?: (userId: Principal["userId"]) => Promise<readonly PasskeyCredential[]>;
   }): Promise<WebViewModelService> {
     const metadata = InstallMetadataSchema.parse(JSON.parse(await readFile(options.installMetadataPath, "utf8")));
-    return new WebViewModelService(options.service, options.store, options.authentication, options.hasher, options.random, options.publicOrigin, metadata, options.resolvePrincipal, options.verifyCsrf);
+    return new WebViewModelService(
+      options.service,
+      options.store,
+      options.authentication,
+      options.hasher,
+      options.random,
+      options.publicOrigin,
+      metadata,
+      options.resolvePrincipal,
+      options.verifyCsrf,
+      options.listPasskeys,
+    );
   }
 
   async importCollection(request: FastifyRequest, input: WebImportInput): Promise<{ householdId: string }> {
@@ -100,6 +114,9 @@ export class WebViewModelService {
       : await this.collectionFor(collectionToken);
     const invite = invitationToken === undefined ? defaultInvite() : await this.inviteFor(invitationToken, principal !== null);
     const csrfToken = request.cookies.hfj_csrf === undefined ? this.random.token(24) : z.string().min(16).max(512).parse(request.cookies.hfj_csrf);
+    const passkeys = principal === null || pathname !== "/account" || this.listPasskeys === undefined
+      ? []
+      : await this.listPasskeys(principal.userId);
 
     return {
       security: { csrfToken, idempotencyPrefix: this.random.opaqueId("web") },
@@ -108,7 +125,15 @@ export class WebViewModelService {
         codex: { label: hostName(this.install.platforms.codex.label), command: this.install.platforms.codex.fallback_commands.join(" && "), next: this.install.platforms.codex.primary_action },
         claude: { label: hostName(this.install.platforms.claude.label), command: this.install.platforms.claude.fallback_commands.join(" && "), next: this.install.platforms.claude.primary_action },
       } },
-      auth: { passkeysEnabled: false },
+      auth: {
+        passkeysEnabled: this.listPasskeys !== undefined,
+        passkeys: passkeys.map((credential) => ({
+          id: credential.credentialId,
+          name: credential.name,
+          createdLabel: formatDate(credential.createdAt),
+          lastUsedLabel: credential.lastUsedAt === null ? null : formatDate(credential.lastUsedAt),
+        })),
+      },
       viewer: { displayName: principal?.displayName ?? "", email: "" },
       households,
       members: selectedMembership === undefined || principal === null ? [] : await this.membersFor(selectedMembership.household, principal),
@@ -220,4 +245,8 @@ function defaultInvite(): WebRenderContext["invite"] {
 
 function hostName(label: string): string {
   return label.startsWith("Use with ") ? label.slice("Use with ".length) : label;
+}
+
+function formatDate(value: string): string {
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));
 }

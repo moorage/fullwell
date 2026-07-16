@@ -104,7 +104,7 @@ describe("web experience", () => {
     renderApp("/sign-in?returnTo=%2Fc%2Fshare", {
       ...demoWebContext,
       emailSent: true,
-      auth: { passkeysEnabled: true },
+      auth: { passkeysEnabled: true, passkeys: [] },
     });
     expect(screen.getByRole("button", { name: "Sign in with a passkey" })).toBeVisible();
     expect(screen.getByText("Check your email")).toBeVisible();
@@ -134,7 +134,7 @@ describe("web experience", () => {
   });
 
   it("renders default sign-in, initial Claude install, expired collections, and missing households", () => {
-    renderApp("/sign-in", { ...demoWebContext, emailSent: false, auth: { passkeysEnabled: false } });
+    renderApp("/sign-in", { ...demoWebContext, emailSent: false, auth: { passkeysEnabled: false, passkeys: [] } });
     expect(screen.queryByText("Check your email")).not.toBeInTheDocument();
     expect(screen.queryByText(/return to what you were doing/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sign in with a passkey" })).not.toBeInTheDocument();
@@ -173,6 +173,22 @@ describe("web experience", () => {
   it("uses the anonymous account label when no display name is available", () => {
     renderApp("/account", { ...demoWebContext, viewer: { ...demoWebContext.viewer, displayName: "" } });
     expect(screen.getByRole("heading", { name: "Fullwell member" })).toBeVisible();
+  });
+
+  it("renders enrolled passkeys with CSRF-bound removal and enrollment controls", () => {
+    renderApp("/account", {
+      ...demoWebContext,
+      auth: {
+        passkeysEnabled: true,
+        passkeys: [{ id: "credential_41", name: "Passkey", createdLabel: "Jul 15, 2026", lastUsedLabel: "Jul 16, 2026" }],
+      },
+    });
+    expect(screen.getByRole("heading", { name: "Passkeys" })).toBeVisible();
+    expect(screen.getByText(/Added Jul 15, 2026/)).toBeVisible();
+    const remove = screen.getByRole("button", { name: "Remove" }).closest("form");
+    expect(remove).toHaveAttribute("action", "/auth/passkeys/credential_41/remove");
+    expect(remove?.querySelector('input[name="csrf"]')).toHaveValue(demoWebContext.security.csrfToken);
+    expect(screen.getByRole("button", { name: "Add a passkey" })).toBeVisible();
   });
 
   it("renders resilient HTML forms on the server", () => {

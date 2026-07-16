@@ -45,6 +45,8 @@ Path: `apps/web/`
 
 The frontend consumes explicit server contracts from `packages/contracts/`. It does not authorize requests, hold provider secrets, write Git, interpret repository paths, or make semantic food decisions. Public collection data must come from the server's allowlisted snapshot projection, never from a private household object serialized in the browser.
 
+Passkey ceremonies use SimpleWebAuthn at the browser and server provider boundaries. Neon stores credential identifiers, public keys, counters, transport hints, device metadata, and revocation timestamps; private keys remain in the user's authenticator. Registration is authenticated and CSRF-protected, while discoverable authentication uses a short-lived single-use challenge bound to an HttpOnly browser transaction cookie.
+
 ### Shared contracts
 
 Purpose: define semantic TypeScript boundary types and runtime schemas for HTTP, MCP tools, Git documents, projections, errors, and mutation state transitions.
@@ -118,7 +120,7 @@ The production health path must distinguish process readiness, Neon reachability
 
 ## Current release limitations
 
-The application foundation, 22-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, agent package, and DigitalOcean deployment assets are implemented. Version 1 is not production-ready while WebAuthn enrollment/authentication, complete browser account lifecycle handlers, durable reconciliation, encrypted off-site backup, readable ZIP downloads, production telemetry/rate limits, and external staging compatibility remain open in the active ExecPlan.
+The application foundation, WebAuthn passkeys, 22-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, agent package, and DigitalOcean deployment assets are implemented. Version 1 is not production-ready while complete browser account lifecycle handlers, durable reconciliation, encrypted off-site backup, readable ZIP downloads, production telemetry/rate limits, external staging compatibility, and native passkey compatibility evidence remain open in the active ExecPlan.
 
 ## Maintenance rules
 

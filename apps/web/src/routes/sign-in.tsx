@@ -1,5 +1,6 @@
-import { Fingerprint, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import { AppShell } from "../components/app-shell.js";
+import { PasskeySignInButton } from "../components/passkey-actions.js";
 import { Button, Field, PageHeader, StatusNotice, TextInput } from "../components/ui.js";
 import { useWebContext } from "../context.js";
 
@@ -27,11 +28,7 @@ export function SignInRoute({ emailSent, returnTo }: { emailSent: boolean; retur
             </Button>
           </form>
           {auth.passkeysEnabled ? (
-            <form action="/auth/passkey/start" method="post">
-              <Button className="button--full" type="submit" variant="secondary">
-                <Fingerprint aria-hidden="true" size={20} /> Sign in with a passkey
-              </Button>
-            </form>
+            <PasskeySignInButton returnTo={returnTo} />
           ) : null}
           <div className="auth-divider"><span>or</span></div>
           <form action="/auth/magic-link" method="post" className="stack-form">

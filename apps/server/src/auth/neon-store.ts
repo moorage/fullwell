@@ -1,7 +1,7 @@
 import { ActorIdSchema, UserIdSchema, type UserId } from "@hfj/contracts";
 import { z } from "zod";
 import type { NeonConnection } from "../persistence/neon.js";
-import type { AuthChallenge, AuthStore, AuthUser, WebSession } from "./types.js";
+import type { AuthChallenge, AuthStore, AuthUser, PasskeyCredential, WebSession } from "./types.js";
 
 const TimestampSchema = z.union([z.date(), z.string()]).transform((value) => new Date(value).toISOString());
 const NullableTimestampSchema = z.union([z.date(), z.string()]).nullable().transform((value) => value === null ? null : new Date(value).toISOString());
@@ -15,6 +15,18 @@ const ChallengeRowSchema = z.object({
   consumed_at: NullableTimestampSchema,
 });
 const UserRowSchema = z.object({ id: UserIdSchema, actor_id: ActorIdSchema, display_name: z.string().min(1) });
+const PasskeyRowSchema = z.object({
+  credential_id: z.string().min(1),
+  user_id: UserIdSchema,
+  public_key: z.instanceof(Uint8Array),
+  counter: z.union([z.number(), z.string(), z.bigint()]).transform((value) => z.number().int().nonnegative().parse(Number(value))),
+  transports: z.array(z.enum(["ble", "cable", "hybrid", "internal", "nfc", "smart-card", "usb"])),
+  device_type: z.enum(["singleDevice", "multiDevice"]),
+  backed_up: z.boolean(),
+  display_name: z.string().min(1).max(120),
+  created_at: TimestampSchema,
+  last_used_at: NullableTimestampSchema,
+});
 const SessionRowSchema = z.object({
   id: z.string(), user_id: UserIdSchema, token_hash: z.string(), csrf_hash: z.string(),
   pending_intent: z.string().nullable(), expires_at: TimestampSchema, revoked_at: NullableTimestampSchema,
@@ -72,6 +84,70 @@ export class NeonAuthStore implements AuthStore {
     }) as AuthUser;
   }
 
+  async getUserById(userId: UserId): Promise<AuthUser | null> {
+    const rows = await this.connection.pooled<Record<string, unknown>[]>`
+      SELECT id, actor_id, display_name FROM users WHERE id = ${userId} AND deleted_at IS NULL
+    `;
+    return rows[0] === undefined ? null : userFromRow(rows[0]);
+  }
+
+  async savePasskeyCredential(credential: PasskeyCredential): Promise<boolean> {
+    const rows = await this.connection.pooled<Record<string, unknown>[]>`
+      INSERT INTO passkey_credentials (
+        credential_id, user_id, public_key, counter, transports, device_type, backed_up, display_name, created_at, last_used_at
+      ) VALUES (
+        ${credential.credentialId}, ${credential.userId}, ${credential.publicKey}, ${credential.counter}, ${[...credential.transports]},
+        ${credential.deviceType}, ${credential.backedUp}, ${credential.name}, ${credential.createdAt}, ${credential.lastUsedAt}
+      )
+      ON CONFLICT (credential_id) DO NOTHING
+      RETURNING credential_id
+    `;
+    return rows[0] !== undefined;
+  }
+
+  async getPasskeyCredential(credentialId: string): Promise<PasskeyCredential | null> {
+    const rows = await this.connection.pooled<Record<string, unknown>[]>`
+      SELECT credential_id, user_id, public_key, counter, transports, device_type, backed_up,
+             display_name, created_at, last_used_at
+      FROM passkey_credentials
+      WHERE credential_id = ${credentialId} AND revoked_at IS NULL
+    `;
+    return rows[0] === undefined ? null : passkeyFromRow(rows[0]);
+  }
+
+  async listPasskeyCredentials(userId: UserId): Promise<readonly PasskeyCredential[]> {
+    const rows = await this.connection.pooled<Record<string, unknown>[]>`
+      SELECT credential_id, user_id, public_key, counter, transports, device_type, backed_up,
+             display_name, created_at, last_used_at
+      FROM passkey_credentials
+      WHERE user_id = ${userId} AND revoked_at IS NULL
+      ORDER BY created_at, credential_id
+    `;
+    return rows.map(passkeyFromRow);
+  }
+
+  async updatePasskeyCounter(input: { readonly credentialId: string; readonly expectedCounter: number; readonly newCounter: number; readonly usedAt: string }): Promise<boolean> {
+    const rows = await this.connection.pooled<Record<string, unknown>[]>`
+      UPDATE passkey_credentials
+      SET counter = ${input.newCounter}, last_used_at = ${input.usedAt}
+      WHERE credential_id = ${input.credentialId}
+        AND revoked_at IS NULL
+        AND counter = ${input.expectedCounter}
+        AND ((${input.newCounter} = 0 AND counter = 0) OR ${input.newCounter} > counter)
+      RETURNING credential_id
+    `;
+    return rows[0] !== undefined;
+  }
+
+  async revokePasskeyCredential(input: { readonly credentialId: string; readonly userId: UserId; readonly revokedAt: string }): Promise<boolean> {
+    const rows = await this.connection.pooled<Record<string, unknown>[]>`
+      UPDATE passkey_credentials SET revoked_at = ${input.revokedAt}
+      WHERE credential_id = ${input.credentialId} AND user_id = ${input.userId} AND revoked_at IS NULL
+      RETURNING credential_id
+    `;
+    return rows[0] !== undefined;
+  }
+
   async saveSession(session: WebSession): Promise<void> {
     await this.connection.pooled`
       INSERT INTO web_sessions (id, user_id, token_hash, csrf_hash, pending_intent, expires_at, revoked_at)
@@ -113,5 +189,21 @@ function sessionFromRow(row: z.infer<typeof SessionRowSchema>): WebSession {
   return {
     id: row.id, userId: row.user_id, tokenHash: row.token_hash, csrfHash: row.csrf_hash,
     pendingIntent: row.pending_intent, expiresAt: row.expires_at, revokedAt: row.revoked_at,
+  };
+}
+
+function passkeyFromRow(row: Record<string, unknown>): PasskeyCredential {
+  const parsed = PasskeyRowSchema.parse(row);
+  return {
+    credentialId: parsed.credential_id,
+    userId: parsed.user_id,
+    publicKey: new Uint8Array(parsed.public_key),
+    counter: parsed.counter,
+    transports: parsed.transports,
+    deviceType: parsed.device_type,
+    backedUp: parsed.backed_up,
+    name: parsed.display_name,
+    createdAt: parsed.created_at,
+    lastUsedAt: parsed.last_used_at,
   };
 }

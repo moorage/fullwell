@@ -71,6 +71,18 @@ describe("WebViewModelService", () => {
       verifyCsrf: async (_request, submittedToken) => {
         if (submittedToken !== "c".repeat(32)) throw new Error("invalid CSRF fixture");
       },
+      listPasskeys: async (userId) => [{
+        credentialId: "credential_51",
+        userId,
+        publicKey: new Uint8Array([1, 2, 3]),
+        counter: 0,
+        transports: ["internal"],
+        deviceType: "multiDevice",
+        backedUp: true,
+        name: "Passkey",
+        createdAt: "2026-07-15T12:00:00.000Z",
+        lastUsedAt: "2026-07-16T12:00:00.000Z",
+      }],
     });
   });
 
@@ -99,6 +111,10 @@ describe("WebViewModelService", () => {
       collectionState: z.string(),
       security: z.object({ csrfToken: z.string() }).passthrough(),
       install: z.object({ hosts: z.object({ codex: z.object({ label: z.string() }).passthrough() }).passthrough() }).passthrough(),
+      auth: z.object({
+        passkeysEnabled: z.boolean(),
+        passkeys: z.array(z.object({ id: z.string(), createdLabel: z.string(), lastUsedLabel: z.string().nullable() }).passthrough()),
+      }),
     }).passthrough().parse(responseBody);
   }
 
@@ -114,6 +130,12 @@ describe("WebViewModelService", () => {
     expect(authenticated.households[0]).toMatchObject({ name: "View Model Kitchen", members: 1, recipes: 0, snacks: 0 });
     expect(authenticated.members[0]).toMatchObject({ name: "Test Owner", isCurrentUser: true });
     expect(authenticated.security.csrfToken).toBe("c".repeat(32));
+
+    const account = await context("/account", true);
+    expect(account.auth).toMatchObject({
+      passkeysEnabled: true,
+      passkeys: [{ id: "credential_51", createdLabel: "Jul 15, 2026", lastUsedLabel: "Jul 16, 2026" }],
+    });
 
     const collections = await context(`/households/${householdId}/collections`, true);
     expect(collections.collections.map((entry: { status: string }) => entry.status).sort()).toEqual(["expired", "private", "published"]);

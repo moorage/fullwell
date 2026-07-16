@@ -1,6 +1,6 @@
 import { ActorIdSchema, UserIdSchema } from "@hfj/contracts";
 import { describe, expect, it } from "vitest";
-import type { AuthChallenge, WebSession } from "./types.js";
+import type { AuthChallenge, PasskeyCredential, WebSession } from "./types.js";
 import { MemoryAuthStore } from "./memory-store.js";
 
 describe("MemoryAuthStore", () => {
@@ -39,5 +39,46 @@ describe("MemoryAuthStore", () => {
     await store.revokeUserSessions(UserIdSchema.parse("usr_0000000000000997"), "2026-07-15T12:01:00.000Z");
     await store.revokeUserSessions(userId, "2026-07-15T12:02:00.000Z");
     expect((await store.getSessionByTokenHash(session.tokenHash))?.session.revokedAt).toBe("2026-07-15T12:02:00.000Z");
+  });
+
+  it("stores passkeys by user and updates counters without exposing mutable key bytes", async () => {
+    const store = new MemoryAuthStore();
+    const userId = UserIdSchema.parse("usr_0000000000000911");
+    const user = await store.resolveOrCreateUser({
+      provider: "magic_link",
+      subjectHash: "passkey-owner",
+      displayName: "Passkey Owner",
+      candidateUserId: userId,
+      candidateActorId: ActorIdSchema.parse("act_0000000000000911"),
+    });
+    expect(await store.getUserById(userId)).toEqual(user);
+    expect(await store.getUserById(UserIdSchema.parse("usr_0000000000000912"))).toBeNull();
+
+    const credential: PasskeyCredential = {
+      credentialId: "credential_11",
+      userId,
+      publicKey: new Uint8Array([1, 2, 3]),
+      counter: 1,
+      transports: ["internal"],
+      deviceType: "singleDevice",
+      backedUp: false,
+      name: "Passkey",
+      createdAt: "2026-07-15T12:00:00.000Z",
+      lastUsedAt: null,
+    };
+    await expect(store.savePasskeyCredential({ ...credential, userId: UserIdSchema.parse("usr_0000000000000999") })).resolves.toBe(false);
+    await expect(store.savePasskeyCredential(credential)).resolves.toBe(true);
+    await expect(store.savePasskeyCredential(credential)).resolves.toBe(false);
+    credential.publicKey[0] = 9;
+    expect((await store.getPasskeyCredential(credential.credentialId))?.publicKey).toEqual(new Uint8Array([1, 2, 3]));
+    expect(await store.listPasskeyCredentials(userId)).toHaveLength(1);
+    await expect(store.updatePasskeyCounter({ credentialId: credential.credentialId, expectedCounter: 0, newCounter: 2, usedAt: "2026-07-15T12:01:00.000Z" })).resolves.toBe(false);
+    await expect(store.updatePasskeyCounter({ credentialId: credential.credentialId, expectedCounter: 1, newCounter: 1, usedAt: "2026-07-15T12:01:00.000Z" })).resolves.toBe(false);
+    await expect(store.updatePasskeyCounter({ credentialId: credential.credentialId, expectedCounter: 1, newCounter: 0, usedAt: "2026-07-15T12:01:00.000Z" })).resolves.toBe(false);
+    await expect(store.updatePasskeyCounter({ credentialId: credential.credentialId, expectedCounter: 1, newCounter: 2, usedAt: "2026-07-15T12:01:00.000Z" })).resolves.toBe(true);
+    expect(await store.getPasskeyCredential(credential.credentialId)).toMatchObject({ counter: 2, lastUsedAt: "2026-07-15T12:01:00.000Z" });
+    await expect(store.revokePasskeyCredential({ credentialId: credential.credentialId, userId: UserIdSchema.parse("usr_0000000000000999"), revokedAt: "2026-07-15T12:02:00.000Z" })).resolves.toBe(false);
+    await expect(store.revokePasskeyCredential({ credentialId: credential.credentialId, userId, revokedAt: "2026-07-15T12:02:00.000Z" })).resolves.toBe(true);
+    expect(await store.getPasskeyCredential(credential.credentialId)).toBeNull();
   });
 });

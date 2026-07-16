@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Clock, IdentityProviderPort, MailPort, RandomSource, TokenHasher } from "../core/ports.js";
 import { AppError } from "../core/errors.js";
 import type { Principal } from "../core/types.js";
-import type { AuthStore, IssuedWebSession, PasskeyProvider } from "./types.js";
+import type { AuthChallengeKind, AuthStore, IssuedWebSession, PasskeyCredential, PasskeyProvider } from "./types.js";
 
 const PendingIntentSchema = z.string().max(2048).refine((value) => value.startsWith("/"), "Pending intents must be local paths");
 
@@ -66,8 +66,104 @@ export class BrowserAuthService {
     return this.issueSession(user, challenge.payload.pending_intent ?? null);
   }
 
-  async beginPasskey(userId: Principal["userId"] | null) {
-    return this.passkeys.beginAuthentication(userId);
+  async beginPasskeyAuthentication(pendingIntentInput?: string): Promise<{
+    readonly browserBinding: string;
+    readonly transaction: string;
+    readonly publicOptions: object;
+  }> {
+    const pendingIntent = pendingIntentInput === undefined ? null : PendingIntentSchema.parse(pendingIntentInput);
+    const started = await this.passkeys.beginAuthentication();
+    const transaction = this.random.token(32);
+    const browserBinding = this.random.token(32);
+    await this.savePasskeyChallenge({
+      kind: "webauthn_authentication",
+      transaction,
+      browserBinding,
+      challenge: started.challenge,
+      payload: pendingIntent === null ? {} : { pending_intent: pendingIntent },
+    });
+    return { browserBinding, transaction, publicOptions: started.publicOptions };
+  }
+
+  async completePasskeyAuthentication(input: {
+    readonly transaction: string;
+    readonly browserBinding: string;
+    readonly response: unknown;
+  }): Promise<IssuedWebSession> {
+    const challenge = await this.consumeChallenge("webauthn_authentication", input.transaction, input.browserBinding);
+    const credentialId = this.passkeys.authenticationCredentialId(input.response);
+    const credential = await this.store.getPasskeyCredential(credentialId);
+    if (credential === null) throw new AppError("AUTH_REQUIRED", "The passkey sign-in request is invalid or expired");
+    const verified = await this.passkeys.completeAuthentication(
+      input.response,
+      requiredPayload(challenge.payload, "expected_challenge"),
+      credential,
+    );
+    const usedAt = this.clock.now().toISOString();
+    if (!await this.store.updatePasskeyCounter({
+      credentialId,
+      expectedCounter: credential.counter,
+      newCounter: verified.newCounter,
+      usedAt,
+    })) throw new AppError("AUTH_REQUIRED", "The passkey sign-in request is invalid or expired");
+    const user = await this.store.getUserById(credential.userId);
+    if (user === null) throw new AppError("AUTH_REQUIRED", "The passkey sign-in request is invalid or expired");
+    return this.issueSession(user, challenge.payload.pending_intent ?? null);
+  }
+
+  async beginPasskeyRegistration(userId: Principal["userId"], rawSessionToken: string): Promise<{
+    readonly transaction: string;
+    readonly publicOptions: object;
+  }> {
+    const user = await this.store.getUserById(userId);
+    if (user === null) throw new AppError("AUTH_REQUIRED", "Sign in is required");
+    const started = await this.passkeys.beginRegistration({ user, credentials: await this.store.listPasskeyCredentials(userId) });
+    const transaction = this.random.token(32);
+    await this.savePasskeyChallenge({
+      kind: "webauthn_registration",
+      transaction,
+      browserBinding: rawSessionToken,
+      challenge: started.challenge,
+      payload: { user_id: userId },
+    });
+    return { transaction, publicOptions: started.publicOptions };
+  }
+
+  async completePasskeyRegistration(input: {
+    readonly userId: Principal["userId"];
+    readonly rawSessionToken: string;
+    readonly transaction: string;
+    readonly response: unknown;
+  }): Promise<PasskeyCredential> {
+    const challenge = await this.consumeChallenge("webauthn_registration", input.transaction, input.rawSessionToken);
+    if (requiredPayload(challenge.payload, "user_id") !== input.userId) {
+      throw new AppError("FORBIDDEN", "The passkey enrollment belongs to a different account");
+    }
+    const registered = await this.passkeys.completeRegistration(
+      input.response,
+      requiredPayload(challenge.payload, "expected_challenge"),
+    );
+    const credential: PasskeyCredential = {
+      ...registered,
+      userId: input.userId,
+      name: "Passkey",
+      createdAt: this.clock.now().toISOString(),
+      lastUsedAt: null,
+    };
+    if (!await this.store.savePasskeyCredential(credential)) {
+      throw new AppError("VALIDATION_FAILED", "That passkey is already registered");
+    }
+    return credential;
+  }
+
+  async listPasskeys(userId: Principal["userId"]): Promise<readonly PasskeyCredential[]> {
+    return this.store.listPasskeyCredentials(userId);
+  }
+
+  async removePasskey(userId: Principal["userId"], credentialId: string): Promise<void> {
+    if (!await this.store.revokePasskeyCredential({ credentialId, userId, revokedAt: this.clock.now().toISOString() })) {
+      throw new AppError("NOT_FOUND", "Passkey not found");
+    }
   }
 
   async authenticateSession(rawToken: string): Promise<Principal> {
@@ -96,7 +192,7 @@ export class BrowserAuthService {
     await this.store.revokeSession(this.hasher.hash(rawSessionToken), this.clock.now().toISOString());
   }
 
-  private async consumeChallenge(kind: "magic_link" | "apple", rawToken: string, browserBinding: string) {
+  private async consumeChallenge(kind: AuthChallengeKind, rawToken: string, browserBinding: string) {
     const now = this.clock.now();
     const challenge = await this.store.consumeChallenge({
       tokenHash: this.hasher.hash(rawToken), kind, browserBindingHash: this.hasher.hash(browserBinding), consumedAt: now.toISOString(),
@@ -123,6 +219,24 @@ export class BrowserAuthService {
       displayName,
       candidateUserId: UserIdSchema.parse(this.random.opaqueId("usr")),
       candidateActorId: ActorIdSchema.parse(this.random.opaqueId("act")),
+    });
+  }
+
+  private async savePasskeyChallenge(input: {
+    readonly kind: "webauthn_registration" | "webauthn_authentication";
+    readonly transaction: string;
+    readonly browserBinding: string;
+    readonly challenge: string;
+    readonly payload: Readonly<Record<string, string>>;
+  }): Promise<void> {
+    await this.store.saveChallenge({
+      id: this.random.opaqueId("challenge"),
+      kind: input.kind,
+      tokenHash: this.hasher.hash(input.transaction),
+      browserBindingHash: this.hasher.hash(input.browserBinding),
+      payload: { ...input.payload, expected_challenge: input.challenge },
+      expiresAt: addMinutes(this.clock.now(), 5),
+      consumedAt: null,
     });
   }
 }

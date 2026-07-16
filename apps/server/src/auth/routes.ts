@@ -11,6 +11,13 @@ const AppleCallbackSchema = z.object({
   redirect_uri: z.url().max(4096).optional(),
 }).strict();
 const StartAuthSchema = z.object({ pending_intent: z.string().max(2048).optional() }).strict();
+const PasskeyCompleteSchema = z.object({
+  transaction: z.string().min(32).max(512),
+  response: z.unknown(),
+}).strict();
+const PasskeyRegistrationStartSchema = z.object({ csrf: z.string().min(32).max(512) }).strict();
+const PasskeyRegistrationCompleteSchema = PasskeyCompleteSchema.extend({ csrf: z.string().min(32).max(512) }).strict();
+const PasskeyCredentialParamsSchema = z.object({ credentialId: z.string().min(1).max(2048).regex(/^[A-Za-z0-9_-]+$/) }).strict();
 
 export interface BrowserAuthRouteDependencies {
   readonly auth: BrowserAuthService;
@@ -72,14 +79,64 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
     return reply.send({ authenticated: true, redirect_to: session.pendingIntent ?? "/households" });
   });
 
-  app.post("/auth/passkey/options", async (request) => {
-    const principal = await optionalPrincipal(request, dependencies.auth);
-    return dependencies.auth.beginPasskey(principal?.userId ?? null);
+  app.post("/auth/passkey/options", async (request, reply) => {
+    return startPasskeyAuthentication(request, reply, dependencies);
   });
 
-  app.post("/auth/passkey/start", async (request) => {
-    const principal = await optionalPrincipal(request, dependencies.auth);
-    return dependencies.auth.beginPasskey(principal?.userId ?? null);
+  app.post("/auth/passkey/start", async (request, reply) => {
+    return startPasskeyAuthentication(request, reply, dependencies);
+  });
+
+  app.post("/auth/passkey/authentication/complete", async (request, reply) => {
+    const body = PasskeyCompleteSchema.parse(request.body);
+    const browserBinding = request.cookies.hfj_passkey_binding;
+    if (browserBinding === undefined) throw new AppError("AUTH_REQUIRED", "The passkey sign-in request is invalid or expired");
+    const session = await dependencies.auth.completePasskeyAuthentication({ ...body, browserBinding });
+    setSessionCookie(reply, session.sessionToken, dependencies.secureCookies);
+    setCsrfCookie(reply, session.csrfToken, dependencies.secureCookies);
+    reply.clearCookie("hfj_passkey_binding", { path: "/auth/passkey/authentication/complete" });
+    return { authenticated: true, redirect_to: session.pendingIntent ?? "/households" };
+  });
+
+  app.post("/auth/passkey/registration/options", async (request) => {
+    const sessionToken = requireSessionCookie(request);
+    const body = PasskeyRegistrationStartSchema.parse(request.body);
+    await dependencies.auth.verifyCsrf(sessionToken, body.csrf);
+    const principal = await dependencies.auth.authenticateSession(sessionToken);
+    return dependencies.auth.beginPasskeyRegistration(principal.userId, sessionToken);
+  });
+
+  app.post("/auth/passkey/registration/complete", async (request) => {
+    const sessionToken = requireSessionCookie(request);
+    const body = PasskeyRegistrationCompleteSchema.parse(request.body);
+    await dependencies.auth.verifyCsrf(sessionToken, body.csrf);
+    const principal = await dependencies.auth.authenticateSession(sessionToken);
+    const credential = await dependencies.auth.completePasskeyRegistration({
+      userId: principal.userId,
+      rawSessionToken: sessionToken,
+      transaction: body.transaction,
+      response: body.response,
+    });
+    return {
+      id: credential.credentialId,
+      name: credential.name,
+      created_at: credential.createdAt,
+      last_used_at: credential.lastUsedAt,
+    };
+  });
+
+  app.post("/auth/passkeys/:credentialId/remove", async (request, reply) => {
+    const sessionToken = requireSessionCookie(request);
+    const params = PasskeyCredentialParamsSchema.parse(request.params);
+    const csrf = z.union([
+      z.object({ csrf_token: z.string().min(32).max(512) }).strict().transform((value) => value.csrf_token),
+      z.object({ csrf: z.string().min(32).max(512) }).strict().transform((value) => value.csrf),
+    ]).parse(request.body);
+    await dependencies.auth.verifyCsrf(sessionToken, csrf);
+    const principal = await dependencies.auth.authenticateSession(sessionToken);
+    await dependencies.auth.removePasskey(principal.userId, params.credentialId);
+    if (request.headers.accept?.includes("text/html")) return reply.redirect("/account", 303);
+    return reply.code(204).send();
   });
 
   app.post("/auth/sign-out", async (request, reply) => {
@@ -117,11 +174,6 @@ function requireSessionCookie(request: FastifyRequest): string {
   return token;
 }
 
-async function optionalPrincipal(request: FastifyRequest, auth: BrowserAuthService) {
-  const token = request.cookies.hfj_session;
-  return token === undefined ? null : auth.authenticateSession(token);
-}
-
 function setSessionCookie(reply: FastifyReply, token: string, secure: boolean): void {
   reply.setCookie("hfj_session", token, {
     path: "/",
@@ -130,4 +182,21 @@ function setSessionCookie(reply: FastifyReply, token: string, secure: boolean): 
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 30,
   });
+}
+
+async function startPasskeyAuthentication(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  dependencies: BrowserAuthRouteDependencies,
+): Promise<{ readonly transaction: string; readonly publicOptions: object }> {
+  const body = StartAuthSchema.parse(request.body ?? {});
+  const started = await dependencies.auth.beginPasskeyAuthentication(body.pending_intent);
+  reply.setCookie("hfj_passkey_binding", started.browserBinding, {
+    path: "/auth/passkey/authentication/complete",
+    httpOnly: true,
+    secure: dependencies.secureCookies,
+    sameSite: "strict",
+    maxAge: 5 * 60,
+  });
+  return { transaction: started.transaction, publicOptions: started.publicOptions };
 }

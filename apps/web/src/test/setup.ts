@@ -8,3 +8,8 @@ Object.defineProperty(navigator, "clipboard", {
   configurable: true,
   value: { writeText: vi.fn().mockResolvedValue(undefined) },
 });
+
+Object.defineProperty(globalThis, "PublicKeyCredential", {
+  configurable: true,
+  value: class PublicKeyCredential {},
+});

@@ -1,10 +1,11 @@
-import { KeyRound, LogOut, Users } from "lucide-react";
+import { Fingerprint, KeyRound, LogOut, Trash2, Users } from "lucide-react";
 import { AppShell } from "../components/app-shell.js";
+import { PasskeyEnrollment } from "../components/passkey-actions.js";
 import { Button, HiddenFormFields, PageHeader } from "../components/ui.js";
 import { useWebContext } from "../context.js";
 
 export function AccountRoute() {
-  const { households, viewer } = useWebContext();
+  const { auth, households, security, viewer } = useWebContext();
   return (
     <AppShell context="workspace" active="account">
       <section className="workspace-page page-band">
@@ -18,6 +19,29 @@ export function AccountRoute() {
             <div><h3>{viewer.displayName || "Fullwell member"}</h3><p>Your sign-in identity is managed by the method you used to authenticate.</p></div>
           </div>
         </section>
+        {auth.passkeysEnabled ? (
+          <section className="account-section" aria-labelledby="passkeys-heading">
+            <header><h2 id="passkeys-heading">Passkeys</h2><p>{auth.passkeys.length} enrolled</p></header>
+            {auth.passkeys.length === 0 ? <p className="section-empty">No passkeys are enrolled.</p> : (
+              <div className="account-list">
+                {auth.passkeys.map((passkey) => (
+                  <div className="account-row" key={passkey.id}>
+                    <span className="row-icon"><Fingerprint aria-hidden="true" /></span>
+                    <div>
+                      <h3>{passkey.name}</h3>
+                      <p>Added {passkey.createdLabel}{passkey.lastUsedLabel === null ? "" : ` · Last used ${passkey.lastUsedLabel}`}</p>
+                    </div>
+                    <form action={`/auth/passkeys/${encodeURIComponent(passkey.id)}/remove`} method="post">
+                      <input type="hidden" name="csrf" value={security.csrfToken} />
+                      <Button type="submit" variant="danger"><Trash2 aria-hidden="true" size={17} /> Remove</Button>
+                    </form>
+                  </div>
+                ))}
+              </div>
+            )}
+            <PasskeyEnrollment csrf={security.csrfToken} passkeys={auth.passkeys} />
+          </section>
+        ) : null}
         <section className="account-section" aria-labelledby="memberships-heading">
           <header><h2 id="memberships-heading">Households</h2><p>{households.length} accessible</p></header>
           <div className="account-list">

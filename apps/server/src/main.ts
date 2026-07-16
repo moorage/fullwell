@@ -14,7 +14,7 @@ import {
 } from "./adapters/providers.js";
 import { MemoryAuthStore } from "./auth/memory-store.js";
 import { NeonAuthStore } from "./auth/neon-store.js";
-import { UnsupportedPasskeyProvider } from "./auth/providers.js";
+import { WebAuthnPasskeyProvider } from "./auth/providers.js";
 import { browserCsrfVerifier, browserPrincipalResolver } from "./auth/routes.js";
 import { BrowserAuthService } from "./auth/service.js";
 import type { AuthStore } from "./auth/types.js";
@@ -61,7 +61,8 @@ const identity = config.APPLE_CLIENT_ID === undefined || config.APPLE_TEAM_ID ==
   ? new UnconfiguredAppleIdentityProvider()
   : new AppleIdentityProvider(config.APPLE_CLIENT_ID, config.APPLE_TEAM_ID, config.APPLE_KEY_ID, config.APPLE_PRIVATE_KEY);
 const service = new HouseholdFoodJournalService(store, repository, clock, random, hasher, telemetry, publicOrigin);
-const browserAuth = new BrowserAuthService(authStore, clock, random, hasher, mail, identity, new UnsupportedPasskeyProvider(), publicOrigin);
+const passkeys = new WebAuthnPasskeyProvider({ rpName: "Fullwell", rpId: publicOrigin.hostname, origin: publicOrigin.origin });
+const browserAuth = new BrowserAuthService(authStore, clock, random, hasher, mail, identity, passkeys, publicOrigin);
 const oauth = new OAuthService(oauthStore, clock, random, hasher, new URL("/mcp", publicOrigin));
 const productionAuthentication = new OAuthBearerAuthenticator(oauth, async (clientId) => {
   const client = await oauthStore.getClient(clientId);
@@ -80,6 +81,7 @@ const webViewModels = await WebViewModelService.create({
   installMetadataPath: resolve(repositoryRoot, "packages/agent-client/install-metadata.json"),
   resolvePrincipal: async (request) => request.cookies.hfj_session === undefined ? null : browserAuth.authenticateSession(request.cookies.hfj_session),
   verifyCsrf: browserCsrfVerifier(browserAuth),
+  listPasskeys: (userId) => browserAuth.listPasskeys(userId),
 });
 const app = await buildApp({
   service,

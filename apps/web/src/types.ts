@@ -56,11 +56,18 @@ export type InstallHost = {
   next: string;
 };
 
+export type PasskeySummary = {
+  id: string;
+  name: string;
+  createdLabel: string;
+  lastUsedLabel: string | null;
+};
+
 export type WebRenderContext = {
   security: { csrfToken: string; idempotencyPrefix: string };
   canonicalUrl: string;
   install: { hosts: Record<"codex" | "claude", InstallHost> };
-  auth: { passkeysEnabled: boolean };
+  auth: { passkeysEnabled: boolean; passkeys: readonly PasskeySummary[] };
   viewer: { displayName: string; email: string };
   households: readonly HouseholdSummary[];
   members: readonly Member[];

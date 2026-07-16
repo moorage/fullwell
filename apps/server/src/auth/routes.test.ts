@@ -14,6 +14,7 @@ import { MemoryAuthStore } from "./memory-store.js";
 import { UnsupportedPasskeyProvider } from "./providers.js";
 import { registerBrowserAuthRoutes } from "./routes.js";
 import { BrowserAuthService } from "./service.js";
+import type { PasskeyCredential, PasskeyProvider } from "./types.js";
 
 class CapturingMail implements MailPort {
   url: URL | null = null;
@@ -21,12 +22,33 @@ class CapturingMail implements MailPort {
   async sendInvitation(): Promise<void> {}
 }
 
-async function fixture(appleAuthorization?: { readonly clientId: string; readonly redirectUri: string }) {
+class DeterministicPasskeyProvider implements PasskeyProvider {
+  async beginRegistration() { return { challenge: "registration-challenge", publicOptions: { challenge: "registration-challenge" } }; }
+  async completeRegistration() {
+    return {
+      credentialId: "credential_31", publicKey: new Uint8Array([1, 2, 3]), counter: 0,
+      transports: ["internal" as const], deviceType: "multiDevice" as const, backedUp: true,
+    };
+  }
+  async beginAuthentication() { return { challenge: "authentication-challenge", publicOptions: { challenge: "authentication-challenge" } }; }
+  authenticationCredentialId(response: unknown): string {
+    if (typeof response !== "object" || response === null || !("id" in response) || typeof response.id !== "string") throw new Error("Missing credential ID");
+    return response.id;
+  }
+  async completeAuthentication(_response: unknown, _expectedChallenge: string, credential: PasskeyCredential) {
+    return { newCounter: credential.counter };
+  }
+}
+
+async function fixture(
+  appleAuthorization?: { readonly clientId: string; readonly redirectUri: string },
+  passkeys: PasskeyProvider = new UnsupportedPasskeyProvider(),
+) {
   const mail = new CapturingMail();
   const auth = new BrowserAuthService(
     new MemoryAuthStore(), new FixedClock(new Date("2026-07-15T12:00:00.000Z")), new DeterministicRandomSource(),
     new HmacTokenHasher("route-auth-pepper-long-enough"), mail, new UnconfiguredAppleIdentityProvider(),
-    new UnsupportedPasskeyProvider(), new URL("https://journal.example.test"),
+    passkeys, new URL("https://journal.example.test"),
   );
   const app = Fastify();
   await app.register(cookie);
@@ -37,6 +59,17 @@ async function fixture(appleAuthorization?: { readonly clientId: string; readonl
     return reply.code(500).send();
   });
   return { app, auth, mail };
+}
+
+async function authenticatedCookies(app: ReturnType<typeof Fastify>, mail: CapturingMail) {
+  await app.inject({ method: "POST", url: "/auth/magic-link", payload: { email: "passkey@example.test" } });
+  if (mail.url === null) throw new Error("Magic link was not sent");
+  const completed = await app.inject({ method: "GET", url: `${mail.url.pathname}${mail.url.search}` });
+  const setCookies = z.array(z.string()).parse(completed.headers["set-cookie"]);
+  const cookie = setCookies.map((value) => value.split(";", 1)[0]).join("; ");
+  const csrf = /hfj_csrf=([^;]+)/.exec(cookie)?.[1];
+  if (csrf === undefined) throw new Error("CSRF cookie was not set");
+  return { cookie, csrf };
 }
 
 describe("browser auth routes", () => {
@@ -75,6 +108,60 @@ describe("browser auth routes", () => {
     expect(response.json().error.code).toBe("PROVIDER_UNAVAILABLE");
     const options = await app.inject({ method: "POST", url: "/auth/passkey/options", payload: {} });
     expect(options.statusCode).toBe(503);
+    await app.close();
+  });
+
+  it("enrolls, signs in, and revokes a passkey through browser-bound routes", async () => {
+    const { app, mail } = await fixture(undefined, new DeterministicPasskeyProvider());
+    const authenticated = await authenticatedCookies(app, mail);
+    const registration = await app.inject({
+      method: "POST",
+      url: "/auth/passkey/registration/options",
+      headers: { cookie: authenticated.cookie },
+      payload: { csrf: authenticated.csrf },
+    });
+    expect(registration.statusCode).toBe(200);
+    expect(registration.json().publicOptions).toEqual({ challenge: "registration-challenge" });
+    const enrolled = await app.inject({
+      method: "POST",
+      url: "/auth/passkey/registration/complete",
+      headers: { cookie: authenticated.cookie },
+      payload: { csrf: authenticated.csrf, transaction: registration.json().transaction, response: { id: "credential_31" } },
+    });
+    expect(enrolled.statusCode).toBe(200);
+    expect(enrolled.json()).toMatchObject({ id: "credential_31", name: "Passkey" });
+
+    const started = await app.inject({ method: "POST", url: "/auth/passkey/start", payload: { pending_intent: "/account" } });
+    expect(started.statusCode).toBe(200);
+    const bindingCookie = started.headers["set-cookie"];
+    if (typeof bindingCookie !== "string") throw new Error("Passkey binding cookie was not set");
+    expect(bindingCookie).toContain("HttpOnly");
+    expect(bindingCookie).toContain("SameSite=Strict");
+    const signedIn = await app.inject({
+      method: "POST",
+      url: "/auth/passkey/authentication/complete",
+      headers: { cookie: bindingCookie.split(";", 1)[0] ?? "" },
+      payload: { transaction: started.json().transaction, response: { id: "credential_31" } },
+    });
+    expect(signedIn.statusCode).toBe(200);
+    expect(signedIn.json()).toMatchObject({ authenticated: true, redirect_to: "/account" });
+    expect(signedIn.headers["set-cookie"]).toEqual(expect.arrayContaining([expect.stringContaining("hfj_session="), expect.stringContaining("hfj_csrf=")]));
+
+    const removed = await app.inject({
+      method: "POST",
+      url: "/auth/passkeys/credential_31/remove",
+      headers: { cookie: authenticated.cookie, accept: "text/html" },
+      payload: { csrf: authenticated.csrf },
+    });
+    expect(removed.statusCode).toBe(303);
+    expect(removed.headers.location).toBe("/account");
+    const missing = await app.inject({
+      method: "POST",
+      url: "/auth/passkeys/credential_31/remove",
+      headers: { cookie: authenticated.cookie },
+      payload: { csrf: authenticated.csrf },
+    });
+    expect(missing.json().error.code).toBe("NOT_FOUND");
     await app.close();
   });
 

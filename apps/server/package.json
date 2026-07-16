@@ -18,6 +18,7 @@
     "@fastify/static": "10.1.0",
     "@hfj/contracts": "0.1.0",
     "@hfj/web": "0.1.0",
+    "@simplewebauthn/server": "^13.3.2",
     "fastify": "^5.0.0",
     "jose": "^6.0.0",
     "postgres": "^3.4.0",

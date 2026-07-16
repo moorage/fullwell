@@ -18,6 +18,8 @@ React 19.2 is an untrusted presentation client. The server validates the session
 
 Public collection pages receive only an allowlisted immutable snapshot projection. They must not receive private source objects and then hide fields client-side. External links use safe protocols and referrer controls; Markdown and user text are sanitized against stored and reflected XSS.
 
+Passkeys require discoverable credentials and user verification. Registration requires an authenticated session and CSRF token. Registration and authentication challenges are short-lived, single-use, and bound to the initiating browser or session; provider payloads are schema-validated before cryptographic verification. Neon stores public credential material only, and atomic signature-counter updates reject replay, regression, and concurrent reuse.
+
 ### Codex and Claude MCP clients
 
 MCP uses OAuth authorization code with PKCE and exact redirect/resource validation. Scopes do not override household roles. Tool input, model output, and cited evidence are untrusted until schema, authorization, revision, and invariant validation pass.

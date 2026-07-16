@@ -13,6 +13,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { TokenHasher } from "../core/ports.js";
 import type { MembershipRecord, MutationRecord } from "../core/types.js";
+import { NeonAuthStore } from "../auth/neon-store.js";
 import { NeonConnection } from "./neon.js";
 import { NeonOperationalStore } from "./neon-operational-store.js";
 
@@ -32,10 +33,12 @@ describeDatabase("NeonOperationalStore", () => {
   };
   let connection: NeonConnection;
   let store: NeonOperationalStore;
+  let authStore: NeonAuthStore;
 
   beforeAll(async () => {
     connection = new NeonConnection(testDatabaseUrl, testDatabaseUrl);
     store = new NeonOperationalStore(connection, tokenHasher);
+    authStore = new NeonAuthStore(connection);
     await connection.direct`TRUNCATE households, users CASCADE`;
     await connection.direct`
       INSERT INTO users (id, actor_id, display_name)
@@ -198,5 +201,33 @@ describeDatabase("NeonOperationalStore", () => {
     expect(await store.getByToken("wrong-token")).toBeNull();
     await store.revokeUser(ownerId);
     expect(await store.getByToken(token)).toBeNull();
+  });
+
+  it("persists active passkey public credentials and compare-and-set counters", async () => {
+    expect(await authStore.getUserById(ownerId)).toMatchObject({ id: ownerId, displayName: "Kitchen Owner" });
+    expect(await authStore.getUserById(UserIdSchema.parse("usr_0000000000000199"))).toBeNull();
+    const credential = {
+      credentialId: "credential_0000000000000101",
+      userId: ownerId,
+      publicKey: new Uint8Array(16).fill(1),
+      counter: 1,
+      transports: ["internal" as const, "hybrid" as const],
+      deviceType: "multiDevice" as const,
+      backedUp: true,
+      name: "Passkey",
+      createdAt: "2026-07-15T12:00:00.000Z",
+      lastUsedAt: null,
+    };
+    await expect(authStore.savePasskeyCredential(credential)).resolves.toBe(true);
+    await expect(authStore.savePasskeyCredential(credential)).resolves.toBe(false);
+    expect(await authStore.getPasskeyCredential(credential.credentialId)).toEqual(credential);
+    expect(await authStore.listPasskeyCredentials(ownerId)).toEqual([credential]);
+    await expect(authStore.updatePasskeyCounter({ credentialId: credential.credentialId, expectedCounter: 0, newCounter: 2, usedAt: "2026-07-15T12:01:00.000Z" })).resolves.toBe(false);
+    await expect(authStore.updatePasskeyCounter({ credentialId: credential.credentialId, expectedCounter: 1, newCounter: 0, usedAt: "2026-07-15T12:01:00.000Z" })).resolves.toBe(false);
+    await expect(authStore.updatePasskeyCounter({ credentialId: credential.credentialId, expectedCounter: 1, newCounter: 2, usedAt: "2026-07-15T12:01:00.000Z" })).resolves.toBe(true);
+    expect(await authStore.getPasskeyCredential(credential.credentialId)).toMatchObject({ counter: 2, lastUsedAt: "2026-07-15T12:01:00.000Z" });
+    await expect(authStore.revokePasskeyCredential({ credentialId: credential.credentialId, userId: UserIdSchema.parse("usr_0000000000000199"), revokedAt: "2026-07-15T12:02:00.000Z" })).resolves.toBe(false);
+    await expect(authStore.revokePasskeyCredential({ credentialId: credential.credentialId, userId: ownerId, revokedAt: "2026-07-15T12:02:00.000Z" })).resolves.toBe(true);
+    expect(await authStore.getPasskeyCredential(credential.credentialId)).toBeNull();
   });
 });

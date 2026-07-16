@@ -138,7 +138,7 @@ export const demoWebContext: WebRenderContext = {
       },
     },
   },
-  auth: { passkeysEnabled: false },
+  auth: { passkeysEnabled: false, passkeys: [] },
   viewer: { displayName: "Maya Alvarez", email: "ren@example.test" },
   households,
   members,

@@ -286,6 +286,10 @@
                     },
                     {
                       "type": "file",
+                      "name": "providers.test.ts"
+                    },
+                    {
+                      "type": "file",
                       "name": "providers.ts"
                     },
                     {
@@ -576,6 +580,10 @@
                     },
                     {
                       "type": "file",
+                      "name": "passkey-actions.tsx"
+                    },
+                    {
+                      "type": "file",
                       "name": "share-actions.tsx"
                     },
                     {
@@ -669,6 +677,10 @@
                     {
                       "type": "file",
                       "name": "app.test.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "passkey-actions.test.tsx"
                     },
                     {
                       "type": "file",
@@ -1075,6 +1087,14 @@
         {
           "type": "file",
           "name": "0002_store_contract_fields.sql"
+        },
+        {
+          "type": "file",
+          "name": "0003_passkey_credentials.down.sql"
+        },
+        {
+          "type": "file",
+          "name": "0003_passkey_credentials.sql"
         }
       ]
     },

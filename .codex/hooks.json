@@ -1,0 +1,85 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/session_context.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Loading harness context"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/capture_event.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Capturing prompt signal"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|apply_patch|Edit|Write|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/capture_event.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Capturing tool signal"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/capture_event.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Capturing compaction signal"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/capture_event.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Capturing subagent signal"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/stop_verify.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Checking verification state"
+          },
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/session_wrapup.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Summarizing improvement signals"
+          }
+        ]
+      }
+    ]
+  }
+}

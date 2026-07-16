@@ -1,0 +1,716 @@
+# Implement Household Food Journal Version 1
+
+## Purpose / Big Picture
+
+Implement the complete Household Food Journal described by `docs/product-specs/household-food-journal-server.md` and `docs/product-specs/household-food-journal-client.md`. The finished product consists of three coordinated surfaces:
+
+1. a React 19.2 web experience for installation, sign-in, pending intents, household and account administration, family invitations, public collection previews, selective imports, exports, and destructive account actions;
+2. one TypeScript application service that exposes HTTP, OAuth, MCP, scheduled jobs, and the only mutation path into one authoritative Git repository per household; and
+3. one shared Codex and Claude agent-client package that performs conversational journal workflows through the hosted MCP service without storing secrets or synchronizing Git.
+
+Use the ChatGPT interface as the collaborative design surface for information architecture, user flows, screen states, content design, and high-fidelity UI iteration. Persist every approved design decision under `docs/design/`; no implementation-critical decision may live only in chat history. The result must be usable at 320 CSS pixels, meet WCAG 2.2 AA, preserve pending user intent through authentication and recoverable errors, and use household and food language rather than Git, OAuth, MCP, token, or commit terminology.
+
+Version 1 deploys one containerized service on one DigitalOcean Droplet. `/data/households` is an attached DigitalOcean Block Storage filesystem. Neon PostgreSQL owns operational identity, OAuth, authorization projection, idempotency, job, and search state; Git owns household journal content and audit history. The server remains the single Git writer and does not call an LLM. Codex and Claude make semantic food decisions and author journal prose.
+
+## Progress
+
+- [x] 2026-07-15T23:50Z: Read the architecture, execution guidance, both complete product specifications, and security/reliability standards; synthesized product, UX, operations, and agent-eval requirements.
+- [x] 2026-07-16T00:06Z: Decomposed the work into dependency-ordered milestones, drafted the full-stack plan, ran failure-oriented critique, and folded packaging, legal/privacy, secret-lifecycle, and repository-format findings into blocking acceptance gates.
+- [x] 2026-07-16T00:07Z: Passed ExecPlan, documentation, ideation, Git-hook, self-improvement, and knowledge tests; refreshed the context ledger, repository map, and quality-ledger timestamp.
+- [ ] Milestone 0 - validate platform assumptions and approve ChatGPT-assisted information architecture and UI design.
+- [ ] Milestone 1 - establish the monorepo, shared contracts, generated schemas, fakes, and real quality gates.
+- [ ] Milestone 2 - implement Neon persistence, household Git repositories, the mutation state machine, reconciliation, export, and local recovery proof.
+- [ ] Milestone 3 - implement browser identity, sessions, MCP OAuth, and the authenticated MCP transport.
+- [ ] Milestone 4 - implement household, membership, invitation, and account-lifecycle workflows across server, web, and agent client.
+- [ ] Milestone 5 - implement profiles, evidence, snacks, recipes, reports, search, migration, exports, shared skills, and semantic evals.
+- [ ] Milestone 6 - implement private collections, public sharing, revocation, selective import, provenance, and installation handoff.
+- [ ] Milestone 7 - implement DigitalOcean deployment, maintenance jobs, encrypted off-site backup, observability, and restore/failover runbooks.
+- [ ] Milestone 8 - complete security, accessibility, race, load, cross-host, release, and rollback validation and launch version 1.
+
+## Surprises & Discoveries
+
+- 2026-07-15: The repository contains the specialized harness and product specifications but no application packages, migrations, dependencies, or deployment files. Milestone 1 must replace harness-only verification with real package gates before feature work starts.
+- 2026-07-15: The user selected React 19.2, while public collection and invitation flows must work without client-side JavaScript. The web architecture therefore needs React server rendering plus ordinary HTML form posts, with hydration used only for enhancement.
+- 2026-07-15: "Frontend and backend" is insufficient shorthand for the full request. The companion client spec also requires a released dual-host Codex/Claude package, contract tests, skills, evals, and a manual compatibility matrix.
+- 2026-07-15: The browser is intentionally not a second journal-authoring product. Version 1 browser scope is installation, authentication, pending intents, household/account administration, collection preview/import, exports, and sharing support; evidence collection and semantic journal authorship remain agent workflows.
+- 2026-07-15: DigitalOcean App Platform cannot hold the authoritative Git filesystem. The initial production topology must remain a fenced single writer on a Droplet with attached Block Storage.
+- 2026-07-15: Neon transaction-mode pooling cannot safely hold session-scoped advisory locks. Every household mutation must use a transaction-scoped lock on one checked-out connection and transaction; migrations and session-dependent administration use a direct connection.
+- 2026-07-15: Failure-oriented critique found three release gaps in the first draft: dual Codex/Claude manifests and catalogs were not named as deliverables, public privacy/legal surfaces were only implicit, and the Droplet secret lifecycle lacked a selected delivery and rotation mechanism. The milestones below now make all three blocking work.
+
+## Decision Log
+
+- 2026-07-15: Use npm workspaces with `apps/server`, `apps/web`, `packages/contracts`, and `packages/agent-client`. One root lockfile and one verification command keep contract changes atomic.
+- 2026-07-15: Use Fastify for the TypeScript application service and React 19.2 with Vite for shared server/client builds. Public and pending-intent routes server-render React and post to normal Fastify form handlers; React hydration adds selection, sharing, and inline state enhancements without becoming a security boundary.
+- 2026-07-15: Use explicit SQL migrations and the standard PostgreSQL protocol rather than making an ORM authoritative. Runtime code accesses Neon through typed persistence ports; pooled and direct URLs are distinct parsed configuration values.
+- 2026-07-15: Keep one runtime schema source in `packages/contracts`. Generate and verify the published MCP schema artifact from it; do not maintain separate handwritten server, web, and client schemas.
+- 2026-07-15: Model durable mutations with explicit states: `received`, `locked`, `git_committed`, `projections_applied`, `completed`, `failed_before_commit`, `reconciliation_required`, and `quarantined`. Only `completed` returns success. A retry after `git_committed` finds the existing request trailer and finishes projections rather than committing again.
+- 2026-07-15: Implement provider ports for Apple identity, email delivery, WebAuthn, token signing/encryption, object backup, clock, randomness, and telemetry. Milestone 0 selects maintained libraries and production providers after current primary-documentation and interoperability spikes; tests use deterministic fakes.
+- 2026-07-15: Use an S3-compatible encrypted-backup adapter but require the production bucket to live outside the DigitalOcean Droplet and Block Storage failure domain. Provider and retention choices are a release-blocking Milestone 0 decision.
+- 2026-07-15: Select and document the production secret delivery mechanism in Milestone 0. Secrets must be delivered at runtime with least privilege, remain outside images and the Git volume, support independent revocation, and pass rotation and recovery drills before launch.
+- 2026-07-15: Do not add browser-side snack or recipe editing in version 1. The authenticated household UI exposes role/member/invitation/collection/export administration and links users to the agent installation flow.
+- 2026-07-15: Release backend, web, contracts, and agent client as one coordinated version until backward-compatible schema evolution and an explicit client compatibility window are proven.
+- 2026-07-15: Publish accessible `/privacy` and `/terms` pages and link them from install, sign-in, OAuth consent, public collection, account, and deletion flows. Their claims must match implemented collection, retention, export, deletion, support, and subprocessors behavior.
+
+## Context and Orientation
+
+The repository currently has no application code. The long-lived sources of truth are:
+
+- `AGENTS.md` for workflow and invariants;
+- `docs/ARCHITECTURE.md` for authority and dependency boundaries;
+- `docs/CODING_STANDARDS.md` for TypeScript, React, Neon, Git, and agent rules;
+- `docs/SECURITY.md` and `docs/RELIABILITY.md` for trust and failure behavior;
+- `docs/product-specs/household-food-journal-server.md` for server, web, persistence, deployment, and acceptance requirements;
+- `docs/product-specs/household-food-journal-client.md` for shared skills, MCP use, semantic rules, packaging, evals, and host compatibility.
+
+Planned code ownership:
+
+- `packages/contracts/` owns branded identifiers, roles/scopes, runtime schemas, HTTP and MCP envelopes, Git document schemas, error codes, and generated contract artifacts.
+- `apps/server/` owns configuration, HTTP, React SSR integration, sessions, identity, OAuth, MCP, household use cases, Git mutation, Neon persistence, mail, jobs, export, backup, reconciliation, and observability.
+- `apps/web/` owns React components, route layouts, accessible form behavior, hydration, content presentation, client enhancement, and browser tests. It imports only public contracts.
+- `packages/agent-client/` owns shared skills, Codex and Claude manifests, MCP endpoint metadata, privacy/semantic references, packaging tests, contract fixtures, and agent eval cases.
+- `migrations/` owns reversible Neon PostgreSQL schema changes and rollback instructions.
+- `tests/` owns cross-package contract, integration, security, end-to-end, restore, and deployment smoke fixtures that do not belong to one package.
+- `infra/`, `deploy/`, and `docs/runbooks/` own DigitalOcean provisioning, service definitions, maintenance schedules, and operator recovery procedures.
+
+No provider SDK may enter domain modules. The server maps typed entity operations to repository paths; callers never supply filesystem paths, Git arguments, commit authors, refs, or messages. Public collection serialization is a server-side allowlist projection, not a private object with fields hidden in React.
+
+## Framing Notes
+
+### Expert panel
+
+- Product and information-architecture lead - keeps install, invite, import, household, and account intentions distinct and avoids inventing a browser journal editor.
+- Accessibility-focused frontend architect - reconciles React with no-JavaScript forms, 320-pixel support, screen-reader semantics, focus recovery, and mobile sharing.
+- Security and privacy engineer - covers OAuth, WebAuthn, capability URLs, CSRF, tenant isolation, Markdown, secret handling, and public-field leakage.
+- Distributed-systems and Git architect - owns the single-writer mutation state machine, idempotency, projection drift, conflict behavior, and recovery.
+- Reliability and operations engineer - covers DigitalOcean volume identity, Neon pooling, backups, restore drills, observability, and failover fencing.
+- Agent UX and eval specialist - preserves evidence-first workflows, semantic decision ownership, prompt-injection boundaries, and Codex/Claude compatibility.
+
+### What problem are we actually solving?
+
+Build a private family journal that feels conversational while retaining individual identity, explicit sharing, auditable history, concurrency safety, portable ownership, and a browser experience that never asks ordinary users to understand infrastructure. The hard problem is not rendering screens; it is keeping browser, agent, Git, and Neon authorities consistent through authentication, retries, conflicts, public capabilities, and partial failures.
+
+### Roundtable highlights
+
+- Product/IA: treat `Join household` and `Import selected` as separate top-level intents before, during, and after sign-in. Never route a pending recipient into unrelated household creation.
+- Frontend/accessibility: server-render every public or pending-intent entry state and use normal forms as the baseline. Hydration may improve selection and sharing but cannot be required to accept an invitation or import selected items.
+- Security/privacy: never put share, invitation, magic-link, or OAuth tokens in analytics, client storage, logs, referrers, screenshots, or error reporting. The server must generate public projections by allowlist.
+- Git/consistency: prove one commit per idempotency key, expected-HEAD conflicts, crash recovery, append-only enforcement, and signed restore before layering product features over the pipeline.
+- Reliability/operations: implement backup and restore primitives with the mutation foundation; do not defer all recoverability to launch hardening.
+- Agent/evals: deterministic code may find exact candidates and validate evidence, but Codex or Claude must decide food identity, recipe equivalence, statuses, merges, and report prose.
+
+### Key tensions
+
+- React richness versus public no-JavaScript and accessibility requirements.
+- Git authority versus Neon authorization and search performance.
+- Fast first-run OAuth versus strict redirect, token, pending-intent, and separate-user guarantees.
+- Helpful duplicate suggestions versus prohibited programmatic semantic merging.
+- Public link convenience versus capability-token leakage and private-field disclosure.
+- One-process simplicity versus maintenance jobs, failover, and durable recovery.
+
+### Synthesis for decomposition
+
+- Freeze contracts and design state matrices before parallel frontend/client implementation.
+- Prove Git, Neon, idempotency, signing, and reconciliation as a vertical foundation before product mutations.
+- Add identity and OAuth before exposing protected MCP tools or authenticated browser administration.
+- Deliver household/account, journal, and collection journeys in dependency order with their web states, skills, tests, evals, and telemetry in the same milestone.
+- Treat staging deployment, persistence smoke, backup restore, security, accessibility, and cross-host evidence as blocking work, not post-launch cleanup.
+
+## Information Architecture and UI Contract
+
+Milestone 0 uses the ChatGPT interface to propose, compare, and revise the following artifacts. The user approves them before component implementation. Approved content is written to `docs/design/`.
+
+### Public and pending-intent routes
+
+- `GET /install` - literal product/install screen with a `Use with Codex` / `Use with Claude` segmented choice and one current action at a time.
+- `GET /sign-in` - Continue with Apple first, an existing passkey when available, and email magic link fallback; no service password.
+- `GET /invite/family/:token` - safe household, inviter, role, and expiration preview followed by sign-in and explicit `Join household`.
+- `GET /c/:token` - public-safe collection snapshot with independent recipe/snack selection, scoped select-all controls, sharing, privacy, expiration, install handoff, and `Import selected`.
+- `POST /c/:token/import/plan` and `POST /c/:token/import` - ordinary HTML form baselines enhanced by React for duplicate resolution and progress.
+- `GET /privacy` and `GET /terms` - versioned, accessible public policies covering data use, retention, exports, deletion, subprocessors, capability links, and support contact.
+- OAuth authorization and consent routes - browser-controlled sign-in, scoped consent, and return to Codex or Claude without showing tokens.
+
+### Authenticated routes
+
+- `GET /households` - create or choose a household, or resume a pending invitation/import.
+- `GET /households/:id` - quiet operational overview of role, members, pending invitations, private collections, exports, and agent install/use actions.
+- `GET /households/:id/members` - owner member/role/invitation management with final-owner protection.
+- `GET /households/:id/collections` - private collection shares, expiration, copy/share actions, and revocation; journal content selection remains conversational through the agent.
+- `GET /account` - profile, Apple/email/passkey methods, active MCP grants, household membership, exports, leave/delete actions, and reauthentication gates.
+
+### Required screen-state matrix
+
+For every route, `docs/design/screen-state-matrix.md` must specify loading or server-waiting, empty, populated, validation error, authorization denial, expired/revoked capability, rate limit, stale revision, retryable failure, non-retryable failure, success, partial success, cancellation, keyboard focus destination, and no-JavaScript behavior. It must cross these states with owner/editor/viewer/link-visitor roles, signed-in/signed-out identity, zero/one/multiple households, and pending invite/import/MCP intents.
+
+### Visual and interaction direction
+
+- Authenticated administration is compact, calm, work-focused, and optimized for repeated household actions; avoid marketing composition and decorative card grids.
+- Public collections may be more food-forward, but actual shared items and their provenance are the primary visuals. Do not use atmospheric stock imagery where users need to inspect the selected food or recipe.
+- Use semantic HTML, familiar Lucide icons, tooltips for unfamiliar icon-only actions, swatches for any color choice, segmented controls for platform choice, checkboxes for item selection, and native confirm language for destructive commands.
+- Use a restrained multi-hue token system with strong text contrast, clear focus, and non-color state cues. Avoid a one-note purple, beige, dark-blue, or orange/brown palette.
+- Keep cards at 8px radius or less, do not nest cards, do not put page sections in floating cards, and use stable responsive dimensions so dynamic states do not shift controls.
+- Include reduced-motion behavior. Motion is limited to purposeful route/state transitions and must not block reading or input.
+- Validate high-fidelity designs at 1440x900, 1024x768, 390x844, and 320x568 in the ChatGPT design review and again against implemented Playwright screenshots.
+
+## Milestones
+
+### Milestone 0 - Feasibility, ChatGPT design, and contract decisions
+
+Files:
+
+- `docs/design/information-architecture.md`
+- `docs/design/user-flows.md`
+- `docs/design/screen-state-matrix.md`
+- `docs/design/content-style.md`
+- `docs/design/visual-system.md`
+- `docs/design/component-inventory.md`
+- `docs/ARCHITECTURE.md`
+- `docs/SECURITY.md`
+- `docs/RELIABILITY.md`
+- `docs/exec-plans/active/2026-07-15-household-food-journal-v1.md`
+
+Tasks:
+
+1. Use the ChatGPT interface to walk through first-time setup, returning sign-in, invite acceptance, MCP authorization, household selection, public preview, selective import, duplicate resolution, sharing, revocation, export, leave, and deletion. Record questions, decisions, user language, and all edge states in the design docs.
+2. Produce route maps, low-fidelity flow diagrams, responsive high-fidelity screens, a component inventory, content/error copy, and role/pending-intent state matrices. Require explicit user approval before Milestone 1 UI implementation.
+3. Build disposable spikes outside production modules to validate React 19.2 server rendering and hydration through Fastify/Vite, ordinary no-JavaScript form posts, WebAuthn virtual-authenticator tests, the current official MCP SDK and OAuth discovery/registration requirements for Codex and Claude, Neon transaction-scoped advisory locks, signed Git commits in the target container, and DigitalOcean volume mount detection.
+4. Select and record maintained libraries for runtime schemas, OAuth authorization-server behavior, Apple OIDC, WebAuthn, sanitization, rate limiting, SQL migrations, logging/telemetry, encryption, and S3-compatible backup. Prefer proven libraries over hand-rolled protocol, crypto, parser, or auth engines.
+5. Choose the production email provider and an off-site object provider/account. Record data-processing, retention, object-lock, region, cost, and recovery constraints without adding credentials.
+6. Select the production secret-delivery mechanism for the Droplet and document bootstrap, least-privilege access, audit, revocation, independent rotation, emergency recovery, and operator access. Cover Apple, OAuth/cookie/HMAC, email, Git signing, backup encryption/object storage, Neon, and DigitalOcean credentials; no secret may be baked into an image or stored on the household Git volume.
+7. Define performance budgets, supported browser/agent versions, accessibility test tooling, feature/configuration gates, and the staging test-identity strategy.
+
+Verification:
+
+- `npm run verify:docs`
+- `npm run verify:execplan`
+- manually review every design route and screen state against both product specs
+- attach ChatGPT design snapshots or links in `docs/design/information-architecture.md` and preserve final decisions as text
+
+Exit criteria:
+
+- the user approves the IA, user flows, visual direction, and all required screen states;
+- each protocol/storage spike has a written pass/fail result and selected approach;
+- no unresolved choice can invalidate the monorepo, SSR, auth, Git signing, Neon locking, backup, or deployment topology.
+
+### Milestone 1 - Monorepo, contracts, fakes, and quality gates
+
+Files:
+
+- `package.json`
+- `package-lock.json`
+- `tsconfig.base.json`
+- `eslint.config.js`
+- `.coverage-thresholds.json`
+- `playwright.config.ts`
+- `vitest.workspace.ts`
+- `apps/server/package.json`
+- `apps/server/tsconfig.json`
+- `apps/web/package.json`
+- `apps/web/tsconfig.json`
+- `packages/contracts/package.json`
+- `packages/contracts/src/index.ts`
+- `packages/contracts/src/ids.ts`
+- `packages/contracts/src/auth.ts`
+- `packages/contracts/src/errors.ts`
+- `packages/contracts/src/git-documents.ts`
+- `packages/contracts/src/http.ts`
+- `packages/contracts/src/mcp.ts`
+- `packages/contracts/src/mutations.ts`
+- `packages/contracts/generated/mcp-tools.schema.json`
+- `packages/agent-client/package.json`
+- `packages/agent-client/.codex-plugin/plugin.json`
+- `packages/agent-client/.claude-plugin/plugin.json`
+- `packages/agent-client/.mcp.json`
+- `packages/agent-client/marketplace/codex.json`
+- `packages/agent-client/marketplace/claude.json`
+- `packages/agent-client/install-metadata.json`
+- `packages/agent-client/tests/packaging/`
+- `tests/contract/`
+
+Tasks:
+
+1. Configure npm workspaces, strict TypeScript, ESLint, formatting, Vitest, coverage enforcement, React Testing Library, Playwright, and deterministic schema generation. Pin React and React DOM to the 19.2 release line and Node to 24 LTS.
+2. Define branded IDs, UTC timestamp/revision types, role/scope unions, error envelopes, pagination, evidence/snack/recipe/report/collection/import schemas, public-safe projections, all MCP inputs/outputs, HTTP view/form schemas, Git frontmatter/documents, and the durable mutation state machine.
+3. Generate one machine-readable MCP schema artifact and fail verification when generated output differs from source. Build a fake MCP server and typed HTTP fake consumed by web, agent-client, and contract tests.
+4. Add deterministic clock, UUIDv7/randomness, crypto, mail, Git, Neon, storage, and telemetry ports with fakes. Keep external SDK imports out of domain and contract modules.
+5. Create host-specific Codex and Claude manifests, marketplace catalogs, MCP endpoint metadata, and immutable install metadata that point to one shared skill/reference implementation. Validate each host's required structure and frontmatter, keep skill frontmatter limited to discovery metadata, and reject embedded credentials, local paths, or divergent tool schemas.
+6. Replace harness-only package commands with real `lint`, `typecheck`, `build`, unit, contract, integration, security, eval, e2e, and aggregate verification commands as their real runners land. No command may pass solely because a suite is absent.
+7. Add nested `AGENTS.md` files only where server, web, contracts, or agent-client rules materially differ from the root guidance.
+
+Verification:
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit --workspace @hfj/contracts`
+- `npm run test:contract`
+- `npm run test:packaging --workspace @hfj/agent-client`
+- `npm run build`
+- `npm run verify`
+- `npm run verify:docs`
+- `npm run verify:execplan`
+
+Exit criteria:
+
+- web, server, and agent client compile against the same runtime schemas;
+- generated schema drift fails CI;
+- deterministic contract and adapter code has 100% line and branch coverage;
+- frontend and client work can proceed against typed fakes without waiting for a deployed server.
+
+### Milestone 2 - Neon, Git authority, mutation, export, and recovery foundation
+
+Files:
+
+- `migrations/0001_operational_core.sql`
+- `migrations/0001_operational_core.down.sql`
+- `apps/server/src/config.ts`
+- `apps/server/src/persistence/`
+- `apps/server/src/git/`
+- `apps/server/src/domain/authorization.ts`
+- `apps/server/src/domain/repository-schema.ts`
+- `apps/server/src/domain/mutations.ts`
+- `apps/server/src/services/household-provisioning.ts`
+- `apps/server/src/services/mutation-runner.ts`
+- `apps/server/src/services/reconciler.ts`
+- `apps/server/src/services/exporter.ts`
+- `apps/server/src/workers/reconciliation-worker.ts`
+- `tests/integration/git/`
+- `tests/integration/neon/`
+- `tests/integration/recovery/`
+
+Tasks:
+
+1. Parse all configuration once. Require separate pooled runtime and direct migration Neon URLs, a validated repository root, temporary-worktree root, signing configuration, token peppers, and explicit non-production test configuration.
+2. Add reversible migrations for all minimum operational tables, constraints, unique idempotency keys, expiry indexes, token/grant state, projections, backup checkpoints, and reconciliation jobs. Run migration up/down/up against an isolated Neon branch.
+3. Implement the sole Git adapter with fixed argument arrays, `shell: false`, fixed environment, timeouts/output limits, disabled hooks, and no caller-controlled refs/paths/messages/authors. Reject symlinks, submodules, executable files, unsafe refs, alternates, oversized changes, and append-only rewrites.
+4. Provision one signed bare repository per household with `main`, `FORMAT_VERSION`, the required directory layout, deterministic UTF-8/LF JSON and Markdown serialization, a pseudonymous actor projection, and no private identity data.
+5. Implement transaction-scoped household locking and mutation states. Authenticate/authorize through an injected principal, create/read the idempotency row, lock, verify projections and expected revisions, apply typed path changes in a clean worktree, validate, append one audit event, create one signed commit, atomically advance `main`, update projections, store the response, and clean up.
+6. Implement expected-HEAD and expected-blob conflicts with bounded semantic-neutral diffs. Never auto-merge Markdown.
+7. Implement reconciliation for crash-after-commit, projection rebuild, request-trailer replay, failed provisioning, share-revocation audit completion, and repository quarantine.
+8. Implement readable ZIP and verifiable Git bundle generation with short-lived download records and archive traversal protection.
+9. Implement local encrypted bundle/manifest creation and an isolated restore test now; production off-site scheduling lands in Milestone 7.
+
+Verification:
+
+- `npm run test:unit --workspace @hfj/server -- mutations authorization repository-schema`
+- `npm run test:integration -- git`
+- `npm run test:integration -- neon`
+- `npm run test:integration -- recovery`
+- `npm run test:security -- git tenant-isolation archive`
+- `npm run test:migrations -- up-down-up`
+- `npm run verify`
+
+Exit criteria:
+
+- one accepted mutation produces exactly one signed commit and audit event;
+- concurrent household writes serialize without silent overwrite;
+- retrying any crash point cannot create a second commit;
+- append-only, path, tenant, and size violations fail before commit;
+- an exported bundle restores and reconciles in an isolated test environment.
+
+### Milestone 3 - Identity, sessions, OAuth, and authenticated MCP
+
+Files:
+
+- `apps/server/src/auth/`
+- `apps/server/src/oauth/`
+- `apps/server/src/mcp/`
+- `apps/server/src/http/auth-routes.ts`
+- `apps/server/src/http/oauth-routes.ts`
+- `apps/server/src/http/mcp-route.ts`
+- `apps/server/src/http/security.ts`
+- `apps/web/src/entry-server.tsx`
+- `apps/web/src/entry-client.tsx`
+- `apps/web/src/routes/sign-in.tsx`
+- `apps/web/src/routes/oauth-consent.tsx`
+- `apps/web/src/components/auth/`
+- `tests/contract/oauth/`
+- `tests/contract/mcp/`
+- `tests/e2e/auth/`
+- `tests/security/auth/`
+
+Tasks:
+
+1. Implement Continue with Apple using server-side code/token validation and stable subject mapping; capture first-returned name/email only for allowed uses.
+2. Implement email magic-link challenges with generic account discovery, 15-minute expiry, one-time hashed tokens, initiating-browser binding when practical, and pending-intent resume.
+3. Implement passkey enrollment and sign-in with discoverable WebAuthn credentials and required user verification where supported. Enforce at least one remaining sign-in method.
+4. Implement secure web sessions, rotation, CSRF protection, SameSite/HttpOnly/Secure cookies, reauthentication markers, pending-intent cookies, rate limits, HSTS/CSP/referrer headers, and redacted structured errors.
+5. Implement OAuth protected-resource and authorization-server metadata, authorization code with PKCE S256, exact redirect validation, state/nonce validation, resource/audience validation, scopes, scoped consent, short access tokens, rotated refresh tokens with reuse detection, revocation, and the currently required Codex/Claude registration/discovery mechanisms.
+6. Expose one Streamable HTTP MCP endpoint at `/mcp`. Authenticate every call, parse every tool input, return the common envelope, paginate bounded output, and publish current schemas.
+7. Server-render and hydrate sign-in and consent routes. Authentication always occurs in the service browser page; no tool or skill asks for credentials, codes, or tokens.
+8. Prove current Codex and Claude can complete a read-only authorization and call `hfj_get_context` against staging before enabling mutations.
+
+Verification:
+
+- `npm run test:unit --workspace @hfj/server -- auth oauth mcp`
+- `npm run test:contract -- oauth mcp`
+- `npm run test:security -- auth oauth csrf redirects replay rate-limits redaction`
+- `npm run test:e2e -- auth`
+- `npm run test:mcp-smoke -- codex`
+- `npm run test:mcp-smoke -- claude`
+- `npm run verify`
+
+Exit criteria:
+
+- Apple, passkey, and magic-link paths create separate auditable user identities without a service password;
+- token rotation/reuse, revocation, scope/role, redirects, pending intents, and CSRF are covered by negative tests;
+- no secret appears in browser bundles, URLs, Git, logs, MCP output, screenshots, or analytics;
+- both agent hosts authorize without copied bearer tokens.
+
+### Milestone 4 - Household, invitation, membership, and account workflows
+
+Files:
+
+- `apps/server/src/households/`
+- `apps/server/src/accounts/`
+- `apps/server/src/mcp/tools/context.ts`
+- `apps/server/src/mcp/tools/households.ts`
+- `apps/server/src/http/household-routes.ts`
+- `apps/server/src/http/account-routes.ts`
+- `apps/server/src/http/invitation-routes.ts`
+- `apps/web/src/routes/households.tsx`
+- `apps/web/src/routes/household-overview.tsx`
+- `apps/web/src/routes/household-members.tsx`
+- `apps/web/src/routes/account.tsx`
+- `apps/web/src/routes/family-invite.tsx`
+- `apps/web/src/components/households/`
+- `apps/web/src/components/account/`
+- `packages/agent-client/skills/manage-household-food-journal/SKILL.md`
+- `packages/agent-client/evals/cases/households/`
+- `tests/e2e/households/`
+
+Tasks:
+
+1. Implement `hfj_get_context`, `hfj_create_household`, `hfj_select_household`, all family-invitation/member tools, and account lifecycle with explicit household IDs, roles, scopes, expected revisions, and idempotency keys.
+2. Create household provisioning as one recoverable workflow: operational row, signed repository, owner projection, membership projection, and onboarding state. A partial failure is safe to retry.
+3. Implement owner/editor/viewer authorization, final-owner protection, invitation create/revoke/accept races, role changes, member removal/departure, and projection-drift fail-closed behavior.
+4. Implement pending family-invite preview before sign-in and explicit post-auth acceptance. Opening a URL never joins a household.
+5. Implement account display name, sign-in methods, passkeys, active MCP grants/revocation, household leave, export, deletion, reauthentication, and former-member pseudonymization while preserving audit integrity.
+6. Implement the approved SSR/hydrated React household, member, invite, and account screens with full empty/error/success/partial/cancelled states and role-correct controls. Hidden controls are not authorization.
+7. Implement the shared management skill and evals so first-run setup resumes pending intent, asks for a household name only when appropriate, never asks for a token, and explains permission denials in plain language.
+8. Add safe telemetry for auth, invitation, membership, conflict, and account actions using request IDs and no private labels.
+
+Verification:
+
+- `npm run test:unit --workspace @hfj/server -- households accounts invitations`
+- `npm run test:contract -- households accounts`
+- `npm run test:integration -- household-provisioning membership-projection`
+- `npm run test:security -- household-isolation invitation-races final-owner account-deletion`
+- `npm run test:e2e -- households account invite-pending-intent`
+- `npm run test:evals -- households --hosts codex,claude`
+- `npm run capture:screencast -- --output artifacts/screencasts/household-account-flows.mp4`
+- `npm run verify`
+
+Exit criteria:
+
+- new and invited users finish the correct flow without configuration or token handling;
+- two people retain separate identities and role-correct access in one household;
+- final-owner, projection-drift, invitation replay, and deletion races fail safely;
+- keyboard, screen-reader, 320-pixel, no-JavaScript, and role-state checks pass.
+
+### Milestone 5 - Journal storage, migration, exports, skills, and semantic evals
+
+Files:
+
+- `apps/server/src/journal/`
+- `apps/server/src/search/`
+- `apps/server/src/mcp/tools/profiles.ts`
+- `apps/server/src/mcp/tools/items.ts`
+- `apps/server/src/mcp/tools/evidence.ts`
+- `apps/server/src/mcp/tools/change-set.ts`
+- `apps/server/src/mcp/tools/export.ts`
+- `packages/agent-client/skills/audit-grocery-purchases/SKILL.md`
+- `packages/agent-client/skills/track-recipe-history/SKILL.md`
+- `packages/agent-client/references/mcp-tool-contract.md`
+- `packages/agent-client/references/privacy-and-sharing.md`
+- `packages/agent-client/references/semantic-food-rules.md`
+- `packages/agent-client/evals/cases/journal/`
+- `packages/agent-client/evals/expected/journal/`
+- `tests/integration/journal/`
+- `tests/contract/journal/`
+
+Tasks:
+
+1. Implement typed profile, evidence, snack, recipe, report/index, correction, search, and export domain rules and deterministic Git serialization.
+2. Implement `hfj_get_profile`, `hfj_update_profile`, `hfj_search_items`, `hfj_get_item`, `hfj_append_evidence`, `hfj_commit_change_set`, and `hfj_export_household` with authorization, bounds, evidence integrity, expected revisions, one commit per request, and concise pagination.
+3. Enforce evidence-before-conclusion, independent Saved/Cooked/Liked states, exact recurrence arithmetic, allowed report assertions, correction links, append-only evidence, URL scheme restrictions, private locators, and rejection of credentials/cookies/raw bodies.
+4. Build search projections that return structured distinguishing fields without deciding identity and can be rebuilt entirely from Git.
+5. Implement bounded idempotent local-journal migration with stable migration IDs, preflight counts/failures, credential/cookie exclusion, batch upload, server reconciliation, and post-migration count/record checks. Leave local source data unchanged.
+6. Author shared grocery and recipe skills from the durable specs. Preserve shop/source selection, browser authorization, sign-in preflight, complete order/item expansion, exact evidence, source scopes, independent statuses, image provenance, semantic identity rules, and end-of-run source-change questions.
+7. Add deterministic packaging tests and Codex/Claude evals for every required identity, status, evidence, privacy, conflict, and prompt-injection case. Programs may normalize exact fields but never make semantic decisions.
+8. Add journal mutation, search, migration, export, conflict, redaction, and oversized-input telemetry/tests.
+
+Verification:
+
+- `npm run test:unit --workspace @hfj/server -- journal search reports imports`
+- `npm run test:contract -- journal export`
+- `npm run test:integration -- journal migration export search-rebuild`
+- `npm run test:security -- evidence markdown urls export redaction oversized-input`
+- `npm run test:packaging --workspace @hfj/agent-client`
+- `npm run test:evals -- journal --hosts codex,claude`
+- `npm run verify`
+
+Exit criteria:
+
+- every journal mutation is evidence-backed, signed, revision-safe, idempotent, and projection-consistent;
+- exact deterministic assertions are validated while semantic authorship remains with the agent;
+- migration and both export formats reconcile against Git;
+- all required grocery/recipe identity and status evals pass in both hosts.
+
+### Milestone 6 - Collections, public sharing, selective import, and install handoff
+
+Files:
+
+- `apps/server/src/collections/`
+- `apps/server/src/imports/`
+- `apps/server/src/mcp/tools/collections.ts`
+- `apps/server/src/mcp/tools/imports.ts`
+- `apps/server/src/http/collection-routes.ts`
+- `apps/server/src/http/install-route.ts`
+- `apps/web/src/routes/install.tsx`
+- `apps/web/src/routes/collection-preview.tsx`
+- `apps/web/src/routes/collection-import-plan.tsx`
+- `apps/web/src/routes/household-collections.tsx`
+- `apps/web/src/components/collections/`
+- `packages/agent-client/skills/share-food-collection/SKILL.md`
+- `packages/agent-client/skills/import-food-collection/SKILL.md`
+- `packages/agent-client/evals/cases/collections/`
+- `tests/e2e/collections/`
+- `tests/security/collections/`
+
+Tasks:
+
+1. Implement private collection creation from explicit item IDs and revisions, per-field sharing choices, public-safe allowlist projection, immutable snapshots, default-private preparation notes, and conflict on changed source items.
+2. Implement share creation/revocation with 32 random bytes, unpadded base64url tokens, HMAC/pepper storage, constant-time comparison, 1/7/30/90-day expiry, immediate database revocation, audit reconciliation, strict rate limits, and no token logs/analytics/referrers.
+3. Implement every collection/import MCP tool and one-commit import semantics from published snapshots only. Exact provenance repeats default to skip; deterministic possible candidates require explicit user/agent choice; no semantic merge is automatic.
+4. Enforce import status effects: selected recipe import may establish Saved evidence but not Cooked/Liked; snack import creates no purchase, recurrence, pantry, or liked evidence; merges preserve newer destination facts.
+5. Implement SSR/no-JavaScript collection preview and form submissions, React-enhanced item selection, scoped select-all, duplicate resolution, preserved selection across sign-in/errors, destination-household choice, partial/completed reporting, revocation/expiration states, external image safety, and `no-store`, `no-referrer`, and `noindex` headers.
+6. Implement Web Share when available plus Copy link and user-controlled email/text drafts. Never read contacts or send without confirmation.
+7. Implement `/install` with one visible current platform action at a time, troubleshooting behind a secondary path, and versioned metadata from the agent package rather than snapshots.
+8. Implement share/import skills with explicit pre-publish preview, exact public fields, selected-item import, duplicate resolution, provenance, conflict behavior, and prompt-like imported text treated only as data.
+9. Add privacy snapshot tests proving every forbidden field is absent and public token tests covering enumeration, leakage, replay, rate limiting, revocation, and open-page revocation.
+
+Verification:
+
+- `npm run test:unit --workspace @hfj/server -- collections imports public-projection`
+- `npm run test:contract -- collections imports install-metadata`
+- `npm run test:integration -- collection-lifecycle selective-import import-idempotency`
+- `npm run test:security -- collection-privacy share-tokens xss prompt-injection referrers rate-limits`
+- `npm run test:e2e -- collections --viewports 1440x900,390x844,320x568`
+- `npm run test:evals -- collections --hosts codex,claude`
+- `npm run capture:screencast -- --output artifacts/screencasts/collection-share-import.mp4`
+- `npm run verify`
+
+Exit criteria:
+
+- a visitor previews without an account and imports only selected items after sign-in;
+- no share grants membership or reveals unselected/private data;
+- selection survives authentication, duplicate planning, rate limits, and recoverable conflicts;
+- share, copy, email, text, Codex, and Claude handoffs work at mobile and desktop widths.
+
+### Milestone 7 - DigitalOcean deployment, jobs, observability, backup, and recovery
+
+Files:
+
+- `Dockerfile`
+- `.dockerignore`
+- `deploy/compose.yaml`
+- `deploy/systemd/household-food-journal.service`
+- `deploy/systemd/household-food-journal-maintenance.timer`
+- `deploy/systemd/household-food-journal-maintenance.service`
+- `infra/opentofu/`
+- `apps/server/src/health/`
+- `apps/server/src/telemetry/`
+- `apps/server/src/backup/`
+- `apps/server/src/workers/`
+- `apps/server/src/cli/maintenance.ts`
+- `docs/runbooks/deploy.md`
+- `docs/runbooks/rollback.md`
+- `docs/runbooks/backup-restore.md`
+- `docs/runbooks/droplet-failover.md`
+- `docs/runbooks/secret-rotation.md`
+- `docs/runbooks/signing-key-recovery.md`
+- `tests/deployment/`
+- `tests/restore/`
+
+Tasks:
+
+1. Build a reproducible non-root Node 24 container containing the server, React build, Git executable, signing/verification support, health checks, and maintenance CLI. Keep signing and encryption keys outside the image and repository volume.
+2. Provision a staging and production DigitalOcean Droplet, firewall, reserved address/DNS inputs, and attached Block Storage with OpenTofu. Mount the expected filesystem at `/data/households`; startup fails closed on missing/wrong/read-only/unexpectedly empty mounts.
+3. Run exactly one active writer through systemd/Compose with restart policy and deployment fencing. Do not enable horizontal scaling. Make migration a separate explicit release step using the direct Neon URL.
+4. Implement `/health/live`, `/health/ready`, and authenticated operator health for Neon/schema, Git, mount identity/capacity, signing, incomplete mutations, reconciliation, backup age, fsck, signatures, and restore drills without tenant/private data.
+5. Implement structured redacted logs, metrics, and traces using request IDs across HTTP/MCP, Neon rows, Git trailers, jobs, and operator events. Alert on auth abuse, mutation failures, lock waits, conflicts, reconciliation lag, projection mismatch, invalid repositories, backup age, fsck/signature failure, volume capacity, and failed restore drills.
+6. Schedule expiry cleanup, reconciliation, projection checks, fsck, signature verification, backup, and signed manifests through idempotent maintenance commands.
+7. Deliver production secrets through the selected mechanism with per-purpose access and audit. Exercise rotation, revocation, loss, and recovery for Apple, OAuth/cookie/HMAC, email, Git signing, backup encryption/object storage, Neon, and DigitalOcean credentials without placing secrets in images, logs, client artifacts, or the household Git volume.
+8. Encrypt and upload Git bundles/manifests to the selected off-site object provider with object-lock/immutable retention. Configure Neon production recovery/PITR and export required operational metadata. Never use a production credential in tests.
+9. Exercise isolated full restore, projection rebuild, signing verification, canary persistence across container restart, Block Storage reattachment, and the documented single-instance Droplet failover. Prove RPO at most 24 hours and RTO at most 8 hours.
+10. Implement staged deployment, previous-image rollback, migration rollback/recovery, configuration validation, and repository-format compatibility rules. Test forward `FORMAT_VERSION` upgrade, rejection by an incompatible prior image, and restore/read compatibility without rewriting household history. Never roll back Git content by force-pushing or deleting `main`.
+
+Verification:
+
+- `npm run build`
+- `npm run test:integration -- jobs health telemetry backup`
+- `npm run test:restore`
+- `npm run test:deploy-smoke -- staging`
+- `npm run test:persistence-smoke -- staging`
+- `npm run test:security -- deployment secrets logs backups`
+- `npm run verify`
+
+Exit criteria:
+
+- staging survives container restart and documented Droplet/volume failover without losing the canary repository;
+- an isolated restore reconstructs Git, operational metadata, projections, signatures, and manifests within RTO/RPO;
+- readiness fails closed for unsafe mount, schema, Git, signing, or projection state;
+- operators can diagnose and recover every documented partial mutation without reading private content.
+
+### Milestone 8 - Hardening, compatibility, release, and launch
+
+Files:
+
+- `tests/security/`
+- `tests/load/`
+- `tests/e2e/`
+- `packages/agent-client/evals/`
+- `packages/agent-client/CHANGELOG.md`
+- `CHANGELOG.md`
+- `apps/web/src/routes/privacy.tsx`
+- `apps/web/src/routes/terms.tsx`
+- `docs/legal/privacy.md`
+- `docs/legal/terms.md`
+- `docs/release/manual-matrix.md`
+- `docs/release/accessibility.md`
+- `docs/release/privacy-review.md`
+- `docs/release/launch-checklist.md`
+- `docs/product-specs/household-food-journal-server.md`
+- `docs/product-specs/household-food-journal-client.md`
+- `docs/QUALITY_LEDGER.md`
+- `docs/IMPLEMENTATION_LOG.md`
+
+Tasks:
+
+1. Run the complete unit, branch, contract, Git, Neon, OAuth/MCP, browser, security, accessibility, eval, packaging, restore, and deployment suites with enforced coverage thresholds.
+2. Complete adversarial tests for cross-tenant substitution, role/scope mismatch, final-owner races, invitation/share replay, CSRF/open redirect, refresh reuse, XSS/Markdown/prompt injection, Git/path/archive injection, oversized input, log redaction, capability leakage, idempotency races, crash points, and concurrent edits.
+3. Run axe plus manual keyboard, VoiceOver, reduced-motion, zoom, contrast, focus, error-summary, no-JavaScript, 320-pixel, and long-content tests. Compare implemented Playwright screenshots to the approved ChatGPT designs and fix overlap, clipping, hierarchy, and state drift.
+4. Run load/race tests for MCP requests, advisory-lock waits, previews, imports, token endpoints, and maintenance overlap while verifying no duplicate commit, tenant leak, or unbounded queue.
+5. Execute the client release matrix on Codex CLI, Codex desktop where available, Claude Code, Claude Cowork/Desktop where available, Safari on macOS/iPhone, and one non-Apple browser. Record exact versions, results, screenshots, capability differences, install/upgrade/disable/uninstall, and canonical-data preservation.
+6. Publish and review accessible privacy and terms pages. Verify that policy text, install/consent links, retention, export, deletion, capability-link behavior, support contact, and subprocessors match the shipped system and do not overstate guarantees.
+7. Conduct privacy, security, accessibility, backup/restore, secret rotation/recovery, deployment/rollback, email deliverability, Apple configuration, and operational readiness reviews. Resolve every release-blocking finding.
+8. Publish signed/versioned Codex and Claude manifests/catalogs plus immutable install metadata from the same release, deploy the coordinated staging release, run packaging checks, smoke/evals, deploy production, and run non-destructive production smoke with no real household data.
+9. Update specs from Ready for implementation to the truthful released state only after all definition-of-done evidence passes. Refresh architecture, security, reliability, quality, implementation log, changelogs, knowledge artifacts, and complete this ExecPlan.
+
+Verification:
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit -- --coverage`
+- `npm run test:contract`
+- `npm run test:integration`
+- `npm run test:security`
+- `npm run test:evals -- --hosts codex,claude`
+- `npm run test:e2e`
+- `npm run test:restore`
+- `npm run test:deploy-smoke -- staging`
+- `npm run verify`
+- `npm run verify:docs`
+- `npm run verify:execplan`
+- `npm run knowledge:refresh`
+
+Exit criteria:
+
+- every server and client definition-of-done item has linked evidence;
+- deterministic code meets 100% line and branch coverage or has a documented, guarded, approved external-unreachable exception;
+- all high/critical security, privacy, accessibility, data-loss, and compatibility findings are closed;
+- backup/restore and staging rollback have been exercised, and production health/backup status is green;
+- installation, upgrade, disable, and uninstall leave canonical server data intact;
+- Codex and Claude manifests, catalogs, frontmatter, install metadata, and schema compatibility pass packaging validation and a secret scan;
+- public privacy and terms pages are reachable without JavaScript, linked from every collection/consent/account boundary, and match verified runtime behavior;
+- production secret rotation and signing-key recovery complete without exposing credentials, losing canonical data, or accepting unverifiable writes.
+
+## Interfaces and Dependencies
+
+Milestone 0 records exact versions after primary-documentation checks. The intended dependency categories are:
+
+- React 19.2, React DOM server/client rendering, and Vite for the single web build;
+- Fastify and the official stable MCP TypeScript SDK;
+- one runtime schema library capable of generating JSON Schema from shared semantic types;
+- the standard PostgreSQL protocol plus an explicit reversible SQL migration runner for Neon;
+- maintained Apple OIDC/JOSE and WebAuthn libraries rather than custom protocol or crypto;
+- structured logging and OpenTelemetry-compatible metrics/traces with central redaction;
+- a strict Markdown parser/sanitizer with a tiny allowlist and no raw HTML;
+- Vitest, React Testing Library, Playwright, axe, and deterministic provider fakes;
+- an S3-compatible client plus authenticated encryption for off-site bundles/manifests;
+- OpenTofu with the DigitalOcean provider for repeatable infrastructure.
+
+Required public contracts include:
+
+- the common MCP success/error envelope and every tool listed in client spec section 8/server spec section 12;
+- HTTP form/view schemas for install, sign-in, invite, collection preview/import, household, and account routes;
+- branded IDs and revisions that cannot be mixed across household, actor, item, collection, snapshot, share, invite, import, request, and Git object boundaries;
+- explicit OAuth scopes plus independent household roles;
+- immutable evidence/audit/import/snapshot schemas and mutable profile/item/report schemas;
+- a public collection projection type that has no private fields available to serialize;
+- explicit completion states: completed, partially completed, blocked with one action, and cancelled with no mutation.
+
+## Idempotence and Recovery
+
+- Every mutating HTTP/MCP operation carries a scoped idempotency key and returns a stored response on replay.
+- A household mutation never holds a Neon session-scoped lock. One transaction-scoped advisory lock covers durable request-state changes and the serialized Git operation.
+- Before Git commit, a failure records `failed_before_commit` and is safe to retry after cleanup.
+- After Git commit but before projection completion, the request enters `reconciliation_required`; the commit request trailer is the replay anchor.
+- Projection or search data may be rebuilt from signed Git. Private identity mappings, OAuth/session state, token revocation, and idempotency responses require operational backup recovery.
+- Invitation acceptance, member role changes, final-owner operations, share revocation, and imports have race tests and fail closed on stale state.
+- Collection tokens never authorize source-repository access. Import retries use the immutable published snapshot and destination request record.
+- Deployment rollback uses the prior compatible image and migration recovery plan. It never rewrites household `main` or downgrades an incompatible repository format.
+- Restore drills run in isolated infrastructure with non-production credentials and verify manifest hash, object count, HEAD, signatures, schemas, projections, and authorization before declaring success.
+
+## Acceptance / Verification
+
+### Product acceptance
+
+- A first-time Codex or Claude user installs with one host-specific action, completes browser auth without copying secrets, creates or joins the correct household, and performs a useful journal action.
+- Two separately authenticated people collaborate in one household with owner/editor/viewer permissions, explicit invitations, final-owner protection, audit identity, and conflict-safe writes.
+- Grocery and recipe workflows preserve exact evidence, source scope, semantic identity, independent status, image provenance, arithmetic, and end-of-run source-change requirements.
+- A publisher reviews exact fields, creates an immutable collection snapshot, shares/revokes a capability URL, and never exposes forbidden private data.
+- A recipient previews without an account, selects two of five, signs in, chooses a household, resolves every possible duplicate, imports exactly the selection with correct provenance/status effects, and receives Codex/Claude install handoff.
+- Readable ZIP and Git bundle exports verify; account deletion, sign-in methods, passkeys, grants, leave/transfer, and pseudonymized audit preservation work.
+- No browser or agent client receives repository/database/provider credentials or writes Git. No server program performs semantic classification, merge, status inference, or report authorship.
+
+### Engineering acceptance
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit -- --coverage`
+- `npm run test:contract`
+- `npm run test:integration`
+- `npm run test:security`
+- `npm run test:evals -- --hosts codex,claude`
+- `npm run test:e2e`
+- `npm run test:restore`
+- `npm run test:deploy-smoke -- staging`
+- `npm run verify`
+- `npm run verify:docs`
+- `npm run verify:execplan`
+- `npm run knowledge:refresh`
+
+### Evidence required before launch
+
+- approved ChatGPT IA, user-flow, screen-state, content, component, and visual-system artifacts under `docs/design/`;
+- coverage reports, generated-schema drift proof, security report, accessibility report, load/race results, and redaction/private-field snapshots;
+- Codex/Claude eval results and manual platform/version matrix;
+- validated Codex/Claude manifests, marketplace catalogs, install metadata, package secret-scan output, and schema compatibility matrix;
+- desktop/mobile/320-pixel screenshots and screencasts for setup/invite and collection share/import;
+- signed Git mutation/replay/conflict evidence and isolated export/backup restore results;
+- privacy/terms review approval plus secret-rotation and signing-key recovery drill records;
+- DigitalOcean staging persistence/failover smoke and Neon migration up/down/up evidence;
+- exact commands, timestamps, artifacts, remaining risks, and rollout/rollback result in `docs/IMPLEMENTATION_LOG.md`.
+
+### Rollout and rollback
+
+1. Develop only against local fakes, temporary Git repositories, and isolated Neon branches.
+2. Deploy to staging with test Apple/email identities, test signing/encryption keys, a staging volume, and an off-site staging bucket.
+3. Gate production provisioning on security, privacy, accessibility, backup/restore, and OAuth/MCP interoperability approval.
+4. Deploy one fenced production writer, run non-destructive health/install/auth/MCP/public-preview canaries, and monitor mutation/reconciliation/backup signals.
+5. On application regression, stop the writer, deploy the previous compatible image, follow migration recovery, and reconcile incomplete requests before reopening writes.
+6. On mount, repository, signature, or projection uncertainty, fail readiness, fence writes, quarantine affected repositories, and execute the recovery runbook. Never return a success-shaped fallback.
+
+## Outcomes & Retrospective
+
+Planning complete; implementation has not started. Update this section at every milestone with shipped behavior, verification evidence, design changes, operational discoveries, and remaining risks. Move this plan to `docs/exec-plans/completed/` only after both product specifications' definitions of done and every acceptance gate above pass.

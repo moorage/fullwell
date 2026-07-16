@@ -1,0 +1,450 @@
+{
+  "root": "household-food-journal",
+  "tree": [
+    {
+      "type": "file",
+      "name": ".DS_Store"
+    },
+    {
+      "type": "dir",
+      "name": ".agents",
+      "children": [
+        {
+          "type": "dir",
+          "name": "skills",
+          "children": [
+            {
+              "type": "dir",
+              "name": "create-exec-plan",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "SKILL.md"
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": "execplan-decompose",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "SKILL.md"
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": "expert-roundtable",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "SKILL.md"
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": "feature-critic",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "SKILL.md"
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": "high-quality-code-comments",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "AGENTS-snippet.md"
+                },
+                {
+                  "type": "file",
+                  "name": "SKILL.md"
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": "record-feature-screencast",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "SKILL.md"
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": "review-change-for-doc-drift",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "SKILL.md"
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": "update-knowledge-base",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "SKILL.md"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "name": ".codex",
+      "children": [
+        {
+          "type": "file",
+          "name": "config.toml"
+        },
+        {
+          "type": "dir",
+          "name": "hooks",
+          "children": [
+            {
+              "type": "file",
+              "name": "capture_event.mjs"
+            },
+            {
+              "type": "file",
+              "name": "session_context.mjs"
+            },
+            {
+              "type": "file",
+              "name": "session_wrapup.mjs"
+            },
+            {
+              "type": "file",
+              "name": "stop_verify.mjs"
+            }
+          ]
+        },
+        {
+          "type": "file",
+          "name": "hooks.json"
+        },
+        {
+          "type": "file",
+          "name": "local-environment.yaml"
+        },
+        {
+          "type": "file",
+          "name": "self-improvement.config.json"
+        }
+      ]
+    },
+    {
+      "type": "file",
+      "name": ".dockerignore"
+    },
+    {
+      "type": "dir",
+      "name": ".githooks",
+      "children": [
+        {
+          "type": "file",
+          "name": "commit-msg"
+        },
+        {
+          "type": "file",
+          "name": "pre-commit"
+        }
+      ]
+    },
+    {
+      "type": "file",
+      "name": ".gitignore"
+    },
+    {
+      "type": "file",
+      "name": ".node-version"
+    },
+    {
+      "type": "file",
+      "name": ".nvmrc"
+    },
+    {
+      "type": "file",
+      "name": "AGENTS.md"
+    },
+    {
+      "type": "file",
+      "name": "README.md"
+    },
+    {
+      "type": "dir",
+      "name": "docs",
+      "children": [
+        {
+          "type": "file",
+          "name": "ARCHITECTURE.md"
+        },
+        {
+          "type": "file",
+          "name": "CODING_STANDARDS.md"
+        },
+        {
+          "type": "file",
+          "name": "CONTEXT_LEDGER.md"
+        },
+        {
+          "type": "file",
+          "name": "EXECUTION_GUIDE.md"
+        },
+        {
+          "type": "file",
+          "name": "IMPLEMENTATION_LOG.md"
+        },
+        {
+          "type": "file",
+          "name": "PLANS.md"
+        },
+        {
+          "type": "file",
+          "name": "QUALITY_LEDGER.md"
+        },
+        {
+          "type": "file",
+          "name": "RELIABILITY.md"
+        },
+        {
+          "type": "file",
+          "name": "SECURITY.md"
+        },
+        {
+          "type": "dir",
+          "name": "exec-plans",
+          "children": [
+            {
+              "type": "dir",
+              "name": "active",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "2026-07-15-household-food-journal-v1.md"
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": "completed",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "2026-05-30-self-improvement-loop.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-15-specialize-household-food-journal-harness.md"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "generated",
+          "children": [
+            {
+              "type": "file",
+              "name": "repo-map.json"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "ideas",
+          "children": [
+            {
+              "type": "file",
+              "name": "README.md"
+            },
+            {
+              "type": "dir",
+              "name": "backlog",
+              "children": [
+                {
+                  "type": "file",
+                  "name": ".gitkeep"
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": "index.md"
+            },
+            {
+              "type": "dir",
+              "name": "templates",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "idea-template.md"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "product-specs",
+          "children": [
+            {
+              "type": "file",
+              "name": "household-food-journal-client.md"
+            },
+            {
+              "type": "file",
+              "name": "household-food-journal-server.md"
+            },
+            {
+              "type": "file",
+              "name": "index.md"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "self-improvement",
+          "children": [
+            {
+              "type": "file",
+              "name": "README.md"
+            },
+            {
+              "type": "file",
+              "name": "candidate-lessons.md"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "file",
+      "name": "package-lock.json"
+    },
+    {
+      "type": "file",
+      "name": "package.json"
+    },
+    {
+      "type": "dir",
+      "name": "scripts",
+      "children": [
+        {
+          "type": "file",
+          "name": "check_execplan.py"
+        },
+        {
+          "type": "file",
+          "name": "check_ideation.py"
+        },
+        {
+          "type": "dir",
+          "name": "ci",
+          "children": [
+            {
+              "type": "file",
+              "name": "record_screencast.mjs"
+            },
+            {
+              "type": "file",
+              "name": "record_screencast.sh"
+            },
+            {
+              "type": "file",
+              "name": "run_with_screencast.mjs"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "git-hooks",
+          "children": [
+            {
+              "type": "file",
+              "name": "commit-msg.mjs"
+            },
+            {
+              "type": "file",
+              "name": "commit-msg.test.mjs"
+            },
+            {
+              "type": "file",
+              "name": "pre-commit.mjs"
+            }
+          ]
+        },
+        {
+          "type": "file",
+          "name": "install-git-hooks.mjs"
+        },
+        {
+          "type": "dir",
+          "name": "knowledge",
+          "children": [
+            {
+              "type": "file",
+              "name": "check_docs.py"
+            },
+            {
+              "type": "file",
+              "name": "generate_repo_map.py"
+            },
+            {
+              "type": "file",
+              "name": "suggest_doc_updates.py"
+            },
+            {
+              "type": "file",
+              "name": "suggest_doc_updates.test.py"
+            },
+            {
+              "type": "file",
+              "name": "update_quality_ledger.py"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "self-improvement",
+          "children": [
+            {
+              "type": "file",
+              "name": "distill.mjs"
+            },
+            {
+              "type": "file",
+              "name": "lib.mjs"
+            },
+            {
+              "type": "file",
+              "name": "self-improvement.test.mjs"
+            },
+            {
+              "type": "file",
+              "name": "update-context-ledger.mjs"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "smoke",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+node_modules
+coverage
+*.tsbuildinfo
+dist
+.env*
+.env.sh
+.pw-browsers
+seccomp_profile.json
+artifacts/
+__pycache__/
+*.pyc
+client_secret.apps.googleusercontent.com.json
+tmp/
+.codex/self-improvement/

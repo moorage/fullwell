@@ -1,0 +1,126 @@
+# Architecture
+
+This document is the top-level code and authority map. Product behavior is normative in `docs/product-specs/household-food-journal-server.md` and `docs/product-specs/household-food-journal-client.md`.
+
+## System overview
+
+Household Food Journal is one hosted application plus one installable agent-client package.
+
+```text
+Codex / Claude ------- MCP over HTTPS + OAuth -------+
+                                                       |
+Browser ------- React 19.2 web experience ------------+---- TypeScript application service
+                                                            |  HTTP, OAuth, MCP, jobs
+                                                            |  sole Git writer
+                                                            |
+                                                            +---- Neon PostgreSQL
+                                                            |     operational state and projections
+                                                            |
+                                                            +---- /data/households
+                                                            |     DigitalOcean Block Storage
+                                                            |     authoritative household Git repos
+                                                            |
+                                                            `---- encrypted off-site backup
+```
+
+Version 1 deploys one containerized application process on one DigitalOcean Droplet. The React build is served by that service; it is not a separately deployed backend or authority boundary. Household repositories live on an attached DigitalOcean Block Storage volume mounted at `/data/households`.
+
+Neon PostgreSQL stores accounts, sessions, OAuth grants, membership authorization projections, mutation records, idempotency responses, token hashes, jobs, search projections, and reconciliation checkpoints. It is not authoritative for journal content. Git owns exportable household content and audit history.
+
+## Planned modules
+
+### Application server
+
+Purpose: expose HTTPS, OAuth, MCP, browser APIs, background jobs, and the only path that mutates household Git repositories.
+
+Planned path: `apps/server/`
+
+Internal modules should follow the server product domains: auth, households, profiles, journal content, collections, imports, Git, persistence, MCP, web, and workers. HTTP, MCP, Neon, Git, mail, clock, randomness, and filesystem access remain typed adapters at module edges.
+
+### Browser frontend
+
+Purpose: implement accessible React 19.2 flows for sign-in, passkeys, pending invitations, collection preview, selective import, account management, and install handoff.
+
+Planned path: `apps/web/`
+
+The frontend consumes explicit server contracts from `packages/contracts/`. It does not authorize requests, hold provider secrets, write Git, interpret repository paths, or make semantic food decisions. Public collection data must come from the server's allowlisted snapshot projection, never from a private household object serialized in the browser.
+
+### Shared contracts
+
+Purpose: define semantic TypeScript boundary types and runtime schemas for HTTP, MCP tools, Git documents, projections, errors, and mutation state transitions.
+
+Planned path: `packages/contracts/`
+
+External input is parsed once at the owning boundary. Compile-time types alone do not validate HTTP, MCP, database, environment, Git-file, or provider input.
+
+### Agent client
+
+Purpose: package shared Codex and Claude skills, host manifests, remote MCP configuration, references, deterministic packaging checks, contract tests, and agent evals.
+
+Planned path: `packages/agent-client/`
+
+The agent client never contains canonical household data, account state, credentials, a Git synchronization engine, or a programmatic semantic classifier. Codex and Claude use the same skill source files and the same remote MCP endpoint.
+
+### Operational persistence
+
+Purpose: keep private operational state and rebuildable query projections in Neon PostgreSQL.
+
+Planned paths: `migrations/` and `apps/server/src/persistence/`.
+
+Runtime traffic may use Neon's pooled connection endpoint. Migrations, backup utilities, and operations requiring session semantics use a direct connection. Household write serialization uses a transaction-scoped advisory lock held on the same checked-out connection and transaction as the durable mutation state transition; never rely on session-scoped locks through PgBouncer.
+
+### Household Git store
+
+Purpose: keep one signed bare repository per household under `/data/households/<household-uuid>.git`.
+
+Planned path: `apps/server/src/git/` for code; runtime data is never committed to this repository.
+
+Repository paths derive only from validated internal UUIDs. Git executes with fixed subcommands, argument arrays, `shell: false`, a fixed environment, and resource bounds. Append-only paths and expected revisions are validated before every commit.
+
+### Self-improvement hooks
+
+Purpose: capture redacted repo-local agent-work signals and keep the harness context current without expanding primary instruction files.
+
+Current files:
+- `.codex/hooks.json`
+- `.codex/self-improvement.config.json`
+- `.codex/hooks/`
+- `scripts/self-improvement/`
+- `docs/CONTEXT_LEDGER.md`
+- `docs/self-improvement/`
+
+Raw traces live under ignored `.codex/self-improvement/`. Tracked documents contain sanitized deterministic summaries only.
+
+## Authority rules
+
+1. Git is authoritative for journal content, exportable household settings, collection snapshots, import provenance, and audit history.
+2. Neon is authoritative for private identity, sessions, OAuth, authorization projections, idempotency, token revocation, jobs, and reconciliation state.
+3. The server is the only Git writer. Agent clients and browsers mutate through authenticated server contracts.
+4. Authorization uses the Neon projection and fails closed when projection state disagrees with Git.
+5. A successful mutation means one durable signed Git commit, one append-only audit event, and a completed idempotency record.
+6. Agents decide semantic food identity, classification, recipe status, merge choices, and report prose. Programs validate the submitted conclusion and its cited evidence.
+7. Family invitations grant household membership only after authenticated explicit acceptance. Collection shares expose only immutable public-safe snapshots and never grant membership.
+
+## Dependency direction
+
+- Domain and contract code may depend only on pure types and validators.
+- Server use cases may depend on domain contracts and typed ports.
+- Provider adapters depend inward on those ports; domain code never imports provider SDKs.
+- React code may depend on shared public contracts, not server persistence or Git modules.
+- Agent-client skills may depend on the published MCP contract, not server internals.
+- Neon projections may be rebuilt from Git; Git journal content may not be rebuilt from Neon projections.
+
+## Deployment boundary
+
+DigitalOcean App Platform is not the version 1 target because its application filesystem is ephemeral. The production container runs on a Droplet with an attached Block Storage volume. Keep a single active writer instance until advisory-lock behavior, shared filesystem semantics, failover, and split-brain prevention are proven for a different topology.
+
+The production health path must distinguish process readiness, Neon reachability, mounted-volume writability, Git availability, signing readiness, and reconciliation/backup freshness without exposing secrets or tenant data.
+
+## Maintenance rules
+
+Update this file when:
+- an application module or shared package becomes real;
+- an authority, trust, deployment, storage, or import direction changes;
+- horizontal scaling or a second deployable service is proposed;
+- the React delivery model changes materially;
+- a temporary version 1 limitation is removed.

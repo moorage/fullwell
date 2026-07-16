@@ -1,0 +1,25 @@
+{
+  "name": "household-food-journal",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "hooks:install": "node scripts/install-git-hooks.mjs",
+    "test:git-hooks": "node scripts/git-hooks/commit-msg.test.mjs",
+    "verify": "npm run test:unit && npm run verify:ideas && npm run verify:docs && npm run verify:execplan",
+    "verify:ideas": "python3 scripts/check_ideation.py",
+    "verify:docs": "python3 scripts/knowledge/check_docs.py",
+    "verify:execplan": "python3 scripts/check_execplan.py",
+    "knowledge:refresh": "python3 scripts/knowledge/generate_repo_map.py && python3 scripts/knowledge/update_quality_ledger.py",
+    "knowledge:suggest": "python3 scripts/knowledge/suggest_doc_updates.py",
+    "self-improve:distill": "node scripts/self-improvement/distill.mjs",
+    "self-improve:context": "node scripts/self-improvement/update-context-ledger.mjs",
+    "test:self-improvement": "node scripts/self-improvement/self-improvement.test.mjs",
+    "test:knowledge": "python3 scripts/knowledge/suggest_doc_updates.test.py",
+    "test:unit": "npm run test:git-hooks && npm run test:self-improvement && npm run test:knowledge",
+    "capture:screencast": "node scripts/ci/record_screencast.mjs",
+    "capture:screencast:run": "node scripts/ci/run_with_screencast.mjs"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25"
+  }
+}

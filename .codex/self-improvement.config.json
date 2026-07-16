@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "appType": "typescript-monorepo",
+  "runtimeDir": ".codex/self-improvement",
+  "traceFile": "traces.jsonl",
+  "candidateFile": "candidates.json",
+  "contextLedgerPath": "docs/CONTEXT_LEDGER.md",
+  "candidateLessonsPath": "docs/self-improvement/candidate-lessons.md",
+  "stopVerification": {
+    "enabled": true,
+    "skipTokens": ["[skip-verify]", "[self-improvement:skip-verify]"],
+    "aggregateCommands": ["npm run verify"],
+    "changedFileCommands": ["npm run verify"],
+    "docsCommands": ["npm run verify:docs"],
+    "execPlanCommands": ["npm run verify:execplan"],
+    "evalCommands": ["npm run verify"]
+  },
+  "gate": {
+    "minOccurrences": 2
+  },
+  "pathGroups": {
+    "docs": ["AGENTS.md", "README.md", "docs/"],
+    "execPlans": ["docs/exec-plans/active/"],
+    "evals": [
+      "packages/agent-client/evals/",
+      "packages/agent-client/skills/",
+      "packages/contracts/",
+      "docs/product-specs/"
+    ],
+    "app": [
+      "apps/server/",
+      "apps/web/",
+      "packages/contracts/",
+      "packages/agent-client/",
+      "migrations/",
+      "tests/",
+      "scripts/",
+      "package.json",
+      "package-lock.json"
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+name: default
+setup:
+  - npm install
+  - npm run hooks:install || true
+
+actions:
+  install_hooks:
+    run: npm run hooks:install
+  verify:
+    run: npm run verify
+  verify_ideas:
+    run: npm run verify:ideas
+  verify_docs:
+    run: npm run verify:docs
+  verify_execplan:
+    run: npm run verify:execplan
+  test_git_hooks:
+    run: npm run test:git-hooks
+  test_knowledge:
+    run: npm run test:knowledge
+  refresh_knowledge:
+    run: npm run knowledge:refresh
+  suggest_doc_updates:
+    run: npm run knowledge:suggest
+  refresh_context:
+    run: npm run self-improve:context
+  capture_screencast:
+    run: npm run capture:screencast -- --output artifacts/screencasts/manual-capture.mp4

@@ -1,0 +1,106 @@
+# Implementation Log
+
+- active ExecPlans:
+  - `docs/exec-plans/active/2026-07-15-household-food-journal-v1.md`
+- completed ExecPlans:
+  - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
+  - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
+
+- current milestone: planned the complete Household Food Journal version 1 implementation; application implementation has not started
+- created a milestone-based ExecPlan spanning ChatGPT-assisted IA/UI design, React 19.2 SSR and hydration, Fastify/MCP services, Neon projections, Git authority, the shared Codex/Claude client, DigitalOcean operations, and release validation
+- applied failure-oriented critique for dual-host packaging, public privacy/legal surfaces, secrets delivery and rotation, signing-key recovery, and repository-format compatibility
+- commands run:
+  - `npm run verify:execplan`
+  - `npm run verify:docs`
+  - `npm run self-improve:context`
+  - `npm run knowledge:refresh`
+  - `npm run verify`
+- evidence gathered:
+  - the active ExecPlan, documentation, ideation, Git-hook, self-improvement, and knowledge tests passed
+  - generated context and repository-map artifacts now identify the active version 1 ExecPlan
+  - validator warnings are limited to planned paths and routes that do not exist before implementation
+- open risks or blockers:
+  - implementation remains gated on Milestone 0 design approval and provider/protocol feasibility decisions
+
+- previous milestone: specialized the Household Food Journal implementation harness
+- promoted the client and server specifications from ignored `tmp/` into `docs/product-specs/`
+- established the planned TypeScript monorepo boundaries for the React 19.2 web experience, server, shared contracts, and Codex/Claude agent client
+- selected one DigitalOcean Droplet plus attached Block Storage for the single Git writer and Neon PostgreSQL for operational state
+- replaced generic and medical-template paths, commands, and documentation heuristics
+- removed passing application smoke placeholders; application quality commands must arrive with real implementations
+- added six knowledge-maintenance tests, including raw trace exclusion from the generated repo map
+- commands run:
+  - `npm run test:knowledge`
+  - `npm run test:self-improvement`
+  - `npm run test:unit`
+  - `npm run verify:ideas`
+  - `npm run verify:docs`
+  - `npm run verify:execplan`
+  - `npm run knowledge:suggest`
+  - `npm run self-improve:distill`
+  - `npm run self-improve:context`
+  - `npm run knowledge:refresh`
+  - `npm run verify`
+- evidence gathered:
+  - all six knowledge-maintenance tests passed
+  - Git-hook and self-improvement tests passed
+  - idea, docs, and ExecPlan validators passed
+  - generated context identifies the `typescript-monorepo` app type and Household Food Journal paths
+  - generated repo map excludes raw `.codex/self-improvement/` runtime files
+  - stale template product references were absent from active harness surfaces
+- open risks or blockers:
+  - application code, React dependencies, Neon schema, DigitalOcean deployment, and runtime test suites are intentionally not implemented by this harness specialization
+  - the repository pins Node 24 LTS, while this verification session ran on the available Node 26.2.0 runtime
+  - DigitalOcean volume failover, off-site Git backup, Neon recovery, and cross-host OAuth/MCP interoperability remain unproven implementation work
+
+- previous milestone: completed self-improvement loop implementation
+- self-improvement loop added enabled Codex lifecycle hooks, redacted runtime traces, deterministic candidate lesson distillation, stop-time verification guidance, generated context ledger, and app-type configuration
+- raw self-improvement traces are ignored under `.codex/self-improvement/`
+- commands run:
+  - `npm run test:self-improvement`
+  - `npm run test:unit`
+  - `npm run verify:execplan`
+  - `npm run verify:docs`
+  - `npm run verify:ideas`
+  - `npm run self-improve:distill`
+  - `npm run self-improve:context`
+  - `npm run knowledge:refresh`
+  - `npm run verify`
+  - final `npm run self-improve:context`
+  - final `npm run verify`
+  - `npm run lint`
+  - `npm run typecheck`
+- evidence gathered
+  - self-improvement tests passed
+  - generated candidate lessons from 0 trace events
+  - generated context ledger
+  - knowledge repo map refreshed
+  - repo verification passed
+  - lint and typecheck smoke placeholders passed
+- open risks or blockers:
+  - Codex must review and trust the new repo-local hooks before they run in interactive sessions
+  - candidate distillation is deterministic and intentionally conservative
+
+- previous milestone: completed commit-message AI model trailer enforcement
+- knowledge-base refresh now runs from `scripts/git-hooks/pre-commit.mjs`; `.codex/local-environment.yaml` no longer refreshes knowledge during setup
+- commands run:
+  - `npm install`
+  - `npm run knowledge:refresh`
+  - `npm run knowledge:suggest`
+  - `npm run hooks:install`
+  - `node scripts/git-hooks/commit-msg.test.mjs`
+  - `npm run test:git-hooks`
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm run test:unit`
+  - direct valid and invalid `node scripts/git-hooks/commit-msg.mjs <file>` smoke checks
+  - `npm run verify`
+  - `npm run verify:docs`
+  - `npm run verify:execplan`
+- evidence gathered
+  - commit-msg hook tests passed
+  - valid commit-message smoke check passed
+  - missing-trailer commit-message smoke check failed as expected
+  - `core.hooksPath` is configured as `.githooks`
+  - docs and ExecPlan verification passed
+- open risks or blockers:

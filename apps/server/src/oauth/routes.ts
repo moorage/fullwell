@@ -33,6 +33,7 @@ const TokenRequestSchema = z.discriminatedUnion("grant_type", [
 ]);
 
 const RevokeRequestSchema = z.object({ token: z.string().min(32).max(512) }).strict();
+const OAUTH_AUTHORIZE_RATE_LIMIT = { max: 60, timeWindow: 15 * 60_000, groupId: "oauth-authorize" } as const;
 
 export interface OAuthRouteDependencies {
   readonly oauth: OAuthService;
@@ -48,7 +49,7 @@ export async function registerOAuthRoutes(app: FastifyInstance, dependencies: OA
     });
   }
 
-  app.post("/oauth/register", async (request, reply) => oauthReply(reply, async () => {
+  app.post("/oauth/register", { config: { rateLimit: { max: 10, timeWindow: 60 * 60_000 } } }, async (request, reply) => oauthReply(reply, async () => {
     const client = await dependencies.oauth.registerClient(request.body);
     return reply.code(201).send({
       client_id: client.clientId,
@@ -60,7 +61,7 @@ export async function registerOAuthRoutes(app: FastifyInstance, dependencies: OA
     });
   }));
 
-  app.get("/oauth/authorize", async (request, reply) => oauthReply(reply, async () => {
+  app.get("/oauth/authorize", { config: { rateLimit: OAUTH_AUTHORIZE_RATE_LIMIT } }, async (request, reply) => oauthReply(reply, async () => {
     await dependencies.resolveBrowserPrincipal(request);
     const authorization = await dependencies.oauth.validateAuthorizationRequest(request.query);
     return reply.send({
@@ -74,7 +75,7 @@ export async function registerOAuthRoutes(app: FastifyInstance, dependencies: OA
     });
   }));
 
-  app.post("/oauth/authorize", async (request, reply) => oauthReply(reply, async () => {
+  app.post("/oauth/authorize", { config: { rateLimit: OAUTH_AUTHORIZE_RATE_LIMIT } }, async (request, reply) => oauthReply(reply, async () => {
     const form = AuthorizationFormSchema.parse(request.body);
     await dependencies.verifyCsrf(request, form.csrf_token);
     const principal = await dependencies.resolveBrowserPrincipal(request);
@@ -91,7 +92,7 @@ export async function registerOAuthRoutes(app: FastifyInstance, dependencies: OA
     return reply.redirect((await dependencies.oauth.approve(authorization, principal)).toString());
   }));
 
-  app.post("/oauth/token", async (request, reply) => oauthReply(reply, async () => {
+  app.post("/oauth/token", { config: { rateLimit: { max: 30, timeWindow: 60_000 } } }, async (request, reply) => oauthReply(reply, async () => {
     const form = TokenRequestSchema.parse(request.body);
     reply.header("cache-control", "no-store");
     reply.header("pragma", "no-cache");
@@ -101,7 +102,7 @@ export async function registerOAuthRoutes(app: FastifyInstance, dependencies: OA
     return reply.send(response);
   }));
 
-  app.post("/oauth/revoke", async (request, reply) => oauthReply(reply, async () => {
+  app.post("/oauth/revoke", { config: { rateLimit: { max: 60, timeWindow: 60_000 } } }, async (request, reply) => oauthReply(reply, async () => {
     const form = RevokeRequestSchema.parse(request.body);
     await dependencies.oauth.revoke(form.token);
     return reply.code(200).send();

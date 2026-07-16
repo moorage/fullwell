@@ -26,6 +26,7 @@ services:
       DATABASE_DIRECT_URL_FILE: /run/secrets/database_direct_url
       TOKEN_PEPPER_FILE: /run/secrets/token_pepper
       SESSION_SECRET_FILE: /run/secrets/session_secret
+      OPERATOR_TOKEN_FILE: /run/secrets/operator_token
       APPLE_PRIVATE_KEY_FILE: /run/secrets/apple_private_key
       MAIL_PROVIDER_API_KEY_FILE: /run/secrets/mail_provider_api_key
       GIT_SIGNING_KEY_FILE: /run/secrets/git_signing_key
@@ -34,6 +35,7 @@ services:
       - database_direct_url
       - token_pepper
       - session_secret
+      - operator_token
       - apple_private_key
       - mail_provider_api_key
       - git_signing_key
@@ -95,6 +97,8 @@ secrets:
     file: ${CREDENTIALS_DIRECTORY}/token-pepper
   session_secret:
     file: ${CREDENTIALS_DIRECTORY}/session-secret
+  operator_token:
+    file: ${CREDENTIALS_DIRECTORY}/operator-token
   apple_private_key:
     file: ${CREDENTIALS_DIRECTORY}/apple-private-key
   mail_provider_api_key:

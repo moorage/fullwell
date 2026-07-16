@@ -43,7 +43,7 @@ Browser household leave and account deletion use the same transaction-scoped hou
 - authenticated operator health exposes reconciliation backlog, oldest incomplete mutation, backup age, last fsck result, signature status, volume capacity, Neon migration state, and last restore drill.
 - public health responses reveal no tenant counts, paths, credentials, repository identifiers, or provider error bodies.
 
-The live, readiness, and authenticated operator routes exist, and the systemd maintenance timer invokes the idempotent reconciler and export cleanup through the server CLI. Export creation holds the household lock through source-HEAD capture and artifact metadata persistence, enforces a 96 MiB bound compatible with the deployment tmpfs, and uses deterministic request-derived capability material so exact retries do not create a second export. Current readiness covers store and repository availability; mount identity, signing state, reconciliation-backlog health reporting, backup age, and restore-drill freshness remain release blockers in the active ExecPlan.
+The live and readiness routes are public and contain no counts or paths. Production readiness checks Neon, schema `0004`, Git, volume identity/writability, signing configuration, and single-writer leadership. `/health/operator` uses a dedicated HMAC-compared bearer credential and adds incomplete/reconciliation-required mutation counts and age, quarantine count, backup gaps/age, volume capacity, and explicit unknown fsck/signature/restore-drill timestamps. Missing or stale backup, fsck, signature, and restore-drill evidence remains a blocker until the backup milestone persists it.
 
 ## Backups and recovery
 
@@ -59,6 +59,8 @@ Snapshots alone are insufficient because storage corruption or operator error ca
 ## Telemetry
 
 Use one request ID across HTTP/MCP, Neon mutation rows, Git commit trailers, jobs, and operator logs. Record safe event types, state transitions, durations, retry counts, error codes, and hashed/internal correlation IDs.
+
+The server generates request IDs and returns `X-Request-ID`; caller-supplied values are ignored. Structured JSON logs allowlist safe attributes and pseudonymize household/export IDs. The operator-authenticated `/metrics` endpoint exposes OpenMetrics counters, histograms, runtime metrics, rate-limit rejections, reconciliation backlog, backup gaps/age, quarantines, and volume usage. Authentication, OAuth, MCP tools, mutation replay/conflict/outcome, lock wait, reconciliation, and cleanup use bounded categories only.
 
 Do not log or label metrics with access/refresh/share/invitation tokens, emails, household titles, food or recipe names, order IDs, source URLs, evidence bodies, user-authored notes, Git signing material, or raw provider responses.
 

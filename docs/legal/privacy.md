@@ -31,7 +31,7 @@ A collection link is a revocable capability URL to an immutable snapshot. Anyone
 - DigitalOcean hosts the application and encrypted Block Storage volume.
 - Neon hosts PostgreSQL operational data and managed database recovery.
 - Amazon Web Services stores encrypted, object-locked off-site backups in a separate account.
-- Postmark delivers magic links and security notices.
+- Resend delivers magic links and security notices.
 - Apple provides Sign in with Apple and may provide passkey synchronization through Apple Passwords/iCloud Keychain.
 
 Repositories contain pseudonymous member identifiers; private identity mappings remain in PostgreSQL. Git is authoritative for household journal content. Operational logs are structured and exclude tokens, emails, titles, food names, order IDs, source URLs, and request bodies.

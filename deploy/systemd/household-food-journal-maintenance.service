@@ -11,6 +11,7 @@ LoadCredentialEncrypted=database-url:/etc/credstore.encrypted/hfj-database-url
 LoadCredentialEncrypted=database-direct-url:/etc/credstore.encrypted/hfj-database-direct-url
 LoadCredentialEncrypted=token-pepper:/etc/credstore.encrypted/hfj-token-pepper
 LoadCredentialEncrypted=session-secret:/etc/credstore.encrypted/hfj-session-secret
+LoadCredentialEncrypted=operator-token:/etc/credstore.encrypted/hfj-operator-token
 LoadCredentialEncrypted=apple-private-key:/etc/credstore.encrypted/hfj-apple-private-key
 LoadCredentialEncrypted=mail-provider-api-key:/etc/credstore.encrypted/hfj-mail-provider-api-key
 LoadCredentialEncrypted=git-signing-key:/etc/credstore.encrypted/hfj-git-signing-key

@@ -28,6 +28,7 @@ import type {
   JsonValue,
   MembershipRecord,
   MutationRecord,
+  OperationalHealthSnapshot,
   RepositoryMembershipState,
   ShareRecord,
 } from "../core/types.js";
@@ -252,6 +253,21 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
   }
   async deleteExportDownload(id: string): Promise<void> {
     for (const [tokenHash, record] of this.exportDownloads) if (record.id === id) this.exportDownloads.delete(tokenHash);
+  }
+  async operatorHealth(): Promise<OperationalHealthSnapshot> {
+    const incomplete = [...this.mutations.values()].filter((record) => ["received", "locked", "git_committed", "projections_applied", "reconciliation_required"].includes(record.state));
+    const oldestIncomplete = incomplete.map((record) => record.updatedAt).sort()[0] ?? null;
+    const households = [...this.households.values()];
+    return {
+      incompleteMutationCount: incomplete.length,
+      reconciliationRequiredCount: incomplete.filter((record) => record.state === "reconciliation_required").length,
+      oldestIncompleteMutationAt: oldestIncomplete,
+      quarantinedHouseholdCount: households.filter((record) => record.provisioningState === "quarantined").length,
+      householdCount: households.length,
+      householdsWithoutBackup: households.length,
+      oldestBackupAt: null,
+      schemaVersion: "memory",
+    };
   }
   async withHouseholdLock<T>(householdId: HouseholdId, operation: () => Promise<T>): Promise<T> {
     const previous = this.lockTails.get(householdId) ?? Promise.resolve();

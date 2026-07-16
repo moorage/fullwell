@@ -46,7 +46,7 @@ export async function registerWebExperience(app: FastifyInstance, experience: We
     maxAge: "1y",
   });
 
-  app.post<{ Params: { token: string } }>("/c/:token/import/plan", async (request, reply) => {
+  app.post<{ Params: { token: string } }>("/c/:token/import/plan", { config: { rateLimit: { max: 30, timeWindow: 15 * 60_000, groupId: "collection-import" } } }, async (request, reply) => {
     const form = SelectionFormSchema.parse(request.body);
     const context = await experience.contextFor(request);
     const selected = new Set(form.itemIds);
@@ -57,7 +57,7 @@ export async function registerWebExperience(app: FastifyInstance, experience: We
     return sendWebPage(reply, request.url, plannedContext, entry.file, entry.css ?? [], true);
   });
 
-  app.post<{ Params: { token: string } }>("/c/:token/import", async (request, reply) => {
+  app.post<{ Params: { token: string } }>("/c/:token/import", { config: { rateLimit: { max: 30, timeWindow: 15 * 60_000, groupId: "collection-import" } } }, async (request, reply) => {
     if (experience.importCollection === undefined) return reply.code(501).send({ error: { code: "PROVIDER_UNAVAILABLE", message: "Browser import is not configured" } });
     const form = ImportFormSchema.parse(request.body);
     const result = await experience.importCollection(request, { token: request.params.token, ...form });

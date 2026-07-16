@@ -108,3 +108,14 @@ export interface ExportDownloadRecord {
   downloadedAt: string | null;
   readonly createdAt: string;
 }
+
+export interface OperationalHealthSnapshot {
+  readonly incompleteMutationCount: number;
+  readonly reconciliationRequiredCount: number;
+  readonly oldestIncompleteMutationAt: string | null;
+  readonly quarantinedHouseholdCount: number;
+  readonly householdCount: number;
+  readonly householdsWithoutBackup: number;
+  readonly oldestBackupAt: string | null;
+  readonly schemaVersion: string;
+}

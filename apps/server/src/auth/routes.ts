@@ -21,6 +21,8 @@ const PasskeyCredentialParamsSchema = z.object({ credentialId: z.string().min(1)
 const LinkMagicSchema = z.object({ csrf: z.string().min(32).max(512), email: z.email().max(320) }).strict();
 const LinkMagicCompleteSchema = z.object({ token: z.string().min(32).max(512) }).strict();
 const CsrfSchema = z.object({ csrf: z.string().min(32).max(512) }).strict();
+const AUTH_START_RATE_LIMIT = { max: 10, timeWindow: 15 * 60_000, groupId: "auth-start" } as const;
+const AUTH_COMPLETE_RATE_LIMIT = { max: 20, timeWindow: 15 * 60_000, groupId: "auth-complete" } as const;
 
 export interface BrowserAuthRouteDependencies {
   readonly auth: BrowserAuthService;
@@ -29,14 +31,14 @@ export interface BrowserAuthRouteDependencies {
 }
 
 export async function registerBrowserAuthRoutes(app: FastifyInstance, dependencies: BrowserAuthRouteDependencies): Promise<void> {
-  app.post("/auth/magic-link", async (request, reply) => {
+  app.post("/auth/magic-link", { config: { rateLimit: AUTH_START_RATE_LIMIT } }, async (request, reply) => {
     const body = MagicLinkRequestSchema.parse(request.body);
     await dependencies.auth.requestMagicLink(body.email, body.pending_intent);
     if (request.headers.accept?.includes("text/html")) return reply.redirect("/sign-in?emailSent=1", 303);
     return reply.code(202).send({ accepted: true });
   });
 
-  app.get("/auth/magic-link/complete", async (request, reply) => {
+  app.get("/auth/magic-link/complete", { config: { rateLimit: AUTH_COMPLETE_RATE_LIMIT } }, async (request, reply) => {
     const query = MagicLinkCompleteSchema.parse(request.query);
     const session = await dependencies.auth.completeMagicLink(query.token, query.transaction);
     setSessionCookie(reply, session.sessionToken, dependencies.secureCookies);
@@ -44,7 +46,7 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
     return reply.redirect(session.pendingIntent ?? "/households");
   });
 
-  app.post("/account/sign-in-methods/magic_link/start", async (request, reply) => {
+  app.post("/account/sign-in-methods/magic_link/start", { config: { rateLimit: AUTH_START_RATE_LIMIT } }, async (request, reply) => {
     const body = LinkMagicSchema.parse(request.body);
     const sessionToken = requireSessionCookie(request);
     await dependencies.auth.verifyCsrf(sessionToken, body.csrf);
@@ -53,13 +55,13 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
     return reply.redirect("/account?emailLinkSent=1", 303);
   });
 
-  app.get("/account/sign-in-methods/magic_link/complete", async (request, reply) => {
+  app.get("/account/sign-in-methods/magic_link/complete", { config: { rateLimit: AUTH_COMPLETE_RATE_LIMIT } }, async (request, reply) => {
     const { token } = LinkMagicCompleteSchema.parse(request.query);
     await dependencies.auth.completeMagicLinkIdentity(token, requireSessionCookie(request));
     return reply.redirect("/account?methodLinked=magic_link", 302);
   });
 
-  app.post("/auth/apple/start", async (request, reply) => {
+  app.post("/auth/apple/start", { config: { rateLimit: AUTH_START_RATE_LIMIT } }, async (request, reply) => {
     const body = StartAuthSchema.parse(request.body ?? {});
     const started = await dependencies.auth.beginApple(body.pending_intent);
     reply.setCookie("hfj_auth_binding", started.browserBinding, {
@@ -69,7 +71,7 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
     return reply.redirect(appleAuthorizationUrl(dependencies.appleAuthorization, started.state).toString());
   });
 
-  app.post("/account/sign-in-methods/apple/start", async (request, reply) => {
+  app.post("/account/sign-in-methods/apple/start", { config: { rateLimit: AUTH_START_RATE_LIMIT } }, async (request, reply) => {
     const { csrf } = CsrfSchema.parse(request.body);
     const sessionToken = requireSessionCookie(request);
     await dependencies.auth.verifyCsrf(sessionToken, csrf);
@@ -82,7 +84,7 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
     return reply.redirect(appleAuthorizationUrl(dependencies.appleAuthorization, started.state).toString());
   });
 
-  app.post("/auth/apple/callback", async (request, reply) => {
+  app.post("/auth/apple/callback", { config: { rateLimit: AUTH_COMPLETE_RATE_LIMIT } }, async (request, reply) => {
     const parsed = AppleCallbackSchema.omit({ browser_binding: true }).safeParse(request.body);
     const body = parsed.success
       ? { ...parsed.data, browser_binding: request.cookies.hfj_auth_binding }
@@ -101,15 +103,15 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
     return reply.redirect(session.pendingIntent ?? "/households", 303);
   });
 
-  app.post("/auth/passkey/options", async (request, reply) => {
+  app.post("/auth/passkey/options", { config: { rateLimit: AUTH_START_RATE_LIMIT } }, async (request, reply) => {
     return startPasskeyAuthentication(request, reply, dependencies);
   });
 
-  app.post("/auth/passkey/start", async (request, reply) => {
+  app.post("/auth/passkey/start", { config: { rateLimit: AUTH_START_RATE_LIMIT } }, async (request, reply) => {
     return startPasskeyAuthentication(request, reply, dependencies);
   });
 
-  app.post("/auth/passkey/authentication/complete", async (request, reply) => {
+  app.post("/auth/passkey/authentication/complete", { config: { rateLimit: AUTH_COMPLETE_RATE_LIMIT } }, async (request, reply) => {
     const body = PasskeyCompleteSchema.parse(request.body);
     const browserBinding = request.cookies.hfj_passkey_binding;
     if (browserBinding === undefined) throw new AppError("AUTH_REQUIRED", "The passkey sign-in request is invalid or expired");
@@ -120,7 +122,7 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
     return { authenticated: true, redirect_to: session.pendingIntent ?? "/households" };
   });
 
-  app.post("/auth/passkey/registration/options", async (request) => {
+  app.post("/auth/passkey/registration/options", { config: { rateLimit: AUTH_START_RATE_LIMIT } }, async (request) => {
     const sessionToken = requireSessionCookie(request);
     const body = PasskeyRegistrationStartSchema.parse(request.body);
     await dependencies.auth.verifyCsrf(sessionToken, body.csrf);
@@ -128,7 +130,7 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
     return dependencies.auth.beginPasskeyRegistration(principal.userId, sessionToken);
   });
 
-  app.post("/auth/passkey/registration/complete", async (request) => {
+  app.post("/auth/passkey/registration/complete", { config: { rateLimit: AUTH_COMPLETE_RATE_LIMIT } }, async (request) => {
     const sessionToken = requireSessionCookie(request);
     const body = PasskeyRegistrationCompleteSchema.parse(request.body);
     await dependencies.auth.verifyCsrf(sessionToken, body.csrf);

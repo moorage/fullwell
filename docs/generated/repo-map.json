@@ -456,6 +456,10 @@
                   "children": [
                     {
                       "type": "file",
+                      "name": "health.test.ts"
+                    },
+                    {
+                      "type": "file",
                       "name": "health.ts"
                     }
                   ]
@@ -573,6 +577,20 @@
                     {
                       "type": "file",
                       "name": "mutation-runner.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "telemetry",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "observability.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "observability.ts"
                     }
                   ]
                 },

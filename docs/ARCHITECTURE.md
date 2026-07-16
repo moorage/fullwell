@@ -122,11 +122,13 @@ Raw traces live under ignored `.codex/self-improvement/`. Tracked documents cont
 
 DigitalOcean App Platform is not the version 1 target because its application filesystem is ephemeral. The production container runs on a Droplet with an attached Block Storage volume. Keep a single active writer instance until advisory-lock behavior, shared filesystem semantics, failover, and split-brain prevention are proven for a different topology.
 
-The production health path must distinguish process readiness, Neon reachability, mounted-volume writability, Git availability, signing readiness, and reconciliation/backup freshness without exposing secrets or tenant data.
+The production health path distinguishes process readiness, Neon reachability/schema compatibility, mounted-volume identity and writability, Git availability, signing readiness, and single-writer leadership without exposing secrets or tenant data. A separately authenticated operator route adds bounded reconciliation, backup-gap, and capacity state; `/metrics` exposes the same operational gauges plus low-cardinality HTTP/runtime metrics in OpenMetrics format.
+
+Fastify applies a global and route-specific `@fastify/rate-limit` policy keyed by the client IP after one trusted Caddy hop. `ServiceObservability` is the sole production telemetry adapter for request, MCP, mutation, reconciliation, and maintenance events; it allowlists attribute keys, pseudonymizes entity IDs, and never records request bodies or capability material.
 
 ## Current release limitations
 
-The application foundation, durable Git-to-Neon reconciliation, WebAuthn passkeys, browser account lifecycle, 22-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, agent package, and DigitalOcean deployment assets are implemented. Version 1 is not production-ready while encrypted off-site backup, readable ZIP downloads, production telemetry/rate limits, external staging compatibility, and native passkey compatibility evidence remain open in the active ExecPlan.
+The application foundation, durable Git-to-Neon reconciliation, portable exports, production rate limits/telemetry, operator health, WebAuthn passkeys, browser account lifecycle, 22-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, agent package, and DigitalOcean deployment assets are implemented. Version 1 is not production-ready while encrypted immutable off-site backup, full security/accessibility/load validation, external staging compatibility, and native passkey compatibility evidence remain open in the active ExecPlan.
 
 ## Maintenance rules
 

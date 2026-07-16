@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { resolve } from "node:path";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { ToolInputSchemas } from "@hfj/contracts";
 import { MemoryHouseholdRepository, MemoryOperationalStore } from "../adapters/memory.js";
 import {
@@ -12,11 +14,13 @@ import {
   UnconfiguredMailProvider,
 } from "../adapters/providers.js";
 import { HouseholdFoodJournalService } from "../services/household-food-journal.js";
-import { buildApp } from "./app.js";
+import { authenticationCategory, buildApp, type AppDependencies } from "./app.js";
 import { WebViewModelService } from "./web-view-model.js";
 import { MemoryExportArtifactStore } from "../exports/artifact-store.js";
+import { ServiceObservability } from "../telemetry/observability.js";
+import { createOperatorAuthenticator, HealthService } from "../health/health.js";
 
-async function fixture() {
+async function fixture(options: Pick<AppDependencies, "observability" | "operatorAuthentication" | "rateLimit"> = {}) {
   const store = new MemoryOperationalStore();
   const repository = new MemoryHouseholdRepository();
   const clock = new FixedClock(new Date("2026-07-15T12:00:00.000Z"));
@@ -27,14 +31,30 @@ async function fixture() {
   const artifacts = new MemoryExportArtifactStore();
   const service = new HouseholdFoodJournalService(store, repository, clock, random, hasher, new NoopTelemetry(), publicOrigin, artifacts);
   const browserOwner = await authentication.authenticate("Bearer test-owner-token");
+  const healthRoot = await mkdtemp(join(tmpdir(), "hfj-app-health-"));
+  await writeFile(join(healthRoot, ".hfj-volume-id"), "test-volume\n");
+  const health = new HealthService(store, repository, { clock, expectedSchemaVersion: "memory", repositoryRoot: healthRoot, signingConfigured: true });
   const app = await buildApp({
     service, authentication, store, repository, mail: new UnconfiguredMailProvider(), identity: new UnconfiguredAppleIdentityProvider(), random, publicOrigin,
+    health,
     exportDownloads: { artifacts, hasher, clock, resolveBrowserPrincipal: async (request) => request.headers["x-test-browser-session"] === "owner" ? browserOwner : null },
+    ...options,
   });
+  app.addHook("onClose", async () => rm(healthRoot, { recursive: true, force: true }));
   return { app, repository, service, store, authentication, hasher, random, publicOrigin, artifacts, clock };
 }
 
 describe("Fastify application", () => {
+  it("classifies bounded authentication telemetry categories", () => {
+    expect([
+      "/auth/magic-link", "/auth/apple/start", "/auth/passkey/options", "/account/sign-in-methods/apple/start",
+      "/oauth/register", "/oauth/authorize", "/oauth/token", "/oauth/revoke", "/households",
+    ].map(authenticationCategory)).toEqual([
+      "magic_link", "apple", "passkey", "identity_management",
+      "oauth_registration", "oauth_authorization", "oauth_token", "oauth_revocation", null,
+    ]);
+  });
+
   it("publishes and invokes the complete MCP tool catalog", async () => {
     const { app } = await fixture();
     const list = await app.inject({ method: "POST", url: "/mcp", headers: { authorization: "Bearer test-owner-token" }, payload: { jsonrpc: "2.0", id: 1, method: "tools/list" } });
@@ -149,6 +169,34 @@ describe("Fastify application", () => {
     const ready = await app.inject({ method: "GET", url: "/health/ready" });
     expect(ready.statusCode).toBe(200);
     expect(ready.headers["referrer-policy"]).toBe("no-referrer");
+    expect((await app.inject({ method: "GET", url: "/health/operator" })).statusCode).toBe(503);
+    expect((await app.inject({ method: "GET", url: "/metrics" })).statusCode).toBe(503);
+    await app.close();
+  });
+
+  it("rate limits by trusted client IP and protects OpenMetrics with the operator credential", async () => {
+    const logs: string[] = [];
+    const observability = new ServiceObservability({ runtimeMetrics: false, stdout: (line) => logs.push(line), stderr: (line) => logs.push(line) });
+    const operatorAuthentication = createOperatorAuthenticator("operator-test-token-that-is-long-enough", new HmacTokenHasher("operator-metrics-pepper-that-is-long-enough"));
+    const { app } = await fixture({ observability, operatorAuthentication, rateLimit: { max: 1, timeWindowMs: 60_000 } });
+    const first = await app.inject({ method: "GET", url: "/.well-known/oauth-protected-resource", headers: { "x-request-id": "private-caller-value" } });
+    expect(first.statusCode).toBe(200);
+    expect(first.headers["x-request-id"]).toMatch(/^req_/);
+    expect(first.headers["x-request-id"]).not.toBe("private-caller-value");
+    const limited = await app.inject({ method: "GET", url: "/.well-known/oauth-protected-resource" });
+    expect(limited.statusCode, `${limited.body}\n${logs.join("")}`).toBe(429);
+    expect(limited.json().error.code).toBe("RATE_LIMITED");
+    expect(limited.headers["retry-after"]).toBeDefined();
+    expect((await app.inject({ method: "GET", url: "/health/live" })).statusCode).toBe(200);
+    expect((await app.inject({ method: "GET", url: "/metrics", headers: { authorization: "Bearer test-owner-token" } })).statusCode).toBe(401);
+    const metrics = await app.inject({ method: "GET", url: "/metrics", headers: { authorization: "Bearer operator-test-token-that-is-long-enough" } });
+    expect(metrics.statusCode).toBe(200);
+    expect(metrics.headers["content-type"]).toContain("openmetrics-text");
+    expect(metrics.body).toContain("hfj_rate_limited_total");
+    const operatorHealth = await app.inject({ method: "GET", url: "/health/operator", headers: { authorization: "Bearer operator-test-token-that-is-long-enough" } });
+    expect(operatorHealth.statusCode).toBe(200);
+    expect(operatorHealth.json()).toMatchObject({ status: "healthy", reconciliation: { incomplete_mutations: 0 } });
+    expect(logs.join("")).not.toContain("private-caller-value");
     await app.close();
   });
 

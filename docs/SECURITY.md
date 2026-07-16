@@ -44,9 +44,13 @@ Family invitation and collection share tokens are distinct, random capabilities 
 
 Export links are separate requester-bound capabilities. Neon stores only their HMAC digest, source HEAD, content hash, private artifact path, expiry, and claim state. The server buffers and verifies the artifact before atomically claiming the token, never includes household IDs in download filenames, and returns the same not-found response for wrong requester, expired, used, or invented tokens. Readable archives reject non-regular Git entries and unsafe paths before creation; both formats are capped at 96 MiB and stored outside the public asset tree with mode `0600`.
 
+Application abuse controls use `@fastify/rate-limit` with a global per-client-IP ceiling and stricter grouped limits for authentication, OAuth, MCP, public capabilities, imports, exports, and destructive account actions. Fastify trusts exactly one proxy hop because Caddy is the only public ingress and the app container is not published. Rate-limit labels use route templates only, never raw URLs or tokens.
+
 ## Secrets and credentials
 
-Expected secret classes include Neon runtime and migration URLs, Apple credentials, OAuth signing/encryption keys, cookie keys, HMAC peppers, email-provider credentials, Git signing keys, DigitalOcean deployment credentials, and backup encryption credentials.
+Expected secret classes include Neon runtime and migration URLs, Apple credentials, OAuth signing/encryption keys, cookie keys, HMAC peppers, the dedicated operator bearer token, email-provider credentials, Git signing keys, DigitalOcean deployment credentials, and backup encryption credentials.
+
+The operator token is not an OAuth access token and grants no household or MCP access. It protects `/health/operator` and `/metrics`, is HMAC-compared, is rate limited, and must be rotated as an encrypted systemd credential. Public liveness/readiness never return tenant counts, storage paths, repository identifiers, or provider error bodies.
 
 - `.env*` remains ignored and is for local non-production values only.
 - local and test work use isolated Neon branches/projects, never production credentials.

@@ -212,6 +212,26 @@ describeDatabase("NeonOperationalStore", () => {
     expect(await store.listReclaimableExportDownloads("2026-07-15T12:02:00.000Z")).toEqual([]);
   });
 
+  it("reports bounded operator health from durable state", async () => {
+    const pending: MutationRecord = {
+      requestId: RequestIdSchema.parse("req_0000000000000199"), userId: ownerId, tool: "hfj_export_household",
+      idempotencyKey: "operator-health-0199", householdId, state: "received", commitId: null,
+      response: null, failure: null, createdAt: "2026-07-15T12:00:00.000Z", updatedAt: "2026-07-15T12:00:00.000Z",
+    };
+    await store.saveMutation(pending);
+    await expect(store.operatorHealth()).resolves.toMatchObject({
+      incompleteMutationCount: 1,
+      reconciliationRequiredCount: 0,
+      oldestIncompleteMutationAt: "2026-07-15T12:00:00.000Z",
+      quarantinedHouseholdCount: 0,
+      householdCount: 1,
+      householdsWithoutBackup: 1,
+      schemaVersion: "0004",
+    });
+    await store.transitionMutation(pending.requestId, "failed_before_commit", { failure: "test_cleanup" });
+    expect((await store.operatorHealth()).incompleteMutationCount).toBe(0);
+  });
+
   it("serializes concurrent transactions for the same household", async () => {
     const order: string[] = [];
     let releaseFirst = (): void => { throw new Error("First lock gate was not initialized"); };

@@ -20,7 +20,7 @@
 
 - [ ] OpenTofu plan, state controls, Droplet image/size, firewall, reserved IP, DNS, and volume identity are reviewed.
 - [ ] Production app image and gateway are pinned by immutable digest; SBOM, vulnerability, provenance, and signature evidence is retained.
-- [ ] Pooled/direct Neon separation, migrations, Apple, passkeys, Postmark, OAuth/MCP discovery, and rate limits are production-verified.
+- [ ] Pooled/direct Neon separation, migrations, Apple, passkeys, Resend, OAuth/MCP discovery, and rate limits are production-verified.
 - [ ] Encrypted credentials are least privilege; rotation/revocation/recovery drills pass without secret leakage.
 - [ ] Git signing, fsck, signed manifest, off-site Object Lock backup, isolated restore, projection rebuild, and canary persistence pass.
 - [ ] Single-writer failover and reserved-IP/volume movement are rehearsed with the old writer independently fenced.

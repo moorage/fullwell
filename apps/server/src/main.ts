@@ -2,7 +2,6 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { MemoryOperationalStore } from "./adapters/memory.js";
 import {
-  ConsoleTelemetry,
   CryptoRandomSource,
   DeterministicTestAuthenticator,
   AppleIdentityProvider,
@@ -33,6 +32,8 @@ import { NeonOperationalStore } from "./persistence/neon-operational-store.js";
 import { NeonConnection } from "./persistence/neon.js";
 import { HouseholdFoodJournalService } from "./services/household-food-journal.js";
 import { FileExportArtifactStore } from "./exports/artifact-store.js";
+import { createOperatorAuthenticator, HealthService } from "./health/health.js";
+import { ServiceObservability } from "./telemetry/observability.js";
 
 const config = parseConfig(process.env);
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
@@ -54,7 +55,7 @@ const repository = new GitHouseholdRepository({
 });
 const clock = new SystemClock();
 const random = new CryptoRandomSource();
-const telemetry = new ConsoleTelemetry();
+const telemetry = new ServiceObservability();
 const publicOrigin = new URL(config.PUBLIC_ORIGIN);
 const mail = config.MAIL_PROVIDER_API_KEY === undefined || config.MAIL_FROM === undefined
   ? new UnconfiguredMailProvider()
@@ -68,6 +69,12 @@ const passkeys = new WebAuthnPasskeyProvider({ rpName: "Fullwell", rpId: publicO
 const browserAuth = new BrowserAuthService(authStore, clock, random, hasher, mail, identity, passkeys, publicOrigin);
 const oauth = new OAuthService(oauthStore, clock, random, hasher, new URL("/mcp", publicOrigin));
 const accounts = new AccountService(authStore, store, oauthStore, clock, repository, random);
+const health = new HealthService(store, repository, {
+  clock,
+  expectedSchemaVersion: "0004",
+  repositoryRoot: config.HOUSEHOLD_REPOSITORY_ROOT,
+  signingConfigured: config.GIT_SIGNING_KEY !== undefined,
+});
 const productionAuthentication = new OAuthBearerAuthenticator(oauth, async (clientId) => {
   const client = await oauthStore.getClient(clientId);
   return client?.name.toLocaleLowerCase("en-US").includes("claude") === true ? "claude" : "codex";
@@ -97,6 +104,9 @@ const app = await buildApp({
   identity,
   random,
   publicOrigin,
+  health,
+  observability: telemetry,
+  ...(config.OPERATOR_TOKEN === undefined ? {} : { operatorAuthentication: createOperatorAuthenticator(config.OPERATOR_TOKEN, hasher) }),
   browserAuth: {
     auth: browserAuth,
     secureCookies: config.NODE_ENV === "production",

@@ -34,6 +34,7 @@ import type {
   JsonValue,
   MembershipRecord,
   MutationRecord,
+  OperationalHealthSnapshot,
   RepositoryMembershipState,
   ShareRecord,
 } from "../core/types.js";
@@ -467,6 +468,25 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
     await this.sql()`DELETE FROM export_downloads WHERE id = ${id}`;
   }
 
+  async operatorHealth(): Promise<OperationalHealthSnapshot> {
+    const rows = await this.sql()<Record<string, unknown>[]>`
+      SELECT
+        count(*) FILTER (WHERE state IN ('received', 'locked', 'git_committed', 'projections_applied', 'reconciliation_required'))::integer AS incomplete_mutation_count,
+        count(*) FILTER (WHERE state = 'reconciliation_required')::integer AS reconciliation_required_count,
+        min(updated_at) FILTER (WHERE state IN ('received', 'locked', 'git_committed', 'projections_applied', 'reconciliation_required')) AS oldest_incomplete_mutation_at,
+        (SELECT count(*)::integer FROM households WHERE provisioning_state = 'quarantined') AS quarantined_household_count,
+        (SELECT count(*)::integer FROM households) AS household_count,
+        (SELECT count(*)::integer FROM households h LEFT JOIN backup_checkpoints b ON b.household_id = h.id WHERE b.household_id IS NULL) AS households_without_backup,
+        (SELECT min(completed_at) FROM backup_checkpoints) AS oldest_backup_at,
+        CASE WHEN EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'export_downloads' AND column_name = 'content_hash'
+        ) THEN '0004' ELSE 'unknown' END AS schema_version
+      FROM mutation_requests
+    `;
+    return operationalHealthFromRow(rows[0]);
+  }
+
   async withHouseholdLock<T>(householdId: HouseholdId, operation: () => Promise<T>): Promise<T> {
     const active = this.transaction.getStore();
     if (active !== undefined) {
@@ -616,6 +636,21 @@ function exportDownloadFromRow(input: unknown): ExportDownloadRecord {
     expires_at: TimestampSchema, downloaded_at: NullableTimestampSchema, created_at: TimestampSchema,
   }).parse(input);
   return { id: row.id, householdId: row.household_id, requestedBy: row.requested_by, format: row.format, tokenHash: row.token_hash, objectPath: row.object_path, contentHash: row.content_hash, repositoryHead: row.repository_head, expiresAt: row.expires_at, downloadedAt: row.downloaded_at, createdAt: row.created_at };
+}
+
+function operationalHealthFromRow(input: unknown): OperationalHealthSnapshot {
+  const row = z.object({
+    incomplete_mutation_count: z.number().int().nonnegative(), reconciliation_required_count: z.number().int().nonnegative(),
+    oldest_incomplete_mutation_at: NullableTimestampSchema, quarantined_household_count: z.number().int().nonnegative(),
+    household_count: z.number().int().nonnegative(), households_without_backup: z.number().int().nonnegative(),
+    oldest_backup_at: NullableTimestampSchema, schema_version: z.string().min(1),
+  }).parse(input);
+  return {
+    incompleteMutationCount: row.incomplete_mutation_count, reconciliationRequiredCount: row.reconciliation_required_count,
+    oldestIncompleteMutationAt: row.oldest_incomplete_mutation_at, quarantinedHouseholdCount: row.quarantined_household_count,
+    householdCount: row.household_count, householdsWithoutBackup: row.households_without_backup,
+    oldestBackupAt: row.oldest_backup_at, schemaVersion: row.schema_version,
+  };
 }
 
 function projectionFromDocument(input: unknown): HouseholdProjection {

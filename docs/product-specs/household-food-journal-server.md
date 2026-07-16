@@ -845,6 +845,10 @@ Every request resolves an authenticated user and explicit household ID before re
 - Use generic account-discovery responses.
 - Reauthenticate for household deletion, final-owner transfer, and global grant revocation.
 
+The single-writer server enforces a 300-request-per-minute per-client-IP baseline after exactly one trusted Caddy proxy hop. Stricter grouped limits apply to sign-in starts (10 per 15 minutes), sign-in completions (20 per 15 minutes), OAuth registration (10 per hour), OAuth token exchange (30 per minute), MCP (120 per minute), public collection preview (60 per minute), collection import (30 per 15 minutes), export creation (10 per hour), and export download (20 per 15 minutes). A rejected request returns `RATE_LIMITED`, `Retry-After`, and a bounded retry delay. Liveness and readiness remain unthrottled; operator health and metrics allow 120 authenticated scrapes per minute.
+
+Rate-limit keys never include tokens, emails, household IDs, or user-authored content. The in-process store is valid only for the documented single-writer topology; a multi-instance deployment requires a shared supported store and a new abuse/race review.
+
 ### 16.4 Content safety
 
 - Treat imported collections, recipe pages, evidence summaries, and model-authored Markdown as untrusted input.

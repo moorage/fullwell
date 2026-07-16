@@ -15,6 +15,7 @@ const ConfigSchema = z.object({
   GIT_SIGNING_KEY: z.string().min(1).optional(),
   TOKEN_PEPPER: z.string().min(32).optional(),
   SESSION_SECRET: z.string().min(32).optional(),
+  OPERATOR_TOKEN: z.string().min(32).optional(),
   APPLE_CLIENT_ID: z.string().min(1).optional(),
   APPLE_TEAM_ID: z.string().min(1).optional(),
   APPLE_KEY_ID: z.string().min(1).optional(),
@@ -40,6 +41,7 @@ export function parseConfig(env: NodeJS.ProcessEnv): AppConfig {
     GIT_SIGNING_KEY: secret(env, "GIT_SIGNING_KEY"),
     TOKEN_PEPPER: secret(env, "TOKEN_PEPPER"),
     SESSION_SECRET: secret(env, "SESSION_SECRET"),
+    OPERATOR_TOKEN: secret(env, "OPERATOR_TOKEN"),
     APPLE_CLIENT_ID: env.APPLE_CLIENT_ID,
     APPLE_TEAM_ID: env.APPLE_TEAM_ID,
     APPLE_KEY_ID: env.APPLE_KEY_ID,
@@ -50,7 +52,7 @@ export function parseConfig(env: NodeJS.ProcessEnv): AppConfig {
   if (config.NODE_ENV === "production") {
     if (config.AUTH_MODE === "test") throw new Error("AUTH_MODE=test is forbidden in production");
     const required = [
-      "DATABASE_URL", "DATABASE_DIRECT_URL", "GIT_SIGNING_KEY", "TOKEN_PEPPER", "SESSION_SECRET",
+      "DATABASE_URL", "DATABASE_DIRECT_URL", "GIT_SIGNING_KEY", "TOKEN_PEPPER", "SESSION_SECRET", "OPERATOR_TOKEN",
       "APPLE_CLIENT_ID", "APPLE_TEAM_ID", "APPLE_KEY_ID", "APPLE_PRIVATE_KEY", "MAIL_PROVIDER_API_KEY", "MAIL_FROM",
     ] as const;
     const missing = required.filter((key) => config[key] === undefined);

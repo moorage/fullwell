@@ -27,8 +27,9 @@ Use `systemd-creds encrypt --name=<credential-name> - /etc/credstore.encrypted/<
 
 - pooled Neon URL and separate direct migration URL;
 - application signing, cookie, OAuth, HMAC-pepper, and encryption key set;
+- a dedicated random operator bearer token of at least 32 characters for `/health/operator` and `/metrics`;
 - Apple private key;
-- Postmark server token;
+- Resend API key;
 - Git SSH signing private key;
 - age backup private key;
 - AWS S3 backup endpoint, bucket, region, and narrowly scoped access values.
@@ -41,8 +42,10 @@ Put only `PUBLIC_DOMAIN` and the immutable `HFJ_IMAGE` digest in `/etc/hfj/deplo
 2. Pull the digest-pinned app and gateway images.
 3. Run the release migration command as an explicit one-shot operation using the direct Neon credential. Do not let application startup apply migrations.
 4. Start `household-food-journal.service`. Enable and start `household-food-journal-maintenance.timer` only after readiness is green.
-5. Verify `/health/live`, `/health/ready`, and authenticated operator health. Readiness must include schema version, pooled Neon, expected mount identity/capacity, Git executable/signing, repository validity, incomplete mutation count, reconciliation lag, and backup age.
+5. Verify `/health/live` and `/health/ready`, then call `/health/operator` and `/metrics` with `Authorization: Bearer <operator-token>`. Public readiness must show schema `0004`, pooled Neon, expected mount identity/writability, Git/signing, and single-writer leadership without counts or paths. Operator health must show reconciliation age/count, quarantine count, backup gaps/age, and capacity; OpenMetrics must expose the matching gauges. A normal OAuth token must receive `401` with `Bearer realm="operator"`.
 6. Run non-destructive install, OAuth metadata, MCP health, public-policy, canary repository, container-restart persistence, and log-redaction smoke tests.
 7. Confirm the canary commit exists after container restart and that no token, email, title, food name, order ID, source URL, or body appears in logs.
 
 Keep one active writer. Do not add another app replica, expose Git, or move repositories to the root disk.
+
+The in-process limiter assumes this one-writer topology and one trusted Caddy proxy hop. Before adding replicas, move limits to a shared supported store, prove proxy-address handling, and rerun abuse/race tests. Alert on `hfj_rate_limited_total`, HTTP failure/latency, stale reconciliation, quarantines, backup gaps/age, and volume usage.

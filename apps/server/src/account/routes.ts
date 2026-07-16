@@ -56,7 +56,7 @@ export async function registerAccountRoutes(app: FastifyInstance, dependencies: 
 
   if (dependencies.journal !== undefined) {
     const journal = dependencies.journal;
-    app.post("/account/households/:householdId/exports", async (request, reply) => {
+    app.post("/account/households/:householdId/exports", { config: { rateLimit: { max: 10, timeWindow: 60 * 60_000 } } }, async (request, reply) => {
       const body = ExportSchema.parse(request.body);
       const { principal } = await authorizeMutation(request, dependencies.auth, body.csrf);
       const result = await journal.call("hfj_export_household", {
@@ -70,7 +70,7 @@ export async function registerAccountRoutes(app: FastifyInstance, dependencies: 
     });
   }
 
-  app.post("/account/delete", async (request, reply) => {
+  app.post("/account/delete", { config: { rateLimit: { max: 10, timeWindow: 15 * 60_000 } } }, async (request, reply) => {
     const body = ConfirmSchema.parse(request.body);
     if (body.confirmation !== "DELETE") throw new AppError("VALIDATION_FAILED", "Type DELETE to confirm");
     const sessionToken = requireSessionCookie(request);

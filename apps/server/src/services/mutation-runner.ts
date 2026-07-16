@@ -33,12 +33,15 @@ export class MutationRunner {
   ) {}
 
   async run(options: MutationOptions): Promise<{ data: Record<string, JsonValue>; head: GitObjectId; requestId: RequestId }> {
+    const startedAt = performance.now();
     requireScope(options.principal, options.requiredScope);
     const existing = await this.store.getMutation(options.principal.userId, options.tool, options.idempotencyKey);
     if (existing?.state === "completed" && existing.response !== null && existing.commitId !== null) {
+      this.telemetry.event("mutation.replayed", { tool: options.tool, request_id: existing.requestId });
       return { data: existing.response, head: existing.commitId, requestId: existing.requestId };
     }
     if (typeof existing?.response?._request_fingerprint === "string" && existing.response._request_fingerprint !== options.requestFingerprint) {
+      this.telemetry.event("mutation.conflict", { tool: options.tool, request_id: existing.requestId, error_code: "REVISION_CONFLICT" });
       throw new AppError("REVISION_CONFLICT", "The idempotency key was already used for a different request");
     }
     if (existing?.state === "quarantined") {
@@ -62,7 +65,9 @@ export class MutationRunner {
       };
       await this.store.saveMutation(record);
     }
+    const lockStartedAt = performance.now();
     const outcome = await this.store.withHouseholdLock(options.householdId, async (): Promise<MutationOutcome> => {
+      this.telemetry.event("mutation.lock_acquired", { tool: options.tool, request_id: requestId, duration_ms: Math.round(performance.now() - lockStartedAt) });
       await this.store.transitionMutation(requestId, "locked");
       let commitId = existing?.commitId ?? await this.repository.findCommitByRequestId(options.householdId, requestId);
       try {
@@ -94,7 +99,7 @@ export class MutationRunner {
           }
           await this.store.transitionMutation(requestId, "projections_applied", { response });
           await this.store.transitionMutation(requestId, "completed", { response });
-          this.telemetry.event("mutation.completed", { tool: options.tool, request_id: requestId });
+          this.telemetry.event("mutation.completed", { tool: options.tool, request_id: requestId, duration_ms: Math.round(performance.now() - startedAt) });
           return { status: "completed", data: response, head: commitId };
         } catch (error) {
           await this.store.transitionMutation(requestId, "reconciliation_required", { failure: errorName(error) });
@@ -109,7 +114,11 @@ export class MutationRunner {
         return { status: "failed", error: new AppError("RECONCILIATION_REQUIRED", "The Git commit succeeded but projections require reconciliation", true) };
       }
     });
-    if (outcome.status === "failed") throw outcome.error;
+    if (outcome.status === "failed") {
+      const error = outcome.error instanceof Error ? outcome.error : new Error("Mutation failed");
+      this.telemetry.error("mutation.failed", error, { tool: options.tool, request_id: requestId, duration_ms: Math.round(performance.now() - startedAt), error_code: errorName(outcome.error) });
+      throw outcome.error;
+    }
     return { data: outcome.data, head: outcome.head, requestId };
   }
 }

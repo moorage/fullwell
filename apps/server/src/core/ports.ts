@@ -15,6 +15,7 @@ import type {
   JsonValue,
   MembershipRecord,
   MutationRecord,
+  OperationalHealthSnapshot,
   Principal,
   RepositoryMembershipState,
   ShareRecord,
@@ -125,6 +126,7 @@ export interface OperationalStorePort {
   claimExportDownload(tokenHash: string, userId: UserId, downloadedAt: string): Promise<ExportDownloadRecord | null>;
   listReclaimableExportDownloads(now: string): Promise<ReadonlyArray<ExportDownloadRecord>>;
   deleteExportDownload(id: string): Promise<void>;
+  operatorHealth(): Promise<OperationalHealthSnapshot>;
   withHouseholdLock<T>(householdId: HouseholdId, operation: () => Promise<T>): Promise<T>;
   projection(householdId: HouseholdId): Promise<HouseholdProjection>;
   health(): Promise<{ ready: boolean; detail: string }>;

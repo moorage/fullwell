@@ -1,7 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { HouseholdIdSchema } from "@hfj/contracts";
-import { ConsoleTelemetry, HmacTokenHasher, SystemClock } from "./adapters/providers.js";
+import { HmacTokenHasher, SystemClock } from "./adapters/providers.js";
 import { parseConfig } from "./config.js";
 import { GitHouseholdRepository } from "./git/git-repository.js";
 import { NeonOperationalStore } from "./persistence/neon-operational-store.js";
@@ -9,6 +9,7 @@ import { NeonConnection } from "./persistence/neon.js";
 import { ReconciliationWorker } from "./workers/reconciliation-worker.js";
 import { FileExportArtifactStore } from "./exports/artifact-store.js";
 import { ExportCleanupWorker } from "./exports/cleanup-worker.js";
+import { ServiceObservability } from "./telemetry/observability.js";
 
 const command = process.argv[2] ?? "all";
 if (command !== "all" && command !== "health") throw new Error(`Unknown maintenance command: ${command}`);
@@ -20,6 +21,7 @@ const repository = new GitHouseholdRepository({
   ...(config.GIT_SIGNING_KEY === undefined ? {} : { signingKey: config.GIT_SIGNING_KEY }),
   requireSigning: config.NODE_ENV === "production",
 });
+const telemetry = new ServiceObservability({ runtimeMetrics: false });
 
 try {
   const databaseHealth = database === null ? { ready: config.NODE_ENV !== "production", detail: "not configured" } : await database.health();
@@ -29,11 +31,11 @@ try {
     ? await new ReconciliationWorker(
       operationalStore,
       repository,
-      new ConsoleTelemetry(),
+      telemetry,
     ).run()
     : { checked: 0, rebuilt: 0, quarantined: 0 };
   const exportCleanup = command === "all" && operationalStore !== null
-    ? await new ExportCleanupWorker(operationalStore, new FileExportArtifactStore(config.EXPORT_ROOT), new SystemClock(), new ConsoleTelemetry()).run()
+    ? await new ExportCleanupWorker(operationalStore, new FileExportArtifactStore(config.EXPORT_ROOT), new SystemClock(), telemetry).run()
     : { checked: 0, removed: 0, failed: 0 };
   const repositories = command === "health" ? [] : await verifyRepositories(repository, config.HOUSEHOLD_REPOSITORY_ROOT);
   const invalid = repositories.filter((entry) => !entry.valid);

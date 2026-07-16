@@ -6,7 +6,7 @@
   - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
 
-- current milestone: completed managed Neon migration/adapter interoperability after isolated Codex/Claude host lifecycle verification and deterministic security/accessibility/load hardening; the active ExecPlan remains open on npm publication, Neon PITR, external security review, provisioned load, manual accessibility, recovery, staging, and release blockers recorded in `docs/release/verification-evidence.md`
+- current milestone: completed managed Neon migration, adapter, and one-day PITR interoperability after isolated Codex/Claude host lifecycle verification and deterministic security/accessibility/load hardening; the active ExecPlan remains open on npm publication, production Neon retention/snapshots, external security review, provisioned load, manual accessibility, recovery, staging, and release blockers recorded in `docs/release/verification-evidence.md`
 - implemented React 19.2 SSR/hydration, server-authorized web contexts, public collection privacy states, no-JavaScript forms, Fastify MCP/OAuth, Apple/Resend adapters, Neon persistence, Git mutation/import provenance, reversible migrations, shared contracts, and the Codex/Claude agent package
 - implemented DigitalOcean OpenTofu, Block Storage initialization checks, pinned Node 24 Docker build, Compose/Caddy/systemd deployment, local deployment/MCP smokes, legal drafts, and operations/release runbooks
 - verified macOS Safari through Computer Use, including the native Codex/Claude toggle state, anonymous account redirect, preserved `/account` pending intent, labeled sign-in controls, and visible focus; 18 automated WebKit checks pass with six project-specific skips across desktop, iPhone, 320x568, and JavaScript-disabled modes
@@ -22,6 +22,7 @@
 - added adversarial Fastify and React coverage for bounded parser rejection, capability-safe telemetry, hostile/prompt-like public content, HTTP(S)-only web URLs, recognizable repository-secret absence, and browser/server environment separation; disabled production browser source maps
 - moved Codex and Claude catalogs to their repository discovery paths and verified Codex CLI 0.144.4 install/remove plus Claude Code 2.1.123 install/update/disable/re-enable/uninstall in isolated host configuration directories
 - added the exact-host/direct-endpoint/TLS-gated migration runner with advisory locking and content-hash ledger updates; applied schema `0005` idempotently and passed all nine integration tests on a one-day schema-only Neon branch
+- restored the disposable Neon branch to its verified 11:28 PDT history point in 0.26 seconds, confirmed the complete operational schema and all five content-hashed migration rows, and set both the restored branch and its preserved rollback branch to expire after one day
 - fixed Neon account leave reusing its existing household transaction instead of opening a second transaction that waits on the same advisory lock
 - expanded deterministic unit, component, domain, service, adapter, worker, HTTP view-model, React interaction, load, and security coverage to 97.07% statements/lines, 95.07% functions, and 90.46% branches across 191 passing tests
 - expanded WebKit evidence to 18 passing checks with six intentional project-specific skips, including axe, reduced motion, export layout, native disclosure, and overflow assertions; manual VoiceOver, authenticated keyboard/zoom, and hardware-device review remain open
@@ -51,7 +52,7 @@
   - `npm run verify`
 - blocking results:
   - the immutable npm package is not published, so public marketplace install returns `E404` and real host OAuth/setup workflows remain blocked
-  - provisioned Backblaze Object Lock, Neon PITR/snapshot recovery, DigitalOcean failover, external application staging, native passkey compatibility, and manual release reviews remain incomplete
+  - provisioned Backblaze Object Lock, production Neon 30-day history/scheduled snapshots and combined Git-plus-Neon RPO/RTO recovery, DigitalOcean failover, external application staging, native passkey compatibility, and manual release reviews remain incomplete
   - Safari 26.5 accepted a WebDriver virtual authenticator but timed out creating a credential; the deterministic cryptographic/provider policy and browser-action suites pass, while native staging evidence remains open
 
 - previous milestone: planned the complete Household Food Journal version 1 implementation

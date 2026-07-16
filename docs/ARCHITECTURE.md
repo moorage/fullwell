@@ -132,7 +132,7 @@ Fastify applies a global and route-specific `@fastify/rate-limit` policy keyed b
 
 ## Current release limitations
 
-The application foundation, durable Git-to-Neon reconciliation, portable exports, production rate limits/telemetry, operator health, encrypted immutable backup/restore, WebAuthn passkeys, browser account lifecycle, 22-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, agent package, and DigitalOcean deployment assets are implemented. Version 1 is not production-ready while live B2/Neon recovery evidence, full security/accessibility/load validation, external staging compatibility, and native passkey compatibility evidence remain open in the active ExecPlan.
+The application foundation, durable Git-to-Neon reconciliation, portable exports, production rate limits/telemetry, operator health, encrypted immutable backup/restore, WebAuthn passkeys, browser account lifecycle, 22-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, agent package, and DigitalOcean deployment assets are implemented. Version 1 is not production-ready while live B2 recovery, production Neon retention/snapshot and combined recovery evidence, full security/accessibility/load validation, external staging compatibility, and native passkey compatibility evidence remain open in the active ExecPlan.
 
 ## Maintenance rules
 

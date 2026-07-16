@@ -1,9 +1,11 @@
 import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import { createHash } from "node:crypto";
 import { ToolInputSchemas, ToolNameSchema, type ToolName } from "@hfj/contracts";
 import { z } from "zod";
-import type { AuthenticationPort, HouseholdRepositoryPort, IdentityProviderPort, MailPort, OperationalStorePort, RandomSource } from "../core/ports.js";
+import type { AuthenticationPort, Clock, ExportArtifactPort, HouseholdRepositoryPort, IdentityProviderPort, MailPort, OperationalStorePort, RandomSource, TokenHasher } from "../core/ports.js";
+import type { Principal } from "../core/types.js";
 import { AppError } from "../core/errors.js";
 import { HealthService } from "../health/health.js";
 import { HouseholdFoodJournalService } from "../services/household-food-journal.js";
@@ -38,6 +40,12 @@ export interface AppDependencies {
   readonly browserAuth?: BrowserAuthRouteDependencies;
   readonly account?: AccountRouteDependencies;
   readonly oauth?: OAuthRouteDependencies;
+  readonly exportDownloads?: {
+    readonly artifacts: ExportArtifactPort;
+    readonly hasher: TokenHasher;
+    readonly clock: Clock;
+    resolveBrowserPrincipal?(request: FastifyRequest): Promise<Principal | null>;
+  };
 }
 
 export async function buildApp(dependencies: AppDependencies): Promise<FastifyInstance> {
@@ -103,6 +111,26 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     const result = await dependencies.service.preview(request.params.token);
     return reply.code(result.ok ? 200 : httpStatus(result.error.code)).send(result);
   });
+
+  if (dependencies.exportDownloads !== undefined) {
+    const exportDownloads = dependencies.exportDownloads;
+    app.get<{ Params: { token: string } }>("/exports/:token", async (request, reply) => {
+      const browserPrincipal = await exportDownloads.resolveBrowserPrincipal?.(request) ?? null;
+      const principal = browserPrincipal ?? await authenticate(request.headers.authorization, dependencies.authentication);
+      const downloadedAt = exportDownloads.clock.now().toISOString();
+      const tokenHash = exportDownloads.hasher.hash(request.params.token);
+      const candidate = await dependencies.store.getActiveExportDownload(tokenHash, principal.userId, downloadedAt);
+      if (candidate === null) throw new AppError("NOT_FOUND", "Export download was not found or has expired");
+      const content = await exportDownloads.artifacts.read(candidate.objectPath);
+      if (createHash("sha256").update(content).digest("hex") !== candidate.contentHash) throw new AppError("INTERNAL_ERROR", "Export artifact verification failed");
+      const record = await dependencies.store.claimExportDownload(tokenHash, principal.userId, downloadedAt);
+      if (record === null) throw new AppError("NOT_FOUND", "Export download was not found or has expired");
+      reply.header("cache-control", "private, no-store");
+      reply.header("content-type", record.format === "readable_zip" ? "application/zip" : "application/x-git-bundle");
+      reply.header("content-disposition", `attachment; filename="fullwell-household.${record.format === "readable_zip" ? "zip" : "bundle"}"`);
+      return reply.send(Buffer.from(content));
+    });
+  }
 
   if (dependencies.web !== undefined) await registerWebExperience(app, dependencies.web);
 

@@ -236,8 +236,13 @@ describe("HouseholdFoodJournalService", () => {
     expect(imported.data.skipped_count).toBe(1);
 
     const bundle = await call("hfj_export_household", { household_id: householdId, format: "git_bundle", idempotency_key: "export-0201" });
-    expect(z.string().min(1).parse(bundle.data.content_base64)).toBeTruthy();
+    expect(z.url().parse(bundle.data.download_url)).toContain("/exports/");
+    expect(z.string().regex(/^[0-9a-f]{64}$/).parse(bundle.data.content_hash)).toBeTruthy();
+    expect(bundle.data.source_head).toBe(head);
     expect(await call("hfj_export_household", { household_id: householdId, format: "git_bundle", idempotency_key: "export-0201" })).toEqual(bundle);
+    const changedExport = await service.call("hfj_export_household", { household_id: householdId, format: "readable_zip", idempotency_key: "export-0201" }, owner);
+    expect(changedExport.ok).toBe(false);
+    if (!changedExport.ok) expect(changedExport.error.code).toBe("REVISION_CONFLICT");
 
     const revoked = await call("hfj_revoke_collection_share", {
       household_id: householdId,

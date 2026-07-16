@@ -1,4 +1,4 @@
-import { Bot, DoorOpen, Fingerprint, KeyRound, LogOut, Mail, Pencil, Trash2, Unplug, Users } from "lucide-react";
+import { Bot, DoorOpen, Download, Fingerprint, KeyRound, LogOut, Mail, Pencil, Trash2, Unplug, Users } from "lucide-react";
 import { AppShell } from "../components/app-shell.js";
 import { PasskeyEnrollment } from "../components/passkey-actions.js";
 import { Button, HiddenFormFields, PageHeader } from "../components/ui.js";
@@ -90,6 +90,33 @@ export function AccountRoute() {
               </div>
             ))}
           </div>
+        </section>
+        <section className="account-section" id="exports" aria-labelledby="exports-heading">
+          <header><h2 id="exports-heading">Household exports</h2><p>Links expire after 15 minutes</p></header>
+          <div className="account-list">
+            {households.map((household) => (
+              <div className="account-row" key={household.id}>
+                <span className="row-icon"><Download aria-hidden="true" /></span>
+                <div><h3>{household.name}</h3><p>Readable files or an advanced history bundle.</p></div>
+                <form action={`/account/households/${household.id}/exports`} method="post">
+                  <input type="hidden" name="csrf" value={security.csrfToken} />
+                  <input type="hidden" name="idempotency_key" value={`${security.idempotencyPrefix}-${household.id}-readable-export`} />
+                  <input type="hidden" name="format" value="readable_zip" />
+                  <Button type="submit" variant="secondary"><Download aria-hidden="true" size={17} /> Download ZIP</Button>
+                </form>
+              </div>
+            ))}
+          </div>
+          <details><summary>Advanced export</summary><p>A Git bundle preserves the complete change history for technical restore workflows.</p>
+            {households.map((household) => (
+              <form action={`/account/households/${household.id}/exports`} method="post" key={household.id}>
+                <input type="hidden" name="csrf" value={security.csrfToken} />
+                <input type="hidden" name="idempotency_key" value={`${security.idempotencyPrefix}-${household.id}-bundle-export`} />
+                <input type="hidden" name="format" value="git_bundle" />
+                <Button type="submit" variant="secondary"><Download aria-hidden="true" size={17} /> {household.name} history bundle</Button>
+              </form>
+            ))}
+          </details>
         </section>
         <section className="account-section" aria-labelledby="access-heading">
           <header><h2 id="access-heading">Connected agent access</h2><p>{auth.grants.length} active</p></header>

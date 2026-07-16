@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { strToU8, zipSync } from "fflate";
+import { assertExportSize } from "../exports/policy.js";
 import type {
   GitObjectId,
   HouseholdId,
@@ -20,6 +22,7 @@ import type {
 } from "../core/ports.js";
 import type {
   HouseholdProjection,
+  ExportDownloadRecord,
   HouseholdRecord,
   InvitationRecord,
   JsonValue,
@@ -116,7 +119,16 @@ export class MemoryHouseholdRepository implements HouseholdRepositoryPort {
   async bundle(householdId: HouseholdId): Promise<Uint8Array> {
     const repository = this.repositories.get(householdId);
     if (repository === undefined) throw new AppError("NOT_FOUND", "Household repository was not found");
-    return Buffer.from(stableJson({ head: repository.head, files: Object.fromEntries(repository.files) }));
+    const content = Buffer.from(stableJson({ head: repository.head, files: Object.fromEntries(repository.files) }));
+    assertExportSize(content.byteLength);
+    return content;
+  }
+  async readableArchive(householdId: HouseholdId): Promise<Uint8Array> {
+    const repository = this.repositories.get(householdId);
+    if (repository === undefined) throw new AppError("NOT_FOUND", "Household repository was not found");
+    const content = zipSync(Object.fromEntries([...repository.files].map(([path, content]) => [path, strToU8(content)])), { level: 6 });
+    assertExportSize(content.byteLength);
+    return content;
   }
 
   async verify(householdId: HouseholdId): Promise<{ valid: boolean; detail: string }> {
@@ -136,6 +148,7 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
   private readonly mutations = new Map<string, MutationRecord>();
   private readonly projections = new Map<HouseholdId, HouseholdProjection>();
   private readonly sessions = new Map<string, SessionRecord>();
+  private readonly exportDownloads = new Map<string, ExportDownloadRecord>();
   private readonly lockTails = new Map<HouseholdId, Promise<void>>();
 
   async createHousehold(record: HouseholdRecord, owner: MembershipRecord): Promise<void> {
@@ -222,6 +235,23 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
     const household = this.households.get(householdId);
     if (household === undefined) throw new AppError("NOT_FOUND", "Household was not found");
     household.provisioningState = "quarantined";
+  }
+  async saveExportDownload(record: ExportDownloadRecord): Promise<void> { this.exportDownloads.set(record.tokenHash, record); }
+  async getActiveExportDownload(tokenHash: string, userId: UserId, now: string): Promise<ExportDownloadRecord | null> {
+    const record = this.exportDownloads.get(tokenHash);
+    return record === undefined || record.requestedBy !== userId || record.downloadedAt !== null || Date.parse(record.expiresAt) <= Date.parse(now) ? null : record;
+  }
+  async claimExportDownload(tokenHash: string, userId: UserId, downloadedAt: string): Promise<ExportDownloadRecord | null> {
+    const record = this.exportDownloads.get(tokenHash);
+    if (record === undefined || record.requestedBy !== userId || record.downloadedAt !== null || Date.parse(record.expiresAt) <= Date.parse(downloadedAt)) return null;
+    record.downloadedAt = downloadedAt;
+    return record;
+  }
+  async listReclaimableExportDownloads(now: string): Promise<ReadonlyArray<ExportDownloadRecord>> {
+    return [...this.exportDownloads.values()].filter((record) => record.downloadedAt !== null || Date.parse(record.expiresAt) <= Date.parse(now));
+  }
+  async deleteExportDownload(id: string): Promise<void> {
+    for (const [tokenHash, record] of this.exportDownloads) if (record.id === id) this.exportDownloads.delete(tokenHash);
   }
   async withHouseholdLock<T>(householdId: HouseholdId, operation: () => Promise<T>): Promise<T> {
     const previous = this.lockTails.get(householdId) ?? Promise.resolve();

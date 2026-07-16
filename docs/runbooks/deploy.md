@@ -19,6 +19,8 @@
 6. Start `data-households.mount`. Verify `findmnt /data/households` reports the labeled ext4 Block Storage device, not the root disk.
 7. For a new confirmed-empty volume only, run `deploy/scripts/initialize-volume.sh --confirm-empty-volume`. Never run initialization on a restored or previously used volume.
 
+Initialization assigns the volume root plus `.worktrees` and `.exports` to container UID/GID `10001` with mode `0750`. The release preflight rejects a missing directory or mismatched owner before either the application or maintenance command starts.
+
 ## Install encrypted credentials
 
 Use `systemd-creds encrypt --name=<credential-name> - /etc/credstore.encrypted/<file>` from a root-only interactive session. The plaintext is read from standard input and must not enter shell history or a repository. Install one encrypted file for each `LoadCredentialEncrypted` entry in the service units:

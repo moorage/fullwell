@@ -94,3 +94,17 @@ export interface RepositoryMembershipState {
   readonly removedAt: string | null;
   readonly userId: UserId | null;
 }
+
+export interface ExportDownloadRecord {
+  readonly id: string;
+  readonly householdId: HouseholdId;
+  readonly requestedBy: UserId;
+  readonly format: "readable_zip" | "git_bundle";
+  readonly tokenHash: string;
+  readonly objectPath: string;
+  readonly contentHash: string;
+  readonly repositoryHead: GitObjectId;
+  readonly expiresAt: string;
+  downloadedAt: string | null;
+  readonly createdAt: string;
+}

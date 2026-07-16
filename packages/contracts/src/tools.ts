@@ -114,7 +114,7 @@ export const ToolInputSchemas = {
   }).strict(),
   hfj_export_household: z.object({
     household_id: HouseholdIdSchema,
-    format: z.enum(["zip", "git_bundle"]),
+    format: z.enum(["readable_zip", "git_bundle"]),
     idempotency_key: IdempotencyKeySchema,
   }).strict(),
 } as const;

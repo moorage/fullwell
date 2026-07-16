@@ -75,6 +75,8 @@ Runtime traffic may use Neon's pooled connection endpoint. Migrations, backup ut
 
 Post-commit recovery uses the request ID in the Git commit trailer and audit document as its replay anchor. Each in-flight idempotency key is bound to a hashed canonical request. Mutation handlers derive generated IDs, timestamps, and capability material from the durable request identity so a matching retry can reproduce the original projection and response without another commit, while changed input fails before projection. The scheduled maintenance CLI snapshots Git main with each file's last revision, rebuilds journal and membership projections under the same household lock, advances recoverable mutations to `projections_applied`, marks abandoned pre-commit requests failed, and quarantines repositories or identity mappings that cannot be projected safely.
 
+Household exports are generated from the locked Git `main` revision as either a readable ZIP of the current tree or a full Git bundle. The application stores private artifacts under `EXPORT_ROOT`, while Neon stores only the requesting user, HMAC token digest, content hash, source HEAD, object path, expiry, and claim state. Download authorization is rechecked against the authenticated requester, content is verified before the one-time token is atomically claimed, and maintenance reclaims downloaded or expired artifacts.
+
 ### Household Git store
 
 Purpose: keep one signed bare repository per household under `/data/households/<household-uuid>.git`.

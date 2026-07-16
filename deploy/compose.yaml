@@ -21,6 +21,7 @@ services:
       MAIL_FROM: ${MAIL_FROM:?set MAIL_FROM}
       HOUSEHOLD_REPOSITORY_ROOT: /data/households
       HOUSEHOLD_WORKTREE_ROOT: /data/households/.worktrees
+      EXPORT_ROOT: /data/households/.exports
       DATABASE_URL_FILE: /run/secrets/database_url
       DATABASE_DIRECT_URL_FILE: /run/secrets/database_direct_url
       TOKEN_PEPPER_FILE: /run/secrets/token_pepper

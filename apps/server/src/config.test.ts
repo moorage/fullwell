@@ -12,7 +12,7 @@ describe("parseConfig", () => {
   });
 
   it("provides deterministic local defaults", () => {
-    expect(parseConfig({ NODE_ENV: "test", PATH: "/usr/bin", HOME: "/tmp" })).toMatchObject({ PORT: 3000, AUTH_MODE: "test" });
+    expect(parseConfig({ NODE_ENV: "test", PATH: "/usr/bin", HOME: "/tmp" })).toMatchObject({ PORT: 3000, AUTH_MODE: "test", EXPORT_ROOT: "./.data/exports" });
   });
 
   it("loads secrets from systemd credential files", () => {

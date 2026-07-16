@@ -14,6 +14,7 @@ import {
 import { HouseholdFoodJournalService } from "../services/household-food-journal.js";
 import { buildApp } from "./app.js";
 import { WebViewModelService } from "./web-view-model.js";
+import { MemoryExportArtifactStore } from "../exports/artifact-store.js";
 
 async function fixture() {
   const store = new MemoryOperationalStore();
@@ -23,9 +24,14 @@ async function fixture() {
   const hasher = new HmacTokenHasher("test-pepper-that-is-long-enough-0001");
   const authentication = new DeterministicTestAuthenticator();
   const publicOrigin = new URL("https://example.test");
-  const service = new HouseholdFoodJournalService(store, repository, clock, random, hasher, new NoopTelemetry(), publicOrigin);
-  const app = await buildApp({ service, authentication, store, repository, mail: new UnconfiguredMailProvider(), identity: new UnconfiguredAppleIdentityProvider(), random, publicOrigin });
-  return { app, repository, service, store, authentication, hasher, random, publicOrigin };
+  const artifacts = new MemoryExportArtifactStore();
+  const service = new HouseholdFoodJournalService(store, repository, clock, random, hasher, new NoopTelemetry(), publicOrigin, artifacts);
+  const browserOwner = await authentication.authenticate("Bearer test-owner-token");
+  const app = await buildApp({
+    service, authentication, store, repository, mail: new UnconfiguredMailProvider(), identity: new UnconfiguredAppleIdentityProvider(), random, publicOrigin,
+    exportDownloads: { artifacts, hasher, clock, resolveBrowserPrincipal: async (request) => request.headers["x-test-browser-session"] === "owner" ? browserOwner : null },
+  });
+  return { app, repository, service, store, authentication, hasher, random, publicOrigin, artifacts, clock };
 }
 
 describe("Fastify application", () => {
@@ -60,6 +66,75 @@ describe("Fastify application", () => {
     const second = await app.inject({ method: "POST", url: "/api/tools/hfj_update_profile", headers, payload });
     expect(second.json()).toEqual(first.json());
     expect(repository.commitCount(householdId)).toBe(1);
+    await app.close();
+  });
+
+  it("serves a readable ZIP once to the authenticated requester", async () => {
+    const { app, clock } = await fixture();
+    const headers = { authorization: "Bearer test-owner-token" };
+    const created = await app.inject({ method: "POST", url: "/api/tools/hfj_create_household", headers, payload: { name: "Export Kitchen", idempotency_key: "export-household-key" } });
+    const requested = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_export_household",
+      headers,
+      payload: { household_id: created.json().data.household_id, format: "readable_zip", idempotency_key: "readable-export-key" },
+    });
+    expect(requested.statusCode).toBe(200);
+    const downloadPath = new URL(requested.json().data.download_url).pathname;
+    const crossUser = await app.inject({ method: "GET", url: downloadPath, headers: { authorization: "Bearer test-member-token" } });
+    expect(crossUser.statusCode).toBe(404);
+    const downloaded = await app.inject({ method: "GET", url: downloadPath, headers });
+    expect(downloaded.statusCode).toBe(200);
+    expect(downloaded.headers["content-type"]).toContain("application/zip");
+    expect(downloaded.headers["content-disposition"]).toBe('attachment; filename="fullwell-household.zip"');
+    expect(downloaded.headers["cache-control"]).toBe("private, no-store");
+    expect(downloaded.rawPayload.subarray(0, 2).toString("ascii")).toBe("PK");
+    expect((await app.inject({ method: "GET", url: downloadPath, headers })).statusCode).toBe(404);
+
+    const browserBundle = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_export_household",
+      headers,
+      payload: { household_id: created.json().data.household_id, format: "git_bundle", idempotency_key: "browser-bundle-export-key" },
+    });
+    const browserDownload = await app.inject({
+      method: "GET",
+      url: new URL(browserBundle.json().data.download_url).pathname,
+      headers: { "x-test-browser-session": "owner" },
+    });
+    expect(browserDownload.statusCode).toBe(200);
+    expect(browserDownload.headers["content-type"]).toContain("application/x-git-bundle");
+    expect(browserDownload.headers["content-disposition"]).toBe('attachment; filename="fullwell-household.bundle"');
+
+    const concurrentPayload = { household_id: created.json().data.household_id, format: "readable_zip", idempotency_key: "concurrent-export-key" };
+    const concurrentExports = await Promise.all([
+      app.inject({ method: "POST", url: "/api/tools/hfj_export_household", headers, payload: concurrentPayload }),
+      app.inject({ method: "POST", url: "/api/tools/hfj_export_household", headers, payload: concurrentPayload }),
+    ]);
+    expect(concurrentExports[1]?.json()).toEqual(concurrentExports[0]?.json());
+    expect((await app.inject({ method: "GET", url: new URL(concurrentExports[0]?.json().data.download_url).pathname, headers })).statusCode).toBe(200);
+
+    const expiring = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_export_household",
+      headers,
+      payload: { household_id: created.json().data.household_id, format: "git_bundle", idempotency_key: "expiring-export-key" },
+    });
+    clock.advance(15 * 60_000);
+    expect((await app.inject({ method: "GET", url: new URL(expiring.json().data.download_url).pathname, headers })).statusCode).toBe(404);
+
+    const racing = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_export_household",
+      headers,
+      payload: { household_id: created.json().data.household_id, format: "readable_zip", idempotency_key: "racing-export-key" },
+    });
+    const racingPath = new URL(racing.json().data.download_url).pathname;
+    const racingResponses = await Promise.all([
+      app.inject({ method: "GET", url: racingPath, headers }),
+      app.inject({ method: "GET", url: racingPath, headers }),
+    ]);
+    expect(racingResponses.map((response) => response.statusCode).sort()).toEqual([200, 404]);
     await app.close();
   });
 

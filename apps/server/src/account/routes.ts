@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { BrowserAuthService } from "../auth/service.js";
 import { AppError } from "../core/errors.js";
 import type { AccountService } from "./service.js";
+import type { HouseholdFoodJournalService } from "../services/household-food-journal.js";
 
 const CsrfSchema = z.object({ csrf: z.string().min(32).max(512) }).passthrough();
 const RenameSchema = CsrfSchema.extend({ display_name: z.string().min(1).max(120) });
@@ -11,10 +12,12 @@ const ConfirmSchema = CsrfSchema.extend({ confirmation: z.string() });
 const MethodParamsSchema = z.object({ provider: z.enum(["apple", "magic_link"]) }).strict();
 const GrantParamsSchema = z.object({ grantId: z.string().min(1).max(256) }).strict();
 const HouseholdParamsSchema = z.object({ householdId: HouseholdIdSchema }).strict();
+const ExportSchema = CsrfSchema.extend({ format: z.enum(["readable_zip", "git_bundle"]), idempotency_key: z.string().min(8).max(128) });
 
 export interface AccountRouteDependencies {
   readonly auth: BrowserAuthService;
   readonly accounts: AccountService;
+  readonly journal?: HouseholdFoodJournalService;
 }
 
 export async function registerAccountRoutes(app: FastifyInstance, dependencies: AccountRouteDependencies): Promise<void> {
@@ -51,6 +54,22 @@ export async function registerAccountRoutes(app: FastifyInstance, dependencies: 
     return accountResponse(reply);
   });
 
+  if (dependencies.journal !== undefined) {
+    const journal = dependencies.journal;
+    app.post("/account/households/:householdId/exports", async (request, reply) => {
+      const body = ExportSchema.parse(request.body);
+      const { principal } = await authorizeMutation(request, dependencies.auth, body.csrf);
+      const result = await journal.call("hfj_export_household", {
+        household_id: HouseholdParamsSchema.parse(request.params).householdId,
+        format: body.format,
+        idempotency_key: body.idempotency_key,
+      }, principal);
+      if (!result.ok) throw new AppError(result.error.code, result.error.message);
+      const url = z.object({ download_url: z.url() }).parse(result.data).download_url;
+      return reply.redirect(url, 303);
+    });
+  }
+
   app.post("/account/delete", async (request, reply) => {
     const body = ConfirmSchema.parse(request.body);
     if (body.confirmation !== "DELETE") throw new AppError("VALIDATION_FAILED", "Type DELETE to confirm");
@@ -68,7 +87,7 @@ async function authorizeMutation(request: FastifyRequest, auth: BrowserAuthServi
   const sessionToken = requireSessionCookie(request);
   await auth.verifyCsrf(sessionToken, csrf);
   const principal = await auth.authenticateSession(sessionToken);
-  return { sessionToken, userId: principal.userId };
+  return { sessionToken, userId: principal.userId, principal };
 }
 
 function requireSessionCookie(request: FastifyRequest): string {

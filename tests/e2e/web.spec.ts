@@ -1,4 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { renderWebRoute } from "../../apps/web/src/server.js";
+import { demoWebContext } from "../../apps/web/src/fixtures.js";
 
 test("serves a responsive, keyboard-usable install experience", async ({ page }, testInfo) => {
   const response = await page.goto("/install");
@@ -30,4 +33,18 @@ test("renders unknown capability links without private fixture data", async ({ p
   expect(response?.headers()["cache-control"]).toBe("no-store");
   await expect(page.getByRole("heading", { name: "We could not open this collection" })).toBeVisible();
   await expect(page.getByText("Alvarez home")).toHaveCount(0);
+});
+
+test("renders account exports without overflow and exposes the advanced bundle option", async ({ page }, testInfo) => {
+  const [styles, rendered] = await Promise.all([
+    readFile(new URL("../../apps/web/src/styles.css", import.meta.url), "utf8"),
+    Promise.resolve(renderWebRoute("/account", demoWebContext)),
+  ]);
+  await page.setContent(`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${styles}</style></head><body>${rendered.appHtml}</body></html>`);
+  await expect(page.getByRole("heading", { name: "Household exports" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download ZIP" })).toHaveCount(demoWebContext.households.length);
+  await page.getByText("Advanced export").dispatchEvent("click");
+  await expect(page.getByRole("button", { name: /history bundle/ })).toHaveCount(demoWebContext.households.length);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+  await page.screenshot({ path: testInfo.outputPath("account-exports.png"), fullPage: true });
 });

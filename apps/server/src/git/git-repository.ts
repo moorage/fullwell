@@ -7,6 +7,7 @@ import { GitObjectIdSchema } from "@hfj/contracts";
 import { AppError } from "../core/errors.js";
 import type { CommitMetadata, HouseholdRepositoryPort, RepositoryChange, RepositorySnapshot } from "../core/ports.js";
 import { stableJson, validateRepositoryPath } from "../adapters/memory.js";
+import { assertExportSize } from "../exports/policy.js";
 
 interface GitRepositoryOptions {
   readonly repositoryRoot: string;
@@ -119,6 +120,21 @@ export class GitHouseholdRepository implements HouseholdRepositoryPort {
     const output = join(directory, `${householdId}.bundle`);
     try {
       await git(["--git-dir", this.repositoryPath(householdId), "bundle", "create", output, "--all"]);
+      assertExportSize((await stat(output)).size);
+      return await readFile(output);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  }
+
+  async readableArchive(householdId: HouseholdId): Promise<Uint8Array> {
+    const directory = await mkdtemp(join(tmpdir(), "hfj-archive-"));
+    const output = join(directory, `${householdId}.zip`);
+    try {
+      validateExportTree(await git([
+        "--git-dir", this.repositoryPath(householdId), "ls-tree", "-rz",
+        "--format=%(objectmode)%x09%(objecttype)%x09%(path)", "refs/heads/main",
+      ]));
+      await git(["--git-dir", this.repositoryPath(householdId), "archive", "--format=zip", `--output=${output}`, "refs/heads/main"]);
+      assertExportSize((await stat(output)).size);
       return await readFile(output);
     } finally { await rm(directory, { recursive: true, force: true }); }
   }
@@ -155,6 +171,14 @@ export class GitHouseholdRepository implements HouseholdRepositoryPort {
       "-c", "user.email=service@invalid.local",
       "commit", "--quiet", ...signing, "--date", occurredAt, "-m", message,
     ];
+  }
+}
+
+export function validateExportTree(tree: string): void {
+  for (const entry of tree.split("\0").filter(Boolean)) {
+    const match = /^100644\tblob\t(.+)$/.exec(entry);
+    if (match?.[1] === undefined) throw new AppError("PROJECTION_DRIFT", "Household repository contains an unsafe export entry");
+    validateRepositoryPath(match[1]);
   }
 }
 

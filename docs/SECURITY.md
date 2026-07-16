@@ -42,6 +42,8 @@ Reject hooks, symlinks, submodules, alternates, path traversal, unsafe refs, and
 
 Family invitation and collection share tokens are distinct, random capabilities with hashed/HMACed server-side storage, expiry, one-time or revocation semantics, rate limits, and redacted logs. Opening a family invitation never accepts it. Opening a collection never grants household visibility.
 
+Export links are separate requester-bound capabilities. Neon stores only their HMAC digest, source HEAD, content hash, private artifact path, expiry, and claim state. The server buffers and verifies the artifact before atomically claiming the token, never includes household IDs in download filenames, and returns the same not-found response for wrong requester, expired, used, or invented tokens. Readable archives reject non-regular Git entries and unsafe paths before creation; both formats are capped at 96 MiB and stored outside the public asset tree with mode `0600`.
+
 ## Secrets and credentials
 
 Expected secret classes include Neon runtime and migration URLs, Apple credentials, OAuth signing/encryption keys, cookie keys, HMAC peppers, email-provider credentials, Git signing keys, DigitalOcean deployment credentials, and backup encryption credentials.

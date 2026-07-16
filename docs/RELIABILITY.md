@@ -43,7 +43,7 @@ Browser household leave and account deletion use the same transaction-scoped hou
 - authenticated operator health exposes reconciliation backlog, oldest incomplete mutation, backup age, last fsck result, signature status, volume capacity, Neon migration state, and last restore drill.
 - public health responses reveal no tenant counts, paths, credentials, repository identifiers, or provider error bodies.
 
-The live, readiness, and authenticated operator routes exist, and the systemd maintenance timer invokes the idempotent reconciler through the server CLI. Current readiness covers store and repository availability; mount identity, signing state, reconciliation-backlog health reporting, backup age, and restore-drill freshness remain release blockers in the active ExecPlan.
+The live, readiness, and authenticated operator routes exist, and the systemd maintenance timer invokes the idempotent reconciler and export cleanup through the server CLI. Export creation holds the household lock through source-HEAD capture and artifact metadata persistence, enforces a 96 MiB bound compatible with the deployment tmpfs, and uses deterministic request-derived capability material so exact retries do not create a second export. Current readiness covers store and repository availability; mount identity, signing state, reconciliation-backlog health reporting, backup age, and restore-drill freshness remain release blockers in the active ExecPlan.
 
 ## Backups and recovery
 

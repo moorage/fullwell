@@ -184,6 +184,10 @@ describe("web experience", () => {
     expect(addEmail?.querySelector('input[name="csrf"]')).toHaveValue(demoWebContext.security.csrfToken);
     expect(screen.getAllByPlaceholderText("Type LEAVE")).toHaveLength(demoWebContext.households.length);
     expect(screen.getAllByPlaceholderText("Type LEAVE")[0]).toHaveAttribute("name", "confirmation");
+    expect(screen.getByRole("heading", { name: "Household exports" })).toBeVisible();
+    expect(screen.getAllByRole("button", { name: "Download ZIP" })).toHaveLength(demoWebContext.households.length);
+    expect(screen.getAllByRole("button", { name: /history bundle/ })).toHaveLength(demoWebContext.households.length);
+    expect(screen.getAllByDisplayValue("readable_zip")[0]?.closest("form")).toHaveAttribute("action", expect.stringMatching(/\/account\/households\/.*\/exports/));
     expect(screen.getByRole("button", { name: "Delete account" }).closest("form")).toHaveAttribute("action", "/account/delete");
   });
 

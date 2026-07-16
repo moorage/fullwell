@@ -10,6 +10,7 @@ import type {
 import type {
   HouseholdProjection,
   HouseholdRecord,
+  ExportDownloadRecord,
   InvitationRecord,
   JsonValue,
   MembershipRecord,
@@ -55,6 +56,12 @@ export interface BackupPort {
   uploadBundle(householdId: HouseholdId, bundle: Uint8Array, manifest: string): Promise<void>;
 }
 
+export interface ExportArtifactPort {
+  write(id: string, content: Uint8Array): Promise<string>;
+  read(path: string): Promise<Uint8Array>;
+  remove(path: string): Promise<void>;
+}
+
 export interface RepositoryChange {
   readonly path: string;
   readonly content: string;
@@ -85,6 +92,7 @@ export interface HouseholdRepositoryPort {
   commit(householdId: HouseholdId, expectedHead: GitObjectId, changes: ReadonlyArray<RepositoryChange>, metadata: CommitMetadata): Promise<GitObjectId>;
   read(householdId: HouseholdId, path: string): Promise<string | null>;
   bundle(householdId: HouseholdId): Promise<Uint8Array>;
+  readableArchive(householdId: HouseholdId): Promise<Uint8Array>;
   verify(householdId: HouseholdId): Promise<{ valid: boolean; detail: string }>;
 }
 
@@ -112,6 +120,11 @@ export interface OperationalStorePort {
   listMutationsForReconciliation(householdId: HouseholdId): Promise<ReadonlyArray<MutationRecord>>;
   replaceHouseholdProjection(householdId: HouseholdId, head: GitObjectId, projection: HouseholdProjection, memberships: ReadonlyArray<RepositoryMembershipState>): Promise<void>;
   quarantineHousehold(householdId: HouseholdId): Promise<void>;
+  saveExportDownload(record: ExportDownloadRecord): Promise<void>;
+  getActiveExportDownload(tokenHash: string, userId: UserId, now: string): Promise<ExportDownloadRecord | null>;
+  claimExportDownload(tokenHash: string, userId: UserId, downloadedAt: string): Promise<ExportDownloadRecord | null>;
+  listReclaimableExportDownloads(now: string): Promise<ReadonlyArray<ExportDownloadRecord>>;
+  deleteExportDownload(id: string): Promise<void>;
   withHouseholdLock<T>(householdId: HouseholdId, operation: () => Promise<T>): Promise<T>;
   projection(householdId: HouseholdId): Promise<HouseholdProjection>;
   health(): Promise<{ ready: boolean; detail: string }>;

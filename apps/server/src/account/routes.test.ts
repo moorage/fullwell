@@ -1,9 +1,10 @@
 import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
 import Fastify from "fastify";
+import { HouseholdIdSchema } from "@hfj/contracts";
 import { describe, expect, it } from "vitest";
 import { MemoryHouseholdRepository, MemoryOperationalStore } from "../adapters/memory.js";
-import { DeterministicRandomSource, FixedClock, HmacTokenHasher, UnconfiguredAppleIdentityProvider } from "../adapters/providers.js";
+import { DeterministicRandomSource, FixedClock, HmacTokenHasher, NoopTelemetry, UnconfiguredAppleIdentityProvider } from "../adapters/providers.js";
 import { MemoryAuthStore } from "../auth/memory-store.js";
 import { UnsupportedPasskeyProvider } from "../auth/providers.js";
 import { BrowserAuthService } from "../auth/service.js";
@@ -12,6 +13,8 @@ import { AppError } from "../core/errors.js";
 import { MemoryOAuthStore } from "../oauth/memory-store.js";
 import { AccountService } from "./service.js";
 import { registerAccountRoutes } from "./routes.js";
+import { HouseholdFoodJournalService } from "../services/household-food-journal.js";
+import { MemoryExportArtifactStore } from "../exports/artifact-store.js";
 
 class CapturingMail implements MailPort {
   magicLink: URL | null = null;
@@ -25,11 +28,13 @@ async function fixture() {
   const oauth = new MemoryOAuthStore();
   const mail = new CapturingMail();
   const clock = new FixedClock(new Date("2026-07-15T12:00:00.000Z"));
+  const random = new DeterministicRandomSource();
+  const hasher = new HmacTokenHasher("account-route-test-pepper");
   const auth = new BrowserAuthService(
     authStore,
     clock,
-    new DeterministicRandomSource(),
-    new HmacTokenHasher("account-route-test-pepper"),
+    random,
+    hasher,
     mail,
     new UnconfiguredAppleIdentityProvider(),
     new UnsupportedPasskeyProvider(),
@@ -41,6 +46,9 @@ async function fixture() {
     mail.magicLink?.searchParams.get("transaction") ?? "",
   );
   const userId = (await auth.authenticateSession(session.sessionToken)).userId;
+  const repository = new MemoryHouseholdRepository();
+  const artifacts = new MemoryExportArtifactStore();
+  const journal = new HouseholdFoodJournalService(operational, repository, clock, random, hasher, new NoopTelemetry(), new URL("https://journal.example.test"), artifacts);
   const app = Fastify();
   await app.register(cookie);
   await app.register(formbody);
@@ -50,9 +58,10 @@ async function fixture() {
   });
   await registerAccountRoutes(app, {
     auth,
-    accounts: new AccountService(authStore, operational, oauth, clock, new MemoryHouseholdRepository(), new DeterministicRandomSource()),
+    accounts: new AccountService(authStore, operational, oauth, clock, repository, random),
+    journal,
   });
-  return { app, authStore, clock, oauth, session, userId };
+  return { app, auth, authStore, clock, journal, oauth, session, userId };
 }
 
 describe("account routes", () => {
@@ -115,6 +124,25 @@ describe("account routes", () => {
       method: "POST", url: "/account/profile", payload: { csrf: session.csrfToken, display_name: "No session" },
     });
     expect(missingSession.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it("creates an authenticated one-time household export from the account form", async () => {
+    const { app, auth, journal, session } = await fixture();
+    const principal = await auth.authenticateSession(session.sessionToken);
+    const created = await journal.call("hfj_create_household", { name: "Account export", idempotency_key: "account-export-household" }, principal);
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error(created.error.message);
+    if (created.data === null || Array.isArray(created.data) || typeof created.data !== "object") throw new Error("Household response was invalid");
+    const householdId = HouseholdIdSchema.parse(created.data.household_id);
+    const response = await app.inject({
+      method: "POST",
+      url: `/account/households/${householdId}/exports`,
+      headers: { cookie: `hfj_session=${session.sessionToken}` },
+      payload: { csrf: session.csrfToken, format: "readable_zip", idempotency_key: "account-readable-export" },
+    });
+    expect(response.statusCode).toBe(303);
+    expect(response.headers.location).toMatch(/^https:\/\/journal\.example\.test\/exports\//);
     await app.close();
   });
 });

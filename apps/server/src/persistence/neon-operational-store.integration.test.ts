@@ -45,7 +45,7 @@ describeDatabase("NeonOperationalStore", () => {
     store = new NeonOperationalStore(connection, tokenHasher);
     authStore = new NeonAuthStore(connection);
     oauthStore = new NeonOAuthStore(connection);
-    await connection.direct`TRUNCATE households, users CASCADE`;
+    await connection.direct`TRUNCATE oauth_clients, households, users CASCADE`;
     await connection.direct`
       INSERT INTO users (id, actor_id, display_name)
       VALUES (${ownerId}, ${ownerActorId}, 'Kitchen Owner')
@@ -57,7 +57,7 @@ describeDatabase("NeonOperationalStore", () => {
   });
 
   afterAll(async () => {
-    await connection.direct`TRUNCATE households, users CASCADE`;
+    await connection.direct`TRUNCATE oauth_clients, households, users CASCADE`;
     await connection.close();
   });
 
@@ -186,6 +186,30 @@ describeDatabase("NeonOperationalStore", () => {
     });
     expect((await store.projection(householdId)).profiles.get("household")).toEqual({ markdown: "# Rebuilt", revision: rebuiltHead });
     expect(await store.getMembership(householdId, ownerId)).toMatchObject({ role: "owner", projectionHead: rebuiltHead });
+  });
+
+  it("claims export downloads once for their requester and reclaims terminal rows", async () => {
+    const active = {
+      id: "exp_0000000000000101",
+      householdId,
+      requestedBy: ownerId,
+      format: "readable_zip" as const,
+      tokenHash: tokenHasher.hash("export-token"),
+      objectPath: "exp_0000000000000101.bin",
+      contentHash: "a".repeat(64),
+      repositoryHead: head,
+      expiresAt: "2026-07-15T12:15:00.000Z",
+      downloadedAt: null,
+      createdAt: "2026-07-15T12:00:00.000Z",
+    };
+    await store.saveExportDownload(active);
+    expect(await store.getActiveExportDownload(active.tokenHash, UserIdSchema.parse("usr_0000000000000199"), "2026-07-15T12:01:00.000Z")).toBeNull();
+    expect(await store.getActiveExportDownload(active.tokenHash, ownerId, "2026-07-15T12:01:00.000Z")).toEqual(active);
+    expect(await store.claimExportDownload(active.tokenHash, ownerId, "2026-07-15T12:01:00.000Z")).toEqual({ ...active, downloadedAt: "2026-07-15T12:01:00.000Z" });
+    expect(await store.claimExportDownload(active.tokenHash, ownerId, "2026-07-15T12:02:00.000Z")).toBeNull();
+    expect(await store.listReclaimableExportDownloads("2026-07-15T12:02:00.000Z")).toEqual([{ ...active, downloadedAt: "2026-07-15T12:01:00.000Z" }]);
+    await store.deleteExportDownload(active.id);
+    expect(await store.listReclaimableExportDownloads("2026-07-15T12:02:00.000Z")).toEqual([]);
   });
 
   it("serializes concurrent transactions for the same household", async () => {

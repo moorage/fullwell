@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { validateRepositoryPath } from "../../apps/server/src/adapters/memory.js";
 import { CollectionSnapshotSchema } from "../../packages/contracts/src/domain.js";
+import { validateExportTree } from "../../apps/server/src/git/git-repository.js";
 
 describe("security boundaries", () => {
   it.each(["../secrets", "/absolute/path", "recipes//item.md", "recipes/../../secrets"])(
@@ -28,5 +29,12 @@ describe("security boundaries", () => {
       ...snapshot,
       private_household_notes: "must not cross the boundary",
     })).toThrow();
+  });
+
+  it("rejects symlinks, executable files, and unsafe paths in readable exports", () => {
+    expect(() => validateExportTree("120000\tblob\tprofiles/link\0")).toThrow(/unsafe export entry/);
+    expect(() => validateExportTree("100755\tblob\tprofiles/script\0")).toThrow(/unsafe export entry/);
+    expect(() => validateExportTree("100644\tblob\t../escape\0")).toThrow(/path is invalid/);
+    expect(() => validateExportTree("100644\tblob\tprofiles/snacks.md\0")).not.toThrow();
   });
 });

@@ -29,6 +29,7 @@ import type { OperationalStorePort, SessionRecord, SessionStorePort, TokenHasher
 import type {
   HouseholdProjection,
   HouseholdRecord,
+  ExportDownloadRecord,
   InvitationRecord,
   JsonValue,
   MembershipRecord,
@@ -417,6 +418,55 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
     if (rows.length !== 1) throw new AppError("NOT_FOUND", "Household was not found");
   }
 
+  async saveExportDownload(record: ExportDownloadRecord): Promise<void> {
+    await this.sql()`
+      INSERT INTO export_downloads (
+        id, household_id, requested_by, format, token_hash, object_path,
+        content_hash, repository_head, expires_at, downloaded_at, created_at
+      ) VALUES (
+        ${record.id}, ${record.householdId}, ${record.requestedBy}, ${record.format}, ${record.tokenHash}, ${record.objectPath},
+        ${record.contentHash}, ${record.repositoryHead}, ${record.expiresAt}, ${record.downloadedAt}, ${record.createdAt}
+      )
+    `;
+  }
+
+  async getActiveExportDownload(tokenHash: string, userId: UserId, now: string): Promise<ExportDownloadRecord | null> {
+    const rows = await this.sql()<Record<string, unknown>[]>`
+      SELECT id, household_id, requested_by, format, token_hash, object_path,
+             content_hash, repository_head, expires_at, downloaded_at, created_at
+      FROM export_downloads
+      WHERE token_hash = ${tokenHash} AND requested_by = ${userId}
+        AND downloaded_at IS NULL AND expires_at > ${now}
+    `;
+    return rows[0] === undefined ? null : exportDownloadFromRow(rows[0]);
+  }
+
+  async claimExportDownload(tokenHash: string, userId: UserId, downloadedAt: string): Promise<ExportDownloadRecord | null> {
+    const rows = await this.sql()<Record<string, unknown>[]>`
+      UPDATE export_downloads SET downloaded_at = ${downloadedAt}
+      WHERE token_hash = ${tokenHash} AND requested_by = ${userId}
+        AND downloaded_at IS NULL AND expires_at > ${downloadedAt}
+      RETURNING id, household_id, requested_by, format, token_hash, object_path,
+                content_hash, repository_head, expires_at, downloaded_at, created_at
+    `;
+    return rows[0] === undefined ? null : exportDownloadFromRow(rows[0]);
+  }
+
+  async listReclaimableExportDownloads(now: string): Promise<ReadonlyArray<ExportDownloadRecord>> {
+    const rows = await this.sql()<Record<string, unknown>[]>`
+      SELECT id, household_id, requested_by, format, token_hash, object_path,
+             content_hash, repository_head, expires_at, downloaded_at, created_at
+      FROM export_downloads
+      WHERE downloaded_at IS NOT NULL OR expires_at <= ${now}
+      ORDER BY created_at, id
+    `;
+    return rows.map(exportDownloadFromRow);
+  }
+
+  async deleteExportDownload(id: string): Promise<void> {
+    await this.sql()`DELETE FROM export_downloads WHERE id = ${id}`;
+  }
+
   async withHouseholdLock<T>(householdId: HouseholdId, operation: () => Promise<T>): Promise<T> {
     const active = this.transaction.getStore();
     if (active !== undefined) {
@@ -556,6 +606,16 @@ function shareFromRow(input: unknown): ShareRecord {
 function mutationFromRow(input: unknown): MutationRecord {
   const row = MutationRowSchema.parse(input);
   return { requestId: row.request_id, userId: row.user_id, tool: row.tool_name, idempotencyKey: row.idempotency_key, householdId: row.household_id, state: row.state, commitId: row.commit_id, response: row.response, failure: row.failure_code, createdAt: row.created_at, updatedAt: row.updated_at };
+}
+
+function exportDownloadFromRow(input: unknown): ExportDownloadRecord {
+  const row = z.object({
+    id: z.string(), household_id: HouseholdIdSchema, requested_by: UserIdSchema,
+    format: z.enum(["readable_zip", "git_bundle"]), token_hash: z.string(), object_path: z.string(),
+    content_hash: z.string().regex(/^[0-9a-f]{64}$/), repository_head: GitObjectIdSchema,
+    expires_at: TimestampSchema, downloaded_at: NullableTimestampSchema, created_at: TimestampSchema,
+  }).parse(input);
+  return { id: row.id, householdId: row.household_id, requestedBy: row.requested_by, format: row.format, tokenHash: row.token_hash, objectPath: row.object_path, contentHash: row.content_hash, repositoryHead: row.repository_head, expiresAt: row.expires_at, downloadedAt: row.downloaded_at, createdAt: row.created_at };
 }
 
 function projectionFromDocument(input: unknown): HouseholdProjection {

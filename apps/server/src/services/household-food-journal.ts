@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { createHash } from "node:crypto";
 import { ZodError } from "zod";
 import type {
   GitObjectId,
@@ -21,12 +22,13 @@ import {
   ToolInputSchemas,
 } from "@hfj/contracts";
 import { AppError } from "../core/errors.js";
-import type { Clock, HouseholdRepositoryPort, OperationalStorePort, RandomSource, RepositoryChange, TelemetryPort, TokenHasher } from "../core/ports.js";
+import type { Clock, ExportArtifactPort, HouseholdRepositoryPort, OperationalStorePort, RandomSource, RepositoryChange, TelemetryPort, TokenHasher } from "../core/ports.js";
 import type { JsonValue, MembershipRecord, MutationRecord, Principal } from "../core/types.js";
 import { requireMembership, requireScope } from "../domain/authorization.js";
 import { markdownDocument, validateItemEvidence, validateReport } from "../domain/journal-validation.js";
 import { stableJson } from "../adapters/memory.js";
 import { MutationRunner } from "./mutation-runner.js";
+import { MemoryExportArtifactStore } from "../exports/artifact-store.js";
 
 type ServiceEnvelope = ToolEnvelope<JsonValue>;
 
@@ -40,6 +42,7 @@ export class HouseholdFoodJournalService {
     private readonly hasher: TokenHasher,
     telemetry: TelemetryPort,
     private readonly publicOrigin: URL,
+    private readonly exportArtifacts: ExportArtifactPort = new MemoryExportArtifactStore(),
   ) {
     this.mutations = new MutationRunner(store, repository, clock, random, telemetry);
   }
@@ -470,16 +473,74 @@ export class HouseholdFoodJournalService {
     const parsed = ToolInputSchemas.hfj_export_household.parse(input);
     requireScope(principal, "journal:export");
     await requireMembership(this.store, principal, parsed.household_id, "viewer");
-    const replay = await this.replay(principal, "hfj_export_household", parsed.idempotency_key);
+    const requestFingerprint = this.mutationFingerprint("hfj_export_household", parsed);
+    const existing = await this.store.getMutation(principal.userId, "hfj_export_household", parsed.idempotency_key);
+    const replay = this.exportReplay(existing, requestFingerprint);
     if (replay !== null) return replay;
-    const requestId = this.requestId();
-    const now = this.now();
-    const household = await this.requiredHousehold(parsed.household_id);
-    await this.store.saveMutation(this.mutationRecord(requestId, principal, "hfj_export_household", parsed.idempotency_key, parsed.household_id, now));
-    const bundle = await this.repository.bundle(parsed.household_id);
-    const data = { status: "completed", format: parsed.format, repository_head: household.repositoryHead, content_base64: Buffer.from(bundle).toString("base64") } satisfies Record<string, JsonValue>;
-    await this.store.transitionMutation(requestId, "completed", { commitId: household.repositoryHead, response: data });
-    return { data, head: household.repositoryHead, requestId };
+    const prepared = await this.store.withHouseholdLock(parsed.household_id, async () => {
+      const lockedExisting = await this.store.getMutation(principal.userId, "hfj_export_household", parsed.idempotency_key);
+      const lockedReplay = this.exportReplay(lockedExisting, requestFingerprint);
+      if (lockedReplay !== null) return { status: "replayed" as const, result: lockedReplay };
+      const requestId = lockedExisting?.requestId ?? this.requestId();
+      const now = lockedExisting?.createdAt ?? this.now();
+      if (lockedExisting === null) {
+        await this.store.saveMutation({
+          ...this.mutationRecord(requestId, principal, "hfj_export_household", parsed.idempotency_key, parsed.household_id, now),
+          response: { _request_fingerprint: requestFingerprint },
+        });
+      }
+      return { status: "pending" as const, requestId, now };
+    });
+    if (prepared.status === "replayed") return prepared.result;
+    const failedRequestId = prepared.requestId;
+    let artifactPath: string | null = null;
+    try {
+      return await this.store.withHouseholdLock(parsed.household_id, async () => {
+        const lockedExisting = await this.store.getMutation(principal.userId, "hfj_export_household", parsed.idempotency_key);
+        const lockedReplay = this.exportReplay(lockedExisting, requestFingerprint);
+        if (lockedReplay !== null) return lockedReplay;
+        const { requestId, now } = prepared;
+        await this.store.transitionMutation(requestId, "locked");
+        await requireMembership(this.store, principal, parsed.household_id, "viewer");
+        const head = await this.repository.head(parsed.household_id);
+        const content = parsed.format === "readable_zip"
+          ? await this.repository.readableArchive(parsed.household_id)
+          : await this.repository.bundle(parsed.household_id);
+        const exportId = `exp_${requestId.slice(4)}`;
+        const token = this.mutationToken(requestId, "export-download");
+        artifactPath = `${exportId}.bin`;
+        await this.exportArtifacts.remove(artifactPath);
+        const objectPath = await this.exportArtifacts.write(exportId, content);
+        const expiresAt = new Date(this.clock.now().getTime() + 15 * 60_000).toISOString();
+        const contentHash = createHash("sha256").update(content).digest("hex");
+        const data = {
+          status: "completed", format: parsed.format,
+          download_url: new URL(`/exports/${token}`, this.publicOrigin).toString(),
+          content_hash: contentHash, source_head: head, expires_at: expiresAt,
+        } satisfies Record<string, JsonValue>;
+        await this.store.saveExportDownload({
+          id: exportId, householdId: parsed.household_id, requestedBy: principal.userId, format: parsed.format,
+          tokenHash: this.hasher.hash(token), objectPath, contentHash, repositoryHead: head,
+          expiresAt, downloadedAt: null, createdAt: now,
+        });
+        await this.store.transitionMutation(requestId, "completed", { commitId: head, response: { ...data, _request_fingerprint: requestFingerprint } });
+        return { data, head, requestId };
+      });
+    } catch (error) {
+      if (artifactPath !== null) await this.exportArtifacts.remove(artifactPath);
+      await this.store.transitionMutation(failedRequestId, "failed_before_commit", { failure: errorName(error) });
+      throw error;
+    }
+  }
+
+  private exportReplay(existing: MutationRecord | null, requestFingerprint: string): WriteResult | null {
+    if (typeof existing?.response?._request_fingerprint === "string" && existing.response._request_fingerprint !== requestFingerprint) {
+      throw new AppError("REVISION_CONFLICT", "The idempotency key was already used for a different request");
+    }
+    if (existing?.state !== "completed" || existing.response === null || existing.commitId === null) return null;
+    const data = { ...existing.response };
+    delete data._request_fingerprint;
+    return { data, head: existing.commitId, requestId: existing.requestId };
   }
 
   private async activeShare(token: string) {

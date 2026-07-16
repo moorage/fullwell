@@ -32,6 +32,7 @@ import type { OAuthStore } from "./oauth/types.js";
 import { NeonOperationalStore } from "./persistence/neon-operational-store.js";
 import { NeonConnection } from "./persistence/neon.js";
 import { HouseholdFoodJournalService } from "./services/household-food-journal.js";
+import { FileExportArtifactStore } from "./exports/artifact-store.js";
 
 const config = parseConfig(process.env);
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
@@ -61,7 +62,8 @@ const mail = config.MAIL_PROVIDER_API_KEY === undefined || config.MAIL_FROM === 
 const identity = config.APPLE_CLIENT_ID === undefined || config.APPLE_TEAM_ID === undefined || config.APPLE_KEY_ID === undefined || config.APPLE_PRIVATE_KEY === undefined
   ? new UnconfiguredAppleIdentityProvider()
   : new AppleIdentityProvider(config.APPLE_CLIENT_ID, config.APPLE_TEAM_ID, config.APPLE_KEY_ID, config.APPLE_PRIVATE_KEY);
-const service = new HouseholdFoodJournalService(store, repository, clock, random, hasher, telemetry, publicOrigin);
+const exportArtifacts = new FileExportArtifactStore(config.EXPORT_ROOT);
+const service = new HouseholdFoodJournalService(store, repository, clock, random, hasher, telemetry, publicOrigin, exportArtifacts);
 const passkeys = new WebAuthnPasskeyProvider({ rpName: "Fullwell", rpId: publicOrigin.hostname, origin: publicOrigin.origin });
 const browserAuth = new BrowserAuthService(authStore, clock, random, hasher, mail, identity, passkeys, publicOrigin);
 const oauth = new OAuthService(oauthStore, clock, random, hasher, new URL("/mcp", publicOrigin));
@@ -100,8 +102,14 @@ const app = await buildApp({
     secureCookies: config.NODE_ENV === "production",
     ...(config.APPLE_CLIENT_ID === undefined ? {} : { appleAuthorization: { clientId: config.APPLE_CLIENT_ID, redirectUri: new URL("/auth/apple/callback", publicOrigin).toString() } }),
   },
-  account: { auth: browserAuth, accounts },
+  account: { auth: browserAuth, accounts, journal: service },
   oauth: { oauth, resolveBrowserPrincipal: browserPrincipalResolver(browserAuth), verifyCsrf: browserCsrfVerifier(browserAuth) },
+  exportDownloads: {
+    artifacts: exportArtifacts,
+    hasher,
+    clock,
+    resolveBrowserPrincipal: async (request) => request.cookies.hfj_session === undefined ? null : browserAuth.authenticateSession(request.cookies.hfj_session),
+  },
   web: {
     assetsRoot: resolve(repositoryRoot, "apps/web/dist"),
     contextFor: (request) => webViewModels.contextFor(request),

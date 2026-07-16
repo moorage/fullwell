@@ -32,7 +32,7 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 
 ## Structural debt register
 
-- Readable ZIP delivery, reconciliation-backlog operator health, and production rate limiting/telemetry remain incomplete.
+- Reconciliation-backlog operator health and production rate limiting/telemetry remain incomplete.
 - Native passkey compatibility still requires staging-origin evidence because Safari 26.5's advertised WebDriver virtual authenticator timed out during credential creation.
 - DigitalOcean Block Storage failover fencing, immutable off-site backup, external restore drills, and provisioned staging rollback remain unproven.
 - Real Neon, Apple, email, Codex, and Claude interoperability still needs non-production credentials and external compatibility evidence.

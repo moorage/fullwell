@@ -8,7 +8,7 @@ Status values: `Not run`, `Pass`, `Fail`, `Blocked`, or `Not available`. A relea
 | ChatGPT desktop Codex | Record at run | When available | Required | Required | Required | Required | Required | Required | Link | Not run |
 | Claude Code CLI | Record at run | Required | Required | Required | Required | Required | Required | Required | Link | Not run |
 | Claude Cowork/Desktop | Record at run | When available | Required | Required | Required | Required | Required | Required | Link | Not run |
-| Safari macOS | Record macOS/Safari | Install page | Auth browser | Required | Required | Required | Required | N/A | Link | Not run |
+| Safari macOS | macOS 26.5.1 / Safari 26.5 | Keyboard + 200% pass | Provider staging blocked | Staging blocked | Staging blocked | Staging blocked | Staging blocked | N/A | `verification-evidence.md` | Blocked |
 | Safari iPhone | Record iOS/Safari/device | Install page | Auth browser | Required | Required | Web Share and fallback | Required | N/A | Link | Not run |
 | Firefox or Chrome | Record OS/browser | Install page | Auth browser | Required | Required | Fallback | Required | N/A | Link | Not run |
 

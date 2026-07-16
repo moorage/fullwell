@@ -35,7 +35,7 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 - Native passkey compatibility still requires staging-origin evidence because Safari 26.5's advertised WebDriver virtual authenticator timed out during credential creation.
 - DigitalOcean Block Storage failover fencing, live Backblaze Object Lock behavior, Neon point-in-time recovery, external restore drills, and provisioned staging rollback remain unproven.
 - Real Neon, Apple, email, Codex, and Claude interoperability still needs non-production credentials and external compatibility evidence.
-- Manual VoiceOver/keyboard/zoom accessibility, provisioned load/soak and OAuth/import/Neon race coverage, privacy, secret-rotation, and manual release reviews remain no-go gates.
+- Manual VoiceOver, authenticated keyboard/zoom accessibility, iPhone hardware and non-Apple screen-reader coverage, provisioned load/soak and OAuth/import/Neon race coverage, privacy, secret-rotation, and manual release reviews remain no-go gates.
 
 ## Maintenance rule
 

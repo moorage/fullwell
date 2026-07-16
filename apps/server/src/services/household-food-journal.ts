@@ -1,0 +1,541 @@
+import { Buffer } from "node:buffer";
+import { ZodError } from "zod";
+import type {
+  GitObjectId,
+  HouseholdId,
+  RequestId,
+  ToolEnvelope,
+  ToolName,
+} from "@hfj/contracts";
+import {
+  CollectionIdSchema,
+  CollectionSnapshotSchema,
+  EvidenceIdSchema,
+  HouseholdIdSchema,
+  ImportIdSchema,
+  InvitationIdSchema,
+  ItemIdSchema,
+  RequestIdSchema,
+  ShareIdSchema,
+  SnapshotIdSchema,
+  ToolInputSchemas,
+} from "@hfj/contracts";
+import { AppError } from "../core/errors.js";
+import type { Clock, HouseholdRepositoryPort, OperationalStorePort, RandomSource, RepositoryChange, TelemetryPort, TokenHasher } from "../core/ports.js";
+import type { JsonValue, MembershipRecord, MutationRecord, Principal } from "../core/types.js";
+import { requireMembership, requireScope } from "../domain/authorization.js";
+import { markdownDocument, validateItemEvidence, validateReport } from "../domain/journal-validation.js";
+import { stableJson } from "../adapters/memory.js";
+import { MutationRunner } from "./mutation-runner.js";
+
+type ServiceEnvelope = ToolEnvelope<JsonValue>;
+
+export class HouseholdFoodJournalService {
+  private readonly mutations: MutationRunner;
+  constructor(
+    private readonly store: OperationalStorePort,
+    private readonly repository: HouseholdRepositoryPort,
+    private readonly clock: Clock,
+    private readonly random: RandomSource,
+    private readonly hasher: TokenHasher,
+    telemetry: TelemetryPort,
+    private readonly publicOrigin: URL,
+  ) {
+    this.mutations = new MutationRunner(store, repository, clock, random, telemetry);
+  }
+
+  async call(name: ToolName, input: unknown, principal: Principal): Promise<ServiceEnvelope> {
+    try {
+      switch (name) {
+        case "hfj_get_context": return this.read(await this.getContext(input, principal));
+        case "hfj_create_household": return this.write(await this.createHousehold(input, principal));
+        case "hfj_select_household": return this.read(await this.selectHousehold(input, principal));
+        case "hfj_create_family_invite": return this.write(await this.createInvite(input, principal));
+        case "hfj_accept_family_invite": return this.write(await this.acceptInvite(input, principal));
+        case "hfj_revoke_family_invite": return this.write(await this.revokeInvite(input, principal));
+        case "hfj_list_members": return this.read(await this.listMembers(input, principal));
+        case "hfj_update_member": return this.write(await this.updateMember(input, principal));
+        case "hfj_remove_member": return this.write(await this.removeMember(input, principal));
+        case "hfj_get_profile": return this.read(await this.getProfile(input, principal));
+        case "hfj_update_profile": return this.write(await this.updateProfile(input, principal));
+        case "hfj_search_items": return this.read(await this.searchItems(input, principal));
+        case "hfj_get_item": return this.read(await this.getItem(input, principal));
+        case "hfj_append_evidence": return this.write(await this.appendEvidence(input, principal));
+        case "hfj_commit_change_set": return this.write(await this.commitChangeSet(input, principal));
+        case "hfj_create_collection": return this.write(await this.createCollection(input, principal));
+        case "hfj_create_collection_share": return this.write(await this.createShare(input, principal));
+        case "hfj_revoke_collection_share": return this.write(await this.revokeShare(input, principal));
+        case "hfj_preview_shared_collection": return this.read(await this.previewSharedCollection(input));
+        case "hfj_plan_collection_import": return this.read(await this.planImport(input, principal));
+        case "hfj_import_collection_items": return this.write(await this.importItems(input, principal));
+        case "hfj_export_household": return this.write(await this.exportHousehold(input, principal));
+      }
+    } catch (error) {
+      return this.error(error);
+    }
+  }
+
+  async preview(token: string): Promise<ServiceEnvelope> {
+    try { return this.read(await this.previewSharedCollection({ token })); } catch (error) { return this.error(error); }
+  }
+
+  private async getContext(input: unknown, principal: Principal): Promise<ReadResult> {
+    const parsed = ToolInputSchemas.hfj_get_context.parse(input);
+    requireScope(principal, "journal:read");
+    const memberships = await this.store.listMemberships(principal.userId);
+    const selected = parsed.household_id ?? await this.store.getDefaultHousehold(principal.userId);
+    return {
+      data: {
+        user: { display_name: principal.displayName },
+        households: memberships.map(({ household, membership }) => ({ id: household.id, name: household.name, role: membership.role, repository_head: household.repositoryHead })),
+        default_household_id: selected,
+        pending_intent: null,
+        granted_scopes: [...principal.scopes].sort(),
+      },
+      head: selected === null ? null : (await this.store.getHousehold(selected))?.repositoryHead ?? null,
+    };
+  }
+
+  private async createHousehold(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_create_household.parse(input);
+    requireScope(principal, "household:manage");
+    const replay = await this.replay(principal, "hfj_create_household", parsed.idempotency_key);
+    if (replay !== null) return replay;
+    const requestId = this.requestId();
+    const now = this.now();
+    const householdId = HouseholdIdSchema.parse(this.random.opaqueId("hsh"));
+    await this.store.saveMutation(this.mutationRecord(requestId, principal, "hfj_create_household", parsed.idempotency_key, null, now));
+    try {
+      const head = await this.repository.provision(householdId, parsed.name, principal.actorId, now);
+      const owner: MembershipRecord = { householdId, userId: principal.userId, actorId: principal.actorId, role: "owner", projectionHead: head, removedAt: null };
+      await this.store.createHousehold({ id: householdId, name: parsed.name, repositoryHead: head, provisioningState: "ready", createdAt: now }, owner);
+      await this.store.setDefaultHousehold(principal.userId, householdId);
+      const data = { status: "completed", household_id: householdId, role: "owner", onboarding_state: "ready" } satisfies Record<string, JsonValue>;
+      await this.store.transitionMutation(requestId, "completed", { commitId: head, response: data });
+      return { data, head, requestId };
+    } catch (error) {
+      await this.store.transitionMutation(requestId, "failed_before_commit", { failure: errorName(error) });
+      throw error;
+    }
+  }
+
+  private async selectHousehold(input: unknown, principal: Principal): Promise<ReadResult> {
+    const parsed = ToolInputSchemas.hfj_select_household.parse(input);
+    await requireMembership(this.store, principal, parsed.household_id, "viewer");
+    await this.store.setDefaultHousehold(principal.userId, parsed.household_id);
+    const household = await this.requiredHousehold(parsed.household_id);
+    return { data: { status: "completed", household_id: parsed.household_id }, head: household.repositoryHead };
+  }
+
+  private async createInvite(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_create_family_invite.parse(input);
+    const token = this.random.token(32);
+    const invitationId = InvitationIdSchema.parse(this.random.opaqueId("inv"));
+    const expiresAt = new Date(this.clock.now().getTime() + parsed.expires_in_days * 86_400_000).toISOString();
+    return await this.mutations.run({
+      principal, tool: "hfj_create_family_invite", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      expectedHead: parsed.expected_head, minimumRole: "owner", requiredScope: "household:manage", summary: "members: create family invitation",
+      buildChanges: async () => [{ path: `members/invitations/${invitationId}.md`, content: markdownDocument({ id: invitationId, role: parsed.role, expires_at: expiresAt, status: "pending", schema_version: 1 }, ""), appendOnly: false }],
+      applyProjection: async () => {
+        await this.store.saveInvitation({ id: invitationId, householdId: parsed.household_id, tokenHash: this.hasher.hash(token), role: parsed.role, expiresAt, intendedEmailHint: parsed.intended_email_hint ?? null, acceptedAt: null, revokedAt: null });
+        return { status: "completed", invitation_id: invitationId, role: parsed.role, expires_at: expiresAt, url: new URL(`/invite/family/${token}`, this.publicOrigin).toString() };
+      },
+    });
+  }
+
+  private async acceptInvite(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_accept_family_invite.parse(input);
+    const invitation = await this.store.findInvitationByTokenHash(this.hasher.hash(parsed.token));
+    if (invitation === null) throw new AppError("NOT_FOUND", "Family invitation was not found");
+    if (invitation.revokedAt !== null) throw new AppError("INVITE_REVOKED", "Family invitation was revoked");
+    if (invitation.acceptedAt !== null || Date.parse(invitation.expiresAt) <= this.clock.now().getTime()) throw new AppError("INVITE_EXPIRED", "Family invitation has expired or was already used");
+    const replay = await this.replay(principal, "hfj_accept_family_invite", parsed.idempotency_key);
+    if (replay !== null) return replay;
+    const requestId = this.requestId();
+    const now = this.now();
+    await this.store.saveMutation(this.mutationRecord(requestId, principal, "hfj_accept_family_invite", parsed.idempotency_key, invitation.householdId, now));
+    return await this.store.withHouseholdLock(invitation.householdId, async () => {
+      const current = await this.repository.head(invitation.householdId);
+      const head = await this.repository.commit(invitation.householdId, current, [{ path: `members/${principal.actorId}.md`, content: markdownDocument({ actor_id: principal.actorId, role: invitation.role, schema_version: 1 }, ""), appendOnly: false }], {
+        requestId, householdId: invitation.householdId, actorId: principal.actorId, tool: "hfj_accept_family_invite", client: principal.client, summary: "members: accept family invitation", occurredAt: now,
+      });
+      invitation.acceptedAt = now;
+      await this.store.saveInvitation(invitation);
+      await this.store.upsertMembership({ householdId: invitation.householdId, userId: principal.userId, actorId: principal.actorId, role: invitation.role, projectionHead: head, removedAt: null });
+      await this.updateAllHeads(invitation.householdId, head);
+      const data = { status: "completed", household_id: invitation.householdId, role: invitation.role } satisfies Record<string, JsonValue>;
+      await this.store.transitionMutation(requestId, "completed", { commitId: head, response: data });
+      return { data, head, requestId };
+    });
+  }
+
+  private async revokeInvite(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_revoke_family_invite.parse(input);
+    const invitation = await this.store.getInvitation(parsed.invitation_id);
+    if (invitation === null || invitation.householdId !== parsed.household_id) throw new AppError("NOT_FOUND", "Family invitation was not found");
+    const now = this.now();
+    return await this.mutations.run({
+      principal, tool: "hfj_revoke_family_invite", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      expectedHead: parsed.expected_head, minimumRole: "owner", requiredScope: "household:manage", summary: "members: revoke family invitation",
+      buildChanges: async () => [{ path: `members/invitations/${invitation.id}.md`, content: markdownDocument({ id: invitation.id, role: invitation.role, expires_at: invitation.expiresAt, status: "revoked", schema_version: 1 }, ""), appendOnly: false }],
+      applyProjection: async () => { invitation.revokedAt = now; await this.store.saveInvitation(invitation); return { status: "completed", invitation_id: invitation.id, revoked_at: now }; },
+    });
+  }
+
+  private async listMembers(input: unknown, principal: Principal): Promise<ReadResult> {
+    const parsed = ToolInputSchemas.hfj_list_members.parse(input);
+    await requireMembership(this.store, principal, parsed.household_id, "viewer");
+    const household = await this.requiredHousehold(parsed.household_id);
+    const members = await this.store.listHouseholdMemberships(parsed.household_id);
+    return { data: { members: members.map((member) => ({ actor_id: member.actorId, role: member.role })) }, head: household.repositoryHead };
+  }
+
+  private async updateMember(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_update_member.parse(input);
+    const member = (await this.store.listHouseholdMemberships(parsed.household_id)).find((candidate) => candidate.actorId === parsed.member_actor_id);
+    if (member === undefined) throw new AppError("NOT_FOUND", "Household member was not found");
+    await this.assertFinalOwner(parsed.household_id, member, parsed.role === "owner");
+    return await this.mutations.run({
+      principal, tool: "hfj_update_member", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      expectedHead: parsed.expected_head, minimumRole: "owner", requiredScope: "household:manage", summary: "members: update household role",
+      buildChanges: async () => [{ path: `members/${member.actorId}.md`, content: markdownDocument({ actor_id: member.actorId, role: parsed.role, schema_version: 1 }, ""), appendOnly: false }],
+      applyProjection: async (head) => { member.role = parsed.role; member.projectionHead = head; await this.store.upsertMembership(member); return { status: "completed", actor_id: member.actorId, role: member.role }; },
+    });
+  }
+
+  private async removeMember(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_remove_member.parse(input);
+    const member = (await this.store.listHouseholdMemberships(parsed.household_id)).find((candidate) => candidate.actorId === parsed.member_actor_id);
+    if (member === undefined) throw new AppError("NOT_FOUND", "Household member was not found");
+    await this.assertFinalOwner(parsed.household_id, member, false);
+    const removedAt = this.now();
+    return await this.mutations.run({
+      principal, tool: "hfj_remove_member", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      expectedHead: parsed.expected_head, minimumRole: "owner", requiredScope: "household:manage", summary: "members: remove household member",
+      buildChanges: async () => [{ path: `members/${member.actorId}.md`, content: markdownDocument({ actor_id: member.actorId, former_member: true, removed_at: removedAt, schema_version: 1 }, ""), appendOnly: false }],
+      applyProjection: async () => { member.removedAt = removedAt; await this.store.upsertMembership(member); return { status: "completed", actor_id: member.actorId, removed_at: removedAt }; },
+    });
+  }
+
+  private async getProfile(input: unknown, principal: Principal): Promise<ReadResult> {
+    const parsed = ToolInputSchemas.hfj_get_profile.parse(input);
+    requireScope(principal, "journal:read");
+    await requireMembership(this.store, principal, parsed.household_id, "viewer");
+    const household = await this.requiredHousehold(parsed.household_id);
+    const profile = (await this.store.projection(parsed.household_id)).profiles.get(parsed.profile);
+    return { data: { profile: parsed.profile, markdown: profile?.markdown ?? "", revision: profile?.revision ?? null }, head: household.repositoryHead };
+  }
+
+  private async updateProfile(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_update_profile.parse(input);
+    return await this.mutations.run({
+      principal, tool: "hfj_update_profile", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "journal:write", summary: `profiles: update ${parsed.profile}`,
+      buildChanges: async () => [{ path: `profiles/${parsed.profile}.md`, content: parsed.markdown.endsWith("\n") ? parsed.markdown : `${parsed.markdown}\n`, appendOnly: false }],
+      applyProjection: async (head) => { (await this.store.projection(parsed.household_id)).profiles.set(parsed.profile, { markdown: parsed.markdown, revision: head }); return { status: "completed", profile: parsed.profile, revision: head }; },
+    });
+  }
+
+  private async searchItems(input: unknown, principal: Principal): Promise<ReadResult> {
+    const parsed = ToolInputSchemas.hfj_search_items.parse(input);
+    requireScope(principal, "journal:read");
+    await requireMembership(this.store, principal, parsed.household_id, "viewer");
+    const household = await this.requiredHousehold(parsed.household_id);
+    const query = parsed.query.trim().toLocaleLowerCase("en-US");
+    const entries = [...(await this.store.projection(parsed.household_id)).items.values()].filter(({ item }) => {
+      if (parsed.kind !== undefined && item.kind !== parsed.kind) return false;
+      const fields = item.kind === "recipe" ? [item.title, item.author_or_publisher, item.canonical_url] : [item.display_name, item.brand, item.product_line, item.flavor, item.formulation, item.format];
+      return fields.some((field) => field?.toLocaleLowerCase("en-US").includes(query));
+    }).slice(0, parsed.limit).map(({ item, revision }) => ({
+      id: item.id, kind: item.kind, title: item.kind === "recipe" ? item.title : item.display_name, revision,
+      distinguishing_fields: item.kind === "recipe" ? { canonical_url: item.canonical_url, author_or_publisher: item.author_or_publisher } : { brand: item.brand, flavor: item.flavor, formulation: item.formulation, format: item.format },
+    }));
+    return { data: { items: entries, next_cursor: null }, head: household.repositoryHead };
+  }
+
+  private async getItem(input: unknown, principal: Principal): Promise<ReadResult> {
+    const parsed = ToolInputSchemas.hfj_get_item.parse(input);
+    requireScope(principal, "journal:read");
+    await requireMembership(this.store, principal, parsed.household_id, "viewer");
+    const household = await this.requiredHousehold(parsed.household_id);
+    const entry = (await this.store.projection(parsed.household_id)).items.get(parsed.item_id);
+    if (entry === undefined) throw new AppError("NOT_FOUND", "Journal item was not found");
+    return { data: { item: jsonRoundTrip(entry.item), revision: entry.revision }, head: household.repositoryHead };
+  }
+
+  private async appendEvidence(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_append_evidence.parse(input);
+    const projection = await this.store.projection(parsed.household_id);
+    for (const evidence of parsed.evidence) {
+      if (projection.evidence.has(evidence.id)) throw new AppError("REVISION_CONFLICT", `Evidence already exists: ${evidence.id}`);
+      if (evidence.supersedes_evidence_id !== undefined && !projection.evidence.has(evidence.supersedes_evidence_id)) throw new AppError("VALIDATION_FAILED", "Correction evidence must reference an existing event");
+    }
+    const changes: RepositoryChange[] = parsed.evidence.map((evidence) => ({
+      path: `${evidence.kind === "purchase" ? "snacks" : "recipes"}/evidence/${evidence.observed_at.slice(0, 4)}/${evidence.id}.json`,
+      content: stableJson(evidence), appendOnly: true,
+    }));
+    return await this.mutations.run({
+      principal, tool: "hfj_append_evidence", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "journal:write", summary: "evidence: append journal observations",
+      buildChanges: async () => changes,
+      applyProjection: async () => { for (const evidence of parsed.evidence) projection.evidence.set(evidence.id, evidence); return { status: "completed", evidence_ids: parsed.evidence.map((entry) => entry.id), count: parsed.evidence.length }; },
+    });
+  }
+
+  private async commitChangeSet(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_commit_change_set.parse(input);
+    const projection = await this.store.projection(parsed.household_id);
+    for (const item of parsed.items) {
+      validateItemEvidence(item, projection.evidence);
+      const current = projection.items.get(item.id);
+      const expected = parsed.expected_item_revisions[item.id];
+      if (current !== undefined && expected !== current.revision) throw new AppError("REVISION_CONFLICT", `Item changed: ${item.id}`);
+      if (current === undefined && expected !== undefined) throw new AppError("REVISION_CONFLICT", `New item has an unexpected revision: ${item.id}`);
+    }
+    const ids = new Set([...projection.items.keys(), ...parsed.items.map((item) => item.id)]);
+    for (const report of parsed.reports) validateReport(report, projection.evidence, ids);
+    const changes: RepositoryChange[] = [
+      ...parsed.items.map((item) => ({ path: `${item.kind === "snack" ? "snacks" : "recipes"}/items/${item.id}.md`, content: markdownDocument(itemFrontmatter(item), item.body_markdown), appendOnly: false })),
+      ...parsed.reports.map((report) => ({ path: report.report_type === "recurring_snacks" ? "snacks/reports/recurring-snacks.md" : "recipes/reports/recipe-index.md", content: report.markdown.endsWith("\n") ? report.markdown : `${report.markdown}\n`, appendOnly: false })),
+    ];
+    return await this.mutations.run({
+      principal, tool: "hfj_commit_change_set", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "journal:write", summary: "journal: commit agent-authored change set",
+      buildChanges: async () => changes,
+      applyProjection: async (head) => { for (const item of parsed.items) projection.items.set(item.id, { item, revision: head }); return { status: "completed", item_ids: parsed.items.map((item) => item.id), report_count: parsed.reports.length }; },
+    });
+  }
+
+  private async createCollection(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_create_collection.parse(input);
+    const projection = await this.store.projection(parsed.household_id);
+    for (const candidate of parsed.items) {
+      const source = projection.items.get(candidate.source_item_id);
+      if (source === undefined || source.revision !== candidate.source_item_revision) throw new AppError("REVISION_CONFLICT", `Collection source changed: ${candidate.source_item_id}`);
+    }
+    const collectionId = CollectionIdSchema.parse(this.random.opaqueId("col"));
+    const snapshotId = SnapshotIdSchema.parse(this.random.opaqueId("snp"));
+    const snapshot = CollectionSnapshotSchema.parse({ id: snapshotId, collection_id: collectionId, title: parsed.title, sharer_display_name: principal.displayName, items: parsed.items, created_at: this.now(), schema_version: 1 });
+    return await this.mutations.run({
+      principal, tool: "hfj_create_collection", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "collection:share", summary: "collections: create private collection",
+      buildChanges: async () => [{ path: `collections/${collectionId}/collection.md`, content: markdownDocument({ id: collectionId, title: parsed.title, schema_version: 1 }, ""), appendOnly: false }],
+      applyProjection: async (head) => { projection.collections.set(collectionId, { snapshot, revision: head }); return { status: "completed", collection_id: collectionId, snapshot_id: snapshotId }; },
+    });
+  }
+
+  private async createShare(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_create_collection_share.parse(input);
+    const collection = (await this.store.projection(parsed.household_id)).collections.get(parsed.collection_id);
+    if (collection === undefined) throw new AppError("NOT_FOUND", "Collection was not found");
+    const token = this.random.token(32);
+    const shareId = ShareIdSchema.parse(this.random.opaqueId("shr"));
+    const expiresAt = new Date(this.clock.now().getTime() + parsed.expires_in_days * 86_400_000).toISOString();
+    return await this.mutations.run({
+      principal, tool: "hfj_create_collection_share", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "collection:share", summary: "collections: publish immutable snapshot",
+      buildChanges: async () => [{ path: `collections/${parsed.collection_id}/snapshots/${collection.snapshot.id}.json`, content: stableJson(collection.snapshot), appendOnly: true }],
+      applyProjection: async () => { await this.store.saveShare({ id: shareId, collectionId: parsed.collection_id, householdId: parsed.household_id, tokenHash: this.hasher.hash(token), snapshot: collection.snapshot, expiresAt, revokedAt: null }); return { status: "completed", collection_id: parsed.collection_id, share_id: shareId, expires_at: expiresAt, url: new URL(`/c/${token}`, this.publicOrigin).toString() }; },
+    });
+  }
+
+  private async revokeShare(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_revoke_collection_share.parse(input);
+    const share = await this.store.getShareByCollection(parsed.household_id, parsed.collection_id);
+    if (share === null) throw new AppError("NOT_FOUND", "Collection share was not found");
+    const revokedAt = this.now();
+    return await this.mutations.run({
+      principal, tool: "hfj_revoke_collection_share", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "collection:share", summary: "collections: revoke public share",
+      buildChanges: async () => [{ path: `collections/${parsed.collection_id}/collection.md`, content: markdownDocument({ id: parsed.collection_id, share_status: "revoked", revoked_at: revokedAt, schema_version: 1 }, ""), appendOnly: false }],
+      applyProjection: async () => { share.revokedAt = revokedAt; await this.store.saveShare(share); return { status: "completed", collection_id: parsed.collection_id, revoked_at: revokedAt }; },
+    });
+  }
+
+  private async previewSharedCollection(input: unknown): Promise<ReadResult> {
+    const parsed = ToolInputSchemas.hfj_preview_shared_collection.parse(input);
+    const share = await this.store.getShareByTokenHash(this.hasher.hash(parsed.token));
+    if (share === null) throw new AppError("NOT_FOUND", "Collection was not found");
+    if (share.revokedAt !== null) throw new AppError("SHARE_REVOKED", "The owner has stopped sharing this collection");
+    if (Date.parse(share.expiresAt) <= this.clock.now().getTime()) throw new AppError("SHARE_EXPIRED", "This collection link has expired");
+    return { data: { snapshot: jsonRoundTrip(share.snapshot), expires_at: share.expiresAt }, head: null };
+  }
+
+  private async planImport(input: unknown, principal: Principal): Promise<ReadResult> {
+    const parsed = ToolInputSchemas.hfj_plan_collection_import.parse(input);
+    requireScope(principal, "journal:write");
+    await requireMembership(this.store, principal, parsed.destination_household_id, "editor");
+    const share = await this.activeShare(parsed.token);
+    const selected = share.snapshot.items.filter((item) => parsed.selected_collection_item_ids.includes(item.collection_item_id));
+    if (selected.length !== new Set(parsed.selected_collection_item_ids).size) throw new AppError("VALIDATION_FAILED", "One or more selected collection items do not exist");
+    const destination = [...(await this.store.projection(parsed.destination_household_id)).items.values()];
+    const plans = selected.map((item) => {
+      const exact = destination.filter(({ item: candidate }) => exactDuplicate(item, candidate)).map(({ item: candidate }) => candidate.id);
+      const possible = exact.length > 0 ? [] : destination.filter(({ item: candidate }) => candidate.kind === item.kind && itemTitle(candidate).toLocaleLowerCase("en-US") === item.title.toLocaleLowerCase("en-US")).map(({ item: candidate }) => candidate.id);
+      return { collection_item_id: item.collection_item_id, exact_duplicates: exact, possible_duplicates: possible, requires_resolution: possible.length > 0 };
+    });
+    return { data: { status: "completed", items: plans }, head: (await this.requiredHousehold(parsed.destination_household_id)).repositoryHead };
+  }
+
+  private async importItems(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_import_collection_items.parse(input);
+    const share = await this.activeShare(parsed.token);
+    const byId = new Map(share.snapshot.items.map((item) => [item.collection_item_id, item]));
+    const importId = ImportIdSchema.parse(this.random.opaqueId("imp"));
+    const projection = await this.store.projection(parsed.household_id);
+    const importedAt = this.now();
+    const newItems: Array<{ item: import("@hfj/contracts").JournalItem; evidence: import("@hfj/contracts").Evidence }> = [];
+    const mergedItems: Array<{ item: import("@hfj/contracts").JournalItem; evidence: import("@hfj/contracts").Evidence }> = [];
+    for (const selection of parsed.selections) {
+      const source = byId.get(selection.collection_item_id);
+      if (source === undefined) throw new AppError("VALIDATION_FAILED", `Collection item does not exist: ${selection.collection_item_id}`);
+      if (selection.resolution.action === "skip") continue;
+      if (selection.resolution.action === "merge") {
+        const destination = projection.items.get(selection.resolution.destination_item_id);
+        if (destination === undefined) throw new AppError("VALIDATION_FAILED", "Merge destination does not exist");
+        const evidenceId = EvidenceIdSchema.parse(this.random.opaqueId("evd"));
+        const evidence = importEvidence(evidenceId, source, share.snapshot.id, principal.actorId, importedAt);
+        const item = { ...destination.item, evidence_ids: [...destination.item.evidence_ids, evidenceId], updated_at: importedAt };
+        mergedItems.push({ item, evidence });
+        continue;
+      }
+      const itemId = ItemIdSchema.parse(this.random.opaqueId("itm"));
+      const evidenceId = EvidenceIdSchema.parse(this.random.opaqueId("evd"));
+      const evidence = importEvidence(evidenceId, source, share.snapshot.id, principal.actorId, importedAt);
+      const base = { id: itemId, evidence_ids: [evidenceId], created_at: importedAt, updated_at: importedAt, schema_version: 1 as const, body_markdown: source.public_description ?? "" };
+      const item = source.kind === "recipe" ? {
+        ...base, kind: "recipe" as const, title: source.title, canonical_url: source.canonical_recipe_url, audited_page_url: source.image_page_url,
+        author_or_publisher: source.author_or_publisher, saved: "yes" as const, cooked: "unknown" as const, liked: "unknown" as const,
+        last_cooked: null, date_precision: "unknown" as const, image_url: source.image_url, image_page_url: source.image_page_url,
+      } : {
+        ...base, kind: "snack" as const, display_name: source.title, brand: source.brand, product_line: null, flavor: source.flavor,
+        formulation: source.formulation, format: source.format, category: "imported", produce_variety: null, known_size_variants: [], image_page_url: source.image_page_url, image_url: source.image_url,
+      };
+      newItems.push({ item, evidence });
+    }
+    const changes: RepositoryChange[] = [...newItems, ...mergedItems].flatMap(({ item, evidence }) => [
+      { path: `${item.kind === "recipe" ? "recipes" : "snacks"}/evidence/${importedAt.slice(0, 4)}/${evidence.id}.json`, content: stableJson(evidence), appendOnly: true },
+      { path: `${item.kind === "recipe" ? "recipes" : "snacks"}/items/${item.id}.md`, content: markdownDocument(itemFrontmatter(item), item.body_markdown), appendOnly: false },
+    ]);
+    changes.push({ path: `imports/${importedAt.slice(0, 4)}/${importId}.json`, content: stableJson({ import_id: importId, source_collection_id: share.snapshot.collection_id, source_snapshot_id: share.snapshot.id, imported_at: importedAt, selections: parsed.selections, schema_version: 1 }), appendOnly: true });
+    return await this.mutations.run({
+      principal, tool: "hfj_import_collection_items", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "journal:write", summary: "imports: import selected collection items",
+      buildChanges: async () => changes,
+      applyProjection: async (head) => {
+        for (const entry of [...newItems, ...mergedItems]) {
+          projection.evidence.set(entry.evidence.id, entry.evidence);
+          projection.items.set(entry.item.id, { item: entry.item, revision: head });
+        }
+        return {
+          status: "completed",
+          import_id: importId,
+          imported_item_ids: newItems.map((entry) => entry.item.id),
+          merged_item_ids: mergedItems.map((entry) => entry.item.id),
+          skipped_count: parsed.selections.filter(({ resolution }) => resolution.action === "skip").length,
+        };
+      },
+    });
+  }
+
+  private async exportHousehold(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_export_household.parse(input);
+    requireScope(principal, "journal:export");
+    await requireMembership(this.store, principal, parsed.household_id, "viewer");
+    const replay = await this.replay(principal, "hfj_export_household", parsed.idempotency_key);
+    if (replay !== null) return replay;
+    const requestId = this.requestId();
+    const now = this.now();
+    const household = await this.requiredHousehold(parsed.household_id);
+    await this.store.saveMutation(this.mutationRecord(requestId, principal, "hfj_export_household", parsed.idempotency_key, parsed.household_id, now));
+    const bundle = await this.repository.bundle(parsed.household_id);
+    const data = { status: "completed", format: parsed.format, repository_head: household.repositoryHead, content_base64: Buffer.from(bundle).toString("base64") } satisfies Record<string, JsonValue>;
+    await this.store.transitionMutation(requestId, "completed", { commitId: household.repositoryHead, response: data });
+    return { data, head: household.repositoryHead, requestId };
+  }
+
+  private async activeShare(token: string) {
+    const share = await this.store.getShareByTokenHash(this.hasher.hash(token));
+    if (share === null) throw new AppError("NOT_FOUND", "Collection was not found");
+    if (share.revokedAt !== null) throw new AppError("SHARE_REVOKED", "The owner has stopped sharing this collection");
+    if (Date.parse(share.expiresAt) <= this.clock.now().getTime()) throw new AppError("SHARE_EXPIRED", "This collection link has expired");
+    return share;
+  }
+
+  private async assertFinalOwner(householdId: HouseholdId, member: MembershipRecord, remainsOwner: boolean): Promise<void> {
+    if (member.role !== "owner" || remainsOwner) return;
+    const owners = (await this.store.listHouseholdMemberships(householdId)).filter((candidate) => candidate.role === "owner");
+    if (owners.length <= 1) throw new AppError("VALIDATION_FAILED", "A household must retain at least one owner");
+  }
+
+  private async updateAllHeads(householdId: HouseholdId, head: GitObjectId): Promise<void> {
+    await this.store.updateHouseholdHead(householdId, head);
+    for (const membership of await this.store.listHouseholdMemberships(householdId)) { membership.projectionHead = head; await this.store.upsertMembership(membership); }
+  }
+
+  private async requiredHousehold(householdId: HouseholdId) {
+    const household = await this.store.getHousehold(householdId);
+    if (household === null) throw new AppError("NOT_FOUND", "Household was not found");
+    return household;
+  }
+
+  private async replay(principal: Principal, tool: ToolName, key: string): Promise<WriteResult | null> {
+    const record = await this.store.getMutation(principal.userId, tool, key);
+    return record?.state === "completed" && record.response !== null && record.commitId !== null ? { data: record.response, head: record.commitId, requestId: record.requestId } : null;
+  }
+
+  private mutationRecord(requestId: RequestId, principal: Principal, tool: ToolName, key: string, householdId: HouseholdId | null, now: string): MutationRecord {
+    return { requestId, userId: principal.userId, tool, idempotencyKey: key, householdId, state: "received", commitId: null, response: null, failure: null, createdAt: now, updatedAt: now };
+  }
+
+  private write(result: WriteResult): ServiceEnvelope { return { ok: true, data: result.data, request_id: result.requestId, repository_head: result.head }; }
+  private read(result: ReadResult): ServiceEnvelope { return { ok: true, data: result.data, request_id: this.requestId(), repository_head: result.head }; }
+  private error(error: unknown): ServiceEnvelope {
+    const requestId = this.requestId();
+    if (error instanceof ZodError) return { ok: false, error: { code: "VALIDATION_FAILED", message: "Request validation failed", field_errors: error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })), retryable: false, retry_after_seconds: null }, request_id: requestId };
+    if (error instanceof AppError) return { ok: false, error: { code: error.code, message: error.message, field_errors: [...error.fieldErrors], retryable: error.retryable, retry_after_seconds: error.retryAfterSeconds }, request_id: requestId };
+    return { ok: false, error: { code: "INTERNAL_ERROR", message: "The request could not be completed", field_errors: [], retryable: false, retry_after_seconds: null }, request_id: requestId };
+  }
+  private requestId(): RequestId { return RequestIdSchema.parse(this.random.opaqueId("req")); }
+  private now(): string { return this.clock.now().toISOString(); }
+}
+
+interface ReadResult { readonly data: JsonValue; readonly head: GitObjectId | null }
+interface WriteResult { readonly data: Record<string, JsonValue>; readonly head: GitObjectId; readonly requestId: RequestId }
+
+function itemFrontmatter(item: import("@hfj/contracts").JournalItem): object {
+  const { body_markdown: _body, ...frontmatter } = item;
+  void _body;
+  return frontmatter;
+}
+
+function itemTitle(item: import("@hfj/contracts").JournalItem): string { return item.kind === "recipe" ? item.title : item.display_name; }
+function exactDuplicate(source: import("@hfj/contracts").CollectionItem, item: import("@hfj/contracts").JournalItem): boolean {
+  if (source.kind !== item.kind) return false;
+  if (item.kind === "recipe") return source.canonical_recipe_url !== null && item.canonical_url === source.canonical_recipe_url;
+  return source.title === item.display_name && source.brand === item.brand && source.flavor === item.flavor && source.formulation === item.formulation && source.format === item.format;
+}
+function importEvidence(
+  id: import("@hfj/contracts").Evidence["id"],
+  source: import("@hfj/contracts").CollectionItem,
+  snapshotId: string,
+  actorId: Principal["actorId"],
+  importedAt: string,
+): import("@hfj/contracts").Evidence {
+  return {
+    id,
+    kind: "import",
+    observed_at: importedAt,
+    evidence_date: importedAt.slice(0, 10),
+    date_precision: "day",
+    source_type: "shared_collection",
+    source_label: source.source_display_attribution ?? "Shared collection",
+    stable_locator: `${snapshotId}/${source.collection_item_id}`,
+    summary: `Imported ${source.title}`,
+    actor_id: actorId,
+    limitations: ["Import does not establish purchase, cooked, or liked status"],
+    schema_version: 1,
+  };
+}
+function jsonRoundTrip(value: object): JsonValue { return JSON.parse(JSON.stringify(value)) as JsonValue; }
+function errorName(error: unknown): string { return error instanceof Error ? error.name : "NonErrorFailure"; }

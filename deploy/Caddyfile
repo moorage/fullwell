@@ -1,0 +1,29 @@
+{
+	email ops@fullwell.app
+	admin off
+}
+
+{$PUBLIC_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options nosniff
+		-Server
+	}
+	reverse_proxy app:3000 {
+		health_uri /health/live
+		health_interval 15s
+	}
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri query delete
+				request>headers>Cookie delete
+				request>headers>Authorization delete
+				request>headers>Referer delete
+			}
+		}
+	}
+}

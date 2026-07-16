@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "household-food-journal",
+  "version": "1.0.0",
+  "description": "Keep an evidence-backed family food journal with Claude.",
+  "author": {
+    "name": "Fullwell"
+  },
+  "homepage": "https://journal.fullwell.app/install",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

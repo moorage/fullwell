@@ -1,0 +1,133 @@
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { MagicLinkCompleteSchema, MagicLinkRequestSchema } from "@hfj/contracts";
+import { z } from "zod";
+import { AppError } from "../core/errors.js";
+import type { BrowserAuthService } from "./service.js";
+
+const AppleCallbackSchema = z.object({
+  code: z.string().min(1).max(4096),
+  state: z.string().min(32).max(512),
+  browser_binding: z.string().min(32).max(512),
+  redirect_uri: z.url().max(4096).optional(),
+}).strict();
+const StartAuthSchema = z.object({ pending_intent: z.string().max(2048).optional() }).strict();
+
+export interface BrowserAuthRouteDependencies {
+  readonly auth: BrowserAuthService;
+  readonly secureCookies: boolean;
+  readonly appleAuthorization?: { readonly clientId: string; readonly redirectUri: string };
+}
+
+export async function registerBrowserAuthRoutes(app: FastifyInstance, dependencies: BrowserAuthRouteDependencies): Promise<void> {
+  app.post("/auth/magic-link", async (request, reply) => {
+    const body = MagicLinkRequestSchema.parse(request.body);
+    await dependencies.auth.requestMagicLink(body.email, body.pending_intent);
+    if (request.headers.accept?.includes("text/html")) return reply.redirect("/sign-in?emailSent=1", 303);
+    return reply.code(202).send({ accepted: true });
+  });
+
+  app.get("/auth/magic-link/complete", async (request, reply) => {
+    const query = MagicLinkCompleteSchema.parse(request.query);
+    const session = await dependencies.auth.completeMagicLink(query.token, query.transaction);
+    setSessionCookie(reply, session.sessionToken, dependencies.secureCookies);
+    setCsrfCookie(reply, session.csrfToken, dependencies.secureCookies);
+    return reply.redirect(session.pendingIntent ?? "/households");
+  });
+
+  app.post("/auth/apple/start", async (request, reply) => {
+    const body = StartAuthSchema.parse(request.body ?? {});
+    const started = await dependencies.auth.beginApple(body.pending_intent);
+    reply.setCookie("hfj_auth_binding", started.browserBinding, {
+      path: "/auth/apple/callback", httpOnly: true, secure: dependencies.secureCookies, sameSite: "lax", maxAge: 10 * 60,
+    });
+    if (dependencies.appleAuthorization === undefined) return reply.code(202).send({ state: started.state });
+    const authorization = new URL("https://appleid.apple.com/auth/authorize");
+    authorization.search = new URLSearchParams({
+      client_id: dependencies.appleAuthorization.clientId,
+      redirect_uri: dependencies.appleAuthorization.redirectUri,
+      response_type: "code",
+      response_mode: "form_post",
+      scope: "name email",
+      state: started.state,
+      nonce: started.state,
+    }).toString();
+    return reply.redirect(authorization.toString());
+  });
+
+  app.post("/auth/apple/callback", async (request, reply) => {
+    const parsed = AppleCallbackSchema.omit({ browser_binding: true }).safeParse(request.body);
+    const body = parsed.success
+      ? { ...parsed.data, browser_binding: request.cookies.hfj_auth_binding }
+      : AppleCallbackSchema.parse(request.body);
+    if (body.browser_binding === undefined) throw new AppError("AUTH_REQUIRED", "The Apple sign-in request is invalid or expired");
+    const session = await dependencies.auth.completeApple({
+      code: body.code,
+      state: body.state,
+      browserBinding: body.browser_binding,
+      redirectUri: dependencies.appleAuthorization?.redirectUri ?? body.redirect_uri ?? "",
+    });
+    setSessionCookie(reply, session.sessionToken, dependencies.secureCookies);
+    setCsrfCookie(reply, session.csrfToken, dependencies.secureCookies);
+    reply.clearCookie("hfj_auth_binding", { path: "/auth/apple/callback" });
+    return reply.send({ authenticated: true, redirect_to: session.pendingIntent ?? "/households" });
+  });
+
+  app.post("/auth/passkey/options", async (request) => {
+    const principal = await optionalPrincipal(request, dependencies.auth);
+    return dependencies.auth.beginPasskey(principal?.userId ?? null);
+  });
+
+  app.post("/auth/passkey/start", async (request) => {
+    const principal = await optionalPrincipal(request, dependencies.auth);
+    return dependencies.auth.beginPasskey(principal?.userId ?? null);
+  });
+
+  app.post("/auth/sign-out", async (request, reply) => {
+    const sessionToken = requireSessionCookie(request);
+    const body = z.union([
+      z.object({ csrf_token: z.string().min(32).max(512) }).strict().transform((value) => value.csrf_token),
+      z.object({ csrf: z.string().min(32).max(512) }).strict().transform((value) => value.csrf),
+    ]).parse(request.body);
+    await dependencies.auth.verifyCsrf(sessionToken, body);
+    await dependencies.auth.signOut(sessionToken);
+    reply.clearCookie("hfj_session", { path: "/" });
+    reply.clearCookie("hfj_csrf", { path: "/" });
+    if (request.headers.accept?.includes("text/html")) return reply.redirect("/install", 303);
+    return reply.code(204).send();
+  });
+}
+
+function setCsrfCookie(reply: FastifyReply, token: string, secure: boolean): void {
+  reply.setCookie("hfj_csrf", token, {
+    path: "/", httpOnly: false, secure, sameSite: "lax", maxAge: 60 * 60 * 24 * 30,
+  });
+}
+
+export function browserPrincipalResolver(auth: BrowserAuthService) {
+  return async (request: FastifyRequest) => auth.authenticateSession(requireSessionCookie(request));
+}
+
+export function browserCsrfVerifier(auth: BrowserAuthService) {
+  return async (request: FastifyRequest, submittedToken: string) => auth.verifyCsrf(requireSessionCookie(request), submittedToken);
+}
+
+function requireSessionCookie(request: FastifyRequest): string {
+  const token = request.cookies.hfj_session;
+  if (token === undefined) throw new AppError("AUTH_REQUIRED", "Sign in is required");
+  return token;
+}
+
+async function optionalPrincipal(request: FastifyRequest, auth: BrowserAuthService) {
+  const token = request.cookies.hfj_session;
+  return token === undefined ? null : auth.authenticateSession(token);
+}
+
+function setSessionCookie(reply: FastifyReply, token: string, secure: boolean): void {
+  reply.setCookie("hfj_session", token, {
+    path: "/",
+    httpOnly: true,
+    secure,
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+}

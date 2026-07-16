@@ -1,8 +1,10 @@
 node_modules
+.terraform/
 coverage
 *.tsbuildinfo
 dist
 .env*
+!.env.example
 .env.sh
 .pw-browsers
 seccomp_profile.json

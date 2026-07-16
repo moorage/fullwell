@@ -1,0 +1,58 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - git
+  - jq
+  - age
+
+users:
+  - default
+
+write_files:
+  - path: /etc/systemd/system/data-households.mount
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Household Food Journal Block Storage
+      After=dev-disk-by\x2dlabel-${volume_label}.device
+      Requires=dev-disk-by\x2dlabel-${volume_label}.device
+
+      [Mount]
+      What=/dev/disk/by-label/${volume_label}
+      Where=/data/households
+      Type=ext4
+      Options=defaults,noatime,nosuid,nodev
+      TimeoutSec=90
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/sysctl.d/60-hfj.conf
+    permissions: "0644"
+    content: |
+      fs.protected_hardlinks=1
+      fs.protected_symlinks=1
+      kernel.dmesg_restrict=1
+      kernel.kptr_restrict=2
+      net.ipv4.conf.all.rp_filter=1
+  - path: /etc/ssh/sshd_config.d/60-hfj.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      PermitRootLogin prohibit-password
+      X11Forwarding no
+      AllowAgentForwarding no
+
+runcmd:
+  - [install, -d, -m, "0750", /etc/hfj]
+  - [install, -d, -m, "0755", /opt/household-food-journal]
+  - [install, -d, -m, "0750", /data/households]
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, data-households.mount]
+  - [systemctl, enable, docker]
+  - [systemctl, restart, ssh]
+  - [sysctl, --system]
+
+final_message: "HFJ host bootstrap complete; attach and initialize the expected volume before enabling the application."

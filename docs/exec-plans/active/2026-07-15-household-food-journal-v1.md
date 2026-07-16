@@ -17,6 +17,11 @@ Version 1 deploys one containerized service on one DigitalOcean Droplet. `/data/
 - [x] 2026-07-15T23:50Z: Read the architecture, execution guidance, both complete product specifications, and security/reliability standards; synthesized product, UX, operations, and agent-eval requirements.
 - [x] 2026-07-16T00:06Z: Decomposed the work into dependency-ordered milestones, drafted the full-stack plan, ran failure-oriented critique, and folded packaging, legal/privacy, secret-lifecycle, and repository-format findings into blocking acceptance gates.
 - [x] 2026-07-16T00:07Z: Passed ExecPlan, documentation, ideation, Git-hook, self-improvement, and knowledge tests; refreshed the context ledger, repository map, and quality-ledger timestamp.
+- [x] 2026-07-16T01:35Z: Implemented the npm workspace, React 19.2 SSR/hydration frontend, typed contracts, Fastify MCP/OAuth service, Git mutation adapter, Neon operational/auth/OAuth stores, reversible migrations, Apple/Resend adapters, and server-owned web view models.
+- [x] 2026-07-16T01:35Z: Implemented and validated the shared five-skill Codex/Claude package, 22-tool catalog, 20-case dual-host eval matrix, DigitalOcean/OpenTofu topology, Node 24 Docker image, Compose/Caddy/systemd deployment, legal drafts, and operator runbooks.
+- [x] 2026-07-16T01:35Z: Passed unit, contract, packaging, eval, security-boundary, isolated Git restore, PostgreSQL 17 integration, migration up/down/up, WebKit e2e, Docker build, Compose render, Caddy, OpenTofu, local deploy, MCP discovery, and production dependency audit checks.
+- [x] 2026-07-16T01:35Z: Exercised the live install and invalid collection-capability states in macOS Safari through Computer Use; verified native accessible controls, Codex/Claude selection, and non-enumerating private-data behavior.
+- [ ] 2026-07-16T01:35Z: Coverage is 67.55% against the 90% gate. Passkeys, complete account lifecycle, durable reconciliation, encrypted off-site backup, readable ZIP delivery, production rate limiting/telemetry, and external staging/manual review remain blocking; see `docs/release/verification-evidence.md`.
 - [ ] Milestone 0 - validate platform assumptions and approve ChatGPT-assisted information architecture and UI design.
 - [ ] Milestone 1 - establish the monorepo, shared contracts, generated schemas, fakes, and real quality gates.
 - [ ] Milestone 2 - implement Neon persistence, household Git repositories, the mutation state machine, reconciliation, export, and local recovery proof.
@@ -36,6 +41,9 @@ Version 1 deploys one containerized service on one DigitalOcean Droplet. `/data/
 - 2026-07-15: DigitalOcean App Platform cannot hold the authoritative Git filesystem. The initial production topology must remain a fenced single writer on a Droplet with attached Block Storage.
 - 2026-07-15: Neon transaction-mode pooling cannot safely hold session-scoped advisory locks. Every household mutation must use a transaction-scoped lock on one checked-out connection and transaction; migrations and session-dependent administration use a direct connection.
 - 2026-07-15: Failure-oriented critique found three release gaps in the first draft: dual Codex/Claude manifests and catalogs were not named as deliverables, public privacy/legal surfaces were only implicit, and the Droplet secret lifecycle lacked a selected delivery and rotation mechanism. The milestones below now make all three blocking work.
+- 2026-07-16: A real coverage run exposed that broad application composition and provider branches are not sufficiently tested: 67.55% lines versus the 90% configured threshold. The gate remains enabled and failing rather than being lowered.
+- 2026-07-16: Native Safari review found no layout or privacy defect in the tested install and invalid-capability states. Automated WebKit also passed at desktop, iPhone, 320x568, and with JavaScript disabled.
+- 2026-07-16: Local deployment smoke initially returned Fastify's default 500 for unauthenticated MCP requests after the static plugin registered. Moving the application error boundary before route/plugin registration restored the required 401 challenge and added a regression assertion with the web plugin enabled.
 
 ## Decision Log
 
@@ -713,4 +721,4 @@ Required public contracts include:
 
 ## Outcomes & Retrospective
 
-Planning complete; implementation has not started. Update this section at every milestone with shipped behavior, verification evidence, design changes, operational discoveries, and remaining risks. Move this plan to `docs/exec-plans/completed/` only after both product specifications' definitions of done and every acceptance gate above pass.
+The coordinated version 1 foundation is implemented and locally exercised across web, MCP/OAuth, Git, PostgreSQL, agent packaging, and DigitalOcean deployment assets. The plan remains active because the product specifications' release definition is not yet met: coverage, passkeys, account lifecycle, reconciliation, encrypted backup, readable export delivery, production telemetry/rate limits, external staging, cross-host compatibility, and manual privacy/accessibility/operations approvals remain blocking. Evidence and exact local results live in `docs/release/verification-evidence.md`. Move this plan to `docs/exec-plans/completed/` only after those gates pass.

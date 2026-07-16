@@ -1,0 +1,29 @@
+[Unit]
+Description=Household Food Journal single-writer service
+After=docker.service network-online.target data-households.mount
+Wants=network-online.target
+Requires=docker.service data-households.mount
+ConditionPathIsMountPoint=/data/households
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/household-food-journal/deploy
+EnvironmentFile=/etc/hfj/deploy.env
+LoadCredentialEncrypted=database-url:/etc/credstore.encrypted/hfj-database-url
+LoadCredentialEncrypted=database-direct-url:/etc/credstore.encrypted/hfj-database-direct-url
+LoadCredentialEncrypted=token-pepper:/etc/credstore.encrypted/hfj-token-pepper
+LoadCredentialEncrypted=session-secret:/etc/credstore.encrypted/hfj-session-secret
+LoadCredentialEncrypted=apple-private-key:/etc/credstore.encrypted/hfj-apple-private-key
+LoadCredentialEncrypted=mail-provider-api-key:/etc/credstore.encrypted/hfj-mail-provider-api-key
+LoadCredentialEncrypted=git-signing-key:/etc/credstore.encrypted/hfj-git-signing-key
+ExecStartPre=/opt/household-food-journal/deploy/scripts/verify-volume.sh
+ExecStartPre=/usr/bin/docker compose config --quiet
+ExecStart=/usr/bin/docker compose up --detach --remove-orphans --wait
+ExecReload=/usr/bin/docker compose up --detach --remove-orphans --wait
+ExecStop=/usr/bin/docker compose down --timeout 30
+TimeoutStartSec=180
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

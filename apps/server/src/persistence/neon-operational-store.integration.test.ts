@@ -1,0 +1,202 @@
+import { createHash } from "node:crypto";
+import {
+  ActorIdSchema,
+  CollectionIdSchema,
+  CollectionSnapshotSchema,
+  GitObjectIdSchema,
+  HouseholdIdSchema,
+  InvitationIdSchema,
+  RequestIdSchema,
+  ShareIdSchema,
+  UserIdSchema,
+} from "@hfj/contracts";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { TokenHasher } from "../core/ports.js";
+import type { MembershipRecord, MutationRecord } from "../core/types.js";
+import { NeonConnection } from "./neon.js";
+import { NeonOperationalStore } from "./neon-operational-store.js";
+
+const databaseUrl = process.env.TEST_DATABASE_URL;
+const describeDatabase = databaseUrl === undefined ? describe.skip : describe;
+const testDatabaseUrl = databaseUrl ?? "postgresql://invalid.local/disabled-test";
+
+describeDatabase("NeonOperationalStore", () => {
+  const householdId = HouseholdIdSchema.parse("hsh_0000000000000101");
+  const ownerId = UserIdSchema.parse("usr_0000000000000101");
+  const ownerActorId = ActorIdSchema.parse("act_0000000000000101");
+  const head = GitObjectIdSchema.parse("1".repeat(40));
+  const nextHead = GitObjectIdSchema.parse("2".repeat(40));
+  const tokenHasher: TokenHasher = {
+    hash: (token) => createHash("sha256").update(token).digest("hex"),
+    matches: (token, digest) => createHash("sha256").update(token).digest("hex") === digest,
+  };
+  let connection: NeonConnection;
+  let store: NeonOperationalStore;
+
+  beforeAll(async () => {
+    connection = new NeonConnection(testDatabaseUrl, testDatabaseUrl);
+    store = new NeonOperationalStore(connection, tokenHasher);
+    await connection.direct`TRUNCATE households, users CASCADE`;
+    await connection.direct`
+      INSERT INTO users (id, actor_id, display_name)
+      VALUES (${ownerId}, ${ownerActorId}, 'Kitchen Owner')
+    `;
+  });
+
+  afterAll(async () => {
+    await connection.direct`TRUNCATE households, users CASCADE`;
+    await connection.close();
+  });
+
+  it("persists households, memberships, preferences, invitations, and shares", async () => {
+    const owner: MembershipRecord = {
+      householdId,
+      userId: ownerId,
+      actorId: ownerActorId,
+      role: "owner",
+      projectionHead: head,
+      removedAt: null,
+    };
+    await store.createHousehold({
+      id: householdId,
+      name: "Test Kitchen",
+      repositoryHead: head,
+      provisioningState: "ready",
+      createdAt: "2026-07-15T12:00:00.000Z",
+    }, owner);
+
+    expect(await store.getHousehold(householdId)).toMatchObject({ name: "Test Kitchen", repositoryHead: head });
+    expect(await store.getMembership(householdId, ownerId)).toEqual(owner);
+    expect(await store.listMemberships(ownerId)).toHaveLength(1);
+    expect(await store.listHouseholdMemberships(householdId)).toEqual([owner]);
+    await store.setDefaultHousehold(ownerId, householdId);
+    expect(await store.getDefaultHousehold(ownerId)).toBe(householdId);
+
+    const invitation = {
+      id: InvitationIdSchema.parse("inv_0000000000000101"),
+      householdId,
+      tokenHash: tokenHasher.hash("invitation-token"),
+      role: "editor" as const,
+      expiresAt: "2026-08-01T12:00:00.000Z",
+      intendedEmailHint: "person@example.test",
+      acceptedAt: null,
+      revokedAt: null,
+    };
+    await store.saveInvitation(invitation);
+    expect(await store.getInvitation(invitation.id)).toEqual(invitation);
+    expect(await store.findInvitationByTokenHash(invitation.tokenHash)).toEqual(invitation);
+
+    const collectionId = CollectionIdSchema.parse("col_0000000000000101");
+    const snapshot = CollectionSnapshotSchema.parse({
+      id: "snp_0000000000000101",
+      collection_id: collectionId,
+      title: "Favorites",
+      sharer_display_name: "Kitchen Owner",
+      created_at: "2026-07-15T12:00:00.000Z",
+      schema_version: 1,
+      items: [{
+        collection_item_id: "collection-item-0101",
+        source_item_id: "itm_0000000000000101",
+        kind: "snack",
+        title: "Apple",
+        public_description: null,
+        brand: null,
+        flavor: null,
+        formulation: null,
+        format: null,
+        author_or_publisher: null,
+        canonical_recipe_url: null,
+        image_url: null,
+        image_page_url: null,
+        preparation_notes: null,
+        source_display_attribution: null,
+        source_item_revision: head,
+      }],
+    });
+    const share = {
+      id: ShareIdSchema.parse("shr_0000000000000101"),
+      collectionId,
+      householdId,
+      tokenHash: tokenHasher.hash("share-token"),
+      snapshot,
+      expiresAt: "2026-08-01T12:00:00.000Z",
+      revokedAt: null,
+    };
+    await store.saveShare(share);
+    expect(await store.getShareByTokenHash(share.tokenHash)).toEqual(share);
+    expect(await store.getShareByCollection(householdId, collectionId)).toEqual(share);
+  });
+
+  it("keeps idempotent mutations and projection changes durable under the household lock", async () => {
+    const mutation: MutationRecord = {
+      requestId: RequestIdSchema.parse("req_0000000000000101"),
+      userId: ownerId,
+      tool: "hfj_update_profile",
+      idempotencyKey: "profile-0101",
+      householdId,
+      state: "received",
+      commitId: null,
+      response: null,
+      failure: null,
+      createdAt: "2026-07-15T12:00:00.000Z",
+      updatedAt: "2026-07-15T12:00:00.000Z",
+    };
+    await store.saveMutation(mutation);
+    await store.saveMutation({ ...mutation, requestId: RequestIdSchema.parse("req_0000000000000102") });
+
+    await store.withHouseholdLock(householdId, async () => {
+      await store.transitionMutation(mutation.requestId, "locked");
+      const projection = await store.projection(householdId);
+      projection.profiles.set("snacks", { markdown: "# Snacks\n", revision: nextHead });
+      await store.transitionMutation(mutation.requestId, "git_committed", { commitId: nextHead });
+      await store.transitionMutation(mutation.requestId, "projections_applied", { response: { status: "completed" } });
+      await store.updateHouseholdHead(householdId, nextHead);
+      await store.transitionMutation(mutation.requestId, "completed", { response: { status: "completed" } });
+    });
+
+    const replay = await store.getMutation(ownerId, mutation.tool, mutation.idempotencyKey);
+    expect(replay).toMatchObject({ requestId: mutation.requestId, state: "completed", commitId: nextHead });
+    expect((await store.projection(householdId)).profiles.get("snacks")).toEqual({ markdown: "# Snacks\n", revision: nextHead });
+  });
+
+  it("serializes concurrent transactions for the same household", async () => {
+    const order: string[] = [];
+    let releaseFirst = (): void => { throw new Error("First lock gate was not initialized"); };
+    let markEntered = (): void => { throw new Error("Entry gate was not initialized"); };
+    const entered = new Promise<void>((resolve) => { markEntered = resolve; });
+    const gate = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const first = store.withHouseholdLock(householdId, async () => {
+      order.push("first-enter");
+      markEntered();
+      await gate;
+      order.push("first-exit");
+    });
+    await entered;
+    const second = store.withHouseholdLock(householdId, async () => {
+      await Promise.resolve();
+      order.push("second-enter");
+    });
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(order).toEqual(["first-enter"]);
+    releaseFirst();
+    await Promise.all([first, second]);
+    expect(order).toEqual(["first-enter", "first-exit", "second-enter"]);
+  });
+
+  it("hashes session tokens and revokes all active user sessions", async () => {
+    const token = "raw-session-token";
+    await connection.direct`
+      INSERT INTO web_sessions (id, user_id, token_hash, csrf_hash, scopes, client, expires_at)
+      VALUES (
+        'ses_0000000000000101', ${ownerId}, ${tokenHasher.hash(token)}, 'csrf-hash',
+        ARRAY['journal:read', 'journal:write'], 'web', now() + interval '1 hour'
+      )
+    `;
+    const session = await store.getByToken(token);
+    expect(session).toMatchObject({ userId: ownerId, actorId: ownerActorId, displayName: "Kitchen Owner", client: "web" });
+    expect(session?.scopes).toEqual(new Set(["journal:read", "journal:write"]));
+    expect(await store.getByToken("wrong-token")).toBeNull();
+    await store.revokeUser(ownerId);
+    expect(await store.getByToken(token)).toBeNull();
+  });
+});

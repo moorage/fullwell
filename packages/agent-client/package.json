@@ -1,0 +1,31 @@
+{
+  "name": "@fullwell/household-food-journal-agent",
+  "version": "1.0.0",
+  "private": false,
+  "description": "Shared Codex and Claude client for Household Food Journal",
+  "type": "module",
+  "files": [
+    ".codex-plugin",
+    ".claude-plugin",
+    ".mcp.json",
+    "skills",
+    "references",
+    "marketplace",
+    "install-metadata.json",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "node scripts/validate-package.mjs",
+    "test": "node --test tests/packaging/*.test.mjs",
+    "test:packaging": "node --test tests/packaging/*.test.mjs",
+    "test:evals": "node --test tests/evals/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}

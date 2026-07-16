@@ -1,0 +1,6 @@
+{
+  "household-food-journal": {
+    "type": "http",
+    "url": "https://journal.fullwell.app/mcp"
+  }
+}

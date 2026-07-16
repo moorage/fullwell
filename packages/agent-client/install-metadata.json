@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "release": "1.0.0",
+  "mcp_url": "https://journal.fullwell.app/mcp",
+  "install_page": "https://journal.fullwell.app/install",
+  "platforms": {
+    "codex": {
+      "label": "Use with Codex",
+      "marketplace": "fullwell-plugins",
+      "plugin": "household-food-journal",
+      "primary_action": "Open Plugins, choose Fullwell, and install Household Food Journal.",
+      "fallback_commands": [
+        "codex plugin marketplace add fullwell/household-food-journal",
+        "codex"
+      ]
+    },
+    "claude": {
+      "label": "Use with Claude",
+      "marketplace": "fullwell-plugins",
+      "plugin": "household-food-journal",
+      "primary_action": "Open Plugins, choose Fullwell, and install Household Food Journal.",
+      "fallback_commands": [
+        "claude plugin marketplace add fullwell/household-food-journal",
+        "claude plugin install household-food-journal@fullwell-plugins"
+      ]
+    }
+  }
+}

@@ -1,0 +1,11 @@
+[Unit]
+Description=Schedule Household Food Journal reconciliation, validation, and backup
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=5m
+Persistent=true
+Unit=household-food-journal-maintenance.service
+
+[Install]
+WantedBy=timers.target

@@ -27,13 +27,13 @@ Version 1 deploys one containerized application process on one DigitalOcean Drop
 
 Neon PostgreSQL stores accounts, sessions, OAuth grants, membership authorization projections, mutation records, idempotency responses, token hashes, jobs, search projections, and reconciliation checkpoints. It is not authoritative for journal content. Git owns exportable household content and audit history.
 
-## Planned modules
+## Implemented modules
 
 ### Application server
 
 Purpose: expose HTTPS, OAuth, MCP, browser APIs, background jobs, and the only path that mutates household Git repositories.
 
-Planned path: `apps/server/`
+Path: `apps/server/`
 
 Internal modules should follow the server product domains: auth, households, profiles, journal content, collections, imports, Git, persistence, MCP, web, and workers. HTTP, MCP, Neon, Git, mail, clock, randomness, and filesystem access remain typed adapters at module edges.
 
@@ -41,7 +41,7 @@ Internal modules should follow the server product domains: auth, households, pro
 
 Purpose: implement accessible React 19.2 flows for sign-in, passkeys, pending invitations, collection preview, selective import, account management, and install handoff.
 
-Planned path: `apps/web/`
+Path: `apps/web/`
 
 The frontend consumes explicit server contracts from `packages/contracts/`. It does not authorize requests, hold provider secrets, write Git, interpret repository paths, or make semantic food decisions. Public collection data must come from the server's allowlisted snapshot projection, never from a private household object serialized in the browser.
 
@@ -49,7 +49,7 @@ The frontend consumes explicit server contracts from `packages/contracts/`. It d
 
 Purpose: define semantic TypeScript boundary types and runtime schemas for HTTP, MCP tools, Git documents, projections, errors, and mutation state transitions.
 
-Planned path: `packages/contracts/`
+Path: `packages/contracts/`
 
 External input is parsed once at the owning boundary. Compile-time types alone do not validate HTTP, MCP, database, environment, Git-file, or provider input.
 
@@ -57,7 +57,7 @@ External input is parsed once at the owning boundary. Compile-time types alone d
 
 Purpose: package shared Codex and Claude skills, host manifests, remote MCP configuration, references, deterministic packaging checks, contract tests, and agent evals.
 
-Planned path: `packages/agent-client/`
+Path: `packages/agent-client/`
 
 The agent client never contains canonical household data, account state, credentials, a Git synchronization engine, or a programmatic semantic classifier. Codex and Claude use the same skill source files and the same remote MCP endpoint.
 
@@ -115,6 +115,10 @@ Raw traces live under ignored `.codex/self-improvement/`. Tracked documents cont
 DigitalOcean App Platform is not the version 1 target because its application filesystem is ephemeral. The production container runs on a Droplet with an attached Block Storage volume. Keep a single active writer instance until advisory-lock behavior, shared filesystem semantics, failover, and split-brain prevention are proven for a different topology.
 
 The production health path must distinguish process readiness, Neon reachability, mounted-volume writability, Git availability, signing readiness, and reconciliation/backup freshness without exposing secrets or tenant data.
+
+## Current release limitations
+
+The application foundation, 22-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, agent package, and DigitalOcean deployment assets are implemented. Version 1 is not production-ready while WebAuthn enrollment/authentication, complete browser account lifecycle handlers, durable reconciliation, encrypted off-site backup, readable ZIP downloads, production telemetry/rate limits, and external staging compatibility remain open in the active ExecPlan.
 
 ## Maintenance rules
 

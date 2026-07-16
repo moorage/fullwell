@@ -147,7 +147,19 @@
     },
     {
       "type": "file",
+      "name": ".coverage-thresholds.json"
+    },
+    {
+      "type": "file",
       "name": ".dockerignore"
+    },
+    {
+      "type": "file",
+      "name": ".env.example"
+    },
+    {
+      "type": "file",
+      "name": ".env.local"
     },
     {
       "type": "dir",
@@ -168,6 +180,17 @@
       "name": ".gitignore"
     },
     {
+      "type": "dir",
+      "name": ".local",
+      "children": [
+        {
+          "type": "dir",
+          "name": "households",
+          "children": []
+        }
+      ]
+    },
+    {
       "type": "file",
       "name": ".node-version"
     },
@@ -181,7 +204,517 @@
     },
     {
       "type": "file",
+      "name": "CHANGELOG.md"
+    },
+    {
+      "type": "file",
+      "name": "Dockerfile"
+    },
+    {
+      "type": "file",
       "name": "README.md"
+    },
+    {
+      "type": "dir",
+      "name": "apps",
+      "children": [
+        {
+          "type": "dir",
+          "name": "server",
+          "children": [
+            {
+              "type": "dir",
+              "name": ".data",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "households",
+                  "children": []
+                },
+                {
+                  "type": "dir",
+                  "name": "worktrees",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": "package.json"
+            },
+            {
+              "type": "dir",
+              "name": "src",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "adapters",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "memory.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "providers.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "providers.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "auth",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "memory-store.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "neon-store.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "providers.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "routes.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "routes.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "service.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "service.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "types.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "backup",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "backup-service.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "file",
+                  "name": "cli.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "config.test.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "config.ts"
+                },
+                {
+                  "type": "dir",
+                  "name": "core",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "errors.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "ports.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "types.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "domain",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "authorization.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "journal-validation.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "git",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "git-repository.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "git-repository.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "health",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "health.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "http",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "app.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "app.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "web-view-model.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "web.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "file",
+                  "name": "index.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "main.ts"
+                },
+                {
+                  "type": "dir",
+                  "name": "oauth",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "authenticator.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "errors.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "memory-store.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "neon-store.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "routes.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "routes.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "service.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "service.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "types.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "persistence",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "neon-operational-store.integration.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "neon-operational-store.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "neon.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "services",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "household-food-journal.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "mutation-runner.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "workers",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "reconciliation-worker.ts"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": "tsconfig.json"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "web",
+          "children": [
+            {
+              "type": "file",
+              "name": "index.html"
+            },
+            {
+              "type": "file",
+              "name": "package.json"
+            },
+            {
+              "type": "dir",
+              "name": "src",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "app.tsx"
+                },
+                {
+                  "type": "file",
+                  "name": "client.tsx"
+                },
+                {
+                  "type": "dir",
+                  "name": "components",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "app-shell.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "collection-item.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "share-actions.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "ui.tsx"
+                    }
+                  ]
+                },
+                {
+                  "type": "file",
+                  "name": "context.tsx"
+                },
+                {
+                  "type": "file",
+                  "name": "fixtures.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "route.ts"
+                },
+                {
+                  "type": "dir",
+                  "name": "routes",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "account.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "authorize.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "collection-import-plan.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "collection-preview.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "household-collections.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "household-members.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "household-overview.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "households.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "install.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "invite.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "legal.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "not-found.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "sign-in.tsx"
+                    }
+                  ]
+                },
+                {
+                  "type": "file",
+                  "name": "server.tsx"
+                },
+                {
+                  "type": "file",
+                  "name": "styles.css"
+                },
+                {
+                  "type": "dir",
+                  "name": "test",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "app.test.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "route.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "setup.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "file",
+                  "name": "types.ts"
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": "tsconfig.json"
+            },
+            {
+              "type": "file",
+              "name": "vite.config.ts"
+            },
+            {
+              "type": "file",
+              "name": "vitest.config.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "name": "deploy",
+      "children": [
+        {
+          "type": "file",
+          "name": "Caddyfile"
+        },
+        {
+          "type": "file",
+          "name": "compose.yaml"
+        },
+        {
+          "type": "file",
+          "name": "deploy.env.example"
+        },
+        {
+          "type": "dir",
+          "name": "scripts",
+          "children": [
+            {
+              "type": "file",
+              "name": "initialize-volume.sh"
+            },
+            {
+              "type": "file",
+              "name": "verify-volume.sh"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "systemd",
+          "children": [
+            {
+              "type": "file",
+              "name": "household-food-journal-maintenance.service"
+            },
+            {
+              "type": "file",
+              "name": "household-food-journal-maintenance.timer"
+            },
+            {
+              "type": "file",
+              "name": "household-food-journal.service"
+            }
+          ]
+        }
+      ]
     },
     {
       "type": "dir",
@@ -222,6 +755,44 @@
         {
           "type": "file",
           "name": "SECURITY.md"
+        },
+        {
+          "type": "dir",
+          "name": "design",
+          "children": [
+            {
+              "type": "file",
+              "name": "README.md"
+            },
+            {
+              "type": "file",
+              "name": "component-inventory.md"
+            },
+            {
+              "type": "file",
+              "name": "content-style.md"
+            },
+            {
+              "type": "file",
+              "name": "feasibility.md"
+            },
+            {
+              "type": "file",
+              "name": "information-architecture.md"
+            },
+            {
+              "type": "file",
+              "name": "screen-state-matrix.md"
+            },
+            {
+              "type": "file",
+              "name": "user-flows.md"
+            },
+            {
+              "type": "file",
+              "name": "visual-system.md"
+            }
+          ]
         },
         {
           "type": "dir",
@@ -299,6 +870,20 @@
         },
         {
           "type": "dir",
+          "name": "legal",
+          "children": [
+            {
+              "type": "file",
+              "name": "privacy.md"
+            },
+            {
+              "type": "file",
+              "name": "terms.md"
+            }
+          ]
+        },
+        {
+          "type": "dir",
           "name": "product-specs",
           "children": [
             {
@@ -312,6 +897,62 @@
             {
               "type": "file",
               "name": "index.md"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "release",
+          "children": [
+            {
+              "type": "file",
+              "name": "accessibility.md"
+            },
+            {
+              "type": "file",
+              "name": "launch-checklist.md"
+            },
+            {
+              "type": "file",
+              "name": "manual-matrix.md"
+            },
+            {
+              "type": "file",
+              "name": "privacy-review.md"
+            },
+            {
+              "type": "file",
+              "name": "verification-evidence.md"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "runbooks",
+          "children": [
+            {
+              "type": "file",
+              "name": "backup-restore.md"
+            },
+            {
+              "type": "file",
+              "name": "deploy.md"
+            },
+            {
+              "type": "file",
+              "name": "droplet-failover.md"
+            },
+            {
+              "type": "file",
+              "name": "rollback.md"
+            },
+            {
+              "type": "file",
+              "name": "secret-rotation.md"
+            },
+            {
+              "type": "file",
+              "name": "signing-key-recovery.md"
             }
           ]
         },
@@ -333,11 +974,393 @@
     },
     {
       "type": "file",
+      "name": "eslint.config.js"
+    },
+    {
+      "type": "dir",
+      "name": "infra",
+      "children": [
+        {
+          "type": "dir",
+          "name": "opentofu",
+          "children": [
+            {
+              "type": "dir",
+              "name": ".terraform",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "providers",
+                  "children": [
+                    {
+                      "type": "dir",
+                      "name": "registry.opentofu.org",
+                      "children": [
+                        {
+                          "type": "dir",
+                          "name": "digitalocean",
+                          "children": [
+                            {
+                              "type": "dir",
+                              "name": "digitalocean",
+                              "children": [
+                                {
+                                  "type": "dir",
+                                  "name": "2.95.0",
+                                  "children": [
+                                    {
+                                      "type": "dir",
+                                      "name": "linux_arm64",
+                                      "children": [
+                                        {
+                                          "type": "file",
+                                          "name": "CHANGELOG.md"
+                                        },
+                                        {
+                                          "type": "file",
+                                          "name": "LICENSE"
+                                        },
+                                        {
+                                          "type": "file",
+                                          "name": "README.md"
+                                        },
+                                        {
+                                          "type": "file",
+                                          "name": "terraform-provider-digitalocean_v2.95.0"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "file",
+                                      "name": "linux_arm64.lock"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": ".terraform.lock.hcl"
+            },
+            {
+              "type": "file",
+              "name": "README.md"
+            },
+            {
+              "type": "file",
+              "name": "cloud-init.yaml.tftpl"
+            },
+            {
+              "type": "file",
+              "name": "main.tf"
+            },
+            {
+              "type": "file",
+              "name": "outputs.tf"
+            },
+            {
+              "type": "file",
+              "name": "variables.tf"
+            },
+            {
+              "type": "file",
+              "name": "versions.tf"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "name": "migrations",
+      "children": [
+        {
+          "type": "file",
+          "name": "0001_operational_core.down.sql"
+        },
+        {
+          "type": "file",
+          "name": "0001_operational_core.sql"
+        },
+        {
+          "type": "file",
+          "name": "0002_store_contract_fields.down.sql"
+        },
+        {
+          "type": "file",
+          "name": "0002_store_contract_fields.sql"
+        }
+      ]
+    },
+    {
+      "type": "file",
       "name": "package-lock.json"
     },
     {
       "type": "file",
       "name": "package.json"
+    },
+    {
+      "type": "dir",
+      "name": "packages",
+      "children": [
+        {
+          "type": "dir",
+          "name": "agent-client",
+          "children": [
+            {
+              "type": "dir",
+              "name": ".claude-plugin",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "plugin.json"
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": ".codex-plugin",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "plugin.json"
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": ".mcp.json"
+            },
+            {
+              "type": "file",
+              "name": "CHANGELOG.md"
+            },
+            {
+              "type": "file",
+              "name": "README.md"
+            },
+            {
+              "type": "dir",
+              "name": "evals",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "cases",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "v1.json"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "expected",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "v1.json"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": "install-metadata.json"
+            },
+            {
+              "type": "dir",
+              "name": "marketplace",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "claude.json"
+                },
+                {
+                  "type": "file",
+                  "name": "codex.json"
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": "package.json"
+            },
+            {
+              "type": "dir",
+              "name": "references",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "mcp-tool-contract.md"
+                },
+                {
+                  "type": "file",
+                  "name": "privacy-and-sharing.md"
+                },
+                {
+                  "type": "file",
+                  "name": "semantic-food-rules.md"
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": "scripts",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "validate-package.mjs"
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": "skills",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "audit-grocery-purchases",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "SKILL.md"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "import-food-collection",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "SKILL.md"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "manage-household-food-journal",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "SKILL.md"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "share-food-collection",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "SKILL.md"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "track-recipe-history",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "SKILL.md"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": "tests",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "evals",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "matrix.test.mjs"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "packaging",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "package.test.mjs"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "contracts",
+          "children": [
+            {
+              "type": "file",
+              "name": "package.json"
+            },
+            {
+              "type": "dir",
+              "name": "src",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "common.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "contracts.test.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "domain.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "http.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "ids.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "index.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "tools.ts"
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": "tsconfig.json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "file",
+      "name": "playwright.config.ts"
     },
     {
       "type": "dir",
@@ -357,6 +1380,18 @@
           "children": [
             {
               "type": "file",
+              "name": "deploy-smoke.mjs"
+            },
+            {
+              "type": "file",
+              "name": "mcp-smoke.mjs"
+            },
+            {
+              "type": "file",
+              "name": "persistence-smoke.mjs"
+            },
+            {
+              "type": "file",
               "name": "record_screencast.mjs"
             },
             {
@@ -366,6 +1401,10 @@
             {
               "type": "file",
               "name": "run_with_screencast.mjs"
+            },
+            {
+              "type": "file",
+              "name": "test-migrations.mjs"
             }
           ]
         },
@@ -445,6 +1484,54 @@
           "children": []
         }
       ]
+    },
+    {
+      "type": "dir",
+      "name": "tests",
+      "children": [
+        {
+          "type": "dir",
+          "name": "e2e",
+          "children": [
+            {
+              "type": "file",
+              "name": "web.spec.ts"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "restore",
+          "children": [
+            {
+              "type": "file",
+              "name": "git-bundle.test.ts"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "security",
+          "children": [
+            {
+              "type": "file",
+              "name": "boundaries.test.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "file",
+      "name": "tsconfig.base.json"
+    },
+    {
+      "type": "file",
+      "name": "vitest.config.ts"
+    },
+    {
+      "type": "file",
+      "name": "vitest.integration.config.ts"
     }
   ]
 }

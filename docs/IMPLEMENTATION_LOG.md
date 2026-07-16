@@ -6,7 +6,30 @@
   - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
 
-- current milestone: planned the complete Household Food Journal version 1 implementation; application implementation has not started
+- current milestone: implemented the coordinated version 1 foundation; the active ExecPlan remains open on the release blockers recorded in `docs/release/verification-evidence.md`
+- implemented React 19.2 SSR/hydration, server-authorized web contexts, public collection privacy states, no-JavaScript forms, Fastify MCP/OAuth, Apple/Resend adapters, Neon persistence, Git mutation/import provenance, reversible migrations, shared contracts, and the Codex/Claude agent package
+- implemented DigitalOcean OpenTofu, Block Storage initialization checks, pinned Node 24 Docker build, Compose/Caddy/systemd deployment, local deployment/MCP smokes, legal drafts, and operations/release runbooks
+- verified macOS Safari through Computer Use plus eight automated WebKit checks across desktop, iPhone, 320x568, and JavaScript-disabled modes
+- commands run include:
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm run build`
+  - `npm run test:app`
+  - `npm run test:contract`
+  - `npm run test:evals`
+  - `npm run test:security`
+  - `npm run test:restore`
+  - `npm run test:e2e`
+  - `TEST_DATABASE_URL=... npm run test:integration`
+  - `TEST_DATABASE_URL=... npm run test:migrations`
+  - `PUBLIC_BASE_URL=http://127.0.0.1:4187 npm run test:deploy-smoke`
+  - `PUBLIC_BASE_URL=http://127.0.0.1:4187 npm run test:mcp-smoke`
+  - Docker build, Compose render, Caddy validate, OpenTofu init/validate, and `npm audit --omit=dev`
+- blocking results:
+  - `npm run test:coverage` is 67.55% lines against the enforced 90% threshold
+  - passkeys, full browser account lifecycle, durable reconciliation, encrypted off-site backup, readable ZIP delivery, rate limiting/telemetry, external staging, and manual release reviews remain incomplete
+
+- previous milestone: planned the complete Household Food Journal version 1 implementation
 - created a milestone-based ExecPlan spanning ChatGPT-assisted IA/UI design, React 19.2 SSR and hydration, Fastify/MCP services, Neon projections, Git authority, the shared Codex/Claude client, DigitalOcean operations, and release validation
 - applied failure-oriented critique for dual-host packaging, public privacy/legal surfaces, secrets delivery and rotation, signing-key recovery, and repository-format compatibility
 - commands run:

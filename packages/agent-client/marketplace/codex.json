@@ -1,0 +1,22 @@
+{
+  "name": "fullwell-plugins",
+  "interface": {
+    "displayName": "Fullwell"
+  },
+  "plugins": [
+    {
+      "name": "household-food-journal",
+      "source": {
+        "source": "npm",
+        "package": "@fullwell/household-food-journal-agent",
+        "version": "1.0.0",
+        "registry": "https://registry.npmjs.org"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_FIRST_USE"
+      },
+      "category": "Lifestyle"
+    }
+  ]
+}

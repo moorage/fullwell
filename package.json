@@ -2,10 +2,33 @@
   "name": "household-food-journal",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev --workspace @hfj/server",
+    "start": "npm run start --workspace @hfj/server",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "hooks:install": "node scripts/install-git-hooks.mjs",
     "test:git-hooks": "node scripts/git-hooks/commit-msg.test.mjs",
-    "verify": "npm run test:unit && npm run verify:ideas && npm run verify:docs && npm run verify:execplan",
+    "test:app": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:contract": "vitest run --project contracts && npm run test:packaging",
+    "test:integration": "vitest run tests/integration apps/server --config vitest.integration.config.ts",
+    "test:security": "vitest run tests/security",
+    "test:packaging": "npm run test:packaging --workspace @fullwell/household-food-journal-agent",
+    "test:evals": "npm run test:evals --workspace @fullwell/household-food-journal-agent",
+    "test:e2e": "playwright test",
+    "test:restore": "vitest run tests/restore",
+    "test:deploy-smoke": "node scripts/ci/deploy-smoke.mjs",
+    "test:persistence-smoke": "node scripts/ci/persistence-smoke.mjs",
+    "test:migrations": "node scripts/ci/test-migrations.mjs",
+    "test:mcp-smoke": "node scripts/ci/mcp-smoke.mjs",
+    "verify": "npm run lint && npm run typecheck && npm run build && npm run test:unit && npm run test:app && npm run verify:ideas && npm run verify:docs && npm run verify:execplan",
     "verify:ideas": "python3 scripts/check_ideation.py",
     "verify:docs": "python3 scripts/knowledge/check_docs.py",
     "verify:execplan": "python3 scripts/check_execplan.py",
@@ -21,5 +44,19 @@
   },
   "engines": {
     "node": ">=24.0.0 <25"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.54.1",
+    "@types/node": "^24.0.15",
+    "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^9.32.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.3.0",
+    "jsdom": "^26.1.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.38.0",
+    "vitest": "^3.2.4"
   }
 }

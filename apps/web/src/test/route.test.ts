@@ -1,0 +1,29 @@
+import { describe, expect, it } from "vitest";
+import { resolveWebRoute } from "../route.js";
+
+describe("resolveWebRoute", () => {
+  it.each([
+    ["/", { page: "install", host: "codex" }],
+    ["/install?host=claude", { page: "install", host: "claude" }],
+    ["/sign-in?sent=1&returnTo=%2Fc%2Fshare", { page: "sign-in", returnTo: "/c/share" }],
+    ["/authorize", { page: "authorize" }],
+    ["/invite/family/join-me?state=authenticated", { page: "invite", token: "join-me" }],
+    ["/c/share?state=revoked", { page: "collection", token: "share" }],
+    ["/c/share/import/plan", { page: "collection-import-plan", token: "share" }],
+    ["/households", { page: "households" }],
+    ["/households/home", { page: "household", householdId: "home" }],
+    ["/households/home/members", { page: "members", householdId: "home" }],
+    ["/households/home/collections", { page: "collections", householdId: "home" }],
+    ["/account", { page: "account" }],
+    ["/privacy", { page: "privacy" }],
+    ["/terms", { page: "terms" }],
+    ["/missing", { page: "not-found" }],
+  ])("maps %s", (url, expected) => {
+    expect(resolveWebRoute(url)).toEqual(expected);
+  });
+
+  it("does not let query parameters choose server-owned state", () => {
+    expect(resolveWebRoute("/invite/family/join-me?state=authenticated")).toEqual({ page: "invite", token: "join-me" });
+    expect(resolveWebRoute("/c/share?state=revoked")).toEqual({ page: "collection", token: "share" });
+  });
+});

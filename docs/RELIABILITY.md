@@ -37,7 +37,7 @@ Retries resume or return the recorded result. Ambiguous states enter reconciliat
 - authenticated operator health exposes reconciliation backlog, oldest incomplete mutation, backup age, last fsck result, signature status, volume capacity, Neon migration state, and last restore drill.
 - public health responses reveal no tenant counts, paths, credentials, repository identifiers, or provider error bodies.
 
-These routes and their smoke commands are planned contracts and must be implemented with the server foundation; they do not exist in the current harness-only tree.
+The live, readiness, and authenticated operator routes exist. Current readiness covers store and repository availability; mount identity, signing state, reconciliation backlog, backup age, and restore-drill freshness remain release blockers in the active ExecPlan.
 
 ## Backups and recovery
 
@@ -60,9 +60,13 @@ Do not log or label metrics with access/refresh/share/invitation tokens, emails,
 
 As implementation lands, add real commands for unit, contract, Neon integration, Git integration, OAuth/MCP interoperability, security, agent eval, browser e2e, backup/restore, and deployed persistence smoke tests. The deployed smoke must prove that a canary repository survives a container restart and a controlled Droplet failover procedure without using production household data.
 
-The current harness-only verification remains:
+The repository verification entry points include:
 
 - `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:security`
+- `npm run test:e2e`
+- `npm run test:restore`
 - `npm run verify`
 - `npm run verify:docs`
 - `npm run verify:execplan`

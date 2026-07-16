@@ -9,7 +9,7 @@ Scoring scale:
 - 2 = fragile or mostly unproven
 - 1 = absent or high risk
 
-Last refreshed: 2026-07-15
+Last refreshed: 2026-07-16
 Refresh owner: knowledge automation plus reviewer of affected changes
 
 ## Scorecard
@@ -17,23 +17,23 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 - Architecture legibility: 4 - product, authority, adapter, and deployment boundaries are explicit and represented in the implementation; external staging proof remains incomplete.
 - Boundary parsing and type discipline: 4 - strict TypeScript contracts and runtime schemas cover HTTP, MCP, Git, provider, and persistence boundaries; provisioned-provider verification remains incomplete.
 - Test strength: 4 - the enforced deterministic coverage gate, contracts, dual-host evals, PostgreSQL integration, migrations, security fixtures, WebKit e2e, Git restore, and deployment smokes pass; full accessibility, load, and external compatibility suites remain open.
-- Reliability and observability: 4 - durable reconciliation, fail-closed readiness, operator health, redacted structured events, protected OpenMetrics, backup/restore primitives, and deployment controls exist; off-site backup, persisted drill status, and failover drills remain release blockers.
+- Reliability and observability: 4 - durable reconciliation, fail-closed readiness, operator health, redacted structured events, protected OpenMetrics, encrypted/object-locked backup, persisted verification/drill state, and deployment controls exist; live provider and failover drills remain release blockers.
 - Security hardening: 4 - trust boundaries, typed authorization, central telemetry redaction, capability projection, OAuth/passkey controls, per-route rate limits, final-owner enforcement, and security fixtures exist; the complete adversarial and external staging suites remain open.
 - Documentation freshness: 4 - product, architecture, operations, release evidence, and the active ExecPlan reflect the implemented foundation and known blockers.
-- Operational simplicity: 3 - one service and one writer are simple and locally deployable, but Droplet failover and durable off-site recovery remain unproven.
+- Operational simplicity: 3 - one service, one writer, daily backup, and automatic monthly drill are locally deployable, but Droplet failover and provisioned off-site recovery remain unproven.
 
 ## Evidence
 
 - `docs/product-specs/household-food-journal-server.md` and `docs/product-specs/household-food-journal-client.md` define normative acceptance behavior.
 - `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, and `docs/RELIABILITY.md` define the target authorities and failure boundaries.
-- Deterministic unit/component coverage passes with 169 tests at 96.85% statements/lines, 94.89% functions, and 90.09% branches; Neon integration adapters and process roots retain dedicated environment gates.
+- Deterministic unit/component coverage passes with 184 tests at 97.06% statements/lines, 95.07% functions, and 90.14% branches; Neon integration adapters and process roots retain dedicated environment gates.
 - Contract, 20-case Codex/Claude eval, nine-test PostgreSQL integration, reversible migration, account lifecycle, security-boundary, WebKit e2e, Git restore, local deployment, MCP discovery, Docker, Caddy, Compose, and OpenTofu checks pass.
 - `apps/`, `packages/`, `migrations/`, `infra/`, and `deploy/` contain the coordinated React 19.2, Fastify, Neon, Git, agent-package, and DigitalOcean foundation.
 
 ## Structural debt register
 
 - Native passkey compatibility still requires staging-origin evidence because Safari 26.5's advertised WebDriver virtual authenticator timed out during credential creation.
-- DigitalOcean Block Storage failover fencing, immutable off-site backup, external restore drills, and provisioned staging rollback remain unproven.
+- DigitalOcean Block Storage failover fencing, live Backblaze Object Lock behavior, Neon point-in-time recovery, external restore drills, and provisioned staging rollback remain unproven.
 - Real Neon, Apple, email, Codex, and Claude interoperability still needs non-production credentials and external compatibility evidence.
 - Full accessibility, load/race, privacy, secret-rotation, and manual release reviews remain no-go gates.
 

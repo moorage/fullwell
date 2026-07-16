@@ -20,8 +20,8 @@ Runtime secrets are separate encrypted systemd credentials. Plaintext is accepte
 - Apple: install the new key and verify authorization-code exchange before revoking the old key in Apple Developer.
 - Resend: restrict the API key to the production sender, verify a safe test message, then revoke the old key.
 - Operator: replace the encrypted `operator-token` credential, reload the app, prove the old token receives `401`, and verify the new token can read only `/health/operator` and `/metrics`; it must never authenticate MCP or household routes.
-- Git signing: follow `signing-key-recovery.md`; historical signatures must remain verifiable after rotation.
-- Backup: rotate AWS access values and age recipient separately. Never remove the only key able to decrypt retained backups before re-encryption or expiry is verified.
+- Git signing: follow `signing-key-recovery.md`; rotate the private-key credential and `git-allowed-signers` file together while retaining every public key needed to verify unexpired history and backups.
+- Backup: rotate the bucket-restricted Backblaze application key, JWE encryption key, and Ed25519 manifest key separately. Keep every retired decryption/private verification generation in the offline recovery store until all objects carrying its `BACKUP_KEY_ID` expire; exercise a drill with the retiring generation before removal.
 - DigitalOcean: the infrastructure operator token is not loaded into the app. Rotate it in the operator secret store and test a read-only plan first.
 
 For suspected compromise, fence the affected function, revoke first where safety requires, invalidate dependent grants/capabilities, and use recovery credentials. Do not keep serving with an unknown signing, encryption, or database identity.

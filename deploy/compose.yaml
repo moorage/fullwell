@@ -22,6 +22,12 @@ services:
       HOUSEHOLD_REPOSITORY_ROOT: /data/households
       HOUSEHOLD_WORKTREE_ROOT: /data/households/.worktrees
       EXPORT_ROOT: /data/households/.exports
+      OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT:?set Backblaze B2 S3 endpoint}
+      OBJECT_STORAGE_REGION: ${OBJECT_STORAGE_REGION:?set Backblaze B2 region}
+      OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:?set private backup bucket}
+      OBJECT_STORAGE_PREFIX: ${OBJECT_STORAGE_PREFIX:-household-food-journal/v1}
+      BACKUP_KEY_ID: ${BACKUP_KEY_ID:?set backup key identifier}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-35}
       DATABASE_URL_FILE: /run/secrets/database_url
       DATABASE_DIRECT_URL_FILE: /run/secrets/database_direct_url
       TOKEN_PEPPER_FILE: /run/secrets/token_pepper
@@ -30,6 +36,12 @@ services:
       APPLE_PRIVATE_KEY_FILE: /run/secrets/apple_private_key
       MAIL_PROVIDER_API_KEY_FILE: /run/secrets/mail_provider_api_key
       GIT_SIGNING_KEY_FILE: /run/secrets/git_signing_key
+      GIT_ALLOWED_SIGNERS_FILE: /run/secrets/git_allowed_signers
+      OBJECT_STORAGE_ACCESS_KEY_ID_FILE: /run/secrets/object_storage_access_key_id
+      OBJECT_STORAGE_SECRET_ACCESS_KEY_FILE: /run/secrets/object_storage_secret_access_key
+      BACKUP_ENCRYPTION_KEY_FILE: /run/secrets/backup_encryption_key
+      BACKUP_MANIFEST_PRIVATE_KEY_FILE: /run/secrets/backup_manifest_private_key
+      BACKUP_MANIFEST_PUBLIC_KEY_FILE: /run/secrets/backup_manifest_public_key
     secrets:
       - database_url
       - database_direct_url
@@ -39,6 +51,12 @@ services:
       - apple_private_key
       - mail_provider_api_key
       - git_signing_key
+      - git_allowed_signers
+      - object_storage_access_key_id
+      - object_storage_secret_access_key
+      - backup_encryption_key
+      - backup_manifest_private_key
+      - backup_manifest_public_key
     volumes:
       - type: bind
         source: /data/households
@@ -105,3 +123,15 @@ secrets:
     file: ${CREDENTIALS_DIRECTORY}/mail-provider-api-key
   git_signing_key:
     file: ${CREDENTIALS_DIRECTORY}/git-signing-key
+  git_allowed_signers:
+    file: ${CREDENTIALS_DIRECTORY}/git-allowed-signers
+  object_storage_access_key_id:
+    file: ${CREDENTIALS_DIRECTORY}/object-storage-access-key-id
+  object_storage_secret_access_key:
+    file: ${CREDENTIALS_DIRECTORY}/object-storage-secret-access-key
+  backup_encryption_key:
+    file: ${CREDENTIALS_DIRECTORY}/backup-encryption-key
+  backup_manifest_private_key:
+    file: ${CREDENTIALS_DIRECTORY}/backup-manifest-private-key
+  backup_manifest_public_key:
+    file: ${CREDENTIALS_DIRECTORY}/backup-manifest-public-key

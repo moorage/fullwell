@@ -242,6 +242,9 @@ function observeOperatorHealth(observability: ObservabilityPort | undefined, rep
     householdsWithoutBackup: report.backup.households_without_backup,
     oldestIncompleteAgeSeconds: report.reconciliation.oldest_incomplete_age_seconds,
     oldestBackupAgeSeconds: report.backup.oldest_backup_age_seconds,
+    fsckFailures: report.repository.fsck_failures,
+    signatureFailures: report.repository.signature_failures,
+    restoreDrillHealthy: report.backup.restore_drill_healthy,
     volumeUsedPercent: report.volume.usedPercent,
   });
 }

@@ -1,4 +1,5 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
@@ -24,6 +25,8 @@ describe("GitHouseholdRepository", () => {
       expect(await repository.read(householdId, "profiles/snacks.md")).toBe("# Shops\n");
       expect(await repository.read(householdId, "profiles/missing.md")).toBeNull();
       expect((await repository.verify(householdId)).valid).toBe(true);
+      expect(await repository.objectCount(householdId)).toBeGreaterThan(0);
+      expect(await repository.verifySignatures(householdId)).toMatchObject({ valid: false, detail: "allowed_signers_not_configured" });
       expect((await repository.bundle(householdId)).byteLength).toBeGreaterThan(100);
       await expect(repository.commit(householdId, head, [], {
         requestId: RequestIdSchema.parse("req_0123456789abcdee"), householdId, actorId, tool: "hfj_update_profile", client: "test", summary: "stale", occurredAt: "2026-07-15T12:02:00.000Z",
@@ -42,8 +45,29 @@ describe("GitHouseholdRepository", () => {
 
       const missingId = HouseholdIdSchema.parse("hsh_fedcba9876543210");
       expect(await repository.verify(missingId)).toMatchObject({ valid: false, detail: "GitProcessError" });
+      expect(await repository.verifySignatures(missingId)).toMatchObject({ valid: false, detail: "GitProcessError" });
       const signingRepository = new GitHouseholdRepository({ repositoryRoot: join(root, "signed-repositories"), worktreeRoot: join(root, "signed-worktrees"), requireSigning: true });
       await expect(signingRepository.provision(missingId, "Signed", actorId, "2026-07-15T12:06:00.000Z")).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
     } finally { await rm(root, { recursive: true, force: true }); }
+  }, 15_000);
+
+  it("signs and verifies every commit with the configured SSH identity", async () => {
+    const root = await mkdtemp(join(tmpdir(), "hfj-git-signing-test-"));
+    try {
+      const signingKey = join(root, "signing-key");
+      const generated = spawnSync("ssh-keygen", ["-q", "-t", "ed25519", "-N", "", "-f", signingKey], { encoding: "utf8" });
+      if (generated.status !== 0) throw new Error(`Unable to generate SSH test key: ${generated.stderr}`);
+      const allowedSignersFile = join(root, "allowed-signers");
+      await writeFile(allowedSignersFile, `service@invalid.local ${(await readFile(`${signingKey}.pub`, "utf8")).trim()}\n`, { mode: 0o600 });
+      const repository = new GitHouseholdRepository({
+        repositoryRoot: join(root, "repositories"), worktreeRoot: join(root, "worktrees"),
+        signingKey, allowedSignersFile, requireSigning: true,
+      });
+      const householdId = HouseholdIdSchema.parse("hsh_1123456789abcdef");
+      await repository.provision(householdId, "Signed Kitchen", ActorIdSchema.parse("act_1123456789abcdef"), "2026-07-15T12:00:00.000Z");
+      await expect(repository.verifySignatures(householdId)).resolves.toMatchObject({ valid: true });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   }, 15_000);
 });

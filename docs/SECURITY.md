@@ -38,6 +38,10 @@ The application service is the only Git writer. Bare repositories live under `/d
 
 Reject hooks, symlinks, submodules, alternates, path traversal, unsafe refs, and append-only rewrites. Signing keys are injected at runtime and are not stored on the repository volume. A Block Storage snapshot is recovery input, not the sole backup.
 
+### Off-site backup
+
+Backup plaintext is encrypted locally with compact JWE `dir`/`A256GCM` before it leaves the process. Canonical manifests are signed with a separate Ed25519 key before encryption. Backblaze credentials are restricted to the private backup bucket without delete capability; every object requires compliance retention confirmation before a checkpoint is committed. Encryption and signing keys never enter object metadata, the repository volume, logs, or application responses.
+
 ### Public capabilities
 
 Family invitation and collection share tokens are distinct, random capabilities with hashed/HMACed server-side storage, expiry, one-time or revocation semantics, rate limits, and redacted logs. Opening a family invitation never accepts it. Opening a collection never grants household visibility.

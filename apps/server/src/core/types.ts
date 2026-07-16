@@ -109,6 +109,35 @@ export interface ExportDownloadRecord {
   readonly createdAt: string;
 }
 
+export interface BackupCheckpointRecord {
+  readonly householdId: HouseholdId;
+  readonly repositoryHead: GitObjectId;
+  readonly manifestHash: string;
+  readonly bundleHash: string;
+  readonly objectKey: string;
+  readonly manifestObjectKey: string;
+  readonly completedAt: string;
+  readonly verifiedAt: string;
+  readonly retainedUntil: string;
+}
+
+export interface RepositoryVerificationRecord {
+  readonly householdId: HouseholdId;
+  readonly repositoryHead: GitObjectId;
+  readonly fsckValid: boolean;
+  readonly signaturesValid: boolean;
+  readonly checkedAt: string;
+  readonly detailCode: string;
+}
+
+export interface RestoreDrillRecord {
+  readonly householdId: HouseholdId;
+  readonly repositoryHead: GitObjectId;
+  readonly succeeded: boolean;
+  readonly completedAt: string;
+  readonly detailCode: string;
+}
+
 export interface OperationalHealthSnapshot {
   readonly incompleteMutationCount: number;
   readonly reconciliationRequiredCount: number;
@@ -117,5 +146,11 @@ export interface OperationalHealthSnapshot {
   readonly householdCount: number;
   readonly householdsWithoutBackup: number;
   readonly oldestBackupAt: string | null;
+  readonly lastFsckAt: string | null;
+  readonly fsckFailureCount: number;
+  readonly lastSignatureCheckAt: string | null;
+  readonly signatureFailureCount: number;
+  readonly lastRestoreDrillAt: string | null;
+  readonly lastRestoreDrillSucceeded: boolean | null;
   readonly schemaVersion: string;
 }

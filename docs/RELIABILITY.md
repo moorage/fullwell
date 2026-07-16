@@ -43,15 +43,15 @@ Browser household leave and account deletion use the same transaction-scoped hou
 - authenticated operator health exposes reconciliation backlog, oldest incomplete mutation, backup age, last fsck result, signature status, volume capacity, Neon migration state, and last restore drill.
 - public health responses reveal no tenant counts, paths, credentials, repository identifiers, or provider error bodies.
 
-The live and readiness routes are public and contain no counts or paths. Production readiness checks Neon, schema `0004`, Git, volume identity/writability, signing configuration, and single-writer leadership. `/health/operator` uses a dedicated HMAC-compared bearer credential and adds incomplete/reconciliation-required mutation counts and age, quarantine count, backup gaps/age, volume capacity, and explicit unknown fsck/signature/restore-drill timestamps. Missing or stale backup, fsck, signature, and restore-drill evidence remains a blocker until the backup milestone persists it.
+The live and readiness routes are public and contain no counts or paths. Production readiness checks Neon, schema `0005`, Git, volume identity/writability, application/manifest signing configuration, and single-writer leadership. `/health/operator` uses a dedicated HMAC-compared bearer credential and adds incomplete/reconciliation-required mutation counts and age, quarantine count, backup gaps/age, volume capacity, fsck/signature failure counts, and restore-drill freshness. Missing, stale, or failed evidence degrades operator health.
 
 ## Backups and recovery
 
-- create encrypted Git bundle backups and a signed manifest containing household ID, HEAD, object count, and backup hash;
-- keep Git backups outside the Droplet and Block Storage failure domain;
+- create authenticated JWE Git bundle backups and an Ed25519-signed manifest containing household ID, HEAD, object count, backup hash, checkpoint time, and retention deadline;
+- keep compliance-object-locked Git backups in a separate Backblaze account outside the Droplet and Block Storage failure domain;
 - use Neon managed backup/PITR capabilities appropriate to the production plan and separately export required operational metadata;
-- run repository fsck and signature verification as scheduled jobs;
-- rehearse isolated restore monthly and before destructive migrations;
+- persist repository fsck and signature verification with each daily backup attempt;
+- rehearse isolated download, decryption, manifest/hash, bundle, fsck, HEAD/object-count, and commit-signature restore at least monthly and before destructive migrations;
 - document single-instance failover, volume reattachment/mount verification, Neon recovery, signing-key recovery, DNS cutover, and rollback.
 
 Snapshots alone are insufficient because storage corruption or operator error can be captured in a snapshot. A restore is successful only when Git, operational metadata, authorization projections, signatures, and current HEAD manifests reconcile.
@@ -60,7 +60,7 @@ Snapshots alone are insufficient because storage corruption or operator error ca
 
 Use one request ID across HTTP/MCP, Neon mutation rows, Git commit trailers, jobs, and operator logs. Record safe event types, state transitions, durations, retry counts, error codes, and hashed/internal correlation IDs.
 
-The server generates request IDs and returns `X-Request-ID`; caller-supplied values are ignored. Structured JSON logs allowlist safe attributes and pseudonymize household/export IDs. The operator-authenticated `/metrics` endpoint exposes OpenMetrics counters, histograms, runtime metrics, rate-limit rejections, reconciliation backlog, backup gaps/age, quarantines, and volume usage. Authentication, OAuth, MCP tools, mutation replay/conflict/outcome, lock wait, reconciliation, and cleanup use bounded categories only.
+The server generates request IDs and returns `X-Request-ID`; caller-supplied values are ignored. Structured JSON logs allowlist safe attributes and pseudonymize household/export IDs. The operator-authenticated `/metrics` endpoint exposes OpenMetrics counters, histograms, runtime metrics, rate-limit rejections, reconciliation backlog, backup gaps/age, fsck/signature failures, restore-drill state, quarantines, and volume usage. Authentication, OAuth, MCP tools, mutation replay/conflict/outcome, lock wait, reconciliation, backup, and cleanup use bounded categories only.
 
 Do not log or label metrics with access/refresh/share/invitation tokens, emails, household titles, food or recipe names, order IDs, source URLs, evidence bodies, user-authored notes, Git signing material, or raw provider responses.
 

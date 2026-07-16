@@ -101,7 +101,7 @@ describe("production identity and mail providers", () => {
     await expect(mail.sendMagicLink()).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
     await expect(mail.sendInvitation()).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
     await expect(new UnconfiguredAppleIdentityProvider().exchangeAppleCode()).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
-    await expect(new UnconfiguredBackupProvider().uploadBundle())
+    await expect(new UnconfiguredBackupProvider().upload())
       .rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
 
     const stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);

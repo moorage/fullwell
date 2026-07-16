@@ -27,6 +27,7 @@ import {
 import { AppError } from "../core/errors.js";
 import type { OperationalStorePort, SessionRecord, SessionStorePort, TokenHasher } from "../core/ports.js";
 import type {
+  BackupCheckpointRecord,
   HouseholdProjection,
   HouseholdRecord,
   ExportDownloadRecord,
@@ -36,6 +37,8 @@ import type {
   MutationRecord,
   OperationalHealthSnapshot,
   RepositoryMembershipState,
+  RepositoryVerificationRecord,
+  RestoreDrillRecord,
   ShareRecord,
 } from "../core/types.js";
 import { NeonConnection } from "./neon.js";
@@ -468,6 +471,68 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
     await this.sql()`DELETE FROM export_downloads WHERE id = ${id}`;
   }
 
+  async saveBackupCheckpoint(record: BackupCheckpointRecord): Promise<void> {
+    await this.sql()`
+      INSERT INTO backup_checkpoints (
+        household_id, repository_head, manifest_hash, bundle_hash, object_key,
+        manifest_object_key, completed_at, verified_at, retained_until
+      ) VALUES (
+        ${record.householdId}, ${record.repositoryHead}, ${record.manifestHash}, ${record.bundleHash}, ${record.objectKey},
+        ${record.manifestObjectKey}, ${record.completedAt}, ${record.verifiedAt}, ${record.retainedUntil}
+      )
+      ON CONFLICT (household_id) DO UPDATE SET
+        repository_head = EXCLUDED.repository_head,
+        manifest_hash = EXCLUDED.manifest_hash,
+        bundle_hash = EXCLUDED.bundle_hash,
+        object_key = EXCLUDED.object_key,
+        manifest_object_key = EXCLUDED.manifest_object_key,
+        completed_at = EXCLUDED.completed_at,
+        verified_at = EXCLUDED.verified_at,
+        retained_until = EXCLUDED.retained_until
+    `;
+  }
+
+  async getBackupCheckpoint(householdId: HouseholdId): Promise<BackupCheckpointRecord | null> {
+    const rows = await this.sql()<Record<string, unknown>[]>`
+      SELECT household_id, repository_head, manifest_hash, bundle_hash, object_key,
+             manifest_object_key, completed_at, verified_at, retained_until
+      FROM backup_checkpoints
+      WHERE household_id = ${householdId}
+        AND bundle_hash IS NOT NULL AND manifest_object_key IS NOT NULL AND verified_at IS NOT NULL AND retained_until IS NOT NULL
+    `;
+    return rows[0] === undefined ? null : backupCheckpointFromRow(rows[0]);
+  }
+
+  async saveRepositoryVerification(record: RepositoryVerificationRecord): Promise<void> {
+    await this.sql()`
+      INSERT INTO repository_verification_checkpoints (
+        household_id, repository_head, fsck_valid, signatures_valid, checked_at, detail_code
+      ) VALUES (
+        ${record.householdId}, ${record.repositoryHead}, ${record.fsckValid}, ${record.signaturesValid}, ${record.checkedAt}, ${record.detailCode}
+      )
+      ON CONFLICT (household_id) DO UPDATE SET
+        repository_head = EXCLUDED.repository_head,
+        fsck_valid = EXCLUDED.fsck_valid,
+        signatures_valid = EXCLUDED.signatures_valid,
+        checked_at = EXCLUDED.checked_at,
+        detail_code = EXCLUDED.detail_code
+    `;
+  }
+
+  async saveRestoreDrill(record: RestoreDrillRecord): Promise<void> {
+    await this.sql()`
+      INSERT INTO restore_drill_checkpoints (
+        singleton, household_id, repository_head, succeeded, completed_at, detail_code
+      ) VALUES (true, ${record.householdId}, ${record.repositoryHead}, ${record.succeeded}, ${record.completedAt}, ${record.detailCode})
+      ON CONFLICT (singleton) DO UPDATE SET
+        household_id = EXCLUDED.household_id,
+        repository_head = EXCLUDED.repository_head,
+        succeeded = EXCLUDED.succeeded,
+        completed_at = EXCLUDED.completed_at,
+        detail_code = EXCLUDED.detail_code
+    `;
+  }
+
   async operatorHealth(): Promise<OperationalHealthSnapshot> {
     const rows = await this.sql()<Record<string, unknown>[]>`
       SELECT
@@ -476,12 +541,18 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
         min(updated_at) FILTER (WHERE state IN ('received', 'locked', 'git_committed', 'projections_applied', 'reconciliation_required')) AS oldest_incomplete_mutation_at,
         (SELECT count(*)::integer FROM households WHERE provisioning_state = 'quarantined') AS quarantined_household_count,
         (SELECT count(*)::integer FROM households) AS household_count,
-        (SELECT count(*)::integer FROM households h LEFT JOIN backup_checkpoints b ON b.household_id = h.id WHERE b.household_id IS NULL) AS households_without_backup,
-        (SELECT min(completed_at) FROM backup_checkpoints) AS oldest_backup_at,
+        (SELECT count(*)::integer FROM households h LEFT JOIN backup_checkpoints b ON b.household_id = h.id AND b.bundle_hash IS NOT NULL AND b.manifest_object_key IS NOT NULL AND b.verified_at IS NOT NULL AND b.retained_until IS NOT NULL WHERE b.household_id IS NULL) AS households_without_backup,
+        (SELECT min(completed_at) FROM backup_checkpoints WHERE bundle_hash IS NOT NULL AND manifest_object_key IS NOT NULL AND verified_at IS NOT NULL AND retained_until IS NOT NULL) AS oldest_backup_at,
+        (SELECT max(checked_at) FROM repository_verification_checkpoints) AS last_fsck_at,
+        (SELECT count(*)::integer FROM repository_verification_checkpoints WHERE NOT fsck_valid) AS fsck_failure_count,
+        (SELECT max(checked_at) FROM repository_verification_checkpoints) AS last_signature_check_at,
+        (SELECT count(*)::integer FROM repository_verification_checkpoints WHERE NOT signatures_valid) AS signature_failure_count,
+        (SELECT completed_at FROM restore_drill_checkpoints WHERE singleton) AS last_restore_drill_at,
+        (SELECT succeeded FROM restore_drill_checkpoints WHERE singleton) AS last_restore_drill_succeeded,
         CASE WHEN EXISTS (
-          SELECT 1 FROM information_schema.columns
-          WHERE table_schema = 'public' AND table_name = 'export_downloads' AND column_name = 'content_hash'
-        ) THEN '0004' ELSE 'unknown' END AS schema_version
+          SELECT 1 FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_name = 'repository_verification_checkpoints'
+        ) THEN '0005' ELSE 'unknown' END AS schema_version
       FROM mutation_requests
     `;
     return operationalHealthFromRow(rows[0]);
@@ -638,18 +709,41 @@ function exportDownloadFromRow(input: unknown): ExportDownloadRecord {
   return { id: row.id, householdId: row.household_id, requestedBy: row.requested_by, format: row.format, tokenHash: row.token_hash, objectPath: row.object_path, contentHash: row.content_hash, repositoryHead: row.repository_head, expiresAt: row.expires_at, downloadedAt: row.downloaded_at, createdAt: row.created_at };
 }
 
+function backupCheckpointFromRow(input: unknown): BackupCheckpointRecord {
+  const row = z.object({
+    household_id: HouseholdIdSchema, repository_head: GitObjectIdSchema,
+    manifest_hash: z.string().regex(/^[0-9a-f]{64}$/), bundle_hash: z.string().regex(/^[0-9a-f]{64}$/),
+    object_key: z.string().min(1), manifest_object_key: z.string().min(1),
+    completed_at: TimestampSchema, verified_at: TimestampSchema, retained_until: TimestampSchema,
+  }).parse(input);
+  return {
+    householdId: row.household_id, repositoryHead: row.repository_head,
+    manifestHash: row.manifest_hash, bundleHash: row.bundle_hash,
+    objectKey: row.object_key, manifestObjectKey: row.manifest_object_key,
+    completedAt: row.completed_at, verifiedAt: row.verified_at, retainedUntil: row.retained_until,
+  };
+}
+
 function operationalHealthFromRow(input: unknown): OperationalHealthSnapshot {
   const row = z.object({
     incomplete_mutation_count: z.number().int().nonnegative(), reconciliation_required_count: z.number().int().nonnegative(),
     oldest_incomplete_mutation_at: NullableTimestampSchema, quarantined_household_count: z.number().int().nonnegative(),
     household_count: z.number().int().nonnegative(), households_without_backup: z.number().int().nonnegative(),
-    oldest_backup_at: NullableTimestampSchema, schema_version: z.string().min(1),
+    oldest_backup_at: NullableTimestampSchema,
+    last_fsck_at: NullableTimestampSchema, fsck_failure_count: z.number().int().nonnegative(),
+    last_signature_check_at: NullableTimestampSchema, signature_failure_count: z.number().int().nonnegative(),
+    last_restore_drill_at: NullableTimestampSchema, last_restore_drill_succeeded: z.boolean().nullable(),
+    schema_version: z.string().min(1),
   }).parse(input);
   return {
     incompleteMutationCount: row.incomplete_mutation_count, reconciliationRequiredCount: row.reconciliation_required_count,
     oldestIncompleteMutationAt: row.oldest_incomplete_mutation_at, quarantinedHouseholdCount: row.quarantined_household_count,
     householdCount: row.household_count, householdsWithoutBackup: row.households_without_backup,
-    oldestBackupAt: row.oldest_backup_at, schemaVersion: row.schema_version,
+    oldestBackupAt: row.oldest_backup_at,
+    lastFsckAt: row.last_fsck_at, fsckFailureCount: row.fsck_failure_count,
+    lastSignatureCheckAt: row.last_signature_check_at, signatureFailureCount: row.signature_failure_count,
+    lastRestoreDrillAt: row.last_restore_drill_at, lastRestoreDrillSucceeded: row.last_restore_drill_succeeded,
+    schemaVersion: row.schema_version,
   };
 }
 

@@ -34,6 +34,7 @@ import { HouseholdFoodJournalService } from "./services/household-food-journal.j
 import { FileExportArtifactStore } from "./exports/artifact-store.js";
 import { createOperatorAuthenticator, HealthService } from "./health/health.js";
 import { ServiceObservability } from "./telemetry/observability.js";
+import { BackupCryptography } from "./backup/backup-cryptography.js";
 
 const config = parseConfig(process.env);
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
@@ -51,6 +52,7 @@ const repository = new GitHouseholdRepository({
   repositoryRoot: config.HOUSEHOLD_REPOSITORY_ROOT,
   worktreeRoot: config.HOUSEHOLD_WORKTREE_ROOT,
   ...(config.GIT_SIGNING_KEY === undefined ? {} : { signingKey: config.GIT_SIGNING_KEY }),
+  ...(config.GIT_ALLOWED_SIGNERS_FILE === undefined ? {} : { allowedSignersFile: config.GIT_ALLOWED_SIGNERS_FILE }),
   requireSigning: config.NODE_ENV === "production",
 });
 const clock = new SystemClock();
@@ -69,11 +71,14 @@ const passkeys = new WebAuthnPasskeyProvider({ rpName: "Fullwell", rpId: publicO
 const browserAuth = new BrowserAuthService(authStore, clock, random, hasher, mail, identity, passkeys, publicOrigin);
 const oauth = new OAuthService(oauthStore, clock, random, hasher, new URL("/mcp", publicOrigin));
 const accounts = new AccountService(authStore, store, oauthStore, clock, repository, random);
+const backupCryptography = config.BACKUP_ENCRYPTION_KEY === undefined || config.BACKUP_MANIFEST_PRIVATE_KEY === undefined || config.BACKUP_MANIFEST_PUBLIC_KEY === undefined || config.BACKUP_KEY_ID === undefined
+  ? null
+  : new BackupCryptography(config.BACKUP_ENCRYPTION_KEY, config.BACKUP_MANIFEST_PRIVATE_KEY, config.BACKUP_MANIFEST_PUBLIC_KEY, config.BACKUP_KEY_ID);
 const health = new HealthService(store, repository, {
   clock,
-  expectedSchemaVersion: "0004",
+  expectedSchemaVersion: "0005",
   repositoryRoot: config.HOUSEHOLD_REPOSITORY_ROOT,
-  signingConfigured: config.GIT_SIGNING_KEY !== undefined,
+  signingConfigured: config.GIT_SIGNING_KEY !== undefined && config.GIT_ALLOWED_SIGNERS_FILE !== undefined && backupCryptography !== null,
 });
 const productionAuthentication = new OAuthBearerAuthenticator(oauth, async (clientId) => {
   const client = await oauthStore.getClient(clientId);

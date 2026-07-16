@@ -33,5 +33,5 @@ describe("household restore", () => {
     await exec("git", ["-C", restoredPath, "fsck", "--no-dangling"]);
     await expect(readFile(join(restoredPath, "FORMAT_VERSION"), "utf8")).resolves.toBe("1\n");
     await expect(readFile(join(restoredPath, "household.md"), "utf8")).resolves.toContain("Restore Kitchen");
-  });
+  }, 15_000);
 });

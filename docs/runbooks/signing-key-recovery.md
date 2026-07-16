@@ -2,6 +2,8 @@
 
 Household commits use a service SSH signing key held outside repositories. The public-key trust set and key-validity periods are versioned operational metadata; private keys never enter Git or backups encrypted by themselves.
 
+The runtime verifier reads the root-owned `git-allowed-signers` credential in OpenSSH allowed-signers format. Each active or historical public key uses the fixed principal `service@invalid.local`; repository content cannot supply or modify this file.
+
 ## Planned rotation
 
 1. Generate the new key in the approved secret system. Record its public fingerprint and activation time.

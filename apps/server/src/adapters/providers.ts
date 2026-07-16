@@ -176,7 +176,8 @@ export class ResendMailProvider implements MailPort {
 }
 
 export class UnconfiguredBackupProvider implements BackupPort {
-  async uploadBundle(): Promise<void> { throw new AppError("PROVIDER_UNAVAILABLE", "Off-site backup is not configured"); }
+  async upload(): Promise<never> { throw new AppError("PROVIDER_UNAVAILABLE", "Off-site backup is not configured"); }
+  async download(): Promise<never> { throw new AppError("PROVIDER_UNAVAILABLE", "Off-site backup is not configured"); }
 }
 
 export class FixedClock implements Clock {

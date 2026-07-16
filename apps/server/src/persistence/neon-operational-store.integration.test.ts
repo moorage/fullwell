@@ -219,14 +219,31 @@ describeDatabase("NeonOperationalStore", () => {
       response: null, failure: null, createdAt: "2026-07-15T12:00:00.000Z", updatedAt: "2026-07-15T12:00:00.000Z",
     };
     await store.saveMutation(pending);
+    const backup = {
+      householdId, repositoryHead: head,
+      manifestHash: "a".repeat(64), bundleHash: "b".repeat(64),
+      objectKey: "backups/household.bundle.jwe", manifestObjectKey: "backups/household.manifest.jwe",
+      completedAt: "2026-07-15T12:05:00.000Z", verifiedAt: "2026-07-15T12:06:00.000Z", retainedUntil: "2026-08-19T12:05:00.000Z",
+    };
+    await store.saveBackupCheckpoint(backup);
+    await expect(store.getBackupCheckpoint(householdId)).resolves.toEqual(backup);
+    await store.saveRepositoryVerification({ householdId, repositoryHead: head, fsckValid: true, signaturesValid: true, checkedAt: "2026-07-15T12:04:00.000Z", detailCode: "verified" });
+    await store.saveRestoreDrill({ householdId, repositoryHead: head, succeeded: true, completedAt: "2026-07-15T12:07:00.000Z", detailCode: "verified" });
     await expect(store.operatorHealth()).resolves.toMatchObject({
       incompleteMutationCount: 1,
       reconciliationRequiredCount: 0,
       oldestIncompleteMutationAt: "2026-07-15T12:00:00.000Z",
       quarantinedHouseholdCount: 0,
       householdCount: 1,
-      householdsWithoutBackup: 1,
-      schemaVersion: "0004",
+      householdsWithoutBackup: 0,
+      oldestBackupAt: "2026-07-15T12:05:00.000Z",
+      lastFsckAt: "2026-07-15T12:04:00.000Z",
+      fsckFailureCount: 0,
+      lastSignatureCheckAt: "2026-07-15T12:04:00.000Z",
+      signatureFailureCount: 0,
+      lastRestoreDrillAt: "2026-07-15T12:07:00.000Z",
+      lastRestoreDrillSucceeded: true,
+      schemaVersion: "0005",
     });
     await store.transitionMutation(pending.requestId, "failed_before_commit", { failure: "test_cleanup" });
     expect((await store.operatorHealth()).incompleteMutationCount).toBe(0);

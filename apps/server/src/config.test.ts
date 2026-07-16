@@ -12,7 +12,8 @@ describe("parseConfig", () => {
   });
 
   it("provides deterministic local defaults", () => {
-    expect(parseConfig({ NODE_ENV: "test", PATH: "/usr/bin", HOME: "/tmp" })).toMatchObject({ PORT: 3000, AUTH_MODE: "test", EXPORT_ROOT: "./.data/exports" });
+    expect(parseConfig({ NODE_ENV: "test", PATH: "/usr/bin", HOME: "/tmp" })).toMatchObject({ PORT: 3000, AUTH_MODE: "test", EXPORT_ROOT: "./.data/exports", BACKUP_RETENTION_DAYS: 35 });
+    expect(() => parseConfig({ NODE_ENV: "test", OBJECT_STORAGE_BUCKET: "backup" })).toThrow(/must be complete/);
   });
 
   it("loads secrets from systemd credential files", () => {
@@ -21,7 +22,41 @@ describe("parseConfig", () => {
       const pepper = join(directory, "pepper");
       writeFileSync(pepper, "a-secure-pepper-value-that-is-long-enough\n", { mode: 0o600 });
       expect(parseConfig({ NODE_ENV: "test", TOKEN_PEPPER_FILE: pepper }).TOKEN_PEPPER).toBe("a-secure-pepper-value-that-is-long-enough");
+      expect(parseConfig({ NODE_ENV: "test", GIT_SIGNING_KEY_FILE: pepper }).GIT_SIGNING_KEY).toBe(pepper);
       expect(() => parseConfig({ NODE_ENV: "test", TOKEN_PEPPER: "inline-value-that-is-long-enough-000", TOKEN_PEPPER_FILE: pepper })).toThrow(/mutually exclusive/);
+      expect(() => parseConfig({ NODE_ENV: "test", GIT_SIGNING_KEY: "inline", GIT_SIGNING_KEY_FILE: pepper })).toThrow(/mutually exclusive/);
     } finally { rmSync(directory, { recursive: true, force: true }); }
+  });
+
+  it("requires complete HTTPS object backup configuration in production", () => {
+    const production = {
+      NODE_ENV: "production",
+      AUTH_MODE: "session",
+      PUBLIC_ORIGIN: "https://journal.example.test",
+      DATABASE_URL: "postgresql://runtime.example.test/fullwell",
+      DATABASE_DIRECT_URL: "postgresql://direct.example.test/fullwell",
+      GIT_SIGNING_KEY: "signing-key",
+      GIT_ALLOWED_SIGNERS_FILE: "/run/secrets/git-allowed-signers",
+      TOKEN_PEPPER: "p".repeat(32),
+      SESSION_SECRET: "s".repeat(32),
+      OPERATOR_TOKEN: "o".repeat(32),
+      APPLE_CLIENT_ID: "apple-client",
+      APPLE_TEAM_ID: "apple-team",
+      APPLE_KEY_ID: "apple-key",
+      APPLE_PRIVATE_KEY: "apple-private",
+      MAIL_PROVIDER_API_KEY: "mail-key",
+      MAIL_FROM: "Fullwell <mail@example.test>",
+      OBJECT_STORAGE_ENDPOINT: "https://s3.us-west-004.backblazeb2.com",
+      OBJECT_STORAGE_REGION: "us-west-004",
+      OBJECT_STORAGE_BUCKET: "fullwell-backup",
+      OBJECT_STORAGE_ACCESS_KEY_ID: "storage-key-id",
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: "storage-secret",
+      BACKUP_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64url"),
+      BACKUP_MANIFEST_PRIVATE_KEY: "manifest-private",
+      BACKUP_MANIFEST_PUBLIC_KEY: "manifest-public",
+      BACKUP_KEY_ID: "backup-2026-01",
+    };
+    expect(parseConfig(production)).toMatchObject({ OBJECT_STORAGE_REGION: "us-west-004", BACKUP_RETENTION_DAYS: 35 });
+    expect(() => parseConfig({ ...production, OBJECT_STORAGE_ENDPOINT: "http://storage.example.test" })).toThrow(/HTTPS/);
   });
 });

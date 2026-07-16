@@ -77,6 +77,8 @@ Post-commit recovery uses the request ID in the Git commit trailer and audit doc
 
 Household exports are generated from the locked Git `main` revision as either a readable ZIP of the current tree or a full Git bundle. The application stores private artifacts under `EXPORT_ROOT`, while Neon stores only the requesting user, HMAC token digest, content hash, source HEAD, object path, expiry, and claim state. Download authorization is rechecked against the authenticated requester, content is verified before the one-time token is atomically claimed, and maintenance reclaims downloaded or expired artifacts.
 
+Daily backup maintenance verifies fsck and every commit signature, signs a canonical HEAD/object-count/bundle-hash manifest with Ed25519, encrypts bundle and signed manifest independently as authenticated compact JWE, and uploads them through `BackupPort`. The production adapter targets a private Backblaze B2 S3-compatible bucket in a separate account and requires compliance Object Lock confirmation before Neon records a checkpoint. Monthly restore maintenance downloads and decrypts the checkpoint into a temporary isolated repository, verifies manifest/hash/HEAD/object count, runs full fsck, and re-verifies commit signatures before persisting bounded drill evidence.
+
 ### Household Git store
 
 Purpose: keep one signed bare repository per household under `/data/households/<household-uuid>.git`.
@@ -122,13 +124,13 @@ Raw traces live under ignored `.codex/self-improvement/`. Tracked documents cont
 
 DigitalOcean App Platform is not the version 1 target because its application filesystem is ephemeral. The production container runs on a Droplet with an attached Block Storage volume. Keep a single active writer instance until advisory-lock behavior, shared filesystem semantics, failover, and split-brain prevention are proven for a different topology.
 
-The production health path distinguishes process readiness, Neon reachability/schema compatibility, mounted-volume identity and writability, Git availability, signing readiness, and single-writer leadership without exposing secrets or tenant data. A separately authenticated operator route adds bounded reconciliation, backup-gap, and capacity state; `/metrics` exposes the same operational gauges plus low-cardinality HTTP/runtime metrics in OpenMetrics format.
+The production health path distinguishes process readiness, Neon reachability/schema compatibility, mounted-volume identity and writability, Git availability, signing readiness, and single-writer leadership without exposing secrets or tenant data. A separately authenticated operator route adds bounded reconciliation, backup-gap/age, fsck/signature failure, restore-drill, and capacity state; `/metrics` exposes the same operational gauges plus low-cardinality HTTP/runtime metrics in OpenMetrics format.
 
 Fastify applies a global and route-specific `@fastify/rate-limit` policy keyed by the client IP after one trusted Caddy hop. `ServiceObservability` is the sole production telemetry adapter for request, MCP, mutation, reconciliation, and maintenance events; it allowlists attribute keys, pseudonymizes entity IDs, and never records request bodies or capability material.
 
 ## Current release limitations
 
-The application foundation, durable Git-to-Neon reconciliation, portable exports, production rate limits/telemetry, operator health, WebAuthn passkeys, browser account lifecycle, 22-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, agent package, and DigitalOcean deployment assets are implemented. Version 1 is not production-ready while encrypted immutable off-site backup, full security/accessibility/load validation, external staging compatibility, and native passkey compatibility evidence remain open in the active ExecPlan.
+The application foundation, durable Git-to-Neon reconciliation, portable exports, production rate limits/telemetry, operator health, encrypted immutable backup/restore, WebAuthn passkeys, browser account lifecycle, 22-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, agent package, and DigitalOcean deployment assets are implemented. Version 1 is not production-ready while live B2/Neon recovery evidence, full security/accessibility/load validation, external staging compatibility, and native passkey compatibility evidence remain open in the active ExecPlan.
 
 ## Maintenance rules
 

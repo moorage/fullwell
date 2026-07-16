@@ -10,6 +10,7 @@ import type {
 import type {
   HouseholdProjection,
   HouseholdRecord,
+  BackupCheckpointRecord,
   ExportDownloadRecord,
   InvitationRecord,
   JsonValue,
@@ -18,6 +19,8 @@ import type {
   OperationalHealthSnapshot,
   Principal,
   RepositoryMembershipState,
+  RepositoryVerificationRecord,
+  RestoreDrillRecord,
   ShareRecord,
 } from "./types.js";
 
@@ -54,7 +57,15 @@ export interface TelemetryPort {
 }
 
 export interface BackupPort {
-  uploadBundle(householdId: HouseholdId, bundle: Uint8Array, manifest: string): Promise<void>;
+  upload(input: {
+    readonly householdId: HouseholdId;
+    readonly repositoryHead: GitObjectId;
+    readonly bundle: Uint8Array;
+    readonly signedManifest: string;
+    readonly completedAt: string;
+    readonly retainedUntil: string;
+  }): Promise<{ readonly objectKey: string; readonly manifestObjectKey: string; readonly verifiedAt: string }>;
+  download(objectKey: string, manifestObjectKey: string): Promise<{ readonly bundle: Uint8Array; readonly signedManifest: string }>;
 }
 
 export interface ExportArtifactPort {
@@ -95,6 +106,8 @@ export interface HouseholdRepositoryPort {
   bundle(householdId: HouseholdId): Promise<Uint8Array>;
   readableArchive(householdId: HouseholdId): Promise<Uint8Array>;
   verify(householdId: HouseholdId): Promise<{ valid: boolean; detail: string }>;
+  verifySignatures(householdId: HouseholdId): Promise<{ valid: boolean; detail: string }>;
+  objectCount(householdId: HouseholdId): Promise<number>;
 }
 
 export interface OperationalStorePort {
@@ -126,6 +139,10 @@ export interface OperationalStorePort {
   claimExportDownload(tokenHash: string, userId: UserId, downloadedAt: string): Promise<ExportDownloadRecord | null>;
   listReclaimableExportDownloads(now: string): Promise<ReadonlyArray<ExportDownloadRecord>>;
   deleteExportDownload(id: string): Promise<void>;
+  saveBackupCheckpoint(record: BackupCheckpointRecord): Promise<void>;
+  getBackupCheckpoint(householdId: HouseholdId): Promise<BackupCheckpointRecord | null>;
+  saveRepositoryVerification(record: RepositoryVerificationRecord): Promise<void>;
+  saveRestoreDrill(record: RestoreDrillRecord): Promise<void>;
   operatorHealth(): Promise<OperationalHealthSnapshot>;
   withHouseholdLock<T>(householdId: HouseholdId, operation: () => Promise<T>): Promise<T>;
   projection(householdId: HouseholdId): Promise<HouseholdProjection>;

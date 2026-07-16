@@ -30,7 +30,7 @@ A collection link is a revocable capability URL to an immutable snapshot. Anyone
 
 - DigitalOcean hosts the application and encrypted Block Storage volume.
 - Neon hosts PostgreSQL operational data and managed database recovery.
-- Amazon Web Services stores encrypted, object-locked off-site backups in a separate account.
+- Backblaze stores client-side encrypted, object-locked off-site backups in a separate account.
 - Resend delivers magic links and security notices.
 - Apple provides Sign in with Apple and may provide passkey synchronization through Apple Passwords/iCloud Keychain.
 

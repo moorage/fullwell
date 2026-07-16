@@ -30,6 +30,9 @@ export interface OperatorMetricSnapshot {
   readonly householdsWithoutBackup: number;
   readonly oldestIncompleteAgeSeconds: number | null;
   readonly oldestBackupAgeSeconds: number | null;
+  readonly fsckFailures: number;
+  readonly signatureFailures: number;
+  readonly restoreDrillHealthy: boolean;
   readonly volumeUsedPercent: number;
 }
 
@@ -51,6 +54,9 @@ export class ServiceObservability implements ObservabilityPort {
   private readonly householdsWithoutBackup: Gauge;
   private readonly oldestIncompleteAge: Gauge;
   private readonly oldestBackupAge: Gauge;
+  private readonly fsckFailures: Gauge;
+  private readonly signatureFailures: Gauge;
+  private readonly restoreDrillHealthy: Gauge;
   private readonly volumeUsedPercent: Gauge;
   private readonly stdout: (line: string) => void;
   private readonly stderr: (line: string) => void;
@@ -73,6 +79,9 @@ export class ServiceObservability implements ObservabilityPort {
     this.householdsWithoutBackup = new Gauge({ name: "hfj_households_without_backup", help: "Households without a backup checkpoint", registers: [this.registry] });
     this.oldestIncompleteAge = new Gauge({ name: "hfj_oldest_incomplete_mutation_age_seconds", help: "Age of the oldest incomplete mutation", registers: [this.registry] });
     this.oldestBackupAge = new Gauge({ name: "hfj_oldest_backup_age_seconds", help: "Age of the oldest household backup checkpoint", registers: [this.registry] });
+    this.fsckFailures = new Gauge({ name: "hfj_repository_fsck_failures", help: "Repositories failing the latest fsck", registers: [this.registry] });
+    this.signatureFailures = new Gauge({ name: "hfj_repository_signature_failures", help: "Repositories failing the latest signature check", registers: [this.registry] });
+    this.restoreDrillHealthy = new Gauge({ name: "hfj_restore_drill_healthy", help: "Whether restore-drill evidence is current and successful", registers: [this.registry] });
     this.volumeUsedPercent = new Gauge({ name: "hfj_repository_volume_used_percent", help: "Repository volume used percent", registers: [this.registry] });
   }
 
@@ -104,6 +113,9 @@ export class ServiceObservability implements ObservabilityPort {
     this.householdsWithoutBackup.set(input.householdsWithoutBackup);
     this.oldestIncompleteAge.set(input.oldestIncompleteAgeSeconds ?? 0);
     this.oldestBackupAge.set(input.oldestBackupAgeSeconds ?? 0);
+    this.fsckFailures.set(input.fsckFailures);
+    this.signatureFailures.set(input.signatureFailures);
+    this.restoreDrillHealthy.set(input.restoreDrillHealthy ? 1 : 0);
     this.volumeUsedPercent.set(input.volumeUsedPercent);
   }
   metrics(): Promise<string> { return this.registry.metrics(); }

@@ -342,11 +342,35 @@
                   "children": [
                     {
                       "type": "file",
+                      "name": "backup-cryptography.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "backup-cryptography.ts"
+                    },
+                    {
+                      "type": "file",
                       "name": "backup-service.test.ts"
                     },
                     {
                       "type": "file",
                       "name": "backup-service.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "git-bundle-restore-verifier.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "git-bundle-restore-verifier.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "s3-compatible-backup.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "s3-compatible-backup.ts"
                     }
                   ]
                 },
@@ -1177,6 +1201,14 @@
         {
           "type": "file",
           "name": "0004_export_downloads.sql"
+        },
+        {
+          "type": "file",
+          "name": "0005_backup_evidence.down.sql"
+        },
+        {
+          "type": "file",
+          "name": "0005_backup_evidence.sql"
         }
       ]
     },

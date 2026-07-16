@@ -40,8 +40,16 @@ export interface OperatorHealthReport {
     readonly households_without_backup: number;
     readonly oldest_backup_age_seconds: number | null;
     readonly last_restore_drill_at: string | null;
+    readonly restore_drill_healthy: boolean;
   };
-  readonly repository: { readonly signing_configured: boolean; readonly last_fsck_at: string | null; readonly last_signature_check_at: string | null };
+  readonly repository: {
+    readonly healthy: boolean;
+    readonly signing_configured: boolean;
+    readonly last_fsck_at: string | null;
+    readonly fsck_failures: number;
+    readonly last_signature_check_at: string | null;
+    readonly signature_failures: number;
+  };
   readonly volume: { readonly writable: boolean; readonly identityMarkerPresent: boolean; readonly capacityBytes: number; readonly availableBytes: number; readonly usedPercent: number };
 }
 
@@ -69,9 +77,12 @@ export class HealthService {
     const now = this.operatorOptions.clock.now().getTime();
     const oldestIncompleteAgeSeconds = ageSeconds(now, operational.oldestIncompleteMutationAt);
     const oldestBackupAgeSeconds = ageSeconds(now, operational.oldestBackupAt);
+    const restoreDrillAgeSeconds = ageSeconds(now, operational.lastRestoreDrillAt);
     const reconciliationHealthy = operational.quarantinedHouseholdCount === 0 && (oldestIncompleteAgeSeconds ?? 0) < 5 * 60;
     const backupHealthy = operational.householdsWithoutBackup === 0 && (oldestBackupAgeSeconds ?? 0) < 25 * 60 * 60;
-    const healthy = ![readiness.ready, reconciliationHealthy, backupHealthy, volume.writable, volume.identityMarkerPresent, this.operatorOptions.signingConfigured].includes(false);
+    const restoreDrillHealthy = operational.householdCount === 0 || (operational.lastRestoreDrillSucceeded === true && (restoreDrillAgeSeconds ?? Number.POSITIVE_INFINITY) < 32 * 24 * 60 * 60);
+    const repositoryHealthy = operational.householdCount === 0 || (operational.fsckFailureCount === 0 && operational.signatureFailureCount === 0 && operational.lastFsckAt !== null && operational.lastSignatureCheckAt !== null);
+    const healthy = ![readiness.ready, reconciliationHealthy, backupHealthy, restoreDrillHealthy, repositoryHealthy, volume.writable, volume.identityMarkerPresent, this.operatorOptions.signingConfigured].includes(false);
     return {
       status: healthy ? "healthy" : "degraded",
       checked_at: this.operatorOptions.clock.now().toISOString(),
@@ -88,9 +99,17 @@ export class HealthService {
         healthy: backupHealthy,
         households_without_backup: operational.householdsWithoutBackup,
         oldest_backup_age_seconds: oldestBackupAgeSeconds,
-        last_restore_drill_at: null,
+        last_restore_drill_at: operational.lastRestoreDrillAt,
+        restore_drill_healthy: restoreDrillHealthy,
       },
-      repository: { signing_configured: this.operatorOptions.signingConfigured, last_fsck_at: null, last_signature_check_at: null },
+      repository: {
+        healthy: repositoryHealthy,
+        signing_configured: this.operatorOptions.signingConfigured,
+        last_fsck_at: operational.lastFsckAt,
+        fsck_failures: operational.fsckFailureCount,
+        last_signature_check_at: operational.lastSignatureCheckAt,
+        signature_failures: operational.signatureFailureCount,
+      },
       volume,
     };
   }

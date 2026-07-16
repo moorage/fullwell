@@ -877,6 +877,8 @@ Implement:
 - monthly restore drills into an isolated environment;
 - alerting on non-fast-forward refs, missing objects, signature failure, or repository/database projection mismatch.
 
+Version 1 uses authenticated compact JWE with `dir`/`A256GCM` for client-side bundle and signed-manifest encryption, Ed25519 compact JWS for canonical manifests, and a generic S3-compatible adapter configured for a private Backblaze B2 bucket in a separate account. Each upload must request compliance Object Lock and verify the returned length, ciphertext hash metadata, retention mode, and retention deadline before writing `backup_checkpoints`. Runtime object credentials must not have delete capability. Unchanged checkpoints younger than 23 hours may be skipped; successful restore evidence must be refreshed within 30 days.
+
 Recovery objectives for version 1:
 
 - RPO: 24 hours maximum for catastrophic primary-volume loss, with a target of 1 hour once incremental bundles are implemented;

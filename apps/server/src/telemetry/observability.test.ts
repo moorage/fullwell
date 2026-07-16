@@ -20,7 +20,8 @@ describe("ServiceObservability", () => {
     telemetry.rateLimited("/auth/magic-link");
     telemetry.observeOperatorHealth({
       incompleteMutations: 2, quarantinedHouseholds: 1, householdsWithoutBackup: 3,
-      oldestIncompleteAgeSeconds: 90, oldestBackupAgeSeconds: null, volumeUsedPercent: 42.5,
+      oldestIncompleteAgeSeconds: 90, oldestBackupAgeSeconds: null,
+      fsckFailures: 1, signatureFailures: 2, restoreDrillHealthy: false, volumeUsedPercent: 42.5,
     });
 
     const logs = [...stdout, ...stderr].join("");
@@ -37,6 +38,9 @@ describe("ServiceObservability", () => {
     expect(metrics).toContain('hfj_http_requests_total{method="GET",route="unmatched",status_code="404"} 1');
     expect(metrics).toContain('hfj_rate_limited_total{route="/auth/magic-link"} 1');
     expect(metrics).toContain("hfj_reconciliation_incomplete_mutations 2");
+    expect(metrics).toContain("hfj_repository_fsck_failures 1");
+    expect(metrics).toContain("hfj_repository_signature_failures 2");
+    expect(metrics).toContain("hfj_restore_drill_healthy 0");
     expect(metrics).toContain("hfj_repository_volume_used_percent 42.5");
     expect(metrics).not.toContain("private");
   });

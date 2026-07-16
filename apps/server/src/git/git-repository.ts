@@ -13,6 +13,7 @@ interface GitRepositoryOptions {
   readonly repositoryRoot: string;
   readonly worktreeRoot: string;
   readonly signingKey?: string;
+  readonly allowedSignersFile?: string;
   readonly requireSigning: boolean;
 }
 
@@ -148,6 +149,27 @@ export class GitHouseholdRepository implements HouseholdRepositoryPort {
     }
   }
 
+  async verifySignatures(householdId: HouseholdId): Promise<{ valid: boolean; detail: string }> {
+    try {
+      const repository = this.repositoryPath(householdId);
+      const commits = (await git(["--git-dir", repository, "rev-list", "--all"])).trim().split("\n").filter(Boolean);
+      if (commits.length === 0) return { valid: false, detail: "no_commits" };
+      if (this.options.allowedSignersFile === undefined) return { valid: false, detail: "allowed_signers_not_configured" };
+      for (const commit of commits) await git([
+        "-c", "gpg.format=ssh", "-c", `gpg.ssh.allowedSignersFile=${this.options.allowedSignersFile}`,
+        "--git-dir", repository, "verify-commit", commit,
+      ]);
+      return { valid: true, detail: await this.head(householdId) };
+    } catch (error) {
+      return { valid: false, detail: error instanceof Error ? error.name : "signature_verification_failed" };
+    }
+  }
+
+  async objectCount(householdId: HouseholdId): Promise<number> {
+    const output = (await git(["--git-dir", this.repositoryPath(householdId), "rev-list", "--objects", "--all"])).trim();
+    return output === "" ? 0 : output.split("\n").length;
+  }
+
   private repositoryPath(householdId: HouseholdId): string {
     const path = resolve(this.repositoryRoot, `${householdId}.git`);
     if (dirname(path) !== this.repositoryRoot) throw new AppError("VALIDATION_FAILED", "Household repository path escaped its root");
@@ -163,13 +185,13 @@ export class GitHouseholdRepository implements HouseholdRepositoryPort {
   }
 
   private commitArgs(message: string, occurredAt: string): string[] {
-    const signing = this.options.signingKey === undefined ? [] : [`-S${this.options.signingKey}`];
+    const signing = this.options.signingKey === undefined ? [] : ["-c", "gpg.format=ssh", "-c", `user.signingKey=${this.options.signingKey}`];
     if (this.options.requireSigning && signing.length === 0) throw new AppError("PROVIDER_UNAVAILABLE", "Git signing is required but not configured");
     return [
       "-c", "core.hooksPath=/dev/null",
       "-c", "user.name=Household Food Journal",
       "-c", "user.email=service@invalid.local",
-      "commit", "--quiet", ...signing, "--date", occurredAt, "-m", message,
+      ...signing, "commit", "--quiet", ...(signing.length === 0 ? [] : ["-S"]), "--date", occurredAt, "-m", message,
     ];
   }
 }

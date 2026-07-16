@@ -21,6 +21,7 @@ import type {
   SessionStorePort,
 } from "../core/ports.js";
 import type {
+  BackupCheckpointRecord,
   HouseholdProjection,
   ExportDownloadRecord,
   HouseholdRecord,
@@ -30,6 +31,8 @@ import type {
   MutationRecord,
   OperationalHealthSnapshot,
   RepositoryMembershipState,
+  RepositoryVerificationRecord,
+  RestoreDrillRecord,
   ShareRecord,
 } from "../core/types.js";
 
@@ -136,6 +139,15 @@ export class MemoryHouseholdRepository implements HouseholdRepositoryPort {
     const repository = this.repositories.get(householdId);
     return repository === undefined ? { valid: false, detail: "missing" } : { valid: true, detail: repository.head };
   }
+  async verifySignatures(householdId: HouseholdId): Promise<{ valid: boolean; detail: string }> {
+    const repository = this.repositories.get(householdId);
+    return repository === undefined ? { valid: false, detail: "missing" } : { valid: true, detail: repository.head };
+  }
+  async objectCount(householdId: HouseholdId): Promise<number> {
+    const repository = this.repositories.get(householdId);
+    if (repository === undefined) throw new AppError("NOT_FOUND", "Household repository was not found");
+    return repository.files.size + repository.commits.length;
+  }
 
   commitCount(householdId: HouseholdId): number { return this.repositories.get(householdId)?.commits.length ?? 0; }
 }
@@ -150,6 +162,9 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
   private readonly projections = new Map<HouseholdId, HouseholdProjection>();
   private readonly sessions = new Map<string, SessionRecord>();
   private readonly exportDownloads = new Map<string, ExportDownloadRecord>();
+  private readonly backupCheckpoints = new Map<HouseholdId, BackupCheckpointRecord>();
+  private readonly repositoryVerifications = new Map<HouseholdId, RepositoryVerificationRecord>();
+  private restoreDrill: RestoreDrillRecord | null = null;
   private readonly lockTails = new Map<HouseholdId, Promise<void>>();
 
   async createHousehold(record: HouseholdRecord, owner: MembershipRecord): Promise<void> {
@@ -254,18 +269,29 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
   async deleteExportDownload(id: string): Promise<void> {
     for (const [tokenHash, record] of this.exportDownloads) if (record.id === id) this.exportDownloads.delete(tokenHash);
   }
+  async saveBackupCheckpoint(record: BackupCheckpointRecord): Promise<void> { this.backupCheckpoints.set(record.householdId, record); }
+  async getBackupCheckpoint(householdId: HouseholdId): Promise<BackupCheckpointRecord | null> { return this.backupCheckpoints.get(householdId) ?? null; }
+  async saveRepositoryVerification(record: RepositoryVerificationRecord): Promise<void> { this.repositoryVerifications.set(record.householdId, record); }
+  async saveRestoreDrill(record: RestoreDrillRecord): Promise<void> { this.restoreDrill = record; }
   async operatorHealth(): Promise<OperationalHealthSnapshot> {
     const incomplete = [...this.mutations.values()].filter((record) => ["received", "locked", "git_committed", "projections_applied", "reconciliation_required"].includes(record.state));
     const oldestIncomplete = incomplete.map((record) => record.updatedAt).sort()[0] ?? null;
     const households = [...this.households.values()];
+    const verifications = [...this.repositoryVerifications.values()];
     return {
       incompleteMutationCount: incomplete.length,
       reconciliationRequiredCount: incomplete.filter((record) => record.state === "reconciliation_required").length,
       oldestIncompleteMutationAt: oldestIncomplete,
       quarantinedHouseholdCount: households.filter((record) => record.provisioningState === "quarantined").length,
       householdCount: households.length,
-      householdsWithoutBackup: households.length,
-      oldestBackupAt: null,
+      householdsWithoutBackup: households.filter((record) => !this.backupCheckpoints.has(record.id)).length,
+      oldestBackupAt: [...this.backupCheckpoints.values()].map((record) => record.completedAt).sort()[0] ?? null,
+      lastFsckAt: verifications.map((record) => record.checkedAt).sort().at(-1) ?? null,
+      fsckFailureCount: verifications.filter((record) => !record.fsckValid).length,
+      lastSignatureCheckAt: verifications.map((record) => record.checkedAt).sort().at(-1) ?? null,
+      signatureFailureCount: verifications.filter((record) => !record.signaturesValid).length,
+      lastRestoreDrillAt: this.restoreDrill?.completedAt ?? null,
+      lastRestoreDrillSucceeded: this.restoreDrill?.succeeded ?? null,
       schemaVersion: "memory",
     };
   }

@@ -16,7 +16,7 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 
 - Architecture legibility: 4 - product, authority, adapter, and deployment boundaries are explicit and represented in the implementation; external staging proof remains incomplete.
 - Boundary parsing and type discipline: 4 - strict TypeScript contracts and runtime schemas cover HTTP, MCP, Git, provider, and persistence boundaries; provisioned-provider verification remains incomplete.
-- Test strength: 4 - the enforced deterministic coverage gate, contracts, dual-host evals, PostgreSQL integration, migrations, security fixtures, WebKit e2e, Git restore, and deployment smokes pass; full accessibility, load, and external compatibility suites remain open.
+- Test strength: 4 - the enforced deterministic coverage gate, contracts, dual-host evals, PostgreSQL integration, migrations, security fixtures, axe/WebKit accessibility, Git restore, and deployment smokes pass; manual accessibility, load, and external compatibility suites remain open.
 - Reliability and observability: 4 - durable reconciliation, fail-closed readiness, operator health, redacted structured events, protected OpenMetrics, encrypted/object-locked backup, persisted verification/drill state, and deployment controls exist; live provider and failover drills remain release blockers.
 - Security hardening: 4 - trust boundaries, typed authorization, central telemetry redaction, capability projection, OAuth/passkey controls, per-route rate limits, final-owner enforcement, and security fixtures exist; the complete adversarial and external staging suites remain open.
 - Documentation freshness: 4 - product, architecture, operations, release evidence, and the active ExecPlan reflect the implemented foundation and known blockers.
@@ -35,7 +35,7 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 - Native passkey compatibility still requires staging-origin evidence because Safari 26.5's advertised WebDriver virtual authenticator timed out during credential creation.
 - DigitalOcean Block Storage failover fencing, live Backblaze Object Lock behavior, Neon point-in-time recovery, external restore drills, and provisioned staging rollback remain unproven.
 - Real Neon, Apple, email, Codex, and Claude interoperability still needs non-production credentials and external compatibility evidence.
-- Full accessibility, load/race, privacy, secret-rotation, and manual release reviews remain no-go gates.
+- Manual VoiceOver/keyboard/zoom accessibility, load/race, privacy, secret-rotation, and manual release reviews remain no-go gates.
 
 ## Maintenance rule
 

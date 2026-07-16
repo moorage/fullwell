@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { renderWebRoute } from "../../apps/web/src/server.js";
 import { demoWebContext } from "../../apps/web/src/fixtures.js";
 
 test("serves a responsive, keyboard-usable install experience", async ({ page }, testInfo) => {
@@ -36,10 +35,11 @@ test("renders unknown capability links without private fixture data", async ({ p
 });
 
 test("renders account exports without overflow and exposes the advanced bundle option", async ({ page }, testInfo) => {
-  const [styles, rendered] = await Promise.all([
+  const [{ renderWebRoute }, styles] = await Promise.all([
+    import("../../apps/web/dist/server/server.js"),
     readFile(new URL("../../apps/web/src/styles.css", import.meta.url), "utf8"),
-    Promise.resolve(renderWebRoute("/account", demoWebContext)),
   ]);
+  const rendered = renderWebRoute("/account", demoWebContext);
   await page.setContent(`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${styles}</style></head><body>${rendered.appHtml}</body></html>`);
   await expect(page.getByRole("heading", { name: "Household exports" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Download ZIP" })).toHaveCount(demoWebContext.households.length);

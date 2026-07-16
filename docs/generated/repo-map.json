@@ -1607,6 +1607,10 @@
           "children": [
             {
               "type": "file",
+              "name": "accessibility.spec.ts"
+            },
+            {
+              "type": "file",
               "name": "web.spec.ts"
             }
           ]

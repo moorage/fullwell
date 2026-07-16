@@ -168,10 +168,16 @@ describe("security boundaries", () => {
     })).toThrow(/Only http and https URLs/);
   });
 
-  it("finds no recognizable credentials in tracked files or server environment access in browser source", async () => {
-    const listed = spawnSync("git", ["ls-files", "-z"], { cwd: process.cwd(), encoding: "utf8" });
+  it("finds no recognizable credentials in repository files or server environment access in browser source", async () => {
+    const listed = spawnSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    });
+    const deleted = spawnSync("git", ["ls-files", "-z", "--deleted"], { cwd: process.cwd(), encoding: "utf8" });
     expect(listed.status, listed.stderr).toBe(0);
-    const paths = listed.stdout.split("\0").filter((path) => path.length > 0);
+    expect(deleted.status, deleted.stderr).toBe(0);
+    const deletedPaths = new Set(deleted.stdout.split("\0").filter((path) => path.length > 0));
+    const paths = listed.stdout.split("\0").filter((path) => path.length > 0 && !deletedPaths.has(path));
     const tracked = (await Promise.all(paths.map(async (path) => await readFile(path, "utf8")))).join("\n");
     const secretSignatures = [
       /-----BEGIN (?:EC |OPENSSH |RSA )?PRIVATE KEY-----/,

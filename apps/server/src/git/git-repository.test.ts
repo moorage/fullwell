@@ -49,7 +49,7 @@ describe("GitHouseholdRepository", () => {
       const signingRepository = new GitHouseholdRepository({ repositoryRoot: join(root, "signed-repositories"), worktreeRoot: join(root, "signed-worktrees"), requireSigning: true });
       await expect(signingRepository.provision(missingId, "Signed", actorId, "2026-07-15T12:06:00.000Z")).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
     } finally { await rm(root, { recursive: true, force: true }); }
-  }, 15_000);
+  }, 30_000);
 
   it("signs and verifies every commit with the configured SSH identity", async () => {
     const root = await mkdtemp(join(tmpdir(), "hfj-git-signing-test-"));

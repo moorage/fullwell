@@ -30,8 +30,9 @@ Version 1 deploys one containerized service on one DigitalOcean Droplet. `/data/
 - [x] 2026-07-16T06:14Z: Implemented Ed25519-signed/JWE-encrypted backups through a Backblaze-compatible S3 adapter, compliance Object Lock verification, daily durable checkpoints, fsck/signature evidence, and automatic isolated restore drills with migration `0005`; 184 deterministic tests and nine PostgreSQL integration tests pass.
 - [x] 2026-07-16T15:59Z: Added Deque axe WCAG A/AA scans across 14 public, pending-intent, and authenticated screens, desktop/iPhone/320-pixel WebKit coverage, reduced-motion and overflow checks, a transient animation-contrast fix, and native macOS Safari accessibility-tree evidence; manual assistive-technology review remains open.
 - [x] 2026-07-16T16:06Z: Added deterministic load/race validation for concurrent MCP discovery, preview rate-limit shedding, unique correlation IDs, idempotent write fan-in, stale-head competitors, cross-tenant non-disclosure, and serialized same-household maintenance queues; provisioned soak/resource and OAuth/import/Neon load remain open.
-- [x] 2026-07-16T16:20Z: Completed the deterministic adversarial security matrix across authorization, CSRF/redirect/replay, Git/archive, request parsing, capability redaction, hostile/prompt-like rendering, URL schemes, tracked secrets, and browser/server configuration separation; external staging review and live rotation/provider exercises remain open.
+- [x] 2026-07-16T16:20Z: Completed the deterministic adversarial security matrix across authorization, CSRF/redirect/replay, Git/archive, request parsing, capability redaction, hostile/prompt-like rendering, URL schemes, repository secrets, and browser/server configuration separation; external staging review and live rotation/provider exercises remain open.
 - [x] 2026-07-16T16:29Z: Verified native 200 percent zoom and keyboard focus on representative public, sign-in, long legal, and error states in macOS 26.5.1 / Safari 26.5; authenticated journeys, VoiceOver, iPhone hardware, and non-Apple assistive-technology evidence remain open.
+- [x] 2026-07-16T16:37Z: Moved host catalogs to native repository discovery paths and passed isolated marketplace discovery and lifecycle tests on Codex CLI 0.144.4 and Claude Code 2.1.123; immutable npm publication and real staging workflows remain blocked.
 - [ ] 2026-07-16T06:14Z: Provisioned Backblaze/Neon recovery evidence, native passkey staging evidence, full validation, and external/manual review remain blocking; see `docs/release/verification-evidence.md`.
 - [ ] Milestone 0 - validate platform assumptions and approve ChatGPT-assisted information architecture and UI design.
 - [ ] Milestone 1 - establish the monorepo, shared contracts, generated schemas, fakes, and real quality gates.
@@ -250,8 +251,8 @@ Files:
 - `packages/agent-client/.codex-plugin/plugin.json`
 - `packages/agent-client/.claude-plugin/plugin.json`
 - `packages/agent-client/.mcp.json`
-- `packages/agent-client/marketplace/codex.json`
-- `packages/agent-client/marketplace/claude.json`
+- `.agents/plugins/marketplace.json`
+- `.claude-plugin/marketplace.json`
 - `packages/agent-client/install-metadata.json`
 - `packages/agent-client/tests/packaging/`
 - `tests/contract/`
@@ -743,4 +744,4 @@ Required public contracts include:
 
 ## Outcomes & Retrospective
 
-The coordinated version 1 foundation, durable reconciliation, authenticated portable exports, production rate limits/telemetry/operator health, encrypted immutable backup/restore, discoverable passkeys, browser account lifecycle, and deterministic adversarial security matrix are implemented and locally exercised across web, MCP/OAuth, Git, PostgreSQL, agent packaging, and DigitalOcean deployment assets. The enforced deterministic coverage gate passes. The plan remains active because the product specifications' release definition is not yet met: provisioned Backblaze/Neon recovery evidence, native passkey staging evidence, external staging/security review, cross-host compatibility, provisioned load and manual accessibility validation, and manual privacy/operations approvals remain blocking. Evidence and exact local results live in `docs/release/verification-evidence.md`. Move this plan to `docs/exec-plans/completed/` only after those gates pass.
+The coordinated version 1 foundation, durable reconciliation, authenticated portable exports, production rate limits/telemetry/operator health, encrypted immutable backup/restore, discoverable passkeys, browser account lifecycle, deterministic adversarial security matrix, and isolated Codex/Claude plugin lifecycles are implemented and locally exercised across web, MCP/OAuth, Git, PostgreSQL, agent packaging, and DigitalOcean deployment assets. The enforced deterministic coverage gate passes. The plan remains active because the product specifications' release definition is not yet met: immutable npm publication, provisioned Backblaze/Neon recovery evidence, native passkey staging evidence, external staging/security review, real cross-host interoperability, provisioned load and manual accessibility validation, and manual privacy/operations approvals remain blocking. Evidence and exact local results live in `docs/release/verification-evidence.md`. Move this plan to `docs/exec-plans/completed/` only after those gates pass.

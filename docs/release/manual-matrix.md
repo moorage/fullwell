@@ -4,9 +4,9 @@ Status values: `Not run`, `Pass`, `Fail`, `Blocked`, or `Not available`. A relea
 
 | Surface | Exact version/device | Install | OAuth | Setup | Invite | Share/revoke | Selective import | Upgrade/disable/uninstall | Evidence | Status |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Codex CLI | Record at run | Required | Required | Required | Required | Required | Required | Required | Link | Not run |
+| Codex CLI | 0.144.4 | Local marketplace install/remove pass; public npm release blocked | Staging blocked | Staging blocked | Staging blocked | Staging blocked | Staging blocked | Remove/reinstall pass; disable unavailable in CLI | `verification-evidence.md` | Blocked |
 | ChatGPT desktop Codex | Record at run | When available | Required | Required | Required | Required | Required | Required | Link | Not run |
-| Claude Code CLI | Record at run | Required | Required | Required | Required | Required | Required | Required | Link | Not run |
+| Claude Code CLI | 2.1.123 | Local marketplace install pass; public npm release blocked | Staging blocked | Staging blocked | Staging blocked | Staging blocked | Staging blocked | Update/disable/re-enable/uninstall pass | `verification-evidence.md` | Blocked |
 | Claude Cowork/Desktop | Record at run | When available | Required | Required | Required | Required | Required | Required | Link | Not run |
 | Safari macOS | macOS 26.5.1 / Safari 26.5 | Keyboard + 200% pass | Provider staging blocked | Staging blocked | Staging blocked | Staging blocked | Staging blocked | N/A | `verification-evidence.md` | Blocked |
 | Safari iPhone | Record iOS/Safari/device | Install page | Auth browser | Required | Required | Web Share and fallback | Required | N/A | Link | Not run |

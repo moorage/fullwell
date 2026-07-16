@@ -11,6 +11,16 @@
       "children": [
         {
           "type": "dir",
+          "name": "plugins",
+          "children": [
+            {
+              "type": "file",
+              "name": "marketplace.json"
+            }
+          ]
+        },
+        {
+          "type": "dir",
           "name": "skills",
           "children": [
             {
@@ -98,6 +108,16 @@
               ]
             }
           ]
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "name": ".claude-plugin",
+      "children": [
+        {
+          "type": "file",
+          "name": "marketplace.json"
         }
       ]
     },
@@ -1291,20 +1311,6 @@
               "name": "install-metadata.json"
             },
             {
-              "type": "dir",
-              "name": "marketplace",
-              "children": [
-                {
-                  "type": "file",
-                  "name": "claude.json"
-                },
-                {
-                  "type": "file",
-                  "name": "codex.json"
-                }
-              ]
-            },
-            {
               "type": "file",
               "name": "package.json"
             },
@@ -1410,6 +1416,10 @@
                   "type": "dir",
                   "name": "packaging",
                   "children": [
+                    {
+                      "type": "file",
+                      "name": "host-lifecycle.test.mjs"
+                    },
                     {
                       "type": "file",
                       "name": "package.test.mjs"

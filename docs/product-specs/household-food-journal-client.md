@@ -244,6 +244,26 @@ When the agent finds an existing Household Food Journal workspace, offer a one-t
 Use this target layout unless current platform validation requires a narrowly documented adjustment:
 
 ```text
+repo-root/
+|-- .agents/plugins/marketplace.json
+|-- .claude-plugin/marketplace.json
+`-- packages/agent-client/
+    |-- .codex-plugin/
+    |   `-- plugin.json
+    |-- .claude-plugin/
+    |   `-- plugin.json
+    |-- .mcp.json
+    |-- skills/
+    |-- references/
+    |-- evals/
+    |-- tests/
+    |-- README.md
+    `-- CHANGELOG.md
+```
+
+The marketplace catalogs live at the repository paths discovered by their hosts: `.agents/plugins/marketplace.json` for Codex and `.claude-plugin/marketplace.json` for Claude. Both catalogs must reference the same immutable published npm package version. The installed package contains the host manifests and shared implementation:
+
+```text
 packages/agent-client/
 |-- .codex-plugin/
 |   `-- plugin.json
@@ -273,7 +293,7 @@ packages/agent-client/
 `-- CHANGELOG.md
 ```
 
-The two host manifests and marketplace catalogs are packaging adapters. They must point to the same `skills/` directory and the same remote MCP URL. Do not fork the skill instructions by host.
+The two host manifests and marketplace catalogs are packaging adapters. They must resolve to the same `skills/` directory and the same remote MCP URL. Do not fork the skill instructions by host.
 
 Each `SKILL.md` must have only `name` and `description` in YAML frontmatter so the shared files satisfy both hosts. Keep each skill under 500 lines and link directly to relevant reference files rather than duplicating large contracts.
 
@@ -410,6 +430,7 @@ Do not expose stack traces, repository paths, commit-signing details, internal a
 - Assert both host packages reference the same skill files and MCP URL.
 - Assert packaged files contain no token-like secrets or household data.
 - Assert every referenced file is included in each installed plugin cache.
+- Exercise marketplace discovery, installation, update or reinstallation, disable/re-enable where supported, removal, and marketplace cleanup in isolated host configuration directories when the current CLIs are available.
 - Run the current official Codex and Claude plugin validators where available.
 
 ### 12.2 MCP contract tests

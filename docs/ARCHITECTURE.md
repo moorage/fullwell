@@ -61,7 +61,7 @@ External input is parsed once at the owning boundary. Compile-time types alone d
 
 Purpose: package shared Codex and Claude skills, host manifests, remote MCP configuration, references, deterministic packaging checks, contract tests, and agent evals.
 
-Path: `packages/agent-client/`
+Path: `packages/agent-client/`, with repository discovery catalogs at `.agents/plugins/marketplace.json` for Codex and `.claude-plugin/marketplace.json` for Claude.
 
 The agent client never contains canonical household data, account state, credentials, a Git synchronization engine, or a programmatic semantic classifier. Codex and Claude use the same skill source files and the same remote MCP endpoint.
 

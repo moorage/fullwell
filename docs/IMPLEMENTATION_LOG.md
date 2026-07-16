@@ -6,7 +6,7 @@
   - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
 
-- current milestone: completed deterministic local adversarial security after automated accessibility and load/race hardening; the active ExecPlan remains open on external security review, provisioned load, manual accessibility, recovery, staging, and release blockers recorded in `docs/release/verification-evidence.md`
+- current milestone: completed deterministic local adversarial security and isolated Codex/Claude host lifecycle verification after automated accessibility and load/race hardening; the active ExecPlan remains open on npm publication, external security review, provisioned load, manual accessibility, recovery, staging, and release blockers recorded in `docs/release/verification-evidence.md`
 - implemented React 19.2 SSR/hydration, server-authorized web contexts, public collection privacy states, no-JavaScript forms, Fastify MCP/OAuth, Apple/Resend adapters, Neon persistence, Git mutation/import provenance, reversible migrations, shared contracts, and the Codex/Claude agent package
 - implemented DigitalOcean OpenTofu, Block Storage initialization checks, pinned Node 24 Docker build, Compose/Caddy/systemd deployment, local deployment/MCP smokes, legal drafts, and operations/release runbooks
 - verified macOS Safari through Computer Use, including the native Codex/Claude toggle state, anonymous account redirect, preserved `/account` pending intent, labeled sign-in controls, and visible focus; 18 automated WebKit checks pass with six project-specific skips across desktop, iPhone, 320x568, and JavaScript-disabled modes
@@ -19,7 +19,8 @@
 - implemented daily fsck/signature-verified Git bundles, Ed25519-signed manifests, JWE authenticated encryption, generic S3-compatible Backblaze uploads with compliance retention checks, reversible backup-evidence migration, durable operator status, and automatic monthly isolated restore drills
 - added Deque axe WCAG 2.0/2.1/2.2 A/AA scans over five live public routes and nine production-SSR screens, fixed transient entrance-animation contrast, asserted reduced motion and responsive overflow, and made Playwright consume the production SSR bundle
 - added a real Fastify/MCP load gate covering 100-request discovery bursts, preview shedding, unique request IDs, 32-request idempotent fan-in, competing stale writes, 50 cross-tenant reads, and 100-operation household lock queues with cross-household progress
-- added adversarial Fastify and React coverage for bounded parser rejection, capability-safe telemetry, hostile/prompt-like public content, HTTP(S)-only web URLs, recognizable tracked-secret absence, and browser/server environment separation; disabled production browser source maps
+- added adversarial Fastify and React coverage for bounded parser rejection, capability-safe telemetry, hostile/prompt-like public content, HTTP(S)-only web URLs, recognizable repository-secret absence, and browser/server environment separation; disabled production browser source maps
+- moved Codex and Claude catalogs to their repository discovery paths and verified Codex CLI 0.144.4 install/remove plus Claude Code 2.1.123 install/update/disable/re-enable/uninstall in isolated host configuration directories
 - fixed Neon account leave reusing its existing household transaction instead of opening a second transaction that waits on the same advisory lock
 - expanded deterministic unit, component, domain, service, adapter, worker, HTTP view-model, React interaction, load, and security coverage to 97.07% statements/lines, 95.07% functions, and 90.46% branches across 191 passing tests
 - expanded WebKit evidence to 18 passing checks with six intentional project-specific skips, including axe, reduced motion, export layout, native disclosure, and overflow assertions; manual VoiceOver, authenticated keyboard/zoom, and hardware-device review remain open
@@ -35,6 +36,9 @@
   - `npm run test:security`
   - `npm run test:load`
   - `npm run test:restore`
+  - `npm run test:packaging --workspace @fullwell/household-food-journal-agent`
+  - `npm pack --dry-run --json --workspace @fullwell/household-food-journal-agent`
+  - `claude plugin validate packages/agent-client`
   - `npm run test:e2e`
   - `npm run capture:screencast -- --output artifacts/screencasts/account-export.mp4` (unsupported: macOS ffmpeg has no `x11grab` input)
   - `TEST_DATABASE_URL=... npm run test:integration`
@@ -42,7 +46,9 @@
   - `PUBLIC_BASE_URL=http://127.0.0.1:4187 npm run test:deploy-smoke`
   - `PUBLIC_BASE_URL=http://127.0.0.1:4187 npm run test:mcp-smoke`
   - Docker build, Compose render, Caddy validate, OpenTofu init/validate, and `npm audit --omit=dev`
+  - `npm run verify`
 - blocking results:
+  - the immutable npm package is not published, so public marketplace install returns `E404` and real host OAuth/setup workflows remain blocked
   - provisioned Backblaze Object Lock, Neon PITR/snapshot recovery, DigitalOcean failover, external staging, native passkey compatibility, and manual release reviews remain incomplete
   - Safari 26.5 accepted a WebDriver virtual authenticator but timed out creating a credential; the deterministic cryptographic/provider policy and browser-action suites pass, while native staging evidence remains open
 

@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const workspaceRoot = path.resolve(root, "../..");
 
 export const requiredSkills = [
   "audit-grocery-purchases",
@@ -57,6 +58,8 @@ const requiredEvalIds = [
 
 const readJson = async (relativePath) =>
   JSON.parse(await readFile(path.join(root, relativePath), "utf8"));
+const readWorkspaceJson = async (relativePath) =>
+  JSON.parse(await readFile(path.join(workspaceRoot, relativePath), "utf8"));
 
 const walk = async (directory) => {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -103,8 +106,8 @@ export const validatePackage = async () => {
       readJson(".codex-plugin/plugin.json"),
       readJson(".claude-plugin/plugin.json"),
       readJson(".mcp.json"),
-      readJson("marketplace/codex.json"),
-      readJson("marketplace/claude.json"),
+      readWorkspaceJson(".agents/plugins/marketplace.json"),
+      readWorkspaceJson(".claude-plugin/marketplace.json"),
       readJson("install-metadata.json"),
       readJson("evals/cases/v1.json")
     ]);
@@ -130,6 +133,9 @@ export const validatePackage = async () => {
     assert(plugin.source?.package === packageJson.name, `Marketplace ${market.name} package differs`);
     assert(plugin.source?.version === packageJson.version, `Marketplace ${market.name} version differs`);
   }
+  const codexMarketPlugin = codexMarket.plugins.find((candidate) => candidate.name === codex.name);
+  assert(codexMarketPlugin.policy?.installation === "AVAILABLE", "Codex marketplace installation policy must be AVAILABLE");
+  assert(codexMarketPlugin.policy?.authentication === "ON_USE", "Codex marketplace authentication policy must be ON_USE");
 
   await Promise.all([validatePath(codex.skills), validatePath(codex.mcpServers)]);
   const skillDirectories = (await readdir(path.join(root, "skills"), { withFileTypes: true }))

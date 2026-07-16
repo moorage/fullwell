@@ -30,6 +30,7 @@
     "test:persistence-smoke": "node scripts/ci/persistence-smoke.mjs",
     "test:migrations": "node scripts/ci/test-migrations.mjs",
     "test:mcp-smoke": "node scripts/ci/mcp-smoke.mjs",
+    "migrate": "node scripts/ci/apply-migrations.mjs",
     "verify": "npm run lint && npm run typecheck && npm run build && npm run test:unit && npm run test:app && npm run verify:ideas && npm run verify:docs && npm run verify:execplan",
     "verify:ideas": "python3 scripts/check_ideation.py",
     "verify:docs": "python3 scripts/knowledge/check_docs.py",
@@ -40,7 +41,7 @@
     "self-improve:context": "node scripts/self-improvement/update-context-ledger.mjs",
     "test:self-improvement": "node scripts/self-improvement/self-improvement.test.mjs",
     "test:knowledge": "python3 scripts/knowledge/suggest_doc_updates.test.py",
-    "test:unit": "npm run test:git-hooks && npm run test:self-improvement && npm run test:knowledge",
+    "test:unit": "npm run test:git-hooks && node scripts/ci/apply-migrations.test.mjs && npm run test:self-improvement && npm run test:knowledge",
     "capture:screencast": "node scripts/ci/record_screencast.mjs",
     "capture:screencast:run": "node scripts/ci/run_with_screencast.mjs"
   },

@@ -70,6 +70,10 @@ Do not log or label metrics with access/refresh/share/invitation tokens, emails,
 
 This deterministic gate validates invariants, not production capacity. Staging still requires networked latency, sustained/soak, Neon pool and advisory-lock wait, OAuth token, collection import, maintenance overlap, and resource-saturation measurements on the selected Droplet size.
 
+## Database releases
+
+Run schema changes only through `npm run migrate` with a direct Neon URL, an exact expected host, and an explicit staging or production target. The runner rejects pooled/non-TLS endpoints and changed applied migrations, requires an additional production confirmation, holds a transaction-scoped advisory lock, and commits each migration with its content-hash ledger row. Rehearse reversibility against a disposable local database and prove forward application plus idempotent re-entry on an isolated Neon branch before production.
+
 ## Required verification
 
 As implementation lands, add real commands for unit, contract, Neon integration, Git integration, OAuth/MCP interoperability, security, agent eval, browser e2e, backup/restore, and deployed persistence smoke tests. The deployed smoke must prove that a canary repository survives a container restart and a controlled Droplet failover procedure without using production household data.

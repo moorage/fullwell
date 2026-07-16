@@ -18,7 +18,7 @@
 
 ## Local automated evidence
 
-- `npm run test:security` passes direct public-snapshot, unsafe-path/archive, malformed/unsupported/oversized-body, capability-log, hostile-rendering, prompt-content, URL-scheme, and tracked-secret probes.
+- `npm run test:security` passes direct public-snapshot, unsafe-path/archive, malformed/unsupported/oversized-body, capability-log, hostile-rendering, prompt-content, URL-scheme, and tracked/untracked repository-secret probes.
 - The broader deterministic suite covers cross-household substitution, role/scope enforcement, CSRF, redirect validation, OAuth/passkey replay, refresh reuse, invitation/share non-enumeration, final-owner/idempotency races, Git object rejection, export claims, and central telemetry redaction.
 - This evidence is implementation proof only. Reviewer identity, build digest, staging configuration, external probing, and approval remain unrecorded and release-blocking.
 

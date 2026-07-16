@@ -1502,6 +1502,14 @@
           "children": [
             {
               "type": "file",
+              "name": "apply-migrations.mjs"
+            },
+            {
+              "type": "file",
+              "name": "apply-migrations.test.mjs"
+            },
+            {
+              "type": "file",
               "name": "deploy-smoke.mjs"
             },
             {

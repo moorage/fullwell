@@ -19,3 +19,4 @@
 - Added a deterministic load/race gate for MCP discovery, public-preview shedding, request correlation, idempotent mutation fan-in, competing stale writes, cross-tenant reads, and same-household maintenance serialization.
 - Added adversarial request, XSS/prompt-content, capability-redaction, URL-scheme, and repository-secret coverage; parser failures now return bounded 400/413/415 responses and production browser source maps are disabled.
 - Moved the shared agent package catalogs to the repository-native Codex and Claude marketplace discovery paths and added isolated host install, update, disable, and removal lifecycle validation.
+- Added a fail-closed direct-Neon migration runner with exact-host and production confirmation gates, TLS enforcement, advisory locking, and content-hashed migration ledger updates.

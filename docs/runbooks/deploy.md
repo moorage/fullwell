@@ -40,7 +40,7 @@ Put only `PUBLIC_DOMAIN`, the immutable `HFJ_IMAGE` digest, and the non-secret o
 
 1. Run `deploy/scripts/verify-volume.sh` and `docker compose config --quiet` from `deploy/` under the service credential context.
 2. Pull the digest-pinned app and gateway images.
-3. Run the release migration command as an explicit one-shot operation using the direct Neon credential. Do not let application startup apply migrations.
+3. Run `MIGRATION_TARGET=<staging|production> MIGRATION_EXPECTED_HOST=<exact-direct-host> npm run migrate` as an explicit one-shot operation with `DATABASE_DIRECT_URL` supplied through the service credential context. Production also requires `CONFIRM_PRODUCTION_MIGRATION=APPLY_PRODUCTION_MIGRATIONS`. The command rejects pooled endpoints, host mismatches, non-TLS connections, changed applied migrations, and concurrent ledger updates. Do not let application startup apply migrations.
 4. Start `household-food-journal.service`. Enable and start `household-food-journal-maintenance.timer` only after readiness is green.
 5. Verify `/health/live` and `/health/ready`, then call `/health/operator` and `/metrics` with `Authorization: Bearer <operator-token>`. Public readiness must show schema `0005`, pooled Neon, expected mount identity/writability, Git/signing, and single-writer leadership without counts or paths. Operator health must show reconciliation age/count, quarantine count, backup gaps/age, fsck/signature failures, restore-drill freshness, and capacity; OpenMetrics must expose the matching gauges. A normal OAuth token must receive `401` with `Bearer realm="operator"`.
 6. Run non-destructive install, OAuth metadata, MCP health, public-policy, canary repository, container-restart persistence, and log-redaction smoke tests.

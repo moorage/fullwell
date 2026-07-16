@@ -1016,6 +1016,8 @@ Deploy one containerized application process on one DigitalOcean Droplet initial
 
 Do not deploy the authoritative repository store on DigitalOcean App Platform or any ephemeral container filesystem. Do not place live `.git` directories on the Droplet root filesystem, in Dropbox, iCloud Drive, Google Drive, or another desktop sync folder.
 
+Database releases must run through an explicit one-shot migration command, never application startup. The command must bind to an operator-supplied exact direct host, reject pooled or non-TLS endpoints, require an additional production confirmation, serialize with a database advisory lock, record a content hash for every applied migration, and reject changes to applied migration files.
+
 Before horizontal scaling, prove that transaction-scoped Neon advisory locking, shared persistent repository storage, Git filesystem semantics, writer fencing, and split-brain prevention are safe on the chosen platform. Otherwise remain single-instance with a documented Droplet and volume failover procedure.
 
 ## 23. Delivery phases

@@ -2,10 +2,10 @@ import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import type { GitObjectId, HouseholdId } from "@hfj/contracts";
+import type { GitObjectId, HouseholdId, RequestId } from "@hfj/contracts";
 import { GitObjectIdSchema } from "@hfj/contracts";
 import { AppError } from "../core/errors.js";
-import type { CommitMetadata, HouseholdRepositoryPort, RepositoryChange } from "../core/ports.js";
+import type { CommitMetadata, HouseholdRepositoryPort, RepositoryChange, RepositorySnapshot } from "../core/ports.js";
 import { stableJson, validateRepositoryPath } from "../adapters/memory.js";
 
 interface GitRepositoryOptions {
@@ -45,6 +45,31 @@ export class GitHouseholdRepository implements HouseholdRepositoryPort {
 
   async head(householdId: HouseholdId): Promise<GitObjectId> {
     return GitObjectIdSchema.parse((await git(["--git-dir", this.repositoryPath(householdId), "rev-parse", "refs/heads/main"])).trim());
+  }
+
+  async findCommitByRequestId(householdId: HouseholdId, requestId: RequestId): Promise<GitObjectId | null> {
+    const output = (await git([
+      "--git-dir", this.repositoryPath(householdId), "log", "refs/heads/main", "--format=%H",
+      `--grep=^Request-ID: ${requestId}$`, "--max-count=1",
+    ])).trim();
+    return output === "" ? null : GitObjectIdSchema.parse(output);
+  }
+
+  async snapshot(householdId: HouseholdId): Promise<RepositorySnapshot> {
+    const repository = this.repositoryPath(householdId);
+    const head = await this.head(householdId);
+    const paths = (await git(["--git-dir", repository, "ls-tree", "-r", "--name-only", "refs/heads/main"])).trim().split("\n").filter(Boolean);
+    if (paths.length > 10_000) throw new AppError("PROJECTION_DRIFT", "Household repository contains too many files to reconcile");
+    const files = [];
+    for (const path of paths) {
+      validateRepositoryPath(path);
+      const [content, revisionOutput] = await Promise.all([
+        git(["--git-dir", repository, "show", `refs/heads/main:${path}`]),
+        git(["--git-dir", repository, "log", "-1", "--format=%H", "refs/heads/main", "--", path]),
+      ]);
+      files.push({ path, content, revision: GitObjectIdSchema.parse(revisionOutput.trim()) });
+    }
+    return { head, files };
   }
 
   async commit(householdId: HouseholdId, expectedHead: GitObjectId, changes: ReadonlyArray<RepositoryChange>, metadata: CommitMetadata): Promise<GitObjectId> {

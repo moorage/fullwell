@@ -87,3 +87,10 @@ export interface HouseholdProjection {
   readonly profiles: Map<string, { markdown: string; revision: GitObjectId }>;
   readonly collections: Map<string, { snapshot: CollectionSnapshot; revision: GitObjectId }>;
 }
+
+export interface RepositoryMembershipState {
+  readonly actorId: ActorId;
+  readonly role: Role | null;
+  readonly removedAt: string | null;
+  readonly userId: UserId | null;
+}

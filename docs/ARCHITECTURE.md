@@ -73,6 +73,8 @@ Planned paths: `migrations/` and `apps/server/src/persistence/`.
 
 Runtime traffic may use Neon's pooled connection endpoint. Migrations, backup utilities, and operations requiring session semantics use a direct connection. Household write serialization uses a transaction-scoped advisory lock held on the same checked-out connection and transaction as the durable mutation state transition; never rely on session-scoped locks through PgBouncer.
 
+Post-commit recovery uses the request ID in the Git commit trailer and audit document as its replay anchor. Each in-flight idempotency key is bound to a hashed canonical request. Mutation handlers derive generated IDs, timestamps, and capability material from the durable request identity so a matching retry can reproduce the original projection and response without another commit, while changed input fails before projection. The scheduled maintenance CLI snapshots Git main with each file's last revision, rebuilds journal and membership projections under the same household lock, advances recoverable mutations to `projections_applied`, marks abandoned pre-commit requests failed, and quarantines repositories or identity mappings that cannot be projected safely.
+
 ### Household Git store
 
 Purpose: keep one signed bare repository per household under `/data/households/<household-uuid>.git`.
@@ -122,7 +124,7 @@ The production health path must distinguish process readiness, Neon reachability
 
 ## Current release limitations
 
-The application foundation, WebAuthn passkeys, browser account lifecycle, 22-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, agent package, and DigitalOcean deployment assets are implemented. Version 1 is not production-ready while durable reconciliation, encrypted off-site backup, readable ZIP downloads, production telemetry/rate limits, external staging compatibility, and native passkey compatibility evidence remain open in the active ExecPlan.
+The application foundation, durable Git-to-Neon reconciliation, WebAuthn passkeys, browser account lifecycle, 22-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, agent package, and DigitalOcean deployment assets are implemented. Version 1 is not production-ready while encrypted off-site backup, readable ZIP downloads, production telemetry/rate limits, external staging compatibility, and native passkey compatibility evidence remain open in the active ExecPlan.
 
 ## Maintenance rules
 

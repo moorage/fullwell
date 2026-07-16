@@ -99,24 +99,38 @@ export class HouseholdFoodJournalService {
   private async createHousehold(input: unknown, principal: Principal): Promise<WriteResult> {
     const parsed = ToolInputSchemas.hfj_create_household.parse(input);
     requireScope(principal, "household:manage");
-    const replay = await this.replay(principal, "hfj_create_household", parsed.idempotency_key);
-    if (replay !== null) return replay;
-    const requestId = this.requestId();
-    const now = this.now();
-    const householdId = HouseholdIdSchema.parse(this.random.opaqueId("hsh"));
-    await this.store.saveMutation(this.mutationRecord(requestId, principal, "hfj_create_household", parsed.idempotency_key, null, now));
-    try {
-      const head = await this.repository.provision(householdId, parsed.name, principal.actorId, now);
-      const owner: MembershipRecord = { householdId, userId: principal.userId, actorId: principal.actorId, role: "owner", projectionHead: head, removedAt: null };
-      await this.store.createHousehold({ id: householdId, name: parsed.name, repositoryHead: head, provisioningState: "ready", createdAt: now }, owner);
-      await this.store.setDefaultHousehold(principal.userId, householdId);
-      const data = { status: "completed", household_id: householdId, role: "owner", onboarding_state: "ready" } satisfies Record<string, JsonValue>;
-      await this.store.transitionMutation(requestId, "completed", { commitId: head, response: data });
-      return { data, head, requestId };
-    } catch (error) {
-      await this.store.transitionMutation(requestId, "failed_before_commit", { failure: errorName(error) });
-      throw error;
+    const existing = await this.store.getMutation(principal.userId, "hfj_create_household", parsed.idempotency_key);
+    if (existing?.state === "completed" && existing.response !== null && existing.commitId !== null) return { data: existing.response, head: existing.commitId, requestId: existing.requestId };
+    if (existing?.state === "quarantined") throw new AppError("RECONCILIATION_REQUIRED", "Household provisioning is quarantined for operator review");
+    const requestId = existing?.requestId ?? this.requestId();
+    const occurredAt = existing?.createdAt ?? this.now();
+    const householdName = typeof existing?.response?.provisioning_name === "string" ? existing.response.provisioning_name : parsed.name;
+    const householdId = HouseholdIdSchema.parse(this.mutationId("hsh", requestId, "household"));
+    if (existing === null) {
+      const record = this.mutationRecord(requestId, principal, "hfj_create_household", parsed.idempotency_key, null, occurredAt);
+      record.response = { provisioning_name: householdName };
+      await this.store.saveMutation(record);
     }
+    const outcome = await this.store.withHouseholdLock(householdId, async () => {
+      let head: GitObjectId | null = existing?.commitId ?? null;
+      try {
+        head ??= await this.repository.provision(householdId, householdName, principal.actorId, occurredAt);
+        await this.store.transitionMutation(requestId, "git_committed", { commitId: head });
+        if (await this.store.getHousehold(householdId) === null) {
+          const owner: MembershipRecord = { householdId, userId: principal.userId, actorId: principal.actorId, role: "owner", projectionHead: head, removedAt: null };
+          await this.store.createHousehold({ id: householdId, name: householdName, repositoryHead: head, provisioningState: "ready", createdAt: occurredAt }, owner);
+        }
+        await this.store.setDefaultHousehold(principal.userId, householdId);
+        const data = { status: "completed", household_id: householdId, role: "owner", onboarding_state: "ready" } satisfies Record<string, JsonValue>;
+        await this.store.transitionMutation(requestId, "completed", { commitId: head, response: data });
+        return { status: "completed" as const, data, head };
+      } catch (error) {
+        await this.store.transitionMutation(requestId, head === null ? "failed_before_commit" : "reconciliation_required", { ...(head === null ? {} : { commitId: head }), failure: errorName(error) });
+        return { status: "failed" as const, error };
+      }
+    });
+    if (outcome.status === "failed") throw outcome.error;
+    return { data: outcome.data, head: outcome.head, requestId };
   }
 
   private async selectHousehold(input: unknown, principal: Principal): Promise<ReadResult> {
@@ -129,16 +143,25 @@ export class HouseholdFoodJournalService {
 
   private async createInvite(input: unknown, principal: Principal): Promise<WriteResult> {
     const parsed = ToolInputSchemas.hfj_create_family_invite.parse(input);
-    const token = this.random.token(32);
-    const invitationId = InvitationIdSchema.parse(this.random.opaqueId("inv"));
-    const expiresAt = new Date(this.clock.now().getTime() + parsed.expires_in_days * 86_400_000).toISOString();
+    const invitation = (requestId: RequestId, occurredAt: string) => {
+      const token = this.mutationToken(requestId, "invitation");
+      return {
+        token,
+        id: InvitationIdSchema.parse(this.mutationId("inv", requestId, "invitation")),
+        expiresAt: new Date(Date.parse(occurredAt) + parsed.expires_in_days * 86_400_000).toISOString(),
+      };
+    };
     return await this.mutations.run({
-      principal, tool: "hfj_create_family_invite", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      principal, tool: "hfj_create_family_invite", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_create_family_invite", parsed),
       expectedHead: parsed.expected_head, minimumRole: "owner", requiredScope: "household:manage", summary: "members: create family invitation",
-      buildChanges: async () => [{ path: `members/invitations/${invitationId}.md`, content: markdownDocument({ id: invitationId, role: parsed.role, expires_at: expiresAt, status: "pending", schema_version: 1 }, ""), appendOnly: false }],
-      applyProjection: async () => {
-        await this.store.saveInvitation({ id: invitationId, householdId: parsed.household_id, tokenHash: this.hasher.hash(token), role: parsed.role, expiresAt, intendedEmailHint: parsed.intended_email_hint ?? null, acceptedAt: null, revokedAt: null });
-        return { status: "completed", invitation_id: invitationId, role: parsed.role, expires_at: expiresAt, url: new URL(`/invite/family/${token}`, this.publicOrigin).toString() };
+      buildChanges: async (requestId, occurredAt) => {
+        const planned = invitation(requestId, occurredAt);
+        return [{ path: `members/invitations/${planned.id}.md`, content: markdownDocument({ id: planned.id, role: parsed.role, expires_at: planned.expiresAt, status: "pending", schema_version: 1 }, ""), appendOnly: false }];
+      },
+      applyProjection: async (_head, requestId, occurredAt) => {
+        const planned = invitation(requestId, occurredAt);
+        await this.store.saveInvitation({ id: planned.id, householdId: parsed.household_id, tokenHash: this.hasher.hash(planned.token), role: parsed.role, expiresAt: planned.expiresAt, intendedEmailHint: parsed.intended_email_hint ?? null, acceptedAt: null, revokedAt: null });
+        return { status: "completed", invitation_id: planned.id, role: parsed.role, expires_at: planned.expiresAt, url: new URL(`/invite/family/${planned.token}`, this.publicOrigin).toString() };
       },
     });
   }
@@ -148,24 +171,20 @@ export class HouseholdFoodJournalService {
     const invitation = await this.store.findInvitationByTokenHash(this.hasher.hash(parsed.token));
     if (invitation === null) throw new AppError("NOT_FOUND", "Family invitation was not found");
     if (invitation.revokedAt !== null) throw new AppError("INVITE_REVOKED", "Family invitation was revoked");
-    if (invitation.acceptedAt !== null || Date.parse(invitation.expiresAt) <= this.clock.now().getTime()) throw new AppError("INVITE_EXPIRED", "Family invitation has expired or was already used");
-    const replay = await this.replay(principal, "hfj_accept_family_invite", parsed.idempotency_key);
-    if (replay !== null) return replay;
-    const requestId = this.requestId();
-    const now = this.now();
-    await this.store.saveMutation(this.mutationRecord(requestId, principal, "hfj_accept_family_invite", parsed.idempotency_key, invitation.householdId, now));
-    return await this.store.withHouseholdLock(invitation.householdId, async () => {
-      const current = await this.repository.head(invitation.householdId);
-      const head = await this.repository.commit(invitation.householdId, current, [{ path: `members/${principal.actorId}.md`, content: markdownDocument({ actor_id: principal.actorId, role: invitation.role, schema_version: 1 }, ""), appendOnly: false }], {
-        requestId, householdId: invitation.householdId, actorId: principal.actorId, tool: "hfj_accept_family_invite", client: principal.client, summary: "members: accept family invitation", occurredAt: now,
-      });
-      invitation.acceptedAt = now;
-      await this.store.saveInvitation(invitation);
-      await this.store.upsertMembership({ householdId: invitation.householdId, userId: principal.userId, actorId: principal.actorId, role: invitation.role, projectionHead: head, removedAt: null });
-      await this.updateAllHeads(invitation.householdId, head);
-      const data = { status: "completed", household_id: invitation.householdId, role: invitation.role } satisfies Record<string, JsonValue>;
-      await this.store.transitionMutation(requestId, "completed", { commitId: head, response: data });
-      return { data, head, requestId };
+    const existing = await this.store.getMutation(principal.userId, "hfj_accept_family_invite", parsed.idempotency_key);
+    if (existing === null && (invitation.acceptedAt !== null || Date.parse(invitation.expiresAt) <= this.clock.now().getTime())) {
+      throw new AppError("INVITE_EXPIRED", "Family invitation has expired or was already used");
+    }
+    return await this.mutations.run({
+      principal, tool: "hfj_accept_family_invite", householdId: invitation.householdId, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_accept_family_invite", parsed),
+      expectedHead: null, minimumRole: null, requiredScope: "household:manage", summary: "members: accept family invitation",
+      buildChanges: async () => [{ path: `members/${principal.actorId}.md`, content: markdownDocument({ actor_id: principal.actorId, role: invitation.role, schema_version: 1 }, ""), appendOnly: false }],
+      applyProjection: async (head, _requestId, occurredAt) => {
+        invitation.acceptedAt = occurredAt;
+        await this.store.saveInvitation(invitation);
+        await this.store.upsertMembership({ householdId: invitation.householdId, userId: principal.userId, actorId: principal.actorId, role: invitation.role, projectionHead: head, removedAt: null });
+        return { status: "completed", household_id: invitation.householdId, role: invitation.role };
+      },
     });
   }
 
@@ -173,12 +192,11 @@ export class HouseholdFoodJournalService {
     const parsed = ToolInputSchemas.hfj_revoke_family_invite.parse(input);
     const invitation = await this.store.getInvitation(parsed.invitation_id);
     if (invitation === null || invitation.householdId !== parsed.household_id) throw new AppError("NOT_FOUND", "Family invitation was not found");
-    const now = this.now();
     return await this.mutations.run({
-      principal, tool: "hfj_revoke_family_invite", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      principal, tool: "hfj_revoke_family_invite", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_revoke_family_invite", parsed),
       expectedHead: parsed.expected_head, minimumRole: "owner", requiredScope: "household:manage", summary: "members: revoke family invitation",
       buildChanges: async () => [{ path: `members/invitations/${invitation.id}.md`, content: markdownDocument({ id: invitation.id, role: invitation.role, expires_at: invitation.expiresAt, status: "revoked", schema_version: 1 }, ""), appendOnly: false }],
-      applyProjection: async () => { invitation.revokedAt = now; await this.store.saveInvitation(invitation); return { status: "completed", invitation_id: invitation.id, revoked_at: now }; },
+      applyProjection: async (_head, _requestId, occurredAt) => { invitation.revokedAt = occurredAt; await this.store.saveInvitation(invitation); return { status: "completed", invitation_id: invitation.id, revoked_at: occurredAt }; },
     });
   }
 
@@ -196,7 +214,7 @@ export class HouseholdFoodJournalService {
     if (member === undefined) throw new AppError("NOT_FOUND", "Household member was not found");
     await this.assertFinalOwner(parsed.household_id, member, parsed.role === "owner");
     return await this.mutations.run({
-      principal, tool: "hfj_update_member", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      principal, tool: "hfj_update_member", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_update_member", parsed),
       expectedHead: parsed.expected_head, minimumRole: "owner", requiredScope: "household:manage", summary: "members: update household role",
       buildChanges: async () => [{ path: `members/${member.actorId}.md`, content: markdownDocument({ actor_id: member.actorId, role: parsed.role, schema_version: 1 }, ""), appendOnly: false }],
       applyProjection: async (head) => { member.role = parsed.role; member.projectionHead = head; await this.store.upsertMembership(member); return { status: "completed", actor_id: member.actorId, role: member.role }; },
@@ -208,12 +226,11 @@ export class HouseholdFoodJournalService {
     const member = (await this.store.listHouseholdMemberships(parsed.household_id)).find((candidate) => candidate.actorId === parsed.member_actor_id);
     if (member === undefined) throw new AppError("NOT_FOUND", "Household member was not found");
     await this.assertFinalOwner(parsed.household_id, member, false);
-    const removedAt = this.now();
     return await this.mutations.run({
-      principal, tool: "hfj_remove_member", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      principal, tool: "hfj_remove_member", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_remove_member", parsed),
       expectedHead: parsed.expected_head, minimumRole: "owner", requiredScope: "household:manage", summary: "members: remove household member",
-      buildChanges: async () => [{ path: `members/${member.actorId}.md`, content: markdownDocument({ actor_id: member.actorId, former_member: true, removed_at: removedAt, schema_version: 1 }, ""), appendOnly: false }],
-      applyProjection: async () => { member.removedAt = removedAt; await this.store.upsertMembership(member); return { status: "completed", actor_id: member.actorId, removed_at: removedAt }; },
+      buildChanges: async (_requestId, occurredAt) => [{ path: `members/${member.actorId}.md`, content: markdownDocument({ actor_id: member.actorId, former_member: true, removed_at: occurredAt, schema_version: 1 }, ""), appendOnly: false }],
+      applyProjection: async (_head, _requestId, occurredAt) => { member.removedAt = occurredAt; await this.store.upsertMembership(member); return { status: "completed", actor_id: member.actorId, removed_at: occurredAt }; },
     });
   }
 
@@ -229,7 +246,7 @@ export class HouseholdFoodJournalService {
   private async updateProfile(input: unknown, principal: Principal): Promise<WriteResult> {
     const parsed = ToolInputSchemas.hfj_update_profile.parse(input);
     return await this.mutations.run({
-      principal, tool: "hfj_update_profile", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      principal, tool: "hfj_update_profile", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_update_profile", parsed),
       expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "journal:write", summary: `profiles: update ${parsed.profile}`,
       buildChanges: async () => [{ path: `profiles/${parsed.profile}.md`, content: parsed.markdown.endsWith("\n") ? parsed.markdown : `${parsed.markdown}\n`, appendOnly: false }],
       applyProjection: async (head) => { (await this.store.projection(parsed.household_id)).profiles.set(parsed.profile, { markdown: parsed.markdown, revision: head }); return { status: "completed", profile: parsed.profile, revision: head }; },
@@ -275,7 +292,7 @@ export class HouseholdFoodJournalService {
       content: stableJson(evidence), appendOnly: true,
     }));
     return await this.mutations.run({
-      principal, tool: "hfj_append_evidence", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      principal, tool: "hfj_append_evidence", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_append_evidence", parsed),
       expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "journal:write", summary: "evidence: append journal observations",
       buildChanges: async () => changes,
       applyProjection: async () => { for (const evidence of parsed.evidence) projection.evidence.set(evidence.id, evidence); return { status: "completed", evidence_ids: parsed.evidence.map((entry) => entry.id), count: parsed.evidence.length }; },
@@ -299,7 +316,7 @@ export class HouseholdFoodJournalService {
       ...parsed.reports.map((report) => ({ path: report.report_type === "recurring_snacks" ? "snacks/reports/recurring-snacks.md" : "recipes/reports/recipe-index.md", content: report.markdown.endsWith("\n") ? report.markdown : `${report.markdown}\n`, appendOnly: false })),
     ];
     return await this.mutations.run({
-      principal, tool: "hfj_commit_change_set", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      principal, tool: "hfj_commit_change_set", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_commit_change_set", parsed),
       expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "journal:write", summary: "journal: commit agent-authored change set",
       buildChanges: async () => changes,
       applyProjection: async (head) => { for (const item of parsed.items) projection.items.set(item.id, { item, revision: head }); return { status: "completed", item_ids: parsed.items.map((item) => item.id), report_count: parsed.reports.length }; },
@@ -313,14 +330,23 @@ export class HouseholdFoodJournalService {
       const source = projection.items.get(candidate.source_item_id);
       if (source === undefined || source.revision !== candidate.source_item_revision) throw new AppError("REVISION_CONFLICT", `Collection source changed: ${candidate.source_item_id}`);
     }
-    const collectionId = CollectionIdSchema.parse(this.random.opaqueId("col"));
-    const snapshotId = SnapshotIdSchema.parse(this.random.opaqueId("snp"));
-    const snapshot = CollectionSnapshotSchema.parse({ id: snapshotId, collection_id: collectionId, title: parsed.title, sharer_display_name: principal.displayName, items: parsed.items, created_at: this.now(), schema_version: 1 });
+    const collection = (requestId: RequestId, occurredAt: string) => {
+      const collectionId = CollectionIdSchema.parse(this.mutationId("col", requestId, "collection"));
+      const snapshotId = SnapshotIdSchema.parse(this.mutationId("snp", requestId, "snapshot"));
+      const snapshot = CollectionSnapshotSchema.parse({ id: snapshotId, collection_id: collectionId, title: parsed.title, sharer_display_name: principal.displayName, items: parsed.items, created_at: occurredAt, schema_version: 1 });
+      return { collectionId, snapshotId, snapshot };
+    };
     return await this.mutations.run({
-      principal, tool: "hfj_create_collection", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      principal, tool: "hfj_create_collection", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_create_collection", parsed),
       expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "collection:share", summary: "collections: create private collection",
-      buildChanges: async () => [{ path: `collections/${collectionId}/collection.md`, content: markdownDocument({ id: collectionId, title: parsed.title, schema_version: 1 }, ""), appendOnly: false }],
-      applyProjection: async (head) => { projection.collections.set(collectionId, { snapshot, revision: head }); return { status: "completed", collection_id: collectionId, snapshot_id: snapshotId }; },
+      buildChanges: async (requestId, occurredAt) => {
+        const planned = collection(requestId, occurredAt);
+        return [
+          { path: `collections/${planned.collectionId}/collection.md`, content: markdownDocument({ id: planned.collectionId, title: parsed.title, current_snapshot_id: planned.snapshotId, schema_version: 1 }, ""), appendOnly: false },
+          { path: `collections/${planned.collectionId}/snapshots/${planned.snapshotId}.json`, content: stableJson(planned.snapshot), appendOnly: true },
+        ];
+      },
+      applyProjection: async (head, requestId, occurredAt) => { const planned = collection(requestId, occurredAt); projection.collections.set(planned.collectionId, { snapshot: planned.snapshot, revision: head }); return { status: "completed", collection_id: planned.collectionId, snapshot_id: planned.snapshotId }; },
     });
   }
 
@@ -328,14 +354,16 @@ export class HouseholdFoodJournalService {
     const parsed = ToolInputSchemas.hfj_create_collection_share.parse(input);
     const collection = (await this.store.projection(parsed.household_id)).collections.get(parsed.collection_id);
     if (collection === undefined) throw new AppError("NOT_FOUND", "Collection was not found");
-    const token = this.random.token(32);
-    const shareId = ShareIdSchema.parse(this.random.opaqueId("shr"));
-    const expiresAt = new Date(this.clock.now().getTime() + parsed.expires_in_days * 86_400_000).toISOString();
+    const share = (requestId: RequestId, occurredAt: string) => ({
+      token: this.mutationToken(requestId, "collection-share"),
+      id: ShareIdSchema.parse(this.mutationId("shr", requestId, "collection-share")),
+      expiresAt: new Date(Date.parse(occurredAt) + parsed.expires_in_days * 86_400_000).toISOString(),
+    });
     return await this.mutations.run({
-      principal, tool: "hfj_create_collection_share", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      principal, tool: "hfj_create_collection_share", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_create_collection_share", parsed),
       expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "collection:share", summary: "collections: publish immutable snapshot",
-      buildChanges: async () => [{ path: `collections/${parsed.collection_id}/snapshots/${collection.snapshot.id}.json`, content: stableJson(collection.snapshot), appendOnly: true }],
-      applyProjection: async () => { await this.store.saveShare({ id: shareId, collectionId: parsed.collection_id, householdId: parsed.household_id, tokenHash: this.hasher.hash(token), snapshot: collection.snapshot, expiresAt, revokedAt: null }); return { status: "completed", collection_id: parsed.collection_id, share_id: shareId, expires_at: expiresAt, url: new URL(`/c/${token}`, this.publicOrigin).toString() }; },
+      buildChanges: async (_requestId, occurredAt) => [{ path: `collections/${parsed.collection_id}/collection.md`, content: markdownDocument({ id: parsed.collection_id, title: collection.snapshot.title, current_snapshot_id: collection.snapshot.id, share_status: "active", shared_at: occurredAt, schema_version: 1 }, ""), appendOnly: false }],
+      applyProjection: async (_head, requestId, occurredAt) => { const planned = share(requestId, occurredAt); await this.store.saveShare({ id: planned.id, collectionId: parsed.collection_id, householdId: parsed.household_id, tokenHash: this.hasher.hash(planned.token), snapshot: collection.snapshot, expiresAt: planned.expiresAt, revokedAt: null }); return { status: "completed", collection_id: parsed.collection_id, share_id: planned.id, expires_at: planned.expiresAt, url: new URL(`/c/${planned.token}`, this.publicOrigin).toString() }; },
     });
   }
 
@@ -343,12 +371,11 @@ export class HouseholdFoodJournalService {
     const parsed = ToolInputSchemas.hfj_revoke_collection_share.parse(input);
     const share = await this.store.getShareByCollection(parsed.household_id, parsed.collection_id);
     if (share === null) throw new AppError("NOT_FOUND", "Collection share was not found");
-    const revokedAt = this.now();
     return await this.mutations.run({
-      principal, tool: "hfj_revoke_collection_share", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      principal, tool: "hfj_revoke_collection_share", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_revoke_collection_share", parsed),
       expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "collection:share", summary: "collections: revoke public share",
-      buildChanges: async () => [{ path: `collections/${parsed.collection_id}/collection.md`, content: markdownDocument({ id: parsed.collection_id, share_status: "revoked", revoked_at: revokedAt, schema_version: 1 }, ""), appendOnly: false }],
-      applyProjection: async () => { share.revokedAt = revokedAt; await this.store.saveShare(share); return { status: "completed", collection_id: parsed.collection_id, revoked_at: revokedAt }; },
+      buildChanges: async (_requestId, occurredAt) => [{ path: `collections/${parsed.collection_id}/collection.md`, content: markdownDocument({ id: parsed.collection_id, title: share.snapshot.title, current_snapshot_id: share.snapshot.id, share_status: "revoked", revoked_at: occurredAt, schema_version: 1 }, ""), appendOnly: false }],
+      applyProjection: async (_head, _requestId, occurredAt) => { share.revokedAt = occurredAt; await this.store.saveShare(share); return { status: "completed", collection_id: parsed.collection_id, revoked_at: occurredAt }; },
     });
   }
 
@@ -381,57 +408,58 @@ export class HouseholdFoodJournalService {
     const parsed = ToolInputSchemas.hfj_import_collection_items.parse(input);
     const share = await this.activeShare(parsed.token);
     const byId = new Map(share.snapshot.items.map((item) => [item.collection_item_id, item]));
-    const importId = ImportIdSchema.parse(this.random.opaqueId("imp"));
     const projection = await this.store.projection(parsed.household_id);
-    const importedAt = this.now();
-    const newItems: Array<{ item: import("@hfj/contracts").JournalItem; evidence: import("@hfj/contracts").Evidence }> = [];
-    const mergedItems: Array<{ item: import("@hfj/contracts").JournalItem; evidence: import("@hfj/contracts").Evidence }> = [];
-    for (const selection of parsed.selections) {
-      const source = byId.get(selection.collection_item_id);
-      if (source === undefined) throw new AppError("VALIDATION_FAILED", `Collection item does not exist: ${selection.collection_item_id}`);
-      if (selection.resolution.action === "skip") continue;
-      if (selection.resolution.action === "merge") {
-        const destination = projection.items.get(selection.resolution.destination_item_id);
-        if (destination === undefined) throw new AppError("VALIDATION_FAILED", "Merge destination does not exist");
-        const evidenceId = EvidenceIdSchema.parse(this.random.opaqueId("evd"));
+    const plan = (requestId: RequestId, importedAt: string) => {
+      const importId = ImportIdSchema.parse(this.mutationId("imp", requestId, "import"));
+      const newItems: Array<{ item: import("@hfj/contracts").JournalItem; evidence: import("@hfj/contracts").Evidence }> = [];
+      const mergedItems: Array<{ item: import("@hfj/contracts").JournalItem; evidence: import("@hfj/contracts").Evidence }> = [];
+      parsed.selections.forEach((selection, index) => {
+        const source = byId.get(selection.collection_item_id);
+        if (source === undefined) throw new AppError("VALIDATION_FAILED", `Collection item does not exist: ${selection.collection_item_id}`);
+        if (selection.resolution.action === "skip") return;
+        const evidenceId = EvidenceIdSchema.parse(this.mutationId("evd", requestId, `evidence-${index}`));
         const evidence = importEvidence(evidenceId, source, share.snapshot.id, principal.actorId, importedAt);
-        const item = { ...destination.item, evidence_ids: [...destination.item.evidence_ids, evidenceId], updated_at: importedAt };
-        mergedItems.push({ item, evidence });
-        continue;
-      }
-      const itemId = ItemIdSchema.parse(this.random.opaqueId("itm"));
-      const evidenceId = EvidenceIdSchema.parse(this.random.opaqueId("evd"));
-      const evidence = importEvidence(evidenceId, source, share.snapshot.id, principal.actorId, importedAt);
-      const base = { id: itemId, evidence_ids: [evidenceId], created_at: importedAt, updated_at: importedAt, schema_version: 1 as const, body_markdown: source.public_description ?? "" };
-      const item = source.kind === "recipe" ? {
-        ...base, kind: "recipe" as const, title: source.title, canonical_url: source.canonical_recipe_url, audited_page_url: source.image_page_url,
-        author_or_publisher: source.author_or_publisher, saved: "yes" as const, cooked: "unknown" as const, liked: "unknown" as const,
-        last_cooked: null, date_precision: "unknown" as const, image_url: source.image_url, image_page_url: source.image_page_url,
-      } : {
-        ...base, kind: "snack" as const, display_name: source.title, brand: source.brand, product_line: null, flavor: source.flavor,
-        formulation: source.formulation, format: source.format, category: "imported", produce_variety: null, known_size_variants: [], image_page_url: source.image_page_url, image_url: source.image_url,
-      };
-      newItems.push({ item, evidence });
-    }
-    const changes: RepositoryChange[] = [...newItems, ...mergedItems].flatMap(({ item, evidence }) => [
-      { path: `${item.kind === "recipe" ? "recipes" : "snacks"}/evidence/${importedAt.slice(0, 4)}/${evidence.id}.json`, content: stableJson(evidence), appendOnly: true },
-      { path: `${item.kind === "recipe" ? "recipes" : "snacks"}/items/${item.id}.md`, content: markdownDocument(itemFrontmatter(item), item.body_markdown), appendOnly: false },
-    ]);
-    changes.push({ path: `imports/${importedAt.slice(0, 4)}/${importId}.json`, content: stableJson({ import_id: importId, source_collection_id: share.snapshot.collection_id, source_snapshot_id: share.snapshot.id, imported_at: importedAt, selections: parsed.selections, schema_version: 1 }), appendOnly: true });
+        if (selection.resolution.action === "merge") {
+          const destination = projection.items.get(selection.resolution.destination_item_id);
+          if (destination === undefined) throw new AppError("VALIDATION_FAILED", "Merge destination does not exist");
+          const evidenceIds = destination.item.evidence_ids.includes(evidenceId) ? destination.item.evidence_ids : [...destination.item.evidence_ids, evidenceId];
+          mergedItems.push({ item: { ...destination.item, evidence_ids: evidenceIds, updated_at: importedAt }, evidence });
+          return;
+        }
+        const itemId = ItemIdSchema.parse(this.mutationId("itm", requestId, `item-${index}`));
+        const base = { id: itemId, evidence_ids: [evidenceId], created_at: importedAt, updated_at: importedAt, schema_version: 1 as const, body_markdown: source.public_description ?? "" };
+        const item = source.kind === "recipe" ? {
+          ...base, kind: "recipe" as const, title: source.title, canonical_url: source.canonical_recipe_url, audited_page_url: source.image_page_url,
+          author_or_publisher: source.author_or_publisher, saved: "yes" as const, cooked: "unknown" as const, liked: "unknown" as const,
+          last_cooked: null, date_precision: "unknown" as const, image_url: source.image_url, image_page_url: source.image_page_url,
+        } : {
+          ...base, kind: "snack" as const, display_name: source.title, brand: source.brand, product_line: null, flavor: source.flavor,
+          formulation: source.formulation, format: source.format, category: "imported", produce_variety: null, known_size_variants: [], image_page_url: source.image_page_url, image_url: source.image_url,
+        };
+        newItems.push({ item, evidence });
+      });
+      const changes: RepositoryChange[] = [...newItems, ...mergedItems].flatMap(({ item, evidence }) => [
+        { path: `${item.kind === "recipe" ? "recipes" : "snacks"}/evidence/${importedAt.slice(0, 4)}/${evidence.id}.json`, content: stableJson(evidence), appendOnly: true },
+        { path: `${item.kind === "recipe" ? "recipes" : "snacks"}/items/${item.id}.md`, content: markdownDocument(itemFrontmatter(item), item.body_markdown), appendOnly: false },
+      ]);
+      changes.push({ path: `imports/${importedAt.slice(0, 4)}/${importId}.json`, content: stableJson({ import_id: importId, source_collection_id: share.snapshot.collection_id, source_snapshot_id: share.snapshot.id, imported_at: importedAt, selections: parsed.selections, schema_version: 1 }), appendOnly: true });
+      return { importId, newItems, mergedItems, changes };
+    };
     return await this.mutations.run({
-      principal, tool: "hfj_import_collection_items", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key,
+      principal, tool: "hfj_import_collection_items", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_import_collection_items", parsed),
       expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "journal:write", summary: "imports: import selected collection items",
-      buildChanges: async () => changes,
-      applyProjection: async (head) => {
-        for (const entry of [...newItems, ...mergedItems]) {
+      buildChanges: async (requestId, occurredAt) => plan(requestId, occurredAt).changes,
+      applyProjection: async (head, requestId, occurredAt) => {
+        const planned = plan(requestId, occurredAt);
+        for (const entry of [...planned.newItems, ...planned.mergedItems]) {
           projection.evidence.set(entry.evidence.id, entry.evidence);
           projection.items.set(entry.item.id, { item: entry.item, revision: head });
         }
         return {
           status: "completed",
-          import_id: importId,
-          imported_item_ids: newItems.map((entry) => entry.item.id),
-          merged_item_ids: mergedItems.map((entry) => entry.item.id),
+          import_id: planned.importId,
+          imported_item_ids: planned.newItems.map((entry) => entry.item.id),
+          merged_item_ids: planned.mergedItems.map((entry) => entry.item.id),
           skipped_count: parsed.selections.filter(({ resolution }) => resolution.action === "skip").length,
         };
       },
@@ -498,6 +526,9 @@ export class HouseholdFoodJournalService {
   }
   private requestId(): RequestId { return RequestIdSchema.parse(this.random.opaqueId("req")); }
   private now(): string { return this.clock.now().toISOString(); }
+  private mutationId(prefix: string, requestId: RequestId, discriminator: string): string { return `${prefix}_${this.hasher.hash(`${requestId}:${discriminator}`).slice(0, 32)}`; }
+  private mutationToken(requestId: RequestId, discriminator: string): string { return Buffer.from(this.hasher.hash(`${requestId}:${discriminator}`), "hex").toString("base64url"); }
+  private mutationFingerprint(tool: ToolName, input: object): string { return this.hasher.hash(stableJson({ tool, input })); }
 }
 
 interface ReadResult { readonly data: JsonValue; readonly head: GitObjectId | null }

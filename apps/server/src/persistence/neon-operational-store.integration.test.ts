@@ -15,7 +15,7 @@ import { AccountService } from "../account/service.js";
 import { MemoryHouseholdRepository } from "../adapters/memory.js";
 import { DeterministicRandomSource, FixedClock } from "../adapters/providers.js";
 import type { TokenHasher } from "../core/ports.js";
-import type { MembershipRecord, MutationRecord } from "../core/types.js";
+import type { HouseholdProjection, MembershipRecord, MutationRecord } from "../core/types.js";
 import { NeonAuthStore } from "../auth/neon-store.js";
 import { NeonOAuthStore } from "../oauth/neon-store.js";
 import { NeonConnection } from "./neon.js";
@@ -79,6 +79,7 @@ describeDatabase("NeonOperationalStore", () => {
     }, owner);
 
     expect(await store.getHousehold(householdId)).toMatchObject({ name: "Test Kitchen", repositoryHead: head });
+    expect(await store.listHouseholds()).toContainEqual(expect.objectContaining({ id: householdId, repositoryHead: head }));
     expect(await store.getMembership(householdId, ownerId)).toEqual(owner);
     expect(await store.listMemberships(ownerId)).toHaveLength(1);
     expect(await store.listHouseholdMemberships(householdId)).toEqual([owner]);
@@ -156,6 +157,7 @@ describeDatabase("NeonOperationalStore", () => {
     };
     await store.saveMutation(mutation);
     await store.saveMutation({ ...mutation, requestId: RequestIdSchema.parse("req_0000000000000102") });
+    expect(await store.listMutationsForReconciliation(householdId)).toEqual([mutation]);
 
     await store.withHouseholdLock(householdId, async () => {
       await store.transitionMutation(mutation.requestId, "locked");
@@ -170,6 +172,20 @@ describeDatabase("NeonOperationalStore", () => {
     const replay = await store.getMutation(ownerId, mutation.tool, mutation.idempotencyKey);
     expect(replay).toMatchObject({ requestId: mutation.requestId, state: "completed", commitId: nextHead });
     expect((await store.projection(householdId)).profiles.get("snacks")).toEqual({ markdown: "# Snacks\n", revision: nextHead });
+    expect(await store.listMutationsForReconciliation(householdId)).toEqual([]);
+
+    const rebuiltHead = GitObjectIdSchema.parse("3".repeat(40));
+    const rebuilt: HouseholdProjection = {
+      evidence: new Map(),
+      items: new Map(),
+      profiles: new Map([["household", { markdown: "# Rebuilt", revision: rebuiltHead }]]),
+      collections: new Map(),
+    };
+    await store.withHouseholdLock(householdId, async () => {
+      await store.replaceHouseholdProjection(householdId, rebuiltHead, rebuilt, [{ actorId: ownerActorId, role: "owner", removedAt: null, userId: ownerId }]);
+    });
+    expect((await store.projection(householdId)).profiles.get("household")).toEqual({ markdown: "# Rebuilt", revision: rebuiltHead });
+    expect(await store.getMembership(householdId, ownerId)).toMatchObject({ role: "owner", projectionHead: rebuiltHead });
   });
 
   it("serializes concurrent transactions for the same household", async () => {

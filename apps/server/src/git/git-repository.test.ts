@@ -14,10 +14,13 @@ describe("GitHouseholdRepository", () => {
       const actorId = ActorIdSchema.parse("act_0123456789abcdef");
       const head = await repository.provision(householdId, "Kitchen", actorId, "2026-07-15T12:00:00.000Z");
       expect(await repository.provision(householdId, "Ignored", actorId, "2026-07-15T12:00:30.000Z")).toBe(head);
+      const requestId = RequestIdSchema.parse("req_0123456789abcdef");
+      expect(await repository.findCommitByRequestId(householdId, requestId)).toBeNull();
       const committed = await repository.commit(householdId, head, [{ path: "profiles/snacks.md", content: "# Shops\n", appendOnly: false }], {
-        requestId: RequestIdSchema.parse("req_0123456789abcdef"), householdId, actorId, tool: "hfj_update_profile", client: "test", summary: "profiles: update snacks", occurredAt: "2026-07-15T12:01:00.000Z",
+        requestId, householdId, actorId, tool: "hfj_update_profile", client: "test", summary: "profiles: update snacks", occurredAt: "2026-07-15T12:01:00.000Z",
       });
       expect(committed).not.toBe(head);
+      expect(await repository.findCommitByRequestId(householdId, requestId)).toBe(committed);
       expect(await repository.read(householdId, "profiles/snacks.md")).toBe("# Shops\n");
       expect(await repository.read(householdId, "profiles/missing.md")).toBeNull();
       expect((await repository.verify(householdId)).valid).toBe(true);

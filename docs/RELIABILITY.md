@@ -30,6 +30,8 @@ Each mutating request must:
 
 Retries resume or return the recorded result. Ambiguous states enter reconciliation; they do not produce a second commit. Conflicts return the latest safe revision and structured comparison data for explicit client or agent resolution.
 
+Errors are propagated only after the transaction containing `git_committed`, `reconciliation_required`, or `failed_before_commit` has committed. A retry must match the hashed canonical request bound to the idempotency key and searches Git main for the request trailer before considering a new commit. The scheduled reconciler validates the repository, rebuilds evidence, item, profile, collection, and membership projections with per-file revisions, repairs recoverable private identity links, and advances replayable mutations to `projections_applied`. Missing authoritative documents, unverifiable commits, or Git members without a private identity mapping quarantine the household and keep authorization closed.
+
 WebAuthn challenges are consumed exactly once and expire after five minutes. Authentication issues a session only after cryptographic verification and an atomic credential-counter update; a stale or regressing counter fails the ceremony rather than producing a success-shaped fallback. Counterless authenticators may remain at zero but cannot reset a nonzero stored counter.
 
 Browser household leave and account deletion use the same transaction-scoped household lock and Git membership document as MCP membership changes. The account is not deleted while it solely owns a household. Once eligible, deletion revokes connected OAuth access and browser credentials; any post-commit projection failure surfaces reconciliation-required rather than reporting success.
@@ -41,7 +43,7 @@ Browser household leave and account deletion use the same transaction-scoped hou
 - authenticated operator health exposes reconciliation backlog, oldest incomplete mutation, backup age, last fsck result, signature status, volume capacity, Neon migration state, and last restore drill.
 - public health responses reveal no tenant counts, paths, credentials, repository identifiers, or provider error bodies.
 
-The live, readiness, and authenticated operator routes exist. Current readiness covers store and repository availability; mount identity, signing state, reconciliation backlog, backup age, and restore-drill freshness remain release blockers in the active ExecPlan.
+The live, readiness, and authenticated operator routes exist, and the systemd maintenance timer invokes the idempotent reconciler through the server CLI. Current readiness covers store and repository availability; mount identity, signing state, reconciliation-backlog health reporting, backup age, and restore-drill freshness remain release blockers in the active ExecPlan.
 
 ## Backups and recovery
 

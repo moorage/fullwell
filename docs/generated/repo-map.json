@@ -399,6 +399,14 @@
                     {
                       "type": "file",
                       "name": "journal-validation.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "repository-projection.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "repository-projection.ts"
                     }
                   ]
                 },

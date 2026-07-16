@@ -1,9 +1,12 @@
 import { readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { HouseholdIdSchema } from "@hfj/contracts";
+import { ConsoleTelemetry, HmacTokenHasher } from "./adapters/providers.js";
 import { parseConfig } from "./config.js";
 import { GitHouseholdRepository } from "./git/git-repository.js";
+import { NeonOperationalStore } from "./persistence/neon-operational-store.js";
 import { NeonConnection } from "./persistence/neon.js";
+import { ReconciliationWorker } from "./workers/reconciliation-worker.js";
 
 const command = process.argv[2] ?? "all";
 if (command !== "all" && command !== "health") throw new Error(`Unknown maintenance command: ${command}`);
@@ -19,10 +22,17 @@ const repository = new GitHouseholdRepository({
 try {
   const databaseHealth = database === null ? { ready: config.NODE_ENV !== "production", detail: "not configured" } : await database.health();
   if (!databaseHealth.ready) throw new Error(`Neon health check failed: ${databaseHealth.detail}`);
+  const reconciliation = command === "all" && database !== null
+    ? await new ReconciliationWorker(
+      new NeonOperationalStore(database, new HmacTokenHasher(config.TOKEN_PEPPER ?? "local-development-pepper-change-me-000000")),
+      repository,
+      new ConsoleTelemetry(),
+    ).run()
+    : { checked: 0, rebuilt: 0, quarantined: 0 };
   const repositories = command === "health" ? [] : await verifyRepositories(repository, config.HOUSEHOLD_REPOSITORY_ROOT);
   const invalid = repositories.filter((entry) => !entry.valid);
-  process.stdout.write(`${JSON.stringify({ ok: invalid.length === 0, database: databaseHealth, repositories })}\n`);
-  if (invalid.length > 0) process.exitCode = 1;
+  process.stdout.write(`${JSON.stringify({ ok: invalid.length === 0 && reconciliation.quarantined === 0, database: databaseHealth, reconciliation, repositories })}\n`);
+  if (invalid.length > 0 || reconciliation.quarantined > 0) process.exitCode = 1;
 } finally {
   if (database !== null) await database.close();
 }

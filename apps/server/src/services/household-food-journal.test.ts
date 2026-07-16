@@ -115,6 +115,13 @@ describe("HouseholdFoodJournalService", () => {
       markdown: "# Favorite shops",
     });
     head = profile.head;
+    expect(await call("hfj_update_profile", {
+      household_id: householdId,
+      expected_head: profile.head,
+      idempotency_key: "profile-update-0201",
+      profile: "snacks",
+      markdown: "ignored replay",
+    })).toEqual(profile);
     expect((await call("hfj_get_profile", { household_id: householdId, profile: "snacks" })).data.markdown).toBe("# Favorite shops");
     expect((await call("hfj_get_profile", { household_id: householdId, profile: "recipes" })).data.revision).toBeNull();
 
@@ -302,6 +309,66 @@ describe("HouseholdFoodJournalService", () => {
     const internal = await failingService.call("hfj_create_household", { name: "Failure", idempotency_key: "internal-create-0201" }, owner);
     expect(internal.ok).toBe(false);
     if (!internal.ok) expect(internal.error.code).toBe("INTERNAL_ERROR");
+  });
+
+  it("replays a committed request after projection failure without a second Git commit", async () => {
+    const created = await call("hfj_create_household", { name: "Recovery", idempotency_key: "recovery-create-0201" });
+    const householdId = HouseholdIdSchema.parse(created.data.household_id);
+    const loadProjection = store.projection.bind(store);
+    let failProjection = true;
+    store.projection = async (id) => {
+      if (failProjection) {
+        failProjection = false;
+        throw new Error("simulated projection outage");
+      }
+      return await loadProjection(id);
+    };
+    const input = {
+      household_id: householdId,
+      expected_head: created.head,
+      idempotency_key: "recovery-profile-0201",
+      profile: "household",
+      markdown: "# Recovered",
+    };
+
+    const failed = await service.call("hfj_update_profile", input, owner);
+    expect(failed).toMatchObject({ ok: false, error: { code: "RECONCILIATION_REQUIRED" } });
+    const durable = await store.getMutation(owner.userId, "hfj_update_profile", input.idempotency_key);
+    expect(durable).toMatchObject({ state: "reconciliation_required" });
+    expect(durable?.commitId).not.toBeNull();
+    expect(repository.commitCount(householdId)).toBe(1);
+
+    const changedRetry = await service.call("hfj_update_profile", { ...input, markdown: "# Different" }, owner);
+    expect(changedRetry).toMatchObject({ ok: false, error: { code: "REVISION_CONFLICT" } });
+
+    const recovered = await call("hfj_update_profile", input);
+    expect(recovered.data).toMatchObject({ status: "completed", profile: "household" });
+    expect(recovered.head).toBe(durable?.commitId);
+    expect(repository.commitCount(householdId)).toBe(1);
+  });
+
+  it("reuses the provisioned repository when database creation initially fails", async () => {
+    const createHousehold = store.createHousehold.bind(store);
+    let failCreation = true;
+    store.createHousehold = async (record, membership) => {
+      if (failCreation) {
+        failCreation = false;
+        throw new Error("simulated database outage");
+      }
+      await createHousehold(record, membership);
+    };
+    const input = { name: "Provision retry", idempotency_key: "provision-retry-0201" };
+
+    const failed = await service.call("hfj_create_household", input, owner);
+    expect(failed).toMatchObject({ ok: false, error: { code: "INTERNAL_ERROR" } });
+    const durable = await store.getMutation(owner.userId, "hfj_create_household", input.idempotency_key);
+    expect(durable).toMatchObject({ state: "reconciliation_required" });
+    expect(durable?.commitId).not.toBeNull();
+
+    const recovered = await call("hfj_create_household", input);
+    expect(recovered.data).toMatchObject({ status: "completed", onboarding_state: "ready" });
+    expect(recovered.head).toBe(durable?.commitId);
+    expect(await store.listHouseholds()).toHaveLength(1);
   });
 });
 

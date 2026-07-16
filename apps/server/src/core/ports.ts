@@ -15,6 +15,7 @@ import type {
   MembershipRecord,
   MutationRecord,
   Principal,
+  RepositoryMembershipState,
   ShareRecord,
 } from "./types.js";
 
@@ -70,9 +71,17 @@ export interface CommitMetadata {
   readonly occurredAt: string;
 }
 
+
+export interface RepositorySnapshot {
+  readonly head: GitObjectId;
+  readonly files: ReadonlyArray<{ readonly path: string; readonly content: string; readonly revision: GitObjectId }>;
+}
+
 export interface HouseholdRepositoryPort {
   provision(householdId: HouseholdId, name: string, actorId: string, occurredAt: string): Promise<GitObjectId>;
   head(householdId: HouseholdId): Promise<GitObjectId>;
+  findCommitByRequestId(householdId: HouseholdId, requestId: RequestId): Promise<GitObjectId | null>;
+  snapshot(householdId: HouseholdId): Promise<RepositorySnapshot>;
   commit(householdId: HouseholdId, expectedHead: GitObjectId, changes: ReadonlyArray<RepositoryChange>, metadata: CommitMetadata): Promise<GitObjectId>;
   read(householdId: HouseholdId, path: string): Promise<string | null>;
   bundle(householdId: HouseholdId): Promise<Uint8Array>;
@@ -83,6 +92,7 @@ export interface OperationalStorePort {
   createHousehold(record: HouseholdRecord, owner: MembershipRecord): Promise<void>;
   updateHouseholdHead(householdId: HouseholdId, head: GitObjectId): Promise<void>;
   getHousehold(householdId: HouseholdId): Promise<HouseholdRecord | null>;
+  listHouseholds(): Promise<ReadonlyArray<HouseholdRecord>>;
   listMemberships(userId: UserId): Promise<ReadonlyArray<{ household: HouseholdRecord; membership: MembershipRecord }>>;
   getMembership(householdId: HouseholdId, userId: UserId): Promise<MembershipRecord | null>;
   listHouseholdMemberships(householdId: HouseholdId): Promise<ReadonlyArray<MembershipRecord>>;
@@ -99,6 +109,9 @@ export interface OperationalStorePort {
   getMutation(userId: UserId, tool: ToolName, idempotencyKey: string): Promise<MutationRecord | null>;
   saveMutation(record: MutationRecord): Promise<void>;
   transitionMutation(requestId: RequestId, state: MutationState, update?: { commitId?: GitObjectId; response?: Record<string, JsonValue>; failure?: string }): Promise<void>;
+  listMutationsForReconciliation(householdId: HouseholdId): Promise<ReadonlyArray<MutationRecord>>;
+  replaceHouseholdProjection(householdId: HouseholdId, head: GitObjectId, projection: HouseholdProjection, memberships: ReadonlyArray<RepositoryMembershipState>): Promise<void>;
+  quarantineHousehold(householdId: HouseholdId): Promise<void>;
   withHouseholdLock<T>(householdId: HouseholdId, operation: () => Promise<T>): Promise<T>;
   projection(householdId: HouseholdId): Promise<HouseholdProjection>;
   health(): Promise<{ ready: boolean; detail: string }>;

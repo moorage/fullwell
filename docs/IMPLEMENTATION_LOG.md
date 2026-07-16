@@ -6,13 +6,15 @@
   - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
 
-- current milestone: completed the browser account lifecycle; the active ExecPlan remains open on reconciliation, export, backup, telemetry, staging, and manual release blockers recorded in `docs/release/verification-evidence.md`
+- current milestone: completed durable Git-to-Neon reconciliation; the active ExecPlan remains open on readable export, backup, telemetry, staging, and manual release blockers recorded in `docs/release/verification-evidence.md`
 - implemented React 19.2 SSR/hydration, server-authorized web contexts, public collection privacy states, no-JavaScript forms, Fastify MCP/OAuth, Apple/Resend adapters, Neon persistence, Git mutation/import provenance, reversible migrations, shared contracts, and the Codex/Claude agent package
 - implemented DigitalOcean OpenTofu, Block Storage initialization checks, pinned Node 24 Docker build, Compose/Caddy/systemd deployment, local deployment/MCP smokes, legal drafts, and operations/release runbooks
 - verified macOS Safari through Computer Use, including the anonymous account redirect and preserved `/account` pending intent, plus eight automated WebKit checks across desktop, iPhone, 320x568, and JavaScript-disabled modes
 - implemented SimpleWebAuthn-backed registration and authentication, session/browser-bound one-time challenges, Neon public credential storage, atomic counter replay protection, and account enrollment/list/removal UI
 - implemented display-name changes, browser-bound Apple/email identity linking, last-method-safe unlinking, active OAuth grant revocation, Git-audited household leave, final-owner protection, recent-auth account deletion, immediate session/token revocation, and stable former-member pseudonymization
-- expanded deterministic unit, component, domain, service, adapter, worker, HTTP view-model, and React interaction coverage to 97.27% statements/lines, 95.21% functions, and 90.03% branches across 138 passing tests
+- implemented request-trailer recovery without duplicate commits, deterministic retry plans for generated IDs and capability tokens, per-file Git revision snapshots, full journal/member projection rebuild, fail-closed quarantine, abandoned pre-commit cleanup, idempotent provisioning retry, and maintenance-timer CLI execution
+- fixed Neon account leave reusing its existing household transaction instead of opening a second transaction that waits on the same advisory lock
+- expanded deterministic unit, component, domain, service, adapter, worker, HTTP view-model, and React interaction coverage to 97.04% statements/lines, 94.82% functions, and 90.19% branches across 156 passing tests
 - fixed in-memory household lock-tail cleanup so completed queues are released instead of retained; process composition roots and Neon adapters remain assigned to deployment/browser and isolated PostgreSQL integration gates
 - commands run include:
   - `npm run lint`
@@ -31,7 +33,7 @@
   - `PUBLIC_BASE_URL=http://127.0.0.1:4187 npm run test:mcp-smoke`
   - Docker build, Compose render, Caddy validate, OpenTofu init/validate, and `npm audit --omit=dev`
 - blocking results:
-  - durable reconciliation, encrypted off-site backup, readable ZIP delivery, rate limiting/telemetry, external staging, native passkey compatibility, and manual release reviews remain incomplete
+  - encrypted off-site backup, readable ZIP delivery, rate limiting/telemetry, external staging, native passkey compatibility, and manual release reviews remain incomplete
   - Safari 26.5 accepted a WebDriver virtual authenticator but timed out creating a credential; the deterministic cryptographic/provider policy and browser-action suites pass, while native staging evidence remains open
 
 - previous milestone: planned the complete Household Food Journal version 1 implementation

@@ -17,7 +17,7 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 - Architecture legibility: 4 - product, authority, adapter, and deployment boundaries are explicit and represented in the implementation; external staging proof remains incomplete.
 - Boundary parsing and type discipline: 4 - strict TypeScript contracts and runtime schemas cover HTTP, MCP, Git, provider, and persistence boundaries; provisioned-provider verification remains incomplete.
 - Test strength: 4 - the enforced deterministic coverage gate, contracts, dual-host evals, PostgreSQL integration, migrations, security fixtures, WebKit e2e, Git restore, and deployment smokes pass; full accessibility, load, and external compatibility suites remain open.
-- Reliability and observability: 3 - health, mutation-state, reconciliation, backup, restore, and deployment primitives exist, but durable reconciliation, production telemetry, off-site backup, and failover drills remain release blockers.
+- Reliability and observability: 3 - durable request-trailer reconciliation, projection rebuild, quarantine, health, backup, restore, and deployment primitives exist, but production telemetry, reconciliation-backlog health, off-site backup, and failover drills remain release blockers.
 - Security hardening: 3 - trust boundaries, typed authorization, redaction, capability projection, OAuth controls, discoverable passkeys, final-owner enforcement, recent-auth destructive actions, and security fixtures exist; production rate limits and the complete adversarial suite remain open.
 - Documentation freshness: 4 - product, architecture, operations, release evidence, and the active ExecPlan reflect the implemented foundation and known blockers.
 - Operational simplicity: 3 - one service and one writer are simple and locally deployable, but Droplet failover and durable off-site recovery remain unproven.
@@ -26,13 +26,13 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 
 - `docs/product-specs/household-food-journal-server.md` and `docs/product-specs/household-food-journal-client.md` define normative acceptance behavior.
 - `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, and `docs/RELIABILITY.md` define the target authorities and failure boundaries.
-- Deterministic unit/component coverage passes with 138 tests at 97.27% statements/lines, 95.21% functions, and 90.03% branches; Neon integration adapters and process roots retain dedicated environment gates.
+- Deterministic unit/component coverage passes with 156 tests at 97.04% statements/lines, 94.82% functions, and 90.19% branches; Neon integration adapters and process roots retain dedicated environment gates.
 - Contract, 20-case Codex/Claude eval, seven-test PostgreSQL integration, reversible migration, account lifecycle, security-boundary, WebKit e2e, Git restore, local deployment, MCP discovery, Docker, Caddy, Compose, and OpenTofu checks pass.
 - `apps/`, `packages/`, `migrations/`, `infra/`, and `deploy/` contain the coordinated React 19.2, Fastify, Neon, Git, agent-package, and DigitalOcean foundation.
 
 ## Structural debt register
 
-- Readable ZIP delivery, durable post-commit reconciliation, and production rate limiting/telemetry remain incomplete.
+- Readable ZIP delivery, reconciliation-backlog operator health, and production rate limiting/telemetry remain incomplete.
 - Native passkey compatibility still requires staging-origin evidence because Safari 26.5's advertised WebDriver virtual authenticator timed out during credential creation.
 - DigitalOcean Block Storage failover fencing, immutable off-site backup, external restore drills, and provisioned staging rollback remain unproven.
 - Real Neon, Apple, email, Codex, and Claude interoperability still needs non-production credentials and external compatibility evidence.

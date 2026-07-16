@@ -33,6 +33,7 @@ import type {
   JsonValue,
   MembershipRecord,
   MutationRecord,
+  RepositoryMembershipState,
   ShareRecord,
 } from "../core/types.js";
 import { NeonConnection } from "./neon.js";
@@ -163,6 +164,14 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
     return rows[0] === undefined ? null : householdFromRow(rows[0]);
   }
 
+  async listHouseholds(): Promise<ReadonlyArray<HouseholdRecord>> {
+    const rows = await this.sql()<Record<string, unknown>[]>`
+      SELECT id, display_name, repository_head, provisioning_state, created_at
+      FROM households ORDER BY created_at, id
+    `;
+    return rows.map(householdFromRow);
+  }
+
   async listMemberships(userId: UserId): Promise<readonly { household: HouseholdRecord; membership: MembershipRecord }[]> {
     const rows = await this.sql()<Record<string, unknown>[]>`
       SELECT
@@ -200,25 +209,11 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
   }
 
   async leaveMembership(userId: UserId, householdId: HouseholdId, removedAt: string): Promise<"left" | "not_found" | "sole_owner"> {
+    const active = this.transaction.getStore();
+    if (active !== undefined) return await this.leaveMembershipWith(active.sql, userId, householdId, removedAt);
     return await this.connection.pooled.begin(async (sql) => {
       await sql`SELECT pg_advisory_xact_lock(hashtextextended(${householdId}, 0))`;
-      const rows = await sql<{ role: string }[]>`
-        SELECT role FROM memberships
-        WHERE household_id = ${householdId} AND user_id = ${userId} AND removed_at IS NULL
-        FOR UPDATE
-      `;
-      const role = rows[0]?.role;
-      if (role === undefined) return "not_found" as const;
-      if (role === "owner") {
-        const owners = await sql<{ count: number | string }[]>`
-          SELECT count(*) AS count FROM memberships
-          WHERE household_id = ${householdId} AND role = 'owner' AND removed_at IS NULL
-        `;
-        if (z.coerce.number().parse(owners[0]?.count) <= 1) return "sole_owner" as const;
-      }
-      await sql`UPDATE memberships SET removed_at = ${removedAt}, updated_at = ${removedAt} WHERE household_id = ${householdId} AND user_id = ${userId}`;
-      await sql`UPDATE user_preferences SET default_household_id = NULL, updated_at = ${removedAt} WHERE user_id = ${userId} AND default_household_id = ${householdId}`;
-      return "left" as const;
+      return await this.leaveMembershipWith(sql, userId, householdId, removedAt);
     }) as "left" | "not_found" | "sole_owner";
   }
 
@@ -366,6 +361,62 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
     if (rows.length !== 1) throw new AppError("INTERNAL_ERROR", "Mutation record was not found");
   }
 
+  async listMutationsForReconciliation(householdId: HouseholdId): Promise<ReadonlyArray<MutationRecord>> {
+    const rows = await this.sql()<Record<string, unknown>[]>`
+      SELECT request_id, user_id, tool_name, idempotency_key, household_id, state,
+             commit_id, response, failure_code, created_at, updated_at
+      FROM mutation_requests
+      WHERE household_id = ${householdId}
+        AND state IN ('received', 'locked', 'git_committed', 'reconciliation_required')
+      ORDER BY created_at, request_id
+    `;
+    return rows.map(mutationFromRow);
+  }
+
+  async replaceHouseholdProjection(
+    householdId: HouseholdId,
+    head: GitObjectId,
+    projection: HouseholdProjection,
+    memberships: ReadonlyArray<RepositoryMembershipState>,
+  ): Promise<void> {
+    const sql = this.sql();
+    const projectionRows = await sql<Record<string, unknown>[]>`
+      UPDATE journal_projections
+      SET repository_head = ${head}, projection = ${sql.json(this.projectionDocument(projection))}, rebuilt_at = now()
+      WHERE household_id = ${householdId}
+      RETURNING household_id
+    `;
+    if (projectionRows.length !== 1) throw new AppError("NOT_FOUND", "Household projection was not found");
+    await sql`UPDATE households SET repository_head = ${head}, provisioning_state = 'ready', updated_at = now() WHERE id = ${householdId}`;
+    for (const membership of memberships) {
+      const existing = await sql<{ user_id: string; role: string }[]>`
+        SELECT user_id, role FROM memberships WHERE household_id = ${householdId} AND actor_id = ${membership.actorId}
+      `;
+      const userId = existing[0]?.user_id ?? membership.userId;
+      if (userId === null) continue;
+      const role = membership.role ?? existing[0]?.role ?? "viewer";
+      await sql`
+        INSERT INTO memberships (household_id, user_id, actor_id, role, projection_head, removed_at, updated_at)
+        VALUES (${householdId}, ${userId}, ${membership.actorId}, ${role}, ${head}, ${membership.removedAt}, now())
+        ON CONFLICT (household_id, user_id) DO UPDATE SET
+          actor_id = EXCLUDED.actor_id,
+          role = EXCLUDED.role,
+          projection_head = EXCLUDED.projection_head,
+          removed_at = EXCLUDED.removed_at,
+          updated_at = now()
+      `;
+    }
+  }
+
+  async quarantineHousehold(householdId: HouseholdId): Promise<void> {
+    const rows = await this.sql()<Record<string, unknown>[]>`
+      UPDATE households SET provisioning_state = 'quarantined', updated_at = now()
+      WHERE id = ${householdId}
+      RETURNING id
+    `;
+    if (rows.length !== 1) throw new AppError("NOT_FOUND", "Household was not found");
+  }
+
   async withHouseholdLock<T>(householdId: HouseholdId, operation: () => Promise<T>): Promise<T> {
     const active = this.transaction.getStore();
     if (active !== undefined) {
@@ -434,6 +485,26 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
         removed_at = EXCLUDED.removed_at,
         updated_at = now()
     `;
+  }
+
+  private async leaveMembershipWith(sql: Queryable, userId: UserId, householdId: HouseholdId, removedAt: string): Promise<"left" | "not_found" | "sole_owner"> {
+    const rows = await sql<{ role: string }[]>`
+      SELECT role FROM memberships
+      WHERE household_id = ${householdId} AND user_id = ${userId} AND removed_at IS NULL
+      FOR UPDATE
+    `;
+    const role = rows[0]?.role;
+    if (role === undefined) return "not_found";
+    if (role === "owner") {
+      const owners = await sql<{ count: number | string }[]>`
+        SELECT count(*) AS count FROM memberships
+        WHERE household_id = ${householdId} AND role = 'owner' AND removed_at IS NULL
+      `;
+      if (z.coerce.number().parse(owners[0]?.count) <= 1) return "sole_owner";
+    }
+    await sql`UPDATE memberships SET removed_at = ${removedAt}, updated_at = ${removedAt} WHERE household_id = ${householdId} AND user_id = ${userId}`;
+    await sql`UPDATE user_preferences SET default_household_id = NULL, updated_at = ${removedAt} WHERE user_id = ${userId} AND default_household_id = ${householdId}`;
+    return "left";
   }
 
   private async flushTransactionProjections(requestId: RequestId): Promise<void> {

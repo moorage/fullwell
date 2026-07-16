@@ -14,6 +14,7 @@ import type {
   HouseholdRepositoryPort,
   OperationalStorePort,
   RepositoryChange,
+  RepositorySnapshot,
   SessionRecord,
   SessionStorePort,
 } from "../core/ports.js";
@@ -24,12 +25,14 @@ import type {
   JsonValue,
   MembershipRecord,
   MutationRecord,
+  RepositoryMembershipState,
   ShareRecord,
 } from "../core/types.js";
 
 interface MemoryRepository {
   head: GitObjectId;
   readonly files: Map<string, string>;
+  readonly revisions: Map<string, GitObjectId>;
   readonly commits: Array<{ head: GitObjectId; metadata: CommitMetadata; paths: string[] }>;
 }
 
@@ -48,7 +51,7 @@ export class MemoryHouseholdRepository implements HouseholdRepositoryPort {
       [`members/${actorId}.md`, "---\nrole: owner\nschema_version: 1\n---\n"],
     ]);
     const head = digest([...files.entries()].flat());
-    this.repositories.set(householdId, { head, files, commits: [] });
+    this.repositories.set(householdId, { head, files, revisions: new Map([...files.keys()].map((path) => [path, head])), commits: [] });
     return head;
   }
 
@@ -56,6 +59,21 @@ export class MemoryHouseholdRepository implements HouseholdRepositoryPort {
     const repository = this.repositories.get(householdId);
     if (repository === undefined) throw new AppError("NOT_FOUND", "Household repository was not found");
     return repository.head;
+  }
+
+  async findCommitByRequestId(householdId: HouseholdId, requestId: RequestId): Promise<GitObjectId | null> {
+    const repository = this.repositories.get(householdId);
+    if (repository === undefined) throw new AppError("NOT_FOUND", "Household repository was not found");
+    return repository.commits.find((commit) => commit.metadata.requestId === requestId)?.head ?? null;
+  }
+
+  async snapshot(householdId: HouseholdId): Promise<RepositorySnapshot> {
+    const repository = this.repositories.get(householdId);
+    if (repository === undefined) throw new AppError("NOT_FOUND", "Household repository was not found");
+    return {
+      head: repository.head,
+      files: [...repository.files].map(([path, content]) => ({ path, content, revision: repository.revisions.get(path) ?? repository.head })),
+    };
   }
 
   async commit(householdId: HouseholdId, expectedHead: GitObjectId, changes: ReadonlyArray<RepositoryChange>, metadata: CommitMetadata): Promise<GitObjectId> {
@@ -81,6 +99,8 @@ export class MemoryHouseholdRepository implements HouseholdRepositoryPort {
       schema_version: 1,
     }));
     const head = digest([expectedHead, metadata.requestId, ...changes.flatMap((change) => [change.path, change.content])]);
+    for (const change of changes) repository.revisions.set(change.path, head);
+    repository.revisions.set(auditPath, head);
     repository.head = head;
     repository.commits.push({ head, metadata, paths: [...changes.map((change) => change.path), auditPath] });
     return head;
@@ -130,6 +150,7 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
     household.repositoryHead = head;
   }
   async getHousehold(householdId: HouseholdId): Promise<HouseholdRecord | null> { return this.households.get(householdId) ?? null; }
+  async listHouseholds(): Promise<ReadonlyArray<HouseholdRecord>> { return [...this.households.values()]; }
   async listMemberships(userId: UserId): Promise<ReadonlyArray<{ household: HouseholdRecord; membership: MembershipRecord }>> {
     return [...this.memberships.values()].filter((membership) => membership.userId === userId && membership.removedAt === null).flatMap((membership) => {
       const household = this.households.get(membership.householdId);
@@ -178,6 +199,29 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
     if (update.response !== undefined) record.response = update.response;
     if (update.failure !== undefined) record.failure = update.failure;
     record.updatedAt = new Date().toISOString();
+  }
+  async listMutationsForReconciliation(householdId: HouseholdId): Promise<ReadonlyArray<MutationRecord>> {
+    return [...this.mutations.values()].filter((record) => record.householdId === householdId && ["received", "locked", "git_committed", "reconciliation_required"].includes(record.state));
+  }
+  async replaceHouseholdProjection(householdId: HouseholdId, head: GitObjectId, projection: HouseholdProjection, memberships: ReadonlyArray<RepositoryMembershipState>): Promise<void> {
+    const household = this.households.get(householdId);
+    if (household === undefined) throw new AppError("NOT_FOUND", "Household was not found");
+    household.repositoryHead = head;
+    household.provisioningState = "ready";
+    this.projections.set(householdId, projection);
+    for (const state of memberships) {
+      const existing = [...this.memberships.values()].find((membership) => membership.householdId === householdId && membership.actorId === state.actorId);
+      const userId = existing?.userId ?? state.userId;
+      if (userId === null) continue;
+      this.memberships.set(this.membershipKey(householdId, userId), {
+        householdId, userId, actorId: state.actorId, role: state.role ?? existing?.role ?? "viewer", projectionHead: head, removedAt: state.removedAt,
+      });
+    }
+  }
+  async quarantineHousehold(householdId: HouseholdId): Promise<void> {
+    const household = this.households.get(householdId);
+    if (household === undefined) throw new AppError("NOT_FOUND", "Household was not found");
+    household.provisioningState = "quarantined";
   }
   async withHouseholdLock<T>(householdId: HouseholdId, operation: () => Promise<T>): Promise<T> {
     const previous = this.lockTails.get(householdId) ?? Promise.resolve();

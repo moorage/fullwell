@@ -1,0 +1,119 @@
+import {
+  ActorIdSchema,
+  GitObjectIdSchema,
+  RequestIdSchema,
+  UserIdSchema,
+} from "@hfj/contracts";
+import { describe, expect, it } from "vitest";
+import { stableJson } from "../adapters/memory.js";
+import type { RepositorySnapshot } from "../core/ports.js";
+import { markdownDocument } from "./journal-validation.js";
+import { rebuildRepositoryState } from "./repository-projection.js";
+
+const head = GitObjectIdSchema.parse("a".repeat(40));
+const earlier = GitObjectIdSchema.parse("b".repeat(40));
+const actorId = ActorIdSchema.parse("act_0000000000000901");
+const formerActorId = ActorIdSchema.parse("act_0000000000000902");
+const requestId = RequestIdSchema.parse("req_0000000000000901");
+const userId = UserIdSchema.parse("usr_0000000000000901");
+
+describe("rebuildRepositoryState", () => {
+  it("rebuilds journal and membership projections with per-file revisions", () => {
+    const evidence = {
+      id: "evd_0000000000000901",
+      kind: "user_confirmation",
+      observed_at: "2026-07-15T12:00:00.000Z",
+      evidence_date: "2026-07-15",
+      date_precision: "day",
+      source_type: "conversation",
+      source_label: "Owner",
+      stable_locator: "confirmation-0901",
+      summary: "Keep apples",
+      actor_id: actorId,
+      limitations: [],
+      schema_version: 1,
+    };
+    const item = {
+      id: "itm_0000000000000901",
+      kind: "snack",
+      display_name: "Apple",
+      brand: null,
+      product_line: null,
+      flavor: null,
+      formulation: null,
+      format: "fresh",
+      category: "fruit",
+      produce_variety: null,
+      known_size_variants: [],
+      image_page_url: null,
+      image_url: null,
+      evidence_ids: [evidence.id],
+      created_at: "2026-07-15T12:00:00.000Z",
+      updated_at: "2026-07-15T12:00:00.000Z",
+      schema_version: 1,
+    };
+    const collectionItem = {
+      collection_item_id: "collection-item-0901",
+      source_item_id: item.id,
+      kind: "snack",
+      title: "Apple",
+      public_description: null,
+      brand: null,
+      flavor: null,
+      formulation: null,
+      format: "fresh",
+      author_or_publisher: null,
+      canonical_recipe_url: null,
+      image_url: null,
+      image_page_url: null,
+      preparation_notes: null,
+      source_display_attribution: "Owner",
+      source_item_revision: earlier,
+    };
+    const files: RepositorySnapshot["files"] = [
+      file(`audit/2026/${requestId}.json`, stableJson({ actor_id: actorId, request_id: requestId }), head),
+      file("audit/2026/req_0000000000000909.json", stableJson({ actor_id: formerActorId, request_id: "req_0000000000000909" }), head),
+      file(`members/${actorId}.md`, "---\nrole: owner\nschema_version: 1\n---\n", earlier),
+      file(`members/${formerActorId}.md`, markdownDocument({ actor_id: formerActorId, former_member: true, removed_at: "2026-07-15T13:00:00.000Z", schema_version: 1 }, ""), head),
+      file(`snacks/evidence/2026/${evidence.id}.json`, stableJson(evidence), earlier),
+      file(`snacks/items/${item.id}.md`, markdownDocument(item, "Crisp"), earlier),
+      file("profiles/household.md", "# Household\n", earlier),
+      file("profiles/recipes.md", "# Recipes", head),
+      file("collections/col_0000000000000901/snapshots/snp_0000000000000901.json", stableJson({ id: "snp_0000000000000901", collection_id: "col_0000000000000901", title: "Current", sharer_display_name: "Owner", items: [collectionItem], created_at: "2026-07-15T12:00:00.000Z", schema_version: 1 }), earlier),
+      file("collections/col_0000000000000901/collection.md", markdownDocument({ id: "col_0000000000000901", current_snapshot_id: "snp_0000000000000901", schema_version: 1 }, ""), head),
+      file("collections/col_0000000000000902/snapshots/snp_0000000000000902.json", stableJson({ id: "snp_0000000000000902", collection_id: "col_0000000000000902", title: "Legacy", sharer_display_name: null, items: [collectionItem], created_at: "2026-07-14T12:00:00.000Z", schema_version: 1 }), earlier),
+      file("collections/col_0000000000000902/collection.md", markdownDocument({ id: "col_0000000000000902", schema_version: 1 }, ""), head),
+      file("FORMAT_VERSION", "1\n", earlier),
+    ];
+
+    const rebuilt = rebuildRepositoryState({ head, files }, new Map([[requestId, userId]]));
+
+    expect(rebuilt.projection.evidence.get(evidence.id)).toMatchObject({ summary: "Keep apples" });
+    expect(rebuilt.projection.items.get(item.id)).toMatchObject({ item: { body_markdown: "Crisp" }, revision: earlier });
+    expect(rebuilt.projection.profiles.get("household")).toEqual({ markdown: "# Household", revision: earlier });
+    expect(rebuilt.projection.profiles.get("recipes")).toEqual({ markdown: "# Recipes", revision: head });
+    expect(rebuilt.projection.collections.get("col_0000000000000901")?.snapshot.title).toBe("Current");
+    expect(rebuilt.projection.collections.get("col_0000000000000902")?.snapshot.title).toBe("Legacy");
+    expect(rebuilt.memberships).toEqual([
+      { actorId, role: "owner", removedAt: null, userId },
+      { actorId: formerActorId, role: null, removedAt: "2026-07-15T13:00:00.000Z", userId: null },
+    ]);
+  });
+
+  it.each([
+    ["invalid JSON", file("snacks/evidence/2026/evd_0000000000000901.json", "{", head)],
+    ["invalid JSON schema", file("snacks/evidence/2026/evd_0000000000000901.json", "{}", head)],
+    ["invalid frontmatter", file(`members/${actorId}.md`, "role: owner\n", head)],
+    ["frontmatter without a separator", file(`members/${actorId}.md`, "---\nrole\n---\n", head)],
+    ["invalid bare frontmatter", file(`members/${actorId}.md`, "---\nrole: owner name\n---\n", head)],
+    ["mismatched actor", file(`members/${actorId}.md`, markdownDocument({ actor_id: formerActorId, role: "owner" }, ""), head)],
+    ["incomplete former member", file(`members/${actorId}.md`, markdownDocument({ former_member: true }, ""), head)],
+    ["missing collection snapshot", file("collections/col_0000000000000901/collection.md", markdownDocument({ id: "col_0000000000000901", current_snapshot_id: "snp_0000000000000901" }, ""), head)],
+  ])("fails closed for %s", (_case, invalidFile) => {
+    expect(() => rebuildRepositoryState({ head, files: [invalidFile] }, new Map())).toThrowError(/cannot be projected/);
+  });
+});
+
+function file(path: string, content: string, revision: typeof head): RepositorySnapshot["files"][number] {
+  return { path, content, revision };
+}

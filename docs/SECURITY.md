@@ -30,6 +30,8 @@ Clients never receive Git, Neon, Apple, email-provider, signing, or backup crede
 
 Use separate Neon credentials and branches/projects per environment with least-privilege roles. Runtime uses encrypted connections. Migration and production credentials are injected by the deployment secret mechanism and never committed, printed, sent to the browser, or stored in agent configuration.
 
+OpenTofu state uses a separate Neon database and role through a direct TLS endpoint. The infrastructure role is unavailable to the application, and the application runtime and migration roles cannot read the state database. Backend credentials remain operator-only environment values and never enter `.tfvars`, saved plans, images, or application credential delivery.
+
 Authorization uses the membership projection and fails closed if it disagrees with Git. Every tenant query includes the authorized household boundary. Token and capability secrets are stored hashed or HMACed as specified; encryption keys remain separate from ciphertext.
 
 ### Git and DigitalOcean storage
@@ -40,7 +42,7 @@ Reject hooks, symlinks, submodules, alternates, path traversal, unsafe refs, and
 
 ### Off-site backup
 
-Backup plaintext is encrypted locally with compact JWE `dir`/`A256GCM` before it leaves the process. Canonical manifests are signed with a separate Ed25519 key before encryption. Backblaze credentials are restricted to the private backup bucket without delete capability; every object requires compliance retention confirmation before a checkpoint is committed. Encryption and signing keys never enter object metadata, the repository volume, logs, or application responses.
+Backup plaintext is encrypted locally with compact JWE `dir`/`A256GCM` before it leaves the process. Canonical manifests are signed with a separate Ed25519 key before encryption. Backblaze credentials are restricted to the private backup bucket without the `deleteFiles` capability; every object requires compliance retention confirmation before a checkpoint is committed. Backblaze maps S3 deletion by name to a reversible hide marker under `writeFiles`, so recovery tooling must list versions and download the retained upload by file ID when the current name is hidden. Compliance Object Lock prevents deletion of the retained version. Encryption and signing keys never enter object metadata, the repository volume, logs, or application responses.
 
 ### Public capabilities
 

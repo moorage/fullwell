@@ -9,6 +9,7 @@ OUT = ROOT / "docs" / "generated" / "repo-map.json"
 NAME_IGNORE = {
     ".git",
     ".next",
+    ".terraform",
     ".venv",
     "__pycache__",
     "build",
@@ -38,7 +39,7 @@ def repo_name() -> str:
 
 def should_ignore(path: Path) -> bool:
     rel = path.relative_to(ROOT)
-    if path.name in NAME_IGNORE:
+    if any(part in NAME_IGNORE for part in rel.parts):
         return True
     if path.name.endswith(".pyc"):
         return True

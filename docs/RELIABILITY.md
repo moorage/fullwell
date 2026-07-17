@@ -16,6 +16,8 @@ DigitalOcean App Platform is not supported for the authoritative Git store becau
 
 Neon PostgreSQL is the managed operational database. Ordinary runtime work may use its pooled endpoint. Migrations and session-dependent operations use a direct endpoint. Household mutations use transaction-scoped advisory locks on one checked-out connection; session-scoped locks are prohibited through the pooler.
 
+OpenTofu stores DigitalOcean state in a dedicated Neon database through the direct endpoint. Its PostgreSQL backend uses session advisory locks and separate per-environment schemas; it must never use PgBouncer or share application roles. Backblaze is excluded from state storage because its S3-compatible endpoint does not implement the conditional write required by OpenTofu lockfiles.
+
 ## Mutation and retry policy
 
 Each mutating request must:
@@ -49,6 +51,7 @@ The live and readiness routes are public and contain no counts or paths. Product
 
 - create authenticated JWE Git bundle backups and an Ed25519-signed manifest containing household ID, HEAD, object count, backup hash, checkpoint time, and retention deadline;
 - keep compliance-object-locked Git backups in a separate Backblaze account outside the Droplet and Block Storage failure domain;
+- recover a hidden Backblaze object from its compliance-retained upload version by file ID rather than treating an S3 hide marker as erased data;
 - use Neon managed backup/PITR capabilities appropriate to the production plan and separately export required operational metadata;
 - persist repository fsck and signature verification with each daily backup attempt;
 - rehearse isolated download, decryption, manifest/hash, bundle, fsck, HEAD/object-count, and commit-signature restore at least monthly and before destructive migrations;

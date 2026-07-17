@@ -128,6 +128,8 @@ Raw traces live under ignored `.codex/self-improvement/`. Tracked documents cont
 
 DigitalOcean App Platform is not the version 1 target because its application filesystem is ephemeral. The production container runs on a Droplet with an attached Block Storage volume. Keep a single active writer instance until advisory-lock behavior, shared filesystem semantics, failover, and split-brain prevention are proven for a different topology.
 
+OpenTofu state is operational infrastructure data, not application data. It lives in a dedicated Neon PostgreSQL database and role through the direct TLS endpoint; the backend uses database advisory locks and a distinct schema per environment. Backblaze is reserved for compliance-locked application backups because its S3-compatible API does not implement OpenTofu's conditional lock write.
+
 The production health path distinguishes process readiness, Neon reachability/schema compatibility, mounted-volume identity and writability, Git availability, signing readiness, and single-writer leadership without exposing secrets or tenant data. A separately authenticated operator route adds bounded reconciliation, backup-gap/age, fsck/signature failure, restore-drill, and capacity state; `/metrics` exposes the same operational gauges plus low-cardinality HTTP/runtime metrics in OpenMetrics format.
 
 Fastify applies a global and route-specific `@fastify/rate-limit` policy keyed by the client IP after one trusted Caddy hop. `ServiceObservability` is the sole production telemetry adapter for request, MCP, mutation, reconciliation, and maintenance events; it allowlists attribute keys, pseudonymizes entity IDs, and never records request bodies or capability material.

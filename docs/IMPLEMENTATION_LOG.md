@@ -6,11 +6,14 @@
   - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
 
-- current milestone: completed the Apple Container macOS harness after managed Neon migration, adapter, and one-day PITR interoperability; the active ExecPlan remains open on DigitalOcean staging, Backblaze provisioning, npm publication, production Neon retention/snapshots, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
+- current milestone: provisioning DigitalOcean staging after completing the Apple Container harness and Backblaze provider primitive; the active ExecPlan remains open on the deployed full backup/restore drill, DigitalOcean failover, npm publication, production Neon retention/snapshots, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
 - implemented React 19.2 SSR/hydration, server-authorized web contexts, public collection privacy states, no-JavaScript forms, Fastify MCP/OAuth, Apple/Resend adapters, Neon persistence, Git mutation/import provenance, reversible migrations, shared contracts, and the Codex/Claude agent package
 - implemented DigitalOcean OpenTofu, Block Storage initialization checks, pinned Node 24 Docker build, Compose/Caddy/systemd deployment, local deployment/MCP smokes, legal drafts, and operations/release runbooks
 - implemented an Apple Container-native macOS harness with a labeled PostgreSQL 17 container, persistent volume, ignored generated credentials, localhost-only port, lifecycle actions, and fail-closed ownership checks; Docker Compose remains scoped to the DigitalOcean Ubuntu runtime
 - verified Apple Container 1.1.0 across service restart, persistent PostgreSQL resume, five-migration up/down/up, all nine PostgreSQL adapter tests, the complete Node 24 OCI image build, container boot, public routes, expected fail-closed readiness without production dependencies, and MCP discovery
+- provisioned separate private Backblaze state and backup buckets with server-side encryption, enabled compliance Object Lock with 35-day default retention on the backup bucket, and created bucket/prefix-scoped state and backup application keys; the backup key has no `deleteFiles` or governance-bypass capability
+- passed a live Backblaze S3-compatible PUT/HEAD/GET probe with 35-day compliance retention and verified the retained upload remains downloadable by native file ID after an S3 hide marker; Backblaze rejected OpenTofu's required conditional lock write with `501`, so remote state moved to the native Neon PostgreSQL backend with advisory locking
+- excluded ignored `.terraform` backend metadata and provider binaries from the generated repository map and added a regression test after knowledge refresh exposed the local backend directory
 - verified macOS Safari through Computer Use, including the native Codex/Claude toggle state, anonymous account redirect, preserved `/account` pending intent, labeled sign-in controls, and visible focus; 18 automated WebKit checks pass with six project-specific skips across desktop, iPhone, 320x568, and JavaScript-disabled modes
 - verified native 200 percent zoom in macOS 26.5.1 / Safari 26.5 on install, sign-in, long Privacy, and collection-error states; verified Safari keyboard and skip-link focus conventions, then restored zoom to 100 percent
 - implemented SimpleWebAuthn-backed registration and authentication, session/browser-bound one-time challenges, Neon public credential storage, atomic counter replay protection, and account enrollment/list/removal UI
@@ -52,11 +55,11 @@
   - `npm run container:build`
   - `PUBLIC_BASE_URL=http://127.0.0.1:4187 npm run test:deploy-smoke`
   - `PUBLIC_BASE_URL=http://127.0.0.1:4187 npm run test:mcp-smoke`
-  - Docker build, Compose render, Caddy validate, OpenTofu init/validate, and `npm audit --omit=dev`
+  - Docker build, Compose render, Caddy validate, OpenTofu PostgreSQL-backend init/validate, live Backblaze retention/version probes, and `npm audit --omit=dev`
   - `npm run verify`
 - blocking results:
   - the immutable npm package is not published, so public marketplace install returns `E404` and real host OAuth/setup workflows remain blocked
-  - provisioned Backblaze Object Lock, production Neon 30-day history/scheduled snapshots and combined Git-plus-Neon RPO/RTO recovery, DigitalOcean failover, external application staging, native passkey compatibility, and manual release reviews remain incomplete
+  - deployed end-to-end Backblaze Git backup/restore, production Neon 30-day history/scheduled snapshots and combined Git-plus-Neon RPO/RTO recovery, DigitalOcean failover, external application staging, native passkey compatibility, and manual release reviews remain incomplete
   - Safari 26.5 accepted a WebDriver virtual authenticator but timed out creating a credential; the deterministic cryptographic/provider policy and browser-action suites pass, while native staging evidence remains open
 
 - previous milestone: planned the complete Household Food Journal version 1 implementation

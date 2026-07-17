@@ -5,13 +5,13 @@
 - A reviewed image exists by immutable digest and passed build, test, security, restore, and browser gates.
 - The direct and pooled Neon URLs address the intended staging or production project and branch.
 - DNS, Apple Services ID, passkey RP ID, OAuth issuer/resource, email sender, and object-storage origin exactly match the public domain.
-- An encrypted, locked OpenTofu backend is configured. `DIGITALOCEAN_TOKEN` is supplied only to the operator process.
+- A dedicated Neon OpenTofu database and least-privilege role are reachable through a direct TLS endpoint. `PG_CONN_STR`, `PG_SCHEMA_NAME`, and `DIGITALOCEAN_TOKEN` are supplied only to the operator process.
 - The release has a rollback digest. Database migration up/down/up was rehearsed on an isolated Neon branch.
 - The off-site Backblaze B2 bucket is private, compliance-object-locked, encrypted before upload, and controlled through credentials held separately from DigitalOcean.
 
 ## Provision
 
-1. In `infra/opentofu`, run `tofu init`, `tofu fmt -check`, `tofu validate`, and a saved `tofu plan` with reviewed environment inputs.
+1. In `infra/opentofu`, export the dedicated direct state URL as `PG_CONN_STR` and the environment-specific state schema as `PG_SCHEMA_NAME`, then run `tofu init`, `tofu fmt -check`, `tofu validate`, and a saved `tofu plan` with reviewed environment inputs. Never use the pooled Neon endpoint for this session-locking backend.
 2. Apply the saved plan. Record the Droplet ID, reserved IP, and household volume ID in the restricted deployment record.
 3. Confirm the Cloud Firewall exposes only operator-scoped SSH plus public 80/443. Confirm Droplet monitoring and backups are enabled.
 4. Copy the release tree to `/opt/household-food-journal` without credentials. Install the units from `deploy/systemd/` and run `systemctl daemon-reload`.
@@ -32,7 +32,7 @@ Use `systemd-creds encrypt --name=<credential-name> - /etc/credstore.encrypted/<
 - Resend API key;
 - Git SSH signing private key and matching `allowed_signers` public-key file;
 - base64url backup-encryption key and Ed25519 manifest key pair;
-- Backblaze B2 S3 endpoint, bucket, region, and bucket-restricted application key without delete capability.
+- Backblaze B2 S3 endpoint, bucket, region, and bucket/prefix-restricted application key without `deleteFiles` or governance-bypass capability.
 
 Put only `PUBLIC_DOMAIN`, the immutable `HFJ_IMAGE` digest, and the non-secret object endpoint/region/bucket/prefix/key ID/retention settings in `/etc/hfj/deploy.env`, root-owned mode `0440`. No credential belongs in that file, the image, OpenTofu state, `/opt`, or `/data/households`.
 

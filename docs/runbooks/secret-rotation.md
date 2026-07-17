@@ -23,5 +23,6 @@ Runtime secrets are separate encrypted systemd credentials. Plaintext is accepte
 - Git signing: follow `signing-key-recovery.md`; rotate the private-key credential and `git-allowed-signers` file together while retaining every public key needed to verify unexpired history and backups.
 - Backup: rotate the bucket-restricted Backblaze application key, JWE encryption key, and Ed25519 manifest key separately. Keep every retired decryption/private verification generation in the offline recovery store until all objects carrying its `BACKUP_KEY_ID` expire; exercise a drill with the retiring generation before removal.
 - DigitalOcean: the infrastructure operator token is not loaded into the app. Rotate it in the operator secret store and test a read-only plan first.
+- OpenTofu state: rotate the dedicated Neon state role independently from application database roles, update the operator-only `PG_CONN_STR`, and prove `tofu plan` acquires and releases the PostgreSQL backend lock before revoking the old role credential.
 
 For suspected compromise, fence the affected function, revoke first where safety requires, invalidate dependent grants/capabilities, and use recovery credentials. Do not keep serving with an unknown signing, encryption, or database identity.

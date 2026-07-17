@@ -18,6 +18,11 @@ class SuggestDocUpdatesTests(unittest.TestCase):
 
         self.assertTrue(should_ignore(credential_path))
 
+    def test_repo_map_excludes_opentofu_runtime_state(self) -> None:
+        state_path = ROOT / "infra" / "opentofu" / ".terraform" / "terraform.tfstate"
+
+        self.assertTrue(should_ignore(state_path))
+
     def test_web_changes_require_product_review_and_visible_evidence(self) -> None:
         hints = suggest_updates(["apps/web/src/CollectionPreview.tsx"])
 

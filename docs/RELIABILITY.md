@@ -16,6 +16,8 @@ DigitalOcean App Platform is not supported for the authoritative Git store becau
 
 Neon PostgreSQL is the managed operational database. Ordinary runtime work may use its pooled endpoint. Migrations and session-dependent operations use a direct endpoint. Household mutations use transaction-scoped advisory locks on one checked-out connection; session-scoped locks are prohibited through the pooler.
 
+The DigitalOcean Cloud Firewall permits outbound PostgreSQL TCP `5432` in addition to DNS, NTP, HTTP, and HTTPS. Removing that rule leaves liveness healthy but makes readiness fail because the Neon pool cannot connect. Runtime credential rotation likewise requires a unit restart with forced Compose recreation; an existing container retains its original bind-mounted secret files even when the encrypted host blobs change.
+
 OpenTofu stores DigitalOcean state in a dedicated Neon database through the direct endpoint. Its PostgreSQL backend uses session advisory locks and separate per-environment schemas; it must never use PgBouncer or share application roles. Backblaze is excluded from state storage because its S3-compatible endpoint does not implement the conditional write required by OpenTofu lockfiles.
 
 ## Mutation and retry policy

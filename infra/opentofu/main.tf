@@ -1,6 +1,7 @@
 locals {
-  name = "hfj-${var.environment}"
-  tags = ["household-food-journal", var.environment, "single-writer"]
+  name         = "hfj-${var.environment}"
+  tags         = ["household-food-journal", var.environment, "single-writer"]
+  volume_label = "hfj-households"
 }
 
 resource "digitalocean_volume" "households" {
@@ -9,7 +10,7 @@ resource "digitalocean_volume" "households" {
   size                     = var.volume_size_gib
   description              = "Authoritative Household Food Journal Git repositories"
   initial_filesystem_type  = "ext4"
-  initial_filesystem_label = "hfj-households"
+  initial_filesystem_label = local.volume_label
   tags                     = local.tags
 
   lifecycle {
@@ -27,12 +28,18 @@ resource "digitalocean_droplet" "app" {
   backups    = true
   ipv6       = true
   tags       = local.tags
+  backup_policy {
+    plan    = "weekly"
+    weekday = "SUN"
+    hour    = 4
+  }
   user_data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
-    volume_label = digitalocean_volume.households.filesystem_label
+    volume_label = local.volume_label
   })
 
   lifecycle {
     create_before_destroy = true
+    ignore_changes        = [backups, user_data]
   }
 }
 
@@ -48,6 +55,8 @@ resource "digitalocean_reserved_ip" "app" {
 resource "digitalocean_reserved_ip_assignment" "app" {
   ip_address = digitalocean_reserved_ip.app.ip_address
   droplet_id = digitalocean_droplet.app.id
+
+  depends_on = [digitalocean_volume_attachment.households]
 }
 
 resource "digitalocean_firewall" "app" {
@@ -98,7 +107,19 @@ resource "digitalocean_firewall" "app" {
 
   outbound_rule {
     protocol              = "tcp"
+    port_range            = "80"
+    destination_addresses = ["0.0.0.0/0", "::/0"]
+  }
+
+  outbound_rule {
+    protocol              = "tcp"
     port_range            = "443"
+    destination_addresses = ["0.0.0.0/0", "::/0"]
+  }
+
+  outbound_rule {
+    protocol              = "tcp"
+    port_range            = "5432"
     destination_addresses = ["0.0.0.0/0", "::/0"]
   }
 

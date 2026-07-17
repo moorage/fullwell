@@ -862,6 +862,14 @@
             },
             {
               "type": "file",
+              "name": "materialize-credentials.sh"
+            },
+            {
+              "type": "file",
+              "name": "materialize-credentials.test.mjs"
+            },
+            {
+              "type": "file",
               "name": "verify-volume.sh"
             }
           ]
@@ -1173,6 +1181,10 @@
             {
               "type": "file",
               "name": "outputs.tf"
+            },
+            {
+              "type": "file",
+              "name": "staging-baseline.test.mjs"
             },
             {
               "type": "file",

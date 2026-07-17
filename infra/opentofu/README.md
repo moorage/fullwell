@@ -2,11 +2,17 @@
 
 This stack provisions one fenced writer Droplet, one attached ext4 Block Storage volume, one reserved IP, a restricted Cloud Firewall, and an optional DNS record. It does not provision Neon or store any application secret.
 
+The Cloud Firewall exposes SSH only to reviewed operator CIDRs and HTTP/HTTPS publicly. Outbound rules include DNS, NTP, package/HTTPS traffic, and TCP `5432` for the pooled and direct Neon PostgreSQL endpoints. Neon endpoint addresses can change, so the rule is port-scoped rather than pinned to resolved provider IPs.
+
 ## Staging cost baseline
 
 The reviewed staging defaults are a 1 GiB Basic Droplet (`s-1vcpu-1gb`), a 50 GiB Block Storage volume, and weekly Droplet backups. At DigitalOcean's prices verified on 2026-07-17, those components cost $6.00, $5.00, and $1.20 per month respectively, or $12.20 per month before tax. See the official [Droplet](https://www.digitalocean.com/pricing/droplets), [volume](https://docs.digitalocean.com/products/volumes/details/pricing/), and [backup](https://docs.digitalocean.com/products/backups/details/pricing/) pricing pages.
 
 Cloud-init creates a 2 GiB swap file with low swappiness to absorb transient container-startup and Git-maintenance pressure on the 1 GiB host. Build the OCI image off-host; the staging Droplet is a runtime target, not an image builder. Monitor memory, swap, latency, and maintenance duration during staging. Resize the Droplet before production or when load evidence shows sustained memory pressure. Production must set an explicitly reviewed `droplet_size` rather than inheriting the staging capacity decision.
+
+DigitalOcean's general Droplet response currently reports `backups = false` even when its dedicated backup-policy endpoint reports an active policy. The resource ignores that stale boolean after creation while continuing to declare the explicit weekly policy. After every apply, verify `.policy.backup_enabled`, `.policy.backup_policy.plan`, weekday, and hour through `GET /v2/droplets/{droplet_id}/backups/policy`; a plan alone is not backup evidence.
+
+Cloud-init is a first-boot contract, so the Droplet ignores `user_data` drift after creation. When `cloud-init.yaml.tftpl` changes, review a plan with `-replace=digitalocean_droplet.app` and confirm that the existing volume and reserved IP remain preserved before applying. Do not treat a clean ordinary plan as evidence that a bootstrap change reached an existing host.
 
 ## State and credentials
 

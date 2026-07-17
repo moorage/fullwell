@@ -7,7 +7,11 @@ expected_file=/etc/hfj/expected-volume-id
 
 mountpoint -q "$mount_path" || { echo "$mount_path is not mounted" >&2; exit 1; }
 test -r "$expected_file" || { echo "missing expected volume identity" >&2; exit 1; }
-test -z "$(find "$mount_path" -mindepth 1 -maxdepth 1 -print -quit)" || { echo "refusing to initialize a non-empty volume" >&2; exit 1; }
+test -z "$(find "$mount_path" -mindepth 1 -maxdepth 1 ! -name lost+found -print -quit)" || { echo "refusing to initialize a non-empty volume" >&2; exit 1; }
+if test -e "$mount_path/lost+found"; then
+  test -d "$mount_path/lost+found" && test ! -L "$mount_path/lost+found" || { echo "invalid lost+found entry" >&2; exit 1; }
+  test "$(stat -c %u:%g "$mount_path/lost+found")" = "0:0" || { echo "lost+found must be root-owned" >&2; exit 1; }
+fi
 chown 10001:10001 "$mount_path"
 chmod 0750 "$mount_path"
 install -d -m 0750 -o 10001 -g 10001 "$mount_path/.worktrees" "$mount_path/.exports"

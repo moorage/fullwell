@@ -58,6 +58,8 @@ Expected secret classes include Neon runtime and migration URLs, Apple credentia
 
 The operator token is not an OAuth access token and grants no household or MCP access. It protects `/health/operator` and `/metrics`, is HMAC-compared, is rate limited, and must be rotated as an encrypted systemd credential. Public liveness/readiness never return tenant counts, storage paths, repository identifiers, or provider error bodies.
 
+On the Droplet, systemd decrypts the encrypted credential blobs into a root-only unit directory. Startup copies only the declared application credentials into a private tmpfs-backed runtime directory as `root:10001` with mode `0440`, allowing the unprivileged container process to read its bind-mounted secret files. Credential rotation replaces an encrypted blob and restarts the unit so systemd reacquires the source and Compose force recreates the containers; reload is intentionally unsupported. Staging currently uses systemd's host credential key on an unencrypted root disk; this protects credential files from casual at-rest disclosure but does not protect against host-root compromise. Production remains blocked on encrypted root storage, TPM-backed sealing, or an external runtime secret manager plus a completed rotation/recovery drill.
+
 - `.env*` remains ignored and is for local non-production values only.
 - local and test work use isolated Neon branches/projects, never production credentials.
 - no secret may appear in Git, URLs, MCP output, browser bundles/storage, analytics, metrics labels, logs, screenshots, self-improvement traces, or support exports.

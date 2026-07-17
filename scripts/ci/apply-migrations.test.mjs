@@ -2,8 +2,12 @@ import assert from "node:assert/strict";
 import { buildMigrationBatch, buildPsqlInvocation, unwrapMigration, validateMigrationEnvironment } from "./apply-migrations.mjs";
 
 const directHost = "ep-validation.us-east-1.aws.neon.tech";
+const migrationPassword = "encoded/password";
+const directUrl = new URL(`postgresql://${directHost}/migration-db?sslmode=require&channel_binding=require`);
+directUrl.username = "migration-user";
+directUrl.password = migrationPassword;
 const stagingEnvironment = {
-  DATABASE_DIRECT_URL: `postgresql://${directHost}/neondb?sslmode=require`,
+  DATABASE_DIRECT_URL: directUrl.toString(),
   MIGRATION_TARGET: "staging",
   MIGRATION_EXPECTED_HOST: directHost,
 };
@@ -17,7 +21,13 @@ assert.equal(validateMigrationEnvironment({ ...stagingEnvironment, MIGRATION_TAR
 
 const invocation = buildPsqlInvocation(stagingEnvironment.DATABASE_DIRECT_URL, true);
 assert(!invocation.args.includes(stagingEnvironment.DATABASE_DIRECT_URL));
-assert.equal(invocation.env.PGDATABASE, stagingEnvironment.DATABASE_DIRECT_URL);
+assert.equal(invocation.env.PGHOST, directHost);
+assert.equal(invocation.env.PGPORT, "5432");
+assert.equal(invocation.env.PGUSER, "migration-user");
+assert.equal(invocation.env.PGPASSWORD, migrationPassword);
+assert.equal(invocation.env.PGDATABASE, "migration-db");
+assert.equal(invocation.env.PGSSLMODE, "require");
+assert.equal(invocation.env.PGCHANNELBINDING, "require");
 assert.deepEqual(invocation.args.slice(-2), ["--tuples-only", "--no-align"]);
 
 const first = { file: "0001_first.sql", content: "BEGIN;\nCREATE TABLE first_table (id text PRIMARY KEY);\nCOMMIT;\n" };

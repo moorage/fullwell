@@ -21,7 +21,11 @@ On an Apple silicon macOS development host, use Apple's `container` CLI through 
 
 Run `npm run container:postgres:verify` for migration up/down/up followed by the real PostgreSQL integration suite, `npm run container:postgres:stop` to stop the container without deleting its volume, and `npm run container:build` to build the application OCI image from `Dockerfile`.
 
+DigitalOcean Droplets are amd64, while the default Apple silicon build is arm64. Build a release image with `container build --platform linux/amd64`, verify the recorded variant before transfer, and export that variant with `container image save --platform linux/amd64`. Apple's export is an OCI image index; after `docker load`, identify the loaded index digest with `docker image ls --no-trunc` and assign the reviewed release tag from that digest before Compose starts it.
+
 The DigitalOcean Droplet runs Ubuntu, so production continues to use the checked-in Docker Compose and systemd units. Do not rewrite those Linux deployment assets around the macOS-only Apple Container CLI.
+
+The application unit decrypts credentials through `LoadCredentialEncrypted`, then `materialize-credentials.sh` copies only the declared files into its private `/run/household-food-journal/credentials` runtime directory as `root:10001` with mode `0440`. Docker Compose bind-backed secrets preserve source ownership and mode, so pointing Compose directly at systemd's root-only credential directory prevents the UID `10001` application from reading them. Rotate a credential by replacing its encrypted blob and restarting the unit; restart reacquires the encrypted sources and forces container recreation because Compose does not detect secret-content rotation as a configuration change. Reload is intentionally unsupported. The runtime directory exists only while the application unit is active; the maintenance unit reuses it and never decrypts a second copy.
 
 ## Useful loop
 

@@ -4,7 +4,6 @@ services:
   app:
     image: ${HFJ_IMAGE:?set HFJ_IMAGE to an immutable digest}
     restart: unless-stopped
-    init: true
     read_only: true
     cap_drop: [ALL]
     security_opt:
@@ -108,30 +107,30 @@ volumes:
 
 secrets:
   database_url:
-    file: ${CREDENTIALS_DIRECTORY:?systemd credential directory required}/database-url
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY:?runtime credential directory required}/database-url
   database_direct_url:
-    file: ${CREDENTIALS_DIRECTORY}/database-direct-url
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/database-direct-url
   token_pepper:
-    file: ${CREDENTIALS_DIRECTORY}/token-pepper
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/token-pepper
   session_secret:
-    file: ${CREDENTIALS_DIRECTORY}/session-secret
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/session-secret
   operator_token:
-    file: ${CREDENTIALS_DIRECTORY}/operator-token
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/operator-token
   apple_private_key:
-    file: ${CREDENTIALS_DIRECTORY}/apple-private-key
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/apple-private-key
   mail_provider_api_key:
-    file: ${CREDENTIALS_DIRECTORY}/mail-provider-api-key
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/mail-provider-api-key
   git_signing_key:
-    file: ${CREDENTIALS_DIRECTORY}/git-signing-key
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/git-signing-key
   git_allowed_signers:
-    file: ${CREDENTIALS_DIRECTORY}/git-allowed-signers
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/git-allowed-signers
   object_storage_access_key_id:
-    file: ${CREDENTIALS_DIRECTORY}/object-storage-access-key-id
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/object-storage-access-key-id
   object_storage_secret_access_key:
-    file: ${CREDENTIALS_DIRECTORY}/object-storage-secret-access-key
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/object-storage-secret-access-key
   backup_encryption_key:
-    file: ${CREDENTIALS_DIRECTORY}/backup-encryption-key
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/backup-encryption-key
   backup_manifest_private_key:
-    file: ${CREDENTIALS_DIRECTORY}/backup-manifest-private-key
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/backup-manifest-private-key
   backup_manifest_public_key:
-    file: ${CREDENTIALS_DIRECTORY}/backup-manifest-public-key
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/backup-manifest-public-key

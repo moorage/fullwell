@@ -6,12 +6,17 @@
   - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
 
-- current milestone: provisioning DigitalOcean staging after completing the Apple Container harness and Backblaze provider primitive; the active ExecPlan remains open on the deployed full backup/restore drill, DigitalOcean failover, npm publication, production Neon retention/snapshots, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
+- current milestone: the DigitalOcean staging service is live and healthy; the active ExecPlan remains open on real Apple/Resend credentials, native authenticated/passkey workflows, a non-empty deployed Backblaze backup/restore drill, DigitalOcean failover, npm publication, production Neon retention/snapshots, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
 - implemented React 19.2 SSR/hydration, server-authorized web contexts, public collection privacy states, no-JavaScript forms, Fastify MCP/OAuth, Apple/Resend adapters, Neon persistence, Git mutation/import provenance, reversible migrations, shared contracts, and the Codex/Claude agent package
 - implemented DigitalOcean OpenTofu, Block Storage initialization checks, pinned Node 24 Docker build, Compose/Caddy/systemd deployment, local deployment/MCP smokes, legal drafts, and operations/release runbooks
 - set the reviewed DigitalOcean staging baseline to a 1 GiB Basic Droplet, 50 GiB Block Storage volume, weekly backups, and 2 GiB low-swappiness host swap; the documented estimate is $12.20 per month before tax and production sizing remains gated on staging load evidence
-- initialized and exercised the dedicated Neon OpenTofu backend schema with its least-privilege role and advisory locking; a DigitalOcean operator token and reviewed plan remain required before any paid resource is created
-- passed `npm run test:infrastructure`, `tofu validate`, `npm run verify:docs`, `npm run verify:execplan`, and `npm run verify`; 191 application tests pass, nine credential-gated Neon tests skip, and the only documentation warnings are pre-existing planned runtime paths
+- initialized and exercised the dedicated Neon OpenTofu backend schema with its least-privilege role and advisory locking; provisioned the reviewed DigitalOcean Droplet, persistent volume, reserved IP, firewall, and explicit weekly backup policy with a clean post-apply plan
+- replaced the first failed cloud-init host after adding required HTTP mirror egress, preserved and initialized the attached volume, removed the malformed explicit device-unit dependency, serialized volume/address assignment, and made fresh ext4 `lost+found` handling fail closed
+- created the dedicated 0.25 CU autosuspending Neon staging branch and application role/database, fixed the libpq migration environment contract, applied migrations `0001` through `0005`, and verified pooled and direct connectivity
+- built a `linux/amd64` release image with Apple Container, exported and checksum-verified its OCI archive, loaded and retagged the image index on the x86_64 Droplet, installed the public Compose/systemd configuration, and passed the remote Docker/mount/volume preflight
+- installed encrypted systemd runtime credentials, materialized the declared files into a tmpfs runtime directory readable only by root and the UID/GID `10001` application, and forced container recreation on restart so secret rotation replaces bind mounts
+- added Neon TCP `5432` egress after live readiness isolated the Cloud Firewall boundary; the deployed HTTPS `/health/live` and `/health/ready` routes now return 200 with schema `0005`, Git, volume, signing, and single-writer checks ready
+- passed deployed HTTP and MCP discovery smokes, a systemd maintenance run with live Neon health and zero failed reconciliation/backup checks, and native Safari review of the HTTPS install selector, help disclosure, and sign-in layout
 - implemented an Apple Container-native macOS harness with a labeled PostgreSQL 17 container, persistent volume, ignored generated credentials, localhost-only port, lifecycle actions, and fail-closed ownership checks; Docker Compose remains scoped to the DigitalOcean Ubuntu runtime
 - verified Apple Container 1.1.0 across service restart, persistent PostgreSQL resume, five-migration up/down/up, all nine PostgreSQL adapter tests, the complete Node 24 OCI image build, container boot, public routes, expected fail-closed readiness without production dependencies, and MCP discovery
 - provisioned separate private Backblaze state and backup buckets with server-side encryption, enabled compliance Object Lock with 35-day default retention on the backup bucket, and created bucket/prefix-scoped state and backup application keys; the backup key has no `deleteFiles` or governance-bypass capability
@@ -58,11 +63,15 @@
   - `npm run container:build`
   - `PUBLIC_BASE_URL=http://127.0.0.1:4187 npm run test:deploy-smoke`
   - `PUBLIC_BASE_URL=http://127.0.0.1:4187 npm run test:mcp-smoke`
+  - `STAGING_BASE_URL=https://209-38-116-166.sslip.io npm run test:deploy-smoke -- staging`
+  - `STAGING_BASE_URL=https://209-38-116-166.sslip.io npm run test:mcp-smoke -- staging`
+  - `node --test deploy/scripts/materialize-credentials.test.mjs`
   - Docker build, Compose render, Caddy validate, OpenTofu PostgreSQL-backend init/validate, live Backblaze retention/version probes, and `npm audit --omit=dev`
   - `npm run verify`
 - blocking results:
   - the immutable npm package is not published, so public marketplace install returns `E404` and real host OAuth/setup workflows remain blocked
-  - deployed end-to-end Backblaze Git backup/restore, production Neon 30-day history/scheduled snapshots and combined Git-plus-Neon RPO/RTO recovery, DigitalOcean failover, external application staging, native passkey compatibility, and manual release reviews remain incomplete
+  - deployed non-empty Backblaze Git backup/restore, production Neon 30-day history/scheduled snapshots and combined Git-plus-Neon RPO/RTO recovery, DigitalOcean failover, real Apple/Resend integration, native passkey compatibility, and manual release reviews remain incomplete
+  - systemd warned that the staging host credential key is not on encrypted media; production requires encrypted root storage, TPM-backed sealing, or an external runtime secret manager plus a rotation/recovery drill
   - Safari 26.5 accepted a WebDriver virtual authenticator but timed out creating a credential; the deterministic cryptographic/provider policy and browser-action suites pass, while native staging evidence remains open
 
 - previous milestone: planned the complete Household Food Journal version 1 implementation

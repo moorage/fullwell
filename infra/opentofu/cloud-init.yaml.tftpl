@@ -29,8 +29,6 @@ write_files:
     content: |
       [Unit]
       Description=Household Food Journal Block Storage
-      After=dev-disk-by\x2dlabel-${volume_label}.device
-      Requires=dev-disk-by\x2dlabel-${volume_label}.device
 
       [Mount]
       What=/dev/disk/by-label/${volume_label}

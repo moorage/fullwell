@@ -59,9 +59,20 @@ export function buildMigrationBatch(migrations, applied) {
 }
 
 export function buildPsqlInvocation(connectionString, capture = false) {
+  const databaseUrl = new URL(connectionString);
+  const env = {
+    PGHOST: databaseUrl.hostname,
+    PGPORT: databaseUrl.port || "5432",
+    PGUSER: decodeURIComponent(databaseUrl.username),
+    PGPASSWORD: decodeURIComponent(databaseUrl.password),
+    PGDATABASE: decodeURIComponent(databaseUrl.pathname.slice(1)),
+    PGSSLMODE: databaseUrl.searchParams.get("sslmode") ?? "require",
+  };
+  const channelBinding = databaseUrl.searchParams.get("channel_binding");
+  if (channelBinding !== null) env.PGCHANNELBINDING = channelBinding;
   return {
     args: ["--set", "ON_ERROR_STOP=1", "--no-psqlrc", ...(capture ? ["--tuples-only", "--no-align"] : [])],
-    env: { PGDATABASE: connectionString },
+    env,
   };
 }
 

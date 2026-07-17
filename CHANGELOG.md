@@ -22,3 +22,4 @@
 - Added a fail-closed direct-Neon migration runner with exact-host and production confirmation gates, TLS enforcement, advisory locking, and content-hashed migration ledger updates.
 - Added an Apple Container-native macOS harness for isolated PostgreSQL verification and OCI image builds while retaining Docker Compose for the DigitalOcean Ubuntu production runtime.
 - Added Neon PostgreSQL remote state with advisory locking for OpenTofu, documented Backblaze's incompatible conditional-write behavior, provisioned a prefix-scoped no-`deleteFiles` backup key with live compliance-retention evidence, and excluded ignored OpenTofu runtime state from generated knowledge artifacts.
+- Reduced the reviewed DigitalOcean staging baseline to a 1 GiB Basic Droplet and 50 GiB persistent volume, documented its $12.20 monthly estimate, and added low-swappiness host swap plus a regression test for the capacity and backup policy.

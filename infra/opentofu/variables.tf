@@ -15,9 +15,9 @@ variable "region" {
 }
 
 variable "droplet_size" {
-  description = "DigitalOcean Droplet size slug."
+  description = "DigitalOcean Droplet size slug. The default is the reviewed staging baseline; production must set an explicitly reviewed size."
   type        = string
-  default     = "s-2vcpu-4gb"
+  default     = "s-1vcpu-1gb"
 }
 
 variable "droplet_image" {
@@ -27,9 +27,9 @@ variable "droplet_image" {
 }
 
 variable "volume_size_gib" {
-  description = "Authoritative household repository volume size in GiB."
+  description = "Authoritative household repository volume size in GiB. The default is the reviewed staging baseline."
   type        = number
-  default     = 100
+  default     = 50
 
   validation {
     condition     = var.volume_size_gib >= 10

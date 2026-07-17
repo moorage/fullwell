@@ -12,6 +12,18 @@ users:
   - default
 
 write_files:
+  - path: /etc/systemd/system/swapfile.swap
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Household Food Journal swap
+      Before=docker.service
+
+      [Swap]
+      What=/swapfile
+
+      [Install]
+      WantedBy=swap.target
   - path: /etc/systemd/system/data-households.mount
     permissions: "0644"
     content: |
@@ -37,6 +49,7 @@ write_files:
       kernel.dmesg_restrict=1
       kernel.kptr_restrict=2
       net.ipv4.conf.all.rp_filter=1
+      vm.swappiness=10
   - path: /etc/ssh/sshd_config.d/60-hfj.conf
     permissions: "0644"
     content: |
@@ -46,10 +59,14 @@ write_files:
       AllowAgentForwarding no
 
 runcmd:
+  - [fallocate, -l, 2G, /swapfile]
+  - [chmod, "0600", /swapfile]
+  - [mkswap, /swapfile]
   - [install, -d, -m, "0750", /etc/hfj]
   - [install, -d, -m, "0755", /opt/household-food-journal]
   - [install, -d, -m, "0750", /data/households]
   - [systemctl, daemon-reload]
+  - [systemctl, enable, --now, swapfile.swap]
   - [systemctl, enable, data-households.mount]
   - [systemctl, enable, docker]
   - [systemctl, restart, ssh]

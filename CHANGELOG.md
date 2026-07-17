@@ -20,3 +20,4 @@
 - Added adversarial request, XSS/prompt-content, capability-redaction, URL-scheme, and repository-secret coverage; parser failures now return bounded 400/413/415 responses and production browser source maps are disabled.
 - Moved the shared agent package catalogs to the repository-native Codex and Claude marketplace discovery paths and added isolated host install, update, disable, and removal lifecycle validation.
 - Added a fail-closed direct-Neon migration runner with exact-host and production confirmation gates, TLS enforcement, advisory locking, and content-hashed migration ledger updates.
+- Added an Apple Container-native macOS harness for isolated PostgreSQL verification and OCI image builds while retaining Docker Compose for the DigitalOcean Ubuntu production runtime.

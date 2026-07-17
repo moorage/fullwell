@@ -1,8 +1,13 @@
 .git
 .gitignore
 .env*
+**/.env*
+.codex
 node_modules
+**/node_modules
 npm-debug.log
 coverage
+artifacts
+.DS_Store
 client_secret.apps.googleusercontent.com.json
 tmp/

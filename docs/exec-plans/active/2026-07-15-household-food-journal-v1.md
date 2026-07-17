@@ -35,6 +35,7 @@ Version 1 deploys one containerized service on one DigitalOcean Droplet. `/data/
 - [x] 2026-07-16T16:37Z: Moved host catalogs to native repository discovery paths and passed isolated marketplace discovery and lifecycle tests on Codex CLI 0.144.4 and Claude Code 2.1.123; immutable npm publication and real staging workflows remain blocked.
 - [x] 2026-07-16T18:23Z: Added a fail-closed direct-Neon migration runner, applied schema `0005` with idempotent re-entry on a one-day schema-only Neon branch, and passed all nine managed-Neon adapter tests.
 - [x] 2026-07-16T18:45Z: Restored the disposable branch to its verified 11:28 PDT history point in 0.26 seconds, verified the complete operational schema and migration ledger versions `0001` through `0005`, retained an undo branch, and scheduled both branches for one-day expiration; production retention/snapshots and combined Git-plus-Neon RPO/RTO evidence remain open.
+- [x] 2026-07-17T02:52Z: Made Apple Container the macOS harness default, added an isolated labeled PostgreSQL 17 container and persistent volume with ignored generated credentials, and passed migration up/down/up, all nine adapter integration tests, the Node 24 OCI build, image boot, public-route checks, fail-closed readiness, and MCP discovery on Apple Container 1.1.0; production Ubuntu remains Docker Compose under systemd.
 - [ ] 2026-07-16T06:14Z: Provisioned Backblaze recovery and production Neon retention/snapshot evidence, native passkey staging evidence, full validation, and external/manual review remain blocking; see `docs/release/verification-evidence.md`.
 - [ ] Milestone 0 - validate platform assumptions and approve ChatGPT-assisted information architecture and UI design.
 - [ ] Milestone 1 - establish the monorepo, shared contracts, generated schemas, fakes, and real quality gates.
@@ -63,6 +64,9 @@ Version 1 deploys one containerized service on one DigitalOcean Droplet. `/data/
 - 2026-07-16: The first account-leave implementation updated only Neon membership rows. Diff review caught the authority violation; the final path commits the former-member document and audit event under the household lock before advancing the Neon projection.
 - 2026-07-16: Throwing `RECONCILIATION_REQUIRED` from inside Neon's household transaction rolled back the mutation marker even though Git had already committed. Recovery outcomes now commit their database state before errors cross the transaction boundary.
 - 2026-07-16: Real PostgreSQL verification found account leave opening a nested transaction and waiting on its own advisory lock. The operational store now reuses the active household transaction, and the integration suite covers the calling context.
+- 2026-07-17: Apple named volumes contain an ext4 `lost+found` entry, so the PostgreSQL image cannot initialize with the mount root as `PGDATA`. The harness uses `/var/lib/postgresql/data/pgdata` while preserving the parent named volume.
+- 2026-07-17: Apple Container 0.11.0 repeatedly failed before Dockerfile execution with its known `unable to write data to the archive, code 0` defect. Version 0.12.0 fixed that upstream archiver path, so the local image-build action rejects older clients with an upgrade instruction.
+- 2026-07-17: Apple Container 1.1.0 changed JSON resource output from top-level string state/name fields to structured `status.state` and `configuration.name` fields. The harness accepts and tests both shapes so supported upgrades do not orphan the persistent local database.
 
 ## Decision Log
 
@@ -83,6 +87,7 @@ Version 1 deploys one containerized service on one DigitalOcean Droplet. `/data/
 - 2026-07-16: Browser account changes reuse provider proof and the single Git-writer boundary. Apple/email links remain bound to the signed-in browser, destructive global access changes require recent authentication, and household exit writes the same former-member Git document used by MCP membership removal before account credentials are revoked.
 - 2026-07-16: Recovery uses Git request trailers plus deterministic HMAC-derived per-request IDs and 32-byte capability material. Git snapshots retain each file's last commit revision; unsafe documents or missing private identity mappings quarantine the household rather than weakening authorization.
 - 2026-07-16: Export download capability material and artifact IDs are derived from the durable request identity. Artifact metadata and mutation completion commit in the same Neon household transaction; exact retries reproduce one URL, while changed input conflicts. Download bytes are verified before the atomic single-use claim to avoid consuming corrupt artifacts.
+- 2026-07-17: Use Apple's `container` CLI for local OCI builds and PostgreSQL verification on Apple silicon macOS. Keep the portable `Dockerfile` and the DigitalOcean Ubuntu Docker Compose/systemd runtime unchanged because Apple Container is a local host tool, not a Linux production orchestrator.
 
 ## Context and Orientation
 
@@ -544,7 +549,7 @@ Exit criteria:
 Files:
 
 - `Dockerfile`
-- `.dockerignore`
+- `Dockerfile.dockerignore`
 - `deploy/compose.yaml`
 - `deploy/systemd/household-food-journal.service`
 - `deploy/systemd/household-food-journal-maintenance.timer`

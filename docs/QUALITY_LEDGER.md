@@ -27,7 +27,7 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 - `docs/product-specs/household-food-journal-server.md` and `docs/product-specs/household-food-journal-client.md` define normative acceptance behavior.
 - `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, and `docs/RELIABILITY.md` define the target authorities and failure boundaries.
 - Deterministic unit/component/load/security coverage passes with 191 tests at 97.07% statements/lines, 95.07% functions, and 90.46% branches; Neon integration adapters and process roots retain dedicated environment gates.
-- Contract, 20-case Codex/Claude eval, isolated Codex CLI 0.144.4 and Claude Code 2.1.123 plugin lifecycle, nine-test local PostgreSQL and managed Neon integration, reversible local migration, idempotent managed-Neon forward migration, one-day managed-Neon PITR, account lifecycle, security-boundary, WebKit e2e, Git restore, local deployment, MCP discovery, Docker, Caddy, Compose, and OpenTofu checks pass.
+- Contract, 20-case Codex/Claude eval, isolated Codex CLI 0.144.4 and Claude Code 2.1.123 plugin lifecycle, nine-test Apple Container PostgreSQL and managed Neon integration, reversible local migration, idempotent managed-Neon forward migration, one-day managed-Neon PITR, account lifecycle, security-boundary, WebKit e2e, Git restore, local deployment, MCP discovery, OCI image, Caddy, Compose, and OpenTofu checks pass.
 - `apps/`, `packages/`, `migrations/`, `infra/`, and `deploy/` contain the coordinated React 19.2, Fastify, Neon, Git, agent-package, and DigitalOcean foundation.
 
 ## Structural debt register

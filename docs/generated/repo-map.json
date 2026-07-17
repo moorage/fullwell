@@ -171,10 +171,6 @@
     },
     {
       "type": "file",
-      "name": ".dockerignore"
-    },
-    {
-      "type": "file",
       "name": ".env.example"
     },
     {
@@ -229,6 +225,10 @@
     {
       "type": "file",
       "name": "Dockerfile"
+    },
+    {
+      "type": "file",
+      "name": "Dockerfile.dockerignore"
     },
     {
       "type": "file",
@@ -1583,6 +1583,20 @@
             {
               "type": "file",
               "name": "update_quality_ledger.py"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "local",
+          "children": [
+            {
+              "type": "file",
+              "name": "apple-container.mjs"
+            },
+            {
+              "type": "file",
+              "name": "apple-container.test.mjs"
             }
           ]
         },

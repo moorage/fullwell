@@ -6,9 +6,11 @@
   - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
 
-- current milestone: completed managed Neon migration, adapter, and one-day PITR interoperability after isolated Codex/Claude host lifecycle verification and deterministic security/accessibility/load hardening; the active ExecPlan remains open on npm publication, production Neon retention/snapshots, external security review, provisioned load, manual accessibility, recovery, staging, and release blockers recorded in `docs/release/verification-evidence.md`
+- current milestone: completed the Apple Container macOS harness after managed Neon migration, adapter, and one-day PITR interoperability; the active ExecPlan remains open on DigitalOcean staging, Backblaze provisioning, npm publication, production Neon retention/snapshots, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
 - implemented React 19.2 SSR/hydration, server-authorized web contexts, public collection privacy states, no-JavaScript forms, Fastify MCP/OAuth, Apple/Resend adapters, Neon persistence, Git mutation/import provenance, reversible migrations, shared contracts, and the Codex/Claude agent package
 - implemented DigitalOcean OpenTofu, Block Storage initialization checks, pinned Node 24 Docker build, Compose/Caddy/systemd deployment, local deployment/MCP smokes, legal drafts, and operations/release runbooks
+- implemented an Apple Container-native macOS harness with a labeled PostgreSQL 17 container, persistent volume, ignored generated credentials, localhost-only port, lifecycle actions, and fail-closed ownership checks; Docker Compose remains scoped to the DigitalOcean Ubuntu runtime
+- verified Apple Container 1.1.0 across service restart, persistent PostgreSQL resume, five-migration up/down/up, all nine PostgreSQL adapter tests, the complete Node 24 OCI image build, container boot, public routes, expected fail-closed readiness without production dependencies, and MCP discovery
 - verified macOS Safari through Computer Use, including the native Codex/Claude toggle state, anonymous account redirect, preserved `/account` pending intent, labeled sign-in controls, and visible focus; 18 automated WebKit checks pass with six project-specific skips across desktop, iPhone, 320x568, and JavaScript-disabled modes
 - verified native 200 percent zoom in macOS 26.5.1 / Safari 26.5 on install, sign-in, long Privacy, and collection-error states; verified Safari keyboard and skip-link focus conventions, then restored zoom to 100 percent
 - implemented SimpleWebAuthn-backed registration and authentication, session/browser-bound one-time challenges, Neon public credential storage, atomic counter replay protection, and account enrollment/list/removal UI
@@ -46,6 +48,8 @@
   - `TEST_DATABASE_URL=... npm run test:integration`
   - `DATABASE_DIRECT_URL=... MIGRATION_TARGET=staging MIGRATION_EXPECTED_HOST=... npm run migrate`
   - `TEST_DATABASE_URL=... npm run test:migrations`
+  - `npm run container:postgres:verify`
+  - `npm run container:build`
   - `PUBLIC_BASE_URL=http://127.0.0.1:4187 npm run test:deploy-smoke`
   - `PUBLIC_BASE_URL=http://127.0.0.1:4187 npm run test:mcp-smoke`
   - Docker build, Compose render, Caddy validate, OpenTofu init/validate, and `npm audit --omit=dev`

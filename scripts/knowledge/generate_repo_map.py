@@ -18,6 +18,7 @@ NAME_IGNORE = {
 }
 
 PATH_PREFIX_IGNORE = {
+    ".codex/runtime",
     ".codex/self-improvement",
     "artifacts",
     "tmp",

@@ -25,6 +25,8 @@ Browser ------- React 19.2 web experience ------------+---- TypeScript applicati
 
 Version 1 deploys one containerized application process on one DigitalOcean Droplet. The React build is served by that service; it is not a separately deployed backend or authority boundary. Household repositories live on an attached DigitalOcean Block Storage volume mounted at `/data/households`.
 
+`Dockerfile` is the portable OCI build recipe. Apple silicon macOS development uses Apple's `container` CLI for local image builds and an isolated PostgreSQL 17 verification database. The DigitalOcean Ubuntu host uses Docker Compose under systemd for the production process and mounted-volume contract; Apple Container is not a production dependency. This separation keeps the local harness native to the development host without changing the Linux deployment boundary.
+
 Neon PostgreSQL stores accounts, sessions, OAuth grants, membership authorization projections, mutation records, idempotency responses, token hashes, jobs, search projections, and reconciliation checkpoints. It is not authoritative for journal content. Git owns exportable household content and audit history.
 
 ## Implemented modules

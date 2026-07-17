@@ -13,6 +13,11 @@ class SuggestDocUpdatesTests(unittest.TestCase):
 
         self.assertTrue(should_ignore(trace_path))
 
+    def test_repo_map_excludes_local_runtime_credentials(self) -> None:
+        credential_path = ROOT / ".codex" / "runtime" / "hfj-postgres.env"
+
+        self.assertTrue(should_ignore(credential_path))
+
     def test_web_changes_require_product_review_and_visible_evidence(self) -> None:
         hints = suggest_updates(["apps/web/src/CollectionPreview.tsx"])
 

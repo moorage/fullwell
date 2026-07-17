@@ -75,6 +75,7 @@ Before non-trivial work, read in this order:
 - use transaction-scoped PostgreSQL advisory locks for household mutations; pooled Neon connections must never rely on session state
 - repositories must live on the mounted DigitalOcean Block Storage volume, never the Droplet root disk or ephemeral container filesystem
 - program code must not classify foods, merge semantic identities, infer recipe status, or author journal reports
+- on Apple silicon macOS, use Apple's `container` CLI for local OCI builds and isolated PostgreSQL; Docker Compose is reserved for the DigitalOcean Ubuntu production runtime and Linux deployment parity checks
 
 ## Where truth lives
 - architecture map: `docs/ARCHITECTURE.md`
@@ -108,6 +109,8 @@ Before non-trivial work, read in this order:
   - `npm run verify:docs`
   - `npm run verify:execplan`
   - `npm run knowledge:refresh`
+  - `npm run container:postgres:verify`
+  - `npm run container:build`
 - Codex app-only convenience surfaces:
   - `.codex/local-environment.yaml` setup and actions
   - these actions must only mirror real commands that still work from the terminal
@@ -129,6 +132,10 @@ Before non-trivial work, read in this order:
 - ExecPlan verify: `npm run verify:execplan`
 - regenerate knowledge artifacts: `npm run knowledge:refresh`
 - install git hooks: `npm run hooks:install`
+- start local Apple Container PostgreSQL: `npm run container:postgres:start`
+- verify local migrations and PostgreSQL adapters: `npm run container:postgres:verify`
+- stop local Apple Container PostgreSQL while preserving its volume: `npm run container:postgres:stop`
+- build the local OCI image with Apple Container: `npm run container:build`
 - record screencast: `npm run capture:screencast -- --output artifacts/screencasts/<feature-name>.mp4`
 
 Application commands required as their owning modules land:

@@ -15,6 +15,14 @@ If the work is still exploratory and no ExecPlan exists yet, use `docs/ideas/` f
 8. Prefer additive, reversible changes when risk is high.
 9. If the plan changes materially, update the plan before or while changing the code, not after.
 
+## Local container workflow
+
+On an Apple silicon macOS development host, use Apple's `container` CLI through the repository actions. Require version 0.12.0 or newer for image builds; older releases contain an upstream build-context archive defect. `npm run container:postgres:start` creates or resumes the labeled `hfj-postgres` container and persistent `hfj-postgres-data` volume on `127.0.0.1:55432`. It writes generated credentials only to ignored `.codex/runtime/` state and refuses unmanaged name collisions or a volume whose credential file is missing.
+
+Run `npm run container:postgres:verify` for migration up/down/up followed by the real PostgreSQL integration suite, `npm run container:postgres:stop` to stop the container without deleting its volume, and `npm run container:build` to build the application OCI image from `Dockerfile`.
+
+The DigitalOcean Droplet runs Ubuntu, so production continues to use the checked-in Docker Compose and systemd units. Do not rewrite those Linux deployment assets around the macOS-only Apple Container CLI.
+
 ## Useful loop
 
 1. Read the current milestone.

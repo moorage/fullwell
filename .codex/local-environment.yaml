@@ -18,6 +18,18 @@ actions:
     run: npm run test:git-hooks
   test_knowledge:
     run: npm run test:knowledge
+  start_container_system:
+    run: npm run container:system:start
+  start_local_postgres:
+    run: npm run container:postgres:start
+  stop_local_postgres:
+    run: npm run container:postgres:stop
+  status_local_postgres:
+    run: npm run container:postgres:status
+  verify_local_postgres:
+    run: npm run container:postgres:verify
+  build_local_container:
+    run: npm run container:build
   refresh_knowledge:
     run: npm run knowledge:refresh
   suggest_doc_updates:

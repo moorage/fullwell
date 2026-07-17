@@ -14,3 +14,4 @@ __pycache__/
 client_secret.apps.googleusercontent.com.json
 tmp/
 .codex/self-improvement/
+.codex/runtime/

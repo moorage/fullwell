@@ -27,6 +27,16 @@ npm run hooks:install
 npm run verify
 ```
 
+On Apple silicon macOS, use Apple's `container` CLI for local container work. Version 0.12.0 or newer is required for image builds. The repository manages an isolated PostgreSQL 17 container and volume without printing its generated local-only password:
+
+```sh
+npm run container:postgres:start
+npm run container:postgres:verify
+npm run container:postgres:stop
+```
+
+The local database listens only on `127.0.0.1:55432`; its credential file is ignored under `.codex/runtime/`. Build the application OCI image locally with `npm run container:build`. Docker Compose remains the production orchestrator on the DigitalOcean Ubuntu host and is not the local macOS harness.
+
 The current `verify` command validates the harness, Git hooks, self-improvement loop, documentation, ideas, and ExecPlans. Application lint, typecheck, test, eval, build, and deployment commands must be added with the first corresponding implementation slice; do not represent an unimplemented suite with a passing placeholder.
 
 Every commit message must include exactly one trailer:

@@ -6,7 +6,7 @@
   - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
 
-- current milestone: the DigitalOcean staging service is live and healthy with real Apple and Resend authentication; the active ExecPlan remains open on native passkey evidence, a non-empty deployed Backblaze backup/restore drill, DigitalOcean failover, npm publication, production Neon retention/snapshots, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
+- current milestone: the DigitalOcean staging service is live and healthy with real Apple, Resend, and native Safari passkey authentication; the active ExecPlan remains open on a non-empty deployed Backblaze backup/restore drill, DigitalOcean failover, npm publication, production Neon retention/snapshots, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
 - implemented React 19.2 SSR/hydration, server-authorized web contexts, public collection privacy states, no-JavaScript forms, Fastify MCP/OAuth, Apple/Resend adapters, Neon persistence, Git mutation/import provenance, reversible migrations, shared contracts, and the Codex/Claude agent package
 - implemented DigitalOcean OpenTofu, Block Storage initialization checks, pinned Node 24 Docker build, Compose/Caddy/systemd deployment, local deployment/MCP smokes, legal drafts, and operations/release runbooks
 - set the reviewed DigitalOcean staging baseline to a 1 GiB Basic Droplet, 50 GiB Block Storage volume, weekly backups, and 2 GiB low-swappiness host swap; the documented estimate is $12.20 per month before tax and production sizing remains gated on staging load evidence
@@ -19,6 +19,7 @@
 - passed deployed HTTP and MCP discovery smokes, a systemd maintenance run with live Neon health and zero failed reconciliation/backup checks, and native Safari review of the HTTPS install selector, help disclosure, and sign-in layout
 - configured `fullwell.souschefstudio.com` with a dedicated Apple Services ID/key and a domain-restricted Resend sending key, installed both as encrypted systemd credentials, and passed native Safari Apple account creation, email-identity linking, and independent email magic-link sign-in
 - fixed the live Apple handoff by allowing only `appleid.apple.com` alongside self in CSP `form-action`, using a `Secure; SameSite=None` callback binding cookie for Apple's cross-site `form_post`, and accepting Apple's bounded first-authorization `user` field; regression tests cover each browser contract
+- fixed native Safari passkey enrollment by accepting and preserving SimpleWebAuthn's optional registration `hints` and `extensions.credProps` fields at the strict React boundary; Computer Use completed Touch ID enrollment, sign-out, and passkey-only sign-in on staging, and Neon recorded one active public credential with a later `last_used_at`
 - implemented an Apple Container-native macOS harness with a labeled PostgreSQL 17 container, persistent volume, ignored generated credentials, localhost-only port, lifecycle actions, and fail-closed ownership checks; Docker Compose remains scoped to the DigitalOcean Ubuntu runtime
 - verified Apple Container 1.1.0 across service restart, persistent PostgreSQL resume, five-migration up/down/up, all nine PostgreSQL adapter tests, the complete Node 24 OCI image build, container boot, public routes, expected fail-closed readiness without production dependencies, and MCP discovery
 - provisioned separate private Backblaze state and backup buckets with server-side encryption, enabled compliance Object Lock with 35-day default retention on the backup bucket, and created bucket/prefix-scoped state and backup application keys; the backup key has no `deleteFiles` or governance-bypass capability
@@ -72,9 +73,9 @@
   - `npm run verify`
 - blocking results:
   - the immutable npm package is not published, so public marketplace install returns `E404` and real host OAuth/setup workflows remain blocked
-  - deployed non-empty Backblaze Git backup/restore, production Neon 30-day history/scheduled snapshots and combined Git-plus-Neon RPO/RTO recovery, DigitalOcean failover, native passkey compatibility, and manual release reviews remain incomplete
+  - deployed non-empty Backblaze Git backup/restore, production Neon 30-day history/scheduled snapshots and combined Git-plus-Neon RPO/RTO recovery, DigitalOcean failover, and manual release reviews remain incomplete
   - systemd warned that the staging host credential key is not on encrypted media; production requires encrypted root storage, TPM-backed sealing, or an external runtime secret manager plus a rotation/recovery drill
-  - Safari 26.5 accepted a WebDriver virtual authenticator but timed out creating a credential; the deterministic cryptographic/provider policy and browser-action suites pass, while native staging evidence remains open
+  - Safari 26.5 WebDriver's virtual authenticator remains unusable, but native Touch ID registration and passkey-only sign-in now pass against the provisioned staging origin through Computer Use
 
 - previous milestone: planned the complete Household Food Journal version 1 implementation
 - created a milestone-based ExecPlan spanning ChatGPT-assisted IA/UI design, React 19.2 SSR and hydration, Fastify/MCP services, Neon projections, Git authority, the shared Codex/Claude client, DigitalOcean operations, and release validation

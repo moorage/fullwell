@@ -74,7 +74,9 @@ describe("passkey browser actions", () => {
             { id: "credential_39", type: "public-key" },
           ],
           authenticatorSelection: { authenticatorAttachment: "platform", residentKey: "required", requireResidentKey: true, userVerification: "required" },
+          hints: [],
           attestation: "none",
+          extensions: { credProps: true },
         },
       }),
       jsonResponse({ id: "credential_41", name: "Passkey", created_at: "2026-07-15T12:00:00.000Z", last_used_at: null }),
@@ -91,6 +93,8 @@ describe("passkey browser actions", () => {
     expect(register).toHaveBeenCalledWith({ optionsJSON: expect.objectContaining({
       authenticatorSelection: expect.objectContaining({ authenticatorAttachment: "platform", userVerification: "required" }),
       excludeCredentials: [{ id: "credential_40", type: "public-key", transports: ["internal"] }, { id: "credential_39", type: "public-key" }],
+      hints: [],
+      extensions: { credProps: true },
     }) });
     expect(requestBody(request.calls, 1)).toMatchObject({ csrf: "c".repeat(32), response: { id: "credential_41" } });
     expect(reload).toHaveBeenCalledOnce();

@@ -13,6 +13,7 @@ import { Button } from "./ui.js";
 
 const Base64UrlSchema = z.string().min(1).max(1_000_000).regex(/^[A-Za-z0-9_-]+$/);
 const TransportSchema = z.enum(["ble", "cable", "hybrid", "internal", "nfc", "smart-card", "usb"]);
+const CredentialHintSchema = z.enum(["client-device", "hybrid", "security-key"]);
 const CredentialDescriptorSchema = z.object({
   id: Base64UrlSchema,
   type: z.literal("public-key"),
@@ -31,7 +32,9 @@ const RegistrationOptionsSchema = z.object({
     residentKey: z.enum(["discouraged", "preferred", "required"]).optional(),
     userVerification: z.enum(["discouraged", "preferred", "required"]).optional(),
   }).strict().optional(),
+  hints: z.array(CredentialHintSchema).optional(),
   attestation: z.enum(["direct", "enterprise", "indirect", "none"]).optional(),
+  extensions: z.object({ credProps: z.boolean() }).strict().optional(),
 }).strict();
 const AuthenticationOptionsSchema = z.object({
   challenge: Base64UrlSchema,
@@ -191,7 +194,9 @@ function registrationOptions(parsed: z.infer<typeof RegistrationOptionsSchema>):
         ...(parsed.authenticatorSelection.userVerification === undefined ? {} : { userVerification: parsed.authenticatorSelection.userVerification }),
       },
     }),
+    ...(parsed.hints === undefined ? {} : { hints: parsed.hints }),
     ...(parsed.attestation === undefined ? {} : { attestation: parsed.attestation }),
+    ...(parsed.extensions === undefined ? {} : { extensions: parsed.extensions }),
   };
 }
 

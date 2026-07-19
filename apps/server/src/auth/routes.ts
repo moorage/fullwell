@@ -7,6 +7,7 @@ import type { BrowserAuthService } from "./service.js";
 const AppleCallbackSchema = z.object({
   code: z.string().min(1).max(4096),
   state: z.string().min(32).max(512),
+  user: z.string().max(8192).optional(),
   browser_binding: z.string().min(32).max(512),
   redirect_uri: z.url().max(4096).optional(),
 }).strict();
@@ -65,7 +66,8 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
     const body = StartAuthSchema.parse(request.body ?? {});
     const started = await dependencies.auth.beginApple(body.pending_intent);
     reply.setCookie("hfj_auth_binding", started.browserBinding, {
-      path: "/auth/apple/callback", httpOnly: true, secure: dependencies.secureCookies, sameSite: "lax", maxAge: 10 * 60,
+      path: "/auth/apple/callback", httpOnly: true, secure: dependencies.secureCookies,
+      sameSite: dependencies.secureCookies ? "none" : "lax", maxAge: 10 * 60,
     });
     if (dependencies.appleAuthorization === undefined) return reply.code(202).send({ state: started.state });
     return reply.redirect(appleAuthorizationUrl(dependencies.appleAuthorization, started.state).toString());
@@ -78,7 +80,8 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
     const principal = await dependencies.auth.authenticateSession(sessionToken);
     const started = await dependencies.auth.beginAppleIdentity(principal.userId, sessionToken);
     reply.setCookie("hfj_auth_binding", started.browserBinding, {
-      path: "/auth/apple/callback", httpOnly: true, secure: dependencies.secureCookies, sameSite: "lax", maxAge: 10 * 60,
+      path: "/auth/apple/callback", httpOnly: true, secure: dependencies.secureCookies,
+      sameSite: dependencies.secureCookies ? "none" : "lax", maxAge: 10 * 60,
     });
     if (dependencies.appleAuthorization === undefined) return reply.code(503).send({ error: { code: "PROVIDER_UNAVAILABLE" } });
     return reply.redirect(appleAuthorizationUrl(dependencies.appleAuthorization, started.state).toString());

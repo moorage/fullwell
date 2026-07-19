@@ -169,6 +169,7 @@ describe("Fastify application", () => {
     const ready = await app.inject({ method: "GET", url: "/health/ready" });
     expect(ready.statusCode).toBe(200);
     expect(ready.headers["referrer-policy"]).toBe("no-referrer");
+    expect(ready.headers["content-security-policy"]).toContain("form-action 'self' https://appleid.apple.com");
     expect((await app.inject({ method: "GET", url: "/health/operator" })).statusCode).toBe(503);
     expect((await app.inject({ method: "GET", url: "/metrics" })).statusCode).toBe(503);
     await app.close();

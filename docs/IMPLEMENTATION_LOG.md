@@ -6,7 +6,7 @@
   - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
 
-- current milestone: the DigitalOcean staging service is live and healthy; the active ExecPlan remains open on real Apple/Resend credentials, native authenticated/passkey workflows, a non-empty deployed Backblaze backup/restore drill, DigitalOcean failover, npm publication, production Neon retention/snapshots, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
+- current milestone: the DigitalOcean staging service is live and healthy with real Apple and Resend authentication; the active ExecPlan remains open on native passkey evidence, a non-empty deployed Backblaze backup/restore drill, DigitalOcean failover, npm publication, production Neon retention/snapshots, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
 - implemented React 19.2 SSR/hydration, server-authorized web contexts, public collection privacy states, no-JavaScript forms, Fastify MCP/OAuth, Apple/Resend adapters, Neon persistence, Git mutation/import provenance, reversible migrations, shared contracts, and the Codex/Claude agent package
 - implemented DigitalOcean OpenTofu, Block Storage initialization checks, pinned Node 24 Docker build, Compose/Caddy/systemd deployment, local deployment/MCP smokes, legal drafts, and operations/release runbooks
 - set the reviewed DigitalOcean staging baseline to a 1 GiB Basic Droplet, 50 GiB Block Storage volume, weekly backups, and 2 GiB low-swappiness host swap; the documented estimate is $12.20 per month before tax and production sizing remains gated on staging load evidence
@@ -17,6 +17,8 @@
 - installed encrypted systemd runtime credentials, materialized the declared files into a tmpfs runtime directory readable only by root and the UID/GID `10001` application, and forced container recreation on restart so secret rotation replaces bind mounts
 - added Neon TCP `5432` egress after live readiness isolated the Cloud Firewall boundary; the deployed HTTPS `/health/live` and `/health/ready` routes now return 200 with schema `0005`, Git, volume, signing, and single-writer checks ready
 - passed deployed HTTP and MCP discovery smokes, a systemd maintenance run with live Neon health and zero failed reconciliation/backup checks, and native Safari review of the HTTPS install selector, help disclosure, and sign-in layout
+- configured `fullwell.souschefstudio.com` with a dedicated Apple Services ID/key and a domain-restricted Resend sending key, installed both as encrypted systemd credentials, and passed native Safari Apple account creation, email-identity linking, and independent email magic-link sign-in
+- fixed the live Apple handoff by allowing only `appleid.apple.com` alongside self in CSP `form-action`, using a `Secure; SameSite=None` callback binding cookie for Apple's cross-site `form_post`, and accepting Apple's bounded first-authorization `user` field; regression tests cover each browser contract
 - implemented an Apple Container-native macOS harness with a labeled PostgreSQL 17 container, persistent volume, ignored generated credentials, localhost-only port, lifecycle actions, and fail-closed ownership checks; Docker Compose remains scoped to the DigitalOcean Ubuntu runtime
 - verified Apple Container 1.1.0 across service restart, persistent PostgreSQL resume, five-migration up/down/up, all nine PostgreSQL adapter tests, the complete Node 24 OCI image build, container boot, public routes, expected fail-closed readiness without production dependencies, and MCP discovery
 - provisioned separate private Backblaze state and backup buckets with server-side encryption, enabled compliance Object Lock with 35-day default retention on the backup bucket, and created bucket/prefix-scoped state and backup application keys; the backup key has no `deleteFiles` or governance-bypass capability
@@ -37,7 +39,7 @@
 - added the exact-host/direct-endpoint/TLS-gated migration runner with advisory locking and content-hash ledger updates; applied schema `0005` idempotently and passed all nine integration tests on a one-day schema-only Neon branch
 - restored the disposable Neon branch to its verified 11:28 PDT history point in 0.26 seconds, confirmed the complete operational schema and all five content-hashed migration rows, and set both the restored branch and its preserved rollback branch to expire after one day
 - fixed Neon account leave reusing its existing household transaction instead of opening a second transaction that waits on the same advisory lock
-- expanded deterministic unit, component, domain, service, adapter, worker, HTTP view-model, React interaction, load, and security coverage to 97.07% statements/lines, 95.07% functions, and 90.46% branches across 191 passing tests
+- expanded deterministic unit, component, domain, service, adapter, worker, HTTP view-model, React interaction, load, and security coverage to 97.07% statements/lines, 95.07% functions, and 90.46% branches across 192 passing tests
 - expanded WebKit evidence to 18 passing checks with six intentional project-specific skips, including axe, reduced motion, export layout, native disclosure, and overflow assertions; manual VoiceOver, authenticated keyboard/zoom, and hardware-device review remain open
 - fixed in-memory household lock-tail cleanup so completed queues are released instead of retained; process composition roots and Neon adapters remain assigned to deployment/browser and isolated PostgreSQL integration gates
 - commands run include:
@@ -63,14 +65,14 @@
   - `npm run container:build`
   - `PUBLIC_BASE_URL=http://127.0.0.1:4187 npm run test:deploy-smoke`
   - `PUBLIC_BASE_URL=http://127.0.0.1:4187 npm run test:mcp-smoke`
-  - `STAGING_BASE_URL=https://209-38-116-166.sslip.io npm run test:deploy-smoke -- staging`
-  - `STAGING_BASE_URL=https://209-38-116-166.sslip.io npm run test:mcp-smoke -- staging`
+  - `STAGING_BASE_URL=https://fullwell.souschefstudio.com npm run test:deploy-smoke -- staging`
+  - `STAGING_BASE_URL=https://fullwell.souschefstudio.com npm run test:mcp-smoke -- staging`
   - `node --test deploy/scripts/materialize-credentials.test.mjs`
   - Docker build, Compose render, Caddy validate, OpenTofu PostgreSQL-backend init/validate, live Backblaze retention/version probes, and `npm audit --omit=dev`
   - `npm run verify`
 - blocking results:
   - the immutable npm package is not published, so public marketplace install returns `E404` and real host OAuth/setup workflows remain blocked
-  - deployed non-empty Backblaze Git backup/restore, production Neon 30-day history/scheduled snapshots and combined Git-plus-Neon RPO/RTO recovery, DigitalOcean failover, real Apple/Resend integration, native passkey compatibility, and manual release reviews remain incomplete
+  - deployed non-empty Backblaze Git backup/restore, production Neon 30-day history/scheduled snapshots and combined Git-plus-Neon RPO/RTO recovery, DigitalOcean failover, native passkey compatibility, and manual release reviews remain incomplete
   - systemd warned that the staging host credential key is not on encrypted media; production requires encrypted root storage, TPM-backed sealing, or an external runtime secret manager plus a rotation/recovery drill
   - Safari 26.5 accepted a WebDriver virtual authenticator but timed out creating a credential; the deterministic cryptographic/provider policy and browser-action suites pass, while native staging evidence remains open
 

@@ -26,7 +26,7 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 
 - `docs/product-specs/household-food-journal-server.md` and `docs/product-specs/household-food-journal-client.md` define normative acceptance behavior.
 - `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, and `docs/RELIABILITY.md` define the target authorities and failure boundaries.
-- Deterministic unit/component/load/security coverage passes with 191 tests at 97.07% statements/lines, 95.07% functions, and 90.46% branches; Neon integration adapters and process roots retain dedicated environment gates.
+- Deterministic unit/component/load/security coverage passes with 192 tests at 97.07% statements/lines, 95.07% functions, and 90.46% branches; Neon integration adapters and process roots retain dedicated environment gates.
 - Contract, 20-case Codex/Claude eval, isolated Codex CLI 0.144.4 and Claude Code 2.1.123 plugin lifecycle, nine-test Apple Container PostgreSQL and managed Neon integration, reversible local migration, idempotent managed-Neon forward migration, one-day managed-Neon PITR, account lifecycle, security-boundary, WebKit e2e, Git restore, local deployment, MCP discovery, OCI image, Caddy, Compose, and OpenTofu checks pass.
 - `apps/`, `packages/`, `migrations/`, `infra/`, and `deploy/` contain the coordinated React 19.2, Fastify, Neon, Git, agent-package, and DigitalOcean foundation.
 
@@ -34,7 +34,7 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 
 - Native passkey compatibility still requires staging-origin evidence because Safari 26.5's advertised WebDriver virtual authenticator timed out during credential creation.
 - DigitalOcean Block Storage failover fencing, live Backblaze Object Lock behavior, production Neon 30-day history/scheduled snapshots, combined Git-plus-Neon RPO/RTO recovery, external restore drills, and provisioned staging rollback remain unproven.
-- The immutable npm agent package is not yet published; real Apple, email, Codex, and Claude interoperability still need non-production credentials and external compatibility evidence.
+- The immutable npm agent package is not yet published; real Codex and Claude interoperability still need non-production credentials and external compatibility evidence. Apple and email authentication pass native Safari staging ceremonies.
 - Manual VoiceOver, authenticated keyboard/zoom accessibility, iPhone hardware and non-Apple screen-reader coverage, provisioned load/soak and OAuth/import/Neon race coverage, privacy, secret-rotation, and manual release reviews remain no-go gates.
 
 ## Maintenance rule

@@ -103,6 +103,8 @@ describe("browser auth routes", () => {
     expect(response.json().state).toHaveLength(43);
     expect(response.headers["set-cookie"]).toContain("hfj_auth_binding=");
     expect(response.headers["set-cookie"]).toContain("HttpOnly");
+    expect(response.headers["set-cookie"]).toContain("Secure");
+    expect(response.headers["set-cookie"]).toContain("SameSite=None");
     await app.close();
   });
 
@@ -266,6 +268,28 @@ describe("browser auth routes", () => {
     expect(completed.statusCode).toBe(303);
     expect(completed.headers.location).toBe("/account");
     expect(completed.headers["set-cookie"]).toEqual(expect.arrayContaining([expect.stringContaining("hfj_session="), expect.stringContaining("hfj_csrf=")]));
+    await app.close();
+  });
+
+  it("accepts Apple's first-authorization user field on the form-post callback", async () => {
+    const appleAuthorization = { clientId: "com.example.fullwell", redirectUri: "https://journal.example.test/auth/apple/callback" };
+    const { app } = await fixture(appleAuthorization, new UnsupportedPasskeyProvider(), new DeterministicAppleProvider());
+    const started = await app.inject({ method: "POST", url: "/auth/apple/start", payload: {} });
+    const authorization = new URL(started.headers.location ?? "https://invalid.test");
+    const state = authorization.searchParams.get("state");
+    const setCookie = started.headers["set-cookie"];
+    const cookie = (Array.isArray(setCookie) ? setCookie[0] : setCookie)?.split(";", 1)[0];
+    if (state === null || cookie === undefined) throw new Error("Apple callback fixture missing");
+
+    const completed = await app.inject({
+      method: "POST",
+      url: "/auth/apple/callback",
+      headers: { cookie },
+      payload: { code: "code", state, user: JSON.stringify({ name: { firstName: "Apple", lastName: "Member" }, email: "member@icloud.test" }) },
+    });
+
+    expect(completed.statusCode).toBe(303);
+    expect(completed.headers.location).toBe("/households");
     await app.close();
   });
 

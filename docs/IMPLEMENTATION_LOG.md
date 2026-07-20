@@ -44,6 +44,7 @@
 - installed the public package on Node 24 in Apple Container and from a clean host prefix; extended the lifecycle harness to accept a downloaded package root, fixed its nested-dependency filter, and passed Codex install/remove/reinstall plus Claude install/update/disable/re-enable/uninstall against the registry artifact
 - renamed the public package identity to `@fullwell/fullwell`, updated both repository catalogs and workspace commands without changing the stable `household-food-journal` host/MCP identifiers, and published the 15-file replacement artifact with SHA-1 `ab265c4b264fe25248e2aff7c2a0a2a1f004f2cc`
 - installed `@fullwell/fullwell@1.0.0` from the public registry in Apple Container and a clean host prefix, then passed the complete isolated Codex and Claude lifecycle suite against the downloaded artifact
+- deprecated `@fullwell/household-food-journal-agent@1.0.0` with the registry notice `Renamed to @fullwell/fullwell` after restoring npm CLI authentication and completing the passkey-backed authorization in Safari
 - completed live OAuth with Codex CLI 0.144.4 and Claude Code 2.1.215 against staging by advertising dynamic registration and public-client authentication, accepting bounded native-client metadata, rendering validated React consent, accepting the optional token-request resource indicator, and acknowledging the no-ID MCP initialized notification
 - exercised deployed grant revocation and reconnect through native Safari accessibility automation: recent passkey authentication authorized cleanup, ten duplicate retry grants were removed, Claude reported authentication required after revocation, and one clean Codex plus one clean Claude grant reconnected; Claude's MCP health check then reported connected and the Account page showed exactly two active grants
 - deployed `hfj-staging:oauth-20260720-6-runtime` with rollback image `hfj-staging:oauth-20260720-5-runtime`; the transferred OCI archive SHA-256 was `9c1cebea7cdbe88315c217dcc2729c9b39319a6bd1435f78bb0831c86e60d8c1`, and public liveness plus fresh Codex and Claude handshakes passed after deployment
@@ -74,6 +75,7 @@
   - `npm pack --dry-run --json --workspace @fullwell/fullwell`
   - `npm publish --workspace @fullwell/fullwell --access public`
   - `npm view @fullwell/fullwell@1.0.0 --json --prefer-online`
+  - `npm deprecate @fullwell/household-food-journal-agent@1.0.0 "Renamed to @fullwell/fullwell"`
   - `HFJ_AGENT_PACKAGE_ROOT=<public-install> node --test packages/agent-client/tests/packaging/host-lifecycle.test.mjs`
   - `container run --rm node:24-alpine npm install --prefix /tmp/fullwell-verify @fullwell/household-food-journal-agent@1.0.0 --ignore-scripts --no-package-lock --prefer-online --registry=https://registry.npmjs.org`
   - `container run --rm node:24-alpine npm install --prefix /tmp/fullwell-verify @fullwell/fullwell@1.0.0 --ignore-scripts --no-package-lock --prefer-online --registry=https://registry.npmjs.org`

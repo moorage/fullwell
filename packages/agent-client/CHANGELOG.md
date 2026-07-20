@@ -5,3 +5,4 @@
 - Add shared household, grocery audit, recipe history, collection sharing, and collection import skills.
 - Add Codex and Claude manifests, marketplace metadata, and one remote OAuth-enabled MCP endpoint.
 - Add deterministic packaging, privacy, contract-coverage, and cross-host eval validation.
+- Point every packaged service and policy URL at the deployed Fullwell origin.

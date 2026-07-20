@@ -9,4 +9,4 @@ One shared skill package connects Codex and Claude to the hosted Household Food 
 - Repository marketplace catalogs live at `.agents/plugins/marketplace.json` for Codex and `.claude-plugin/marketplace.json` for Claude. Both point to the same immutable npm package version.
 - Official Codex and Claude validators remain part of the manual release matrix because their binaries and authenticated host surfaces are not CI prerequisites.
 
-The production MCP URL is `https://journal.fullwell.app/mcp`. OAuth occurs in the service-controlled browser flow; users never paste a token into a conversation.
+The production MCP URL is `https://fullwell.souschefstudio.com/mcp`. OAuth occurs in the service-controlled browser flow; users never paste a token into a conversation.

@@ -39,6 +39,7 @@
 - added a real Fastify/MCP load gate covering 100-request discovery bursts, preview shedding, unique request IDs, 32-request idempotent fan-in, competing stale writes, 50 cross-tenant reads, and 100-operation household lock queues with cross-household progress
 - added adversarial Fastify and React coverage for bounded parser rejection, capability-safe telemetry, hostile/prompt-like public content, HTTP(S)-only web URLs, recognizable repository-secret absence, and browser/server environment separation; disabled production browser source maps
 - moved Codex and Claude catalogs to their repository discovery paths and verified Codex CLI 0.144.4 install/remove plus Claude Code 2.1.123 install/update/disable/re-enable/uninstall in isolated host configuration directories
+- replaced the unpublished agent package's placeholder hostname with `fullwell.souschefstudio.com` across MCP, install, homepage, privacy, and terms metadata; strengthened package validation against cross-origin drift and passed the package build, eval, dry-run pack, and isolated Codex/Claude lifecycle gates
 - added the exact-host/direct-endpoint/TLS-gated migration runner with advisory locking and content-hash ledger updates; applied schema `0005` idempotently and passed all nine integration tests on a one-day schema-only Neon branch
 - restored the disposable Neon branch to its verified 11:28 PDT history point in 0.26 seconds, confirmed the complete operational schema and all five content-hashed migration rows, and set both the restored branch and its preserved rollback branch to expire after one day
 - fixed Neon account leave reusing its existing household transaction instead of opening a second transaction that waits on the same advisory lock
@@ -77,6 +78,7 @@
   - `npm run verify`
 - blocking results:
   - the immutable npm package is not published, so public marketplace install returns `E404` and real host OAuth/setup workflows remain blocked
+  - the local npm CLI is not authenticated; publication requires an authorized npm account with access to the `@fullwell` scope
   - production Neon 30-day history/scheduled snapshots and combined Git-plus-Neon RPO/RTO recovery, DigitalOcean failover, and manual release reviews remain incomplete
   - systemd warned that the staging host credential key is not on encrypted media; production requires encrypted root storage, TPM-backed sealing, or an external runtime secret manager plus a rotation/recovery drill
   - Safari 26.5 WebDriver's virtual authenticator remains unusable, but native Touch ID registration and passkey-only sign-in now pass against the provisioned staging origin through Computer Use

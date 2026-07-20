@@ -125,6 +125,20 @@ export const validatePackage = async () => {
   const endpointUrl = new URL(endpoint.url);
   assert(endpointUrl.protocol === "https:" && endpointUrl.pathname === "/mcp", "MCP URL must be public HTTPS /mcp");
   assert(Object.keys(endpoint).sort().join(",") === "type,url", "MCP config must contain no credentials or tenant data");
+  const installUrl = new URL(install.install_page);
+  assert(installUrl.protocol === "https:" && installUrl.pathname === "/install", "Install page must be public HTTPS /install");
+  const publicUrls = [
+    [codex.homepage, "/install"],
+    [codex.interface?.websiteURL, "/install"],
+    [codex.interface?.privacyPolicyURL, "/privacy"],
+    [codex.interface?.termsOfServiceURL, "/terms"],
+    [claude.homepage, "/install"],
+  ];
+  for (const [value, pathname] of publicUrls) {
+    const url = new URL(value);
+    assert(url.origin === endpointUrl.origin && url.pathname === pathname, `Packaged ${pathname} URL must use the MCP service origin`);
+  }
+  assert(installUrl.origin === endpointUrl.origin, "Install metadata and MCP config origins differ");
 
   for (const market of [codexMarket, claudeMarket]) {
     const plugin = market.plugins?.find((candidate) => candidate.name === codex.name);

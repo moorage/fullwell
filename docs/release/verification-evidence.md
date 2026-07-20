@@ -1,6 +1,6 @@
 # Verification Evidence
 
-Date: 2026-07-19
+Date: 2026-07-20
 
 ## Passing local evidence
 
@@ -26,6 +26,7 @@ Date: 2026-07-19
 - Native Safari 26.5 through Computer Use completed Touch ID passkey enrollment on `fullwell.souschefstudio.com`, displayed one enrolled passkey, signed out, and completed passkey-only sign-in to `/households`. The corresponding Neon credential remained active and recorded a later `last_used_at`; the deployed fix preserves SimpleWebAuthn's optional registration `hints` and `extensions.credProps` fields through the strict React boundary.
 - Contract, dual-host packaging, 20-case Codex/Claude eval, security-boundary, and isolated Git bundle restore suites pass. The adversarial matrix covers authorization/scope, CSRF and redirect handling, replay/reuse, Git/path/archive rejection, races, bounded malformed/unsupported/oversized request failures, capability-safe route telemetry, XSS escaping, prompt-like public content as data, HTTP(S)-only browser URLs, recognizable repository-secret scanning across tracked and untracked files, and absence of server environment access in browser source; production browser source maps are disabled.
 - Codex CLI 0.144.4 and Claude Code 2.1.123 discover the repository catalogs from `.agents/plugins/marketplace.json` and `.claude-plugin/marketplace.json`. Isolated local-marketplace tests pass Codex install/remove/reinstall and Claude install/update/disable/re-enable/uninstall without modifying user host state; the official Claude package validator also passes.
+- The public immutable `@fullwell/household-food-journal-agent@1.0.0` package was published at 2026-07-20 01:56 UTC. Registry metadata reports public access, `latest` at `1.0.0`, 15 files, SHA-1 `d2d91305d9d5cd1f863bbbabddcc6b21a243cc9a`, and the same SHA-512 integrity prepared before publication. A clean public-registry install passes on pinned Node 24 in Apple Container, and the downloaded artifact passes isolated Codex install/remove/reinstall plus Claude install/update/disable/re-enable/uninstall.
 - WebKit passes 18 end-to-end checks with six intentional project-specific skips across desktop Safari emulation, iPhone, 320x568, and no-JavaScript projects. Axe reports no WCAG 2.0/2.1/2.2 A/AA violations across five live public routes and nine production-SSR screens; overflow, reduced motion, keyboard skip-link, account export, disclosure, and non-enumeration checks also pass.
 - The deterministic load/race gate passes three scenarios in under one second: 100 concurrent MCP discoveries with unique request IDs, bounded non-enumerating preview shedding, 32-request idempotent fan-in producing one commit, 16 stale competitors producing one success and 15 conflicts, 50 cross-tenant reads revealing no household content, and 100 serialized same-household lock operations with cross-household progress.
 - Safari on macOS was exercised through Computer Use: the Codex/Claude install selector updated through native accessibility controls and an invented collection capability displayed a non-enumerating unavailable state with no household fixture data.
@@ -39,7 +40,7 @@ Date: 2026-07-19
 
 ## Blocking evidence still required
 
-- The immutable `@fullwell/household-food-journal-agent@1.0.0` npm package is not published and public host installation returns npm `E404`. Public marketplace installation, reconnect, OAuth, setup, invite, sharing, selective import, and canonical-data-preservation evidence therefore remain blocked.
+- Public npm installation and isolated host lifecycle behavior now pass. Real Codex and Claude reconnect, OAuth, setup, invite, sharing, selective import, and canonical-data-preservation staging ceremonies remain blocked on external compatibility execution.
 - Production Neon 30-day history/scheduled snapshots and the combined Git-plus-Neon RPO/RTO drill remain unproven; the deployed encrypted Backblaze recovery, Neon forward migration, adapter interoperability, and one-day point-in-time restore pass.
 - Neon production retention/snapshot configuration plus real Codex, Claude, DigitalOcean volume failover, secret-rotation, and production rollback checks require additional non-production credentials, data, and exercises. The staging host credential key is not backed by encrypted root media and is not accepted as the production secret-management posture.
 - Provisioned latency/soak/resource-saturation testing plus OAuth token, collection import, Neon lock-wait, and live maintenance-overlap load remain required on staging.

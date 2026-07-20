@@ -8,7 +8,9 @@ import { promisify } from "node:util";
 import test from "node:test";
 
 const execute = promisify(execFile);
-const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const localPackageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const packageRootOverride = process.env.HFJ_AGENT_PACKAGE_ROOT?.trim();
+const packageRoot = packageRootOverride ? path.resolve(packageRootOverride) : localPackageRoot;
 const pluginName = "household-food-journal";
 const marketplaceName = "fullwell-local-test";
 
@@ -26,7 +28,7 @@ async function createPluginCopy(marketplaceRoot) {
   await mkdir(path.dirname(pluginRoot), { recursive: true });
   await cp(packageRoot, pluginRoot, {
     recursive: true,
-    filter: (source) => !source.split(path.sep).includes("node_modules"),
+    filter: (source) => !path.relative(packageRoot, source).split(path.sep).includes("node_modules"),
   });
   return pluginRoot;
 }

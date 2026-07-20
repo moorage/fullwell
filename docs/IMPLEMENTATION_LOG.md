@@ -6,7 +6,7 @@
   - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
 
-- current milestone: the DigitalOcean staging service is live and healthy with real Apple, Resend, native Safari passkey authentication, browser household creation, and a non-empty encrypted Backblaze restore drill; the active ExecPlan remains open on DigitalOcean failover, npm publication, production Neon retention/snapshots and combined recovery, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
+- current milestone: the DigitalOcean staging service is live and healthy with real Apple, Resend, native Safari passkey authentication, browser household creation, a non-empty encrypted Backblaze restore drill, and the public npm agent package; the active ExecPlan remains open on DigitalOcean failover, production Neon retention/snapshots and combined recovery, real host OAuth workflows, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
 - implemented React 19.2 SSR/hydration, server-authorized web contexts, public collection privacy states, no-JavaScript forms, Fastify MCP/OAuth, Apple/Resend adapters, Neon persistence, Git mutation/import provenance, reversible migrations, shared contracts, and the Codex/Claude agent package
 - implemented DigitalOcean OpenTofu, Block Storage initialization checks, pinned Node 24 Docker build, Compose/Caddy/systemd deployment, local deployment/MCP smokes, legal drafts, and operations/release runbooks
 - set the reviewed DigitalOcean staging baseline to a 1 GiB Basic Droplet, 50 GiB Block Storage volume, weekly backups, and 2 GiB low-swappiness host swap; the documented estimate is $12.20 per month before tax and production sizing remains gated on staging load evidence
@@ -40,6 +40,8 @@
 - added adversarial Fastify and React coverage for bounded parser rejection, capability-safe telemetry, hostile/prompt-like public content, HTTP(S)-only web URLs, recognizable repository-secret absence, and browser/server environment separation; disabled production browser source maps
 - moved Codex and Claude catalogs to their repository discovery paths and verified Codex CLI 0.144.4 install/remove plus Claude Code 2.1.123 install/update/disable/re-enable/uninstall in isolated host configuration directories
 - replaced the unpublished agent package's placeholder hostname with `fullwell.souschefstudio.com` across MCP, install, homepage, privacy, and terms metadata; strengthened package validation against cross-origin drift and passed the package build, eval, dry-run pack, and isolated Codex/Claude lifecycle gates
+- created the free public `@fullwell` npm scope, enabled passkey-backed account 2FA, and published `@fullwell/household-food-journal-agent@1.0.0`; registry metadata confirms the prepared SHA-1 and SHA-512 integrity, 15-file tarball, public access, and `latest` tag
+- installed the public package on Node 24 in Apple Container and from a clean host prefix; extended the lifecycle harness to accept a downloaded package root, fixed its nested-dependency filter, and passed Codex install/remove/reinstall plus Claude install/update/disable/re-enable/uninstall against the registry artifact
 - added the exact-host/direct-endpoint/TLS-gated migration runner with advisory locking and content-hash ledger updates; applied schema `0005` idempotently and passed all nine integration tests on a one-day schema-only Neon branch
 - restored the disposable Neon branch to its verified 11:28 PDT history point in 0.26 seconds, confirmed the complete operational schema and all five content-hashed migration rows, and set both the restored branch and its preserved rollback branch to expire after one day
 - fixed Neon account leave reusing its existing household transaction instead of opening a second transaction that waits on the same advisory lock
@@ -59,6 +61,10 @@
   - `npm run test:restore`
   - `npm run test:packaging --workspace @fullwell/household-food-journal-agent`
   - `npm pack --dry-run --json --workspace @fullwell/household-food-journal-agent`
+  - `npm publish --workspace @fullwell/household-food-journal-agent --access public`
+  - `npm view @fullwell/household-food-journal-agent@1.0.0 --json --prefer-online`
+  - `HFJ_AGENT_PACKAGE_ROOT=<public-install> node --test packages/agent-client/tests/packaging/host-lifecycle.test.mjs`
+  - `container run --rm node:24-alpine npm install --prefix /tmp/fullwell-verify @fullwell/household-food-journal-agent@1.0.0 --ignore-scripts --no-package-lock --prefer-online --registry=https://registry.npmjs.org`
   - `claude plugin validate packages/agent-client`
   - `npm run test:e2e`
   - `npm run capture:screencast -- --output artifacts/screencasts/account-export.mp4` (unsupported: macOS ffmpeg has no `x11grab` input)
@@ -77,8 +83,7 @@
   - Docker build, Compose render, Caddy validate, OpenTofu PostgreSQL-backend init/validate, live Backblaze retention/version probes, and `npm audit --omit=dev`
   - `npm run verify`
 - blocking results:
-  - the immutable npm package is not published, so public marketplace install returns `E404` and real host OAuth/setup workflows remain blocked
-  - the local npm CLI is not authenticated; publication requires an authorized npm account with access to the `@fullwell` scope
+  - public npm installation and isolated host lifecycles pass; real Codex and Claude OAuth, reconnect, setup, invitation, sharing, and selective-import staging ceremonies remain blocked on external compatibility execution
   - production Neon 30-day history/scheduled snapshots and combined Git-plus-Neon RPO/RTO recovery, DigitalOcean failover, and manual release reviews remain incomplete
   - systemd warned that the staging host credential key is not on encrypted media; production requires encrypted root storage, TPM-backed sealing, or an external runtime secret manager plus a rotation/recovery drill
   - Safari 26.5 WebDriver's virtual authenticator remains unusable, but native Touch ID registration and passkey-only sign-in now pass against the provisioned staging origin through Computer Use

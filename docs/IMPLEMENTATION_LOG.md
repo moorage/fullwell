@@ -6,7 +6,7 @@
   - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
 
-- current milestone: the DigitalOcean staging service is live and healthy with real Apple, Resend, and native Safari passkey authentication; the active ExecPlan remains open on a non-empty deployed Backblaze backup/restore drill, DigitalOcean failover, npm publication, production Neon retention/snapshots, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
+- current milestone: the DigitalOcean staging service is live and healthy with real Apple, Resend, native Safari passkey authentication, browser household creation, and a non-empty encrypted Backblaze restore drill; the active ExecPlan remains open on DigitalOcean failover, npm publication, production Neon retention/snapshots and combined recovery, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
 - implemented React 19.2 SSR/hydration, server-authorized web contexts, public collection privacy states, no-JavaScript forms, Fastify MCP/OAuth, Apple/Resend adapters, Neon persistence, Git mutation/import provenance, reversible migrations, shared contracts, and the Codex/Claude agent package
 - implemented DigitalOcean OpenTofu, Block Storage initialization checks, pinned Node 24 Docker build, Compose/Caddy/systemd deployment, local deployment/MCP smokes, legal drafts, and operations/release runbooks
 - set the reviewed DigitalOcean staging baseline to a 1 GiB Basic Droplet, 50 GiB Block Storage volume, weekly backups, and 2 GiB low-swappiness host swap; the documented estimate is $12.20 per month before tax and production sizing remains gated on staging load evidence
@@ -20,6 +20,8 @@
 - configured `fullwell.souschefstudio.com` with a dedicated Apple Services ID/key and a domain-restricted Resend sending key, installed both as encrypted systemd credentials, and passed native Safari Apple account creation, email-identity linking, and independent email magic-link sign-in
 - fixed the live Apple handoff by allowing only `appleid.apple.com` alongside self in CSP `form-action`, using a `Secure; SameSite=None` callback binding cookie for Apple's cross-site `form_post`, and accepting Apple's bounded first-authorization `user` field; regression tests cover each browser contract
 - fixed native Safari passkey enrollment by accepting and preserving SimpleWebAuthn's optional registration `hints` and `extensions.credProps` fields at the strict React boundary; Computer Use completed Touch ID enrollment, sign-out, and passkey-only sign-in on staging, and Neon recorded one active public credential with a later `last_used_at`
+- fixed the missing `POST /households` browser boundary, routed it through browser-session authentication, CSRF verification, strict form parsing, and the existing idempotent `hfj_create_household` service; deployed Safari creation provisioned a signed non-empty staging repository and redirected to its household page
+- completed the deployed Backblaze recovery gate: the systemd timer uploaded the encrypted Git bundle and signed manifest, persisted a compliance-retention checkpoint through 2026-08-24 after successful HEAD verification, and an explicit isolated restore verified the manifest, hashes, HEAD, object count, fsck, and signatures; operator health reported zero backup gaps and a healthy restore drill
 - implemented an Apple Container-native macOS harness with a labeled PostgreSQL 17 container, persistent volume, ignored generated credentials, localhost-only port, lifecycle actions, and fail-closed ownership checks; Docker Compose remains scoped to the DigitalOcean Ubuntu runtime
 - verified Apple Container 1.1.0 across service restart, persistent PostgreSQL resume, five-migration up/down/up, all nine PostgreSQL adapter tests, the complete Node 24 OCI image build, container boot, public routes, expected fail-closed readiness without production dependencies, and MCP discovery
 - provisioned separate private Backblaze state and backup buckets with server-side encryption, enabled compliance Object Lock with 35-day default retention on the backup bucket, and created bucket/prefix-scoped state and backup application keys; the backup key has no `deleteFiles` or governance-bypass capability
@@ -68,12 +70,14 @@
   - `PUBLIC_BASE_URL=http://127.0.0.1:4187 npm run test:mcp-smoke`
   - `STAGING_BASE_URL=https://fullwell.souschefstudio.com npm run test:deploy-smoke -- staging`
   - `STAGING_BASE_URL=https://fullwell.souschefstudio.com npm run test:mcp-smoke -- staging`
+  - `docker compose --env-file /etc/hfj/deploy.env exec -T app npm run maintenance:backup --workspace @hfj/server`
+  - `docker compose --env-file /etc/hfj/deploy.env exec -T app npm run maintenance:restore-drill --workspace @hfj/server -- <staging-household-id>`
   - `node --test deploy/scripts/materialize-credentials.test.mjs`
   - Docker build, Compose render, Caddy validate, OpenTofu PostgreSQL-backend init/validate, live Backblaze retention/version probes, and `npm audit --omit=dev`
   - `npm run verify`
 - blocking results:
   - the immutable npm package is not published, so public marketplace install returns `E404` and real host OAuth/setup workflows remain blocked
-  - deployed non-empty Backblaze Git backup/restore, production Neon 30-day history/scheduled snapshots and combined Git-plus-Neon RPO/RTO recovery, DigitalOcean failover, and manual release reviews remain incomplete
+  - production Neon 30-day history/scheduled snapshots and combined Git-plus-Neon RPO/RTO recovery, DigitalOcean failover, and manual release reviews remain incomplete
   - systemd warned that the staging host credential key is not on encrypted media; production requires encrypted root storage, TPM-backed sealing, or an external runtime secret manager plus a rotation/recovery drill
   - Safari 26.5 WebDriver's virtual authenticator remains unusable, but native Touch ID registration and passkey-only sign-in now pass against the provisioned staging origin through Computer Use
 

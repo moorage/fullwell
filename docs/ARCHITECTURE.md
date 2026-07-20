@@ -47,6 +47,8 @@ Path: `apps/web/`
 
 The frontend consumes explicit server contracts from `packages/contracts/`. It does not authorize requests, hold provider secrets, write Git, interpret repository paths, or make semantic food decisions. Public collection data must come from the server's allowlisted snapshot projection, never from a private household object serialized in the browser.
 
+The server-rendered household creation form posts to a typed Fastify boundary that resolves the browser principal, verifies CSRF, and delegates to `hfj_create_household`. Browser and MCP creation therefore share the same idempotency record, repository provisioning, signed Git commit, ownership projection, and default-household update instead of implementing a second mutation path.
+
 Passkey ceremonies use SimpleWebAuthn at the browser and server provider boundaries. Neon stores credential identifiers, public keys, counters, transport hints, device metadata, and revocation timestamps; private keys remain in the user's authenticator. Registration is authenticated and CSRF-protected, while discoverable authentication uses a short-lived single-use challenge bound to an HttpOnly browser transaction cookie.
 
 Account mutations remain server-owned. Apple and email linking complete their provider proof in the same signed-in browser; method removal preserves at least one sign-in path; grant revocation and deletion require recent authentication. Household leave and account deletion commit the former-member document and audit event through the single Git writer under the household lock before Neon membership projection changes. Deletion then revokes OAuth tokens, sessions, passkeys, and external identities while retaining the stable actor ID and a pseudonymous display label.
@@ -136,7 +138,7 @@ Fastify applies a global and route-specific `@fastify/rate-limit` policy keyed b
 
 ## Current release limitations
 
-The application foundation, durable Git-to-Neon reconciliation, portable exports, production rate limits/telemetry, operator health, encrypted immutable backup/restore, WebAuthn passkeys, browser account lifecycle, 22-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, agent package, and DigitalOcean deployment assets are implemented. Native Safari enrollment and passkey-only sign-in pass on the provisioned staging origin. Version 1 is not production-ready while live B2 recovery, production Neon retention/snapshot and combined recovery evidence, full security/accessibility/load validation, and external staging compatibility remain open in the active ExecPlan.
+The application foundation, durable Git-to-Neon reconciliation, portable exports, production rate limits/telemetry, operator health, encrypted immutable backup/restore, WebAuthn passkeys, browser account lifecycle, 22-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, agent package, and DigitalOcean deployment assets are implemented. Native Safari enrollment, passkey-only sign-in, household creation, and the deployed encrypted Backblaze restore drill pass on the provisioned staging origin. Version 1 is not production-ready while production Neon retention/snapshot and combined recovery evidence, DigitalOcean failover, full security/accessibility/load validation, and external staging compatibility remain open in the active ExecPlan.
 
 ## Maintenance rules
 

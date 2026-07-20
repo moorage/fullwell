@@ -14,8 +14,15 @@ const ManifestSchema = z.record(z.string(), z.object({
 export interface WebExperience {
   readonly assetsRoot: string;
   contextFor(request: FastifyRequest): Promise<WebRenderContext>;
+  createHousehold?(request: FastifyRequest, input: WebCreateHouseholdInput): Promise<{ householdId: string }>;
   importCollection?(request: FastifyRequest, input: WebImportInput): Promise<{ householdId: string }>;
 }
+
+export type WebCreateHouseholdInput = {
+  readonly name: string;
+  readonly csrf: string;
+  readonly idempotencyKey: string;
+};
 
 export type WebImportInput = {
   readonly token: string;
@@ -32,6 +39,11 @@ const SelectionFormSchema = z.object({
 }).passthrough();
 
 const ImportFormSchema = SelectionFormSchema.extend({ householdId: z.string().min(8).max(128) });
+const CreateHouseholdFormSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  csrf: z.string().min(16).max(512),
+  idempotencyKey: z.string().min(8).max(128),
+}).strict();
 
 export async function registerWebExperience(app: FastifyInstance, experience: WebExperience): Promise<void> {
   const manifest = ManifestSchema.parse(JSON.parse(await readFile(resolve(experience.assetsRoot, ".vite/manifest.json"), "utf8")));
@@ -61,6 +73,12 @@ export async function registerWebExperience(app: FastifyInstance, experience: We
     if (experience.importCollection === undefined) return reply.code(501).send({ error: { code: "PROVIDER_UNAVAILABLE", message: "Browser import is not configured" } });
     const form = ImportFormSchema.parse(request.body);
     const result = await experience.importCollection(request, { token: request.params.token, ...form });
+    return reply.redirect(`/households/${encodeURIComponent(result.householdId)}`, 303);
+  });
+
+  app.post("/households", { config: { rateLimit: { max: 10, timeWindow: 60 * 60_000, groupId: "household-create" } } }, async (request, reply) => {
+    if (experience.createHousehold === undefined) return reply.code(501).send({ error: { code: "PROVIDER_UNAVAILABLE", message: "Browser household creation is not configured" } });
+    const result = await experience.createHousehold(request, CreateHouseholdFormSchema.parse(request.body));
     return reply.redirect(`/households/${encodeURIComponent(result.householdId)}`, 303);
   });
 

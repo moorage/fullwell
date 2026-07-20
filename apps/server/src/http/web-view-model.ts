@@ -10,7 +10,7 @@ import type { PasskeyCredential } from "../auth/types.js";
 import type { IdentityMethodProvider } from "../auth/types.js";
 import type { OAuthGrantSummary } from "../oauth/types.js";
 import { HouseholdFoodJournalService } from "../services/household-food-journal.js";
-import type { WebImportInput } from "./web.js";
+import type { WebCreateHouseholdInput, WebImportInput } from "./web.js";
 
 const InstallMetadataSchema = z.object({
   release: z.string().min(1),
@@ -67,6 +67,19 @@ export class WebViewModelService {
       options.listPasskeys,
       options.accountSummary,
     );
+  }
+
+  async createHousehold(request: FastifyRequest, input: WebCreateHouseholdInput): Promise<{ householdId: string }> {
+    if (this.resolvePrincipal === undefined || this.verifyCsrf === undefined) throw new AppError("PROVIDER_UNAVAILABLE", "Browser household creation is not configured");
+    const principal = await this.resolvePrincipal(request);
+    if (principal === null) throw new AppError("AUTH_REQUIRED", "Sign in is required");
+    await this.verifyCsrf(request, input.csrf);
+    const created = await this.service.call("hfj_create_household", {
+      name: input.name,
+      idempotency_key: input.idempotencyKey,
+    }, principal);
+    if (!created.ok) throw new AppError(created.error.code, created.error.message);
+    return { householdId: z.object({ household_id: HouseholdIdSchema }).parse(created.data).household_id };
   }
 
   async importCollection(request: FastifyRequest, input: WebImportInput): Promise<{ householdId: string }> {

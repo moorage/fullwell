@@ -254,6 +254,8 @@ Account deletion must revoke sessions and tokens immediately. If other members r
 
 ## 8. Household collaboration
 
+An authenticated user may create a household from the server-rendered household list. The form submission must authenticate the browser session, verify CSRF, validate the household name and idempotency key, and call the same single-writer `hfj_create_household` use case as MCP. A completed request redirects to the new household; an exact replay returns the same household without another Git commit.
+
 ### 8.1 Roles
 
 | Operation | Owner | Editor | Viewer |

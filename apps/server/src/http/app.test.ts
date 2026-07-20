@@ -19,6 +19,7 @@ import { WebViewModelService } from "./web-view-model.js";
 import { MemoryExportArtifactStore } from "../exports/artifact-store.js";
 import { ServiceObservability } from "../telemetry/observability.js";
 import { createOperatorAuthenticator, HealthService } from "../health/health.js";
+import { AppError } from "../core/errors.js";
 
 async function fixture(options: Pick<AppDependencies, "observability" | "operatorAuthentication" | "rateLimit"> = {}) {
   const store = new MemoryOperationalStore();
@@ -212,6 +213,10 @@ describe("Fastify application", () => {
       random: base.random,
       publicOrigin: base.publicOrigin,
       installMetadataPath: resolve(import.meta.dirname, "../../../../packages/agent-client/install-metadata.json"),
+      resolvePrincipal: async (request) => request.headers["x-test-browser-session"] === "owner" ? await base.authentication.authenticate("Bearer test-owner-token") : null,
+      verifyCsrf: async (_request, submittedToken) => {
+        if (submittedToken !== "c".repeat(32)) throw new AppError("FORBIDDEN", "CSRF validation failed");
+      },
     });
     const app = await buildApp({
       service: base.service,
@@ -222,7 +227,11 @@ describe("Fastify application", () => {
       identity: new UnconfiguredAppleIdentityProvider(),
       random: base.random,
       publicOrigin: base.publicOrigin,
-      web: { assetsRoot: resolve(import.meta.dirname, "../../../web/dist"), contextFor: (request) => viewModels.contextFor(request) },
+      web: {
+        assetsRoot: resolve(import.meta.dirname, "../../../web/dist"),
+        contextFor: (request) => viewModels.contextFor(request),
+        createHousehold: (request, input) => viewModels.createHousehold(request, input),
+      },
     });
     const response = await app.inject({ method: "GET", url: "/c/not-a-real-token" });
     expect(response.statusCode).toBe(200);
@@ -235,6 +244,30 @@ describe("Fastify application", () => {
     const account = await app.inject({ method: "GET", url: "/account" });
     expect(account.statusCode).toBe(303);
     expect(account.headers.location).toBe("/sign-in?returnTo=%2Faccount");
+    const createPayload = new URLSearchParams({
+      name: "Recovery Kitchen",
+      csrf: "c".repeat(32),
+      idempotencyKey: "web-household-create-0001",
+    }).toString();
+    const unauthenticatedCreate = await app.inject({
+      method: "POST", url: "/households", headers: { "content-type": "application/x-www-form-urlencoded" }, payload: createPayload,
+    });
+    expect(unauthenticatedCreate.statusCode).toBe(401);
+    const rejectedCreate = await app.inject({
+      method: "POST", url: "/households", headers: { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "owner" },
+      payload: new URLSearchParams({ name: "Recovery Kitchen", csrf: "x".repeat(32), idempotencyKey: "web-household-create-0001" }).toString(),
+    });
+    expect(rejectedCreate.statusCode).toBe(403);
+    const created = await app.inject({
+      method: "POST", url: "/households", headers: { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "owner" }, payload: createPayload,
+    });
+    expect(created.statusCode).toBe(303);
+    expect(created.headers.location).toMatch(/^\/households\/hsh_/);
+    const replayed = await app.inject({
+      method: "POST", url: "/households", headers: { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "owner" }, payload: createPayload,
+    });
+    expect(replayed.headers.location).toBe(created.headers.location);
+    expect(await base.store.listHouseholds()).toHaveLength(1);
     const noJavaScriptPlan = await app.inject({
       method: "POST",
       url: "/c/not-a-real-token/import/plan",

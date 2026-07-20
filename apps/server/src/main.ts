@@ -128,6 +128,7 @@ const app = await buildApp({
   web: {
     assetsRoot: resolve(repositoryRoot, "apps/web/dist"),
     contextFor: (request) => webViewModels.contextFor(request),
+    createHousehold: (request, input) => webViewModels.createHousehold(request, input),
     importCollection: (request, input) => webViewModels.importCollection(request, input),
   },
 });

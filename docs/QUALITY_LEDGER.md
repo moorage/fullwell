@@ -30,7 +30,7 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 - Contract, 20-case Codex/Claude eval, isolated Codex CLI 0.144.4 and Claude Code 2.1.123 plugin lifecycle, live Codex CLI 0.144.4 and Claude Code 2.1.215 OAuth revocation/reconnect, nine-test Apple Container PostgreSQL and managed Neon integration, reversible local migration, idempotent managed-Neon forward migration, one-day managed-Neon PITR, account lifecycle, security-boundary, WebKit e2e, Git restore, local deployment, MCP discovery, OCI image, Caddy, Compose, and OpenTofu checks pass.
 - Native Safari 26.5 Touch ID passkey enrollment and passkey-only sign-in pass against the provisioned DigitalOcean/Neon staging origin through Computer Use.
 - Native Safari household creation plus the deployed Backblaze upload and isolated restore pass against the signed staging repository; Neon checkpoints and operator health confirm compliance retention, zero backup gaps, valid fsck/signatures, and a healthy restore drill.
-- The public immutable `@fullwell/household-food-journal-agent@1.0.0` registry artifact matches the prepared integrity and passes clean Node 24 installation plus isolated Codex and Claude lifecycle tests.
+- The public immutable `@fullwell/fullwell@1.0.0` registry artifact matches the prepared integrity and passes clean Node 24 installation plus isolated Codex and Claude lifecycle tests; the host plugin and MCP service retain the stable `household-food-journal` identifier.
 - `apps/`, `packages/`, `migrations/`, `infra/`, and `deploy/` contain the coordinated React 19.2, Fastify, Neon, Git, agent-package, and DigitalOcean foundation.
 
 ## Structural debt register

@@ -8,7 +8,7 @@
       "name": "household-food-journal",
       "source": {
         "source": "npm",
-        "package": "@fullwell/household-food-journal-agent",
+        "package": "@fullwell/fullwell",
         "version": "1.0.0",
         "registry": "https://registry.npmjs.org"
       },

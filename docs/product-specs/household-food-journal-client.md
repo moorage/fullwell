@@ -96,6 +96,8 @@ After authentication, the agent calls `hfj_get_context`. If the user has no hous
 
 The client must never ask the user to paste a token back into the conversation.
 
+Supported hosts may dynamically register a native public client, repeat the MCP resource indicator during token exchange, and send the MCP initialized lifecycle notification without a request ID. The service must interoperate with those standards-compatible host behaviors without requiring host-specific secrets or configuration in the package.
+
 ### 5.2 Create or join a family
 
 For a new household:
@@ -261,7 +263,7 @@ repo-root/
     `-- CHANGELOG.md
 ```
 
-The marketplace catalogs live at the repository paths discovered by their hosts: `.agents/plugins/marketplace.json` for Codex and `.claude-plugin/marketplace.json` for Claude. Both catalogs must reference the same immutable published npm package version. The installed package contains the host manifests and shared implementation:
+The marketplace catalogs live at the repository paths discovered by their hosts: `.agents/plugins/marketplace.json` for Codex and `.claude-plugin/marketplace.json` for Claude. Both catalogs must reference the same immutable published npm package version. Publishing the npm payload does not publish either host catalog; public catalog discovery requires a separately published repository or catalog source. The installed package contains the host manifests and shared implementation:
 
 ```text
 packages/agent-client/

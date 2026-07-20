@@ -7,6 +7,7 @@ import type { OAuthService } from "./service.js";
 const AuthorizationFormSchema = z.object({
   response_type: z.literal("code"),
   client_id: z.string(),
+  client_name: z.string().trim().min(1).max(200),
   redirect_uri: z.string(),
   scope: z.string(),
   state: z.string(),
@@ -24,11 +25,13 @@ const TokenRequestSchema = z.discriminatedUnion("grant_type", [
     client_id: z.string().min(1).max(2048),
     redirect_uri: z.string().max(4096),
     code_verifier: z.string().min(43).max(128),
+    resource: z.url().max(4096).optional(),
   }).strict(),
   z.object({
     grant_type: z.literal("refresh_token"),
     refresh_token: z.string().min(32).max(512),
     client_id: z.string().min(1).max(2048),
+    resource: z.url().max(4096).optional(),
   }).strict(),
 ]);
 
@@ -51,6 +54,7 @@ export async function registerOAuthRoutes(app: FastifyInstance, dependencies: OA
 
   app.post("/oauth/register", { config: { rateLimit: { max: 10, timeWindow: 60 * 60_000 } } }, async (request, reply) => oauthReply(reply, async () => {
     const client = await dependencies.oauth.registerClient(request.body);
+    reply.header("cache-control", "no-store");
     return reply.code(201).send({
       client_id: client.clientId,
       client_name: client.name,
@@ -64,15 +68,19 @@ export async function registerOAuthRoutes(app: FastifyInstance, dependencies: OA
   app.get("/oauth/authorize", { config: { rateLimit: OAUTH_AUTHORIZE_RATE_LIMIT } }, async (request, reply) => oauthReply(reply, async () => {
     await dependencies.resolveBrowserPrincipal(request);
     const authorization = await dependencies.oauth.validateAuthorizationRequest(request.query);
-    return reply.send({
+    const consent = new URL("/authorize", "https://local.invalid");
+    consent.search = new URLSearchParams({
+      response_type: "code",
       client_id: authorization.clientId,
+      client_name: authorization.clientName,
       redirect_uri: authorization.redirectUri,
+      scope: authorization.scopes.join(" "),
       state: authorization.state,
-      resource: authorization.resource,
-      scopes: authorization.scopes,
       code_challenge: authorization.codeChallenge,
       code_challenge_method: "S256",
-    });
+      resource: authorization.resource,
+    }).toString();
+    return reply.redirect(consent.pathname + consent.search);
   }));
 
   app.post("/oauth/authorize", { config: { rateLimit: OAUTH_AUTHORIZE_RATE_LIMIT } }, async (request, reply) => oauthReply(reply, async () => {
@@ -89,7 +97,10 @@ export async function registerOAuthRoutes(app: FastifyInstance, dependencies: OA
       code_challenge_method: form.code_challenge_method,
       resource: form.resource,
     });
-    return reply.redirect((await dependencies.oauth.approve(authorization, principal)).toString());
+    if (form.client_name !== authorization.clientName) {
+      throw new OAuthProtocolError("invalid_request", "The registered client metadata changed");
+    }
+    return reply.code(303).redirect((await dependencies.oauth.approve(authorization, principal)).toString());
   }));
 
   app.post("/oauth/token", { config: { rateLimit: { max: 30, timeWindow: 60_000 } } }, async (request, reply) => oauthReply(reply, async () => {
@@ -97,8 +108,8 @@ export async function registerOAuthRoutes(app: FastifyInstance, dependencies: OA
     reply.header("cache-control", "no-store");
     reply.header("pragma", "no-cache");
     const response = form.grant_type === "authorization_code"
-      ? await dependencies.oauth.exchangeAuthorizationCode({ code: form.code, clientId: form.client_id, redirectUri: form.redirect_uri, codeVerifier: form.code_verifier })
-      : await dependencies.oauth.exchangeRefreshToken({ refreshToken: form.refresh_token, clientId: form.client_id });
+      ? await dependencies.oauth.exchangeAuthorizationCode({ code: form.code, clientId: form.client_id, redirectUri: form.redirect_uri, codeVerifier: form.code_verifier, resource: form.resource })
+      : await dependencies.oauth.exchangeRefreshToken({ refreshToken: form.refresh_token, clientId: form.client_id, resource: form.resource });
     return reply.send(response);
   }));
 

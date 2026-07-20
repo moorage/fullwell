@@ -92,10 +92,22 @@ export type WebRenderContext = {
   emailSent: boolean;
 };
 
+export type OAuthAuthorizationRequest = {
+  readonly clientName: string;
+  readonly responseType: "code";
+  readonly clientId: string;
+  readonly redirectUri: string;
+  readonly scope: string;
+  readonly state: string;
+  readonly codeChallenge: string;
+  readonly codeChallengeMethod: "S256";
+  readonly resource: string;
+};
+
 export type WebRoute =
   | { page: "install"; host: "codex" | "claude" }
   | { page: "sign-in"; returnTo?: string | undefined }
-  | { page: "authorize" }
+  | { page: "authorize"; authorization?: OAuthAuthorizationRequest | undefined }
   | { page: "invite"; token: string }
   | { page: "collection"; token: string }
   | { page: "collection-import-plan"; token: string }

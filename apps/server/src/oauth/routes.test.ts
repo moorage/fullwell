@@ -21,8 +21,22 @@ describe("OAuth routes", () => {
     const app = Fastify();
     await registerOAuthRoutes(app, { oauth, resolveBrowserPrincipal: async () => principal, verifyCsrf: async (_request, token) => { expect(token).toBe("c".repeat(32)); } });
 
-    const registration = await app.inject({ method: "POST", url: "/oauth/register", payload: { client_name: "Codex", redirect_uris: ["http://127.0.0.1:1455/callback"] } });
+    const registration = await app.inject({
+      method: "POST",
+      url: "/oauth/register",
+      payload: {
+        client_name: "Codex",
+        redirect_uris: ["http://127.0.0.1:1455/callback"],
+        application_type: "native",
+        scope: "journal:read journal:write",
+        client_uri: "https://openai.com/codex",
+        contacts: ["security@example.test"],
+        software_id: "codex-cli",
+        software_version: "0.144.4",
+      },
+    });
     expect(registration.statusCode).toBe(201);
+    expect(registration.headers["cache-control"]).toBe("no-store");
     const clientId = registration.json().client_id as string;
     const verifier = "v".repeat(43);
     const challenge = createHash("sha256").update(verifier).digest("base64url");
@@ -32,16 +46,26 @@ describe("OAuth routes", () => {
       code_challenge_method: "S256", resource: "https://journal.example.test/mcp",
     });
     const consent = await app.inject({ method: "GET", url: `/oauth/authorize?${authorization}` });
-    expect(consent.statusCode).toBe(200);
+    expect(consent.statusCode).toBe(302);
+    const consentUrl = new URL(consent.headers.location ?? "", "https://journal.example.test");
+    expect(consentUrl.pathname).toBe("/authorize");
+    expect(consentUrl.searchParams.get("client_name")).toBe("Codex");
+    expect(consentUrl.searchParams.get("client_id")).toBe(clientId);
+    const tamperedApproval = await app.inject({
+      method: "POST", url: "/oauth/authorize", headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: new URLSearchParams({ ...Object.fromEntries(authorization), client_name: "Trusted Agent", approve: "true", csrf_token: "c".repeat(32) }).toString(),
+    });
+    expect(tamperedApproval.statusCode).toBe(400);
+    expect(await store.listActiveGrants(principal.userId)).toEqual([]);
     const approval = await app.inject({
       method: "POST", url: "/oauth/authorize", headers: { "content-type": "application/x-www-form-urlencoded" },
-      payload: new URLSearchParams({ ...Object.fromEntries(authorization), approve: "true", csrf_token: "c".repeat(32) }).toString(),
+      payload: new URLSearchParams({ ...Object.fromEntries(authorization), client_name: "Codex", approve: "true", csrf_token: "c".repeat(32) }).toString(),
     });
-    expect(approval.statusCode).toBe(302);
+    expect(approval.statusCode).toBe(303);
     const code = new URL(approval.headers.location ?? "", "http://localhost").searchParams.get("code") ?? "";
     const token = await app.inject({
       method: "POST", url: "/oauth/token", headers: { "content-type": "application/x-www-form-urlencoded" },
-      payload: new URLSearchParams({ grant_type: "authorization_code", code, client_id: clientId, redirect_uri: "http://127.0.0.1:1455/callback", code_verifier: verifier }).toString(),
+      payload: new URLSearchParams({ grant_type: "authorization_code", code, client_id: clientId, redirect_uri: "http://127.0.0.1:1455/callback", code_verifier: verifier, resource: "https://journal.example.test/mcp" }).toString(),
     });
     expect(token.statusCode).toBe(200);
     expect(token.headers["cache-control"]).toBe("no-store");

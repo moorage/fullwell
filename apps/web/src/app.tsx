@@ -21,7 +21,7 @@ export function App({ url, context }: { url: string; context: WebRenderContext }
     switch (route.page) {
       case "install": return <InstallRoute initialHost={route.host} />;
       case "sign-in": return <SignInRoute emailSent={context.emailSent} returnTo={route.returnTo} />;
-      case "authorize": return <AuthorizeRoute />;
+      case "authorize": return <AuthorizeRoute authorization={route.authorization} />;
       case "invite": return <InviteRoute token={route.token} state={context.invite.state} />;
       case "collection": return <CollectionPreviewRoute token={route.token} state={context.collectionState} />;
       case "collection-import-plan": return context.collectionState === "ready"

@@ -225,6 +225,10 @@ Required capabilities:
 - scoped consent;
 - support for the client registration/discovery mechanisms currently required by both Codex and Claude, including Client ID Metadata Documents and Dynamic Client Registration when those hosts require them.
 
+Authorization-server metadata must advertise the dynamic registration endpoint and public-client token authentication. Dynamic registration must accept the bounded standards-compatible native-client metadata emitted by supported hosts, persist only the metadata needed for validation and consent, and return a non-cacheable response. The server-rendered consent screen must derive the client name and exact requested scopes from the validated authorization request rather than from free-form browser input.
+
+Authorization-code and refresh-token requests may repeat the RFC resource indicator. Validate it against the MCP audience before consuming or rotating a credential. After a successful initialize response, accept the no-ID `notifications/initialized` lifecycle notification and return an empty successful notification response before serving tool discovery.
+
 Initial scopes:
 
 | Scope | Permission |
@@ -978,7 +982,7 @@ Run against the supported PostgreSQL version. Test constraints, expiry cleanup, 
 
 ### 21.4 OAuth and MCP contract tests
 
-Test protected-resource metadata, authorization metadata, PKCE, redirect validation, scopes, refresh rotation, revocation, and tool schemas using current Codex and Claude clients in addition to protocol-level fixtures.
+Test protected-resource metadata, authorization metadata, dynamic registration, PKCE, redirect validation, token-request resource indicators, scopes, refresh rotation, lifecycle notifications, revocation, and tool schemas using current Codex and Claude clients in addition to protocol-level fixtures.
 
 Publish a machine-readable tool schema artifact consumed by the client repository's contract tests. Breaking schema changes require a versioned migration and coordinated client release.
 

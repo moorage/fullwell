@@ -86,7 +86,7 @@ describe("web experience", () => {
 
   it.each([
     ["/sign-in?returnTo=%2Fc%2Fshare", "Sign in to Fullwell"],
-    ["/authorize", "Let Codex use your food journal?"],
+    ["/authorize", "Authorization request unavailable"],
     ["/households", "Your households"],
     ["/households/alvarez-home", "Alvarez home"],
     ["/households/alvarez-home/members", "People in Alvarez home"],
@@ -98,6 +98,32 @@ describe("web experience", () => {
   ])("renders the %s route", (url, heading) => {
     renderApp(url);
     expect(screen.getByRole("heading", { name: heading, level: 1 })).toBeVisible();
+  });
+
+  it("renders an actionable OAuth consent handoff with exact hidden fields", () => {
+    const query = new URLSearchParams({
+      client_name: "Codex",
+      response_type: "code",
+      client_id: "client-1",
+      redirect_uri: "http://127.0.0.1:1455/callback",
+      scope: "journal:read journal:write",
+      state: "state-value-0001",
+      code_challenge: "c".repeat(43),
+      code_challenge_method: "S256",
+      resource: "https://journal.example.test/mcp",
+    });
+    renderApp(`/authorize?${query}`);
+    const allow = screen.getByRole("button", { name: "Allow Codex" });
+    const form = allow.closest("form");
+    expect(form).toHaveAttribute("action", "/oauth/authorize");
+    expect(form).toHaveFormValues({
+      client_id: "client-1",
+      redirect_uri: "http://127.0.0.1:1455/callback",
+      scope: "journal:read journal:write",
+      csrf_token: demoWebContext.security.csrfToken,
+      approve: "true",
+    });
+    expect(screen.getByText("Add evidence and update journal entries")).toBeVisible();
   });
 
   it("renders passkey, email-sent, and unavailable public states from server context", () => {

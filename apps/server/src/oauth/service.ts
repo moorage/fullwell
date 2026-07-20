@@ -32,6 +32,15 @@ const ClientRegistrationSchema = z.object({
   token_endpoint_auth_method: z.literal("none").default("none"),
   grant_types: z.array(z.enum(["authorization_code", "refresh_token"])).default(["authorization_code", "refresh_token"]),
   response_types: z.array(z.literal("code")).default(["code"]),
+  application_type: z.literal("native").optional(),
+  scope: z.string().min(1).max(512).optional(),
+  client_uri: z.url().max(4096).optional(),
+  logo_uri: z.url().max(4096).optional(),
+  contacts: z.array(z.email().max(320)).max(20).optional(),
+  tos_uri: z.url().max(4096).optional(),
+  policy_uri: z.url().max(4096).optional(),
+  software_id: z.string().min(1).max(200).optional(),
+  software_version: z.string().min(1).max(200).optional(),
 }).strict();
 
 export class OAuthService {
@@ -63,12 +72,10 @@ export class OAuthService {
     if (!client.redirectUris.includes(redirectUri)) {
       throw new OAuthProtocolError("invalid_request", "The redirect URI is not registered");
     }
-    const resource = normalizeResource(parsed.resource);
-    if (resource !== normalizeResource(this.resource.toString())) {
-      throw new OAuthProtocolError("invalid_request", "The requested resource is not available");
-    }
+    const resource = validateResource(parsed.resource, this.resource);
     return {
       clientId: client.clientId,
+      clientName: client.name,
       redirectUri,
       state: parsed.state,
       codeChallenge: parsed.code_challenge,
@@ -114,8 +121,10 @@ export class OAuthService {
     readonly clientId: string;
     readonly redirectUri: string;
     readonly codeVerifier: string;
+    readonly resource?: string | undefined;
   }): Promise<TokenResponse> {
     validateVerifier(input.codeVerifier);
+    if (input.resource !== undefined) validateResource(input.resource, this.resource);
     const now = this.clock.now();
     const consumed = await this.store.consumeAuthorizationCode({
       tokenHash: this.hasher.hash(input.code),
@@ -128,7 +137,8 @@ export class OAuthService {
     return this.issueTokenPair(consumed.token.grantId, consumed.grant.scopes, consumed.token.audience, null);
   }
 
-  async exchangeRefreshToken(input: { readonly refreshToken: string; readonly clientId: string }): Promise<TokenResponse> {
+  async exchangeRefreshToken(input: { readonly refreshToken: string; readonly clientId: string; readonly resource?: string | undefined }): Promise<TokenResponse> {
+    if (input.resource !== undefined) validateResource(input.resource, this.resource);
     const now = this.clock.now();
     const tokenHash = this.hasher.hash(input.refreshToken);
     const existing = await this.store.getToken(tokenHash);
@@ -208,6 +218,14 @@ function normalizeResource(value: string): string {
   const url = new URL(value);
   url.hash = "";
   return url.toString();
+}
+
+function validateResource(value: string, expected: URL): string {
+  const resource = normalizeResource(value);
+  if (resource !== normalizeResource(expected.toString())) {
+    throw new OAuthProtocolError("invalid_request", "The requested resource is not available");
+  }
+  return resource;
 }
 
 function validateVerifier(value: string): void {

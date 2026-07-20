@@ -94,11 +94,29 @@ describe("OAuthService", () => {
     expect(await service.authenticate(rotated.access_token)).toBeNull();
   });
 
+  it("rejects a mismatched token resource before consuming the authorization code", async () => {
+    const { service } = fixture();
+    const { client, code } = await authorize(service);
+    const exchange = { code, clientId: client.clientId, redirectUri: client.redirectUris[0] ?? "", codeVerifier: verifier };
+    await expect(service.exchangeAuthorizationCode({ ...exchange, resource: "https://other.example.test/mcp" }))
+      .rejects.toMatchObject({ code: "invalid_request" });
+    await expect(service.exchangeAuthorizationCode({ ...exchange, resource: "https://journal.example.test/mcp" }))
+      .resolves.toMatchObject({ token_type: "Bearer" });
+  });
+
   it("rejects unknown permissions and insecure remote redirects", async () => {
     const { service } = fixture();
     await expect(service.registerClient({ client_name: "Bad", redirect_uris: ["http://remote.example/callback"] }))
       .rejects.toMatchObject({ code: "invalid_request" });
-    const client = await service.registerClient({ client_name: "Claude", redirect_uris: ["https://claude.example/callback"] });
+    const client = await service.registerClient({
+      client_name: "Claude",
+      redirect_uris: ["https://claude.example/callback"],
+      scope: "journal:read",
+      client_uri: "https://claude.ai",
+      policy_uri: "https://claude.ai/legal/privacy",
+      software_id: "claude-code",
+    });
+    expect(client.name).toBe("Claude");
     await expect(service.validateAuthorizationRequest({
       response_type: "code", client_id: client.clientId, redirect_uri: client.redirectUris[0], scope: "admin", state: "state-value-0002",
       code_challenge: challenge, code_challenge_method: "S256", resource: "https://journal.example.test/mcp",

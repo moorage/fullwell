@@ -26,8 +26,8 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 
 - `docs/product-specs/household-food-journal-server.md` and `docs/product-specs/household-food-journal-client.md` define normative acceptance behavior.
 - `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, and `docs/RELIABILITY.md` define the target authorities and failure boundaries.
-- Deterministic unit/component/load/security coverage passes with 192 tests at 97.07% statements/lines, 95.07% functions, and 90.46% branches; Neon integration adapters and process roots retain dedicated environment gates.
-- Contract, 20-case Codex/Claude eval, isolated Codex CLI 0.144.4 and Claude Code 2.1.123 plugin lifecycle, nine-test Apple Container PostgreSQL and managed Neon integration, reversible local migration, idempotent managed-Neon forward migration, one-day managed-Neon PITR, account lifecycle, security-boundary, WebKit e2e, Git restore, local deployment, MCP discovery, OCI image, Caddy, Compose, and OpenTofu checks pass.
+- Deterministic unit/component/load/security coverage passes with 195 tests at 97.1% statements/lines, 94.9% functions, and 90.4% branches; Neon integration adapters and process roots retain dedicated environment gates.
+- Contract, 20-case Codex/Claude eval, isolated Codex CLI 0.144.4 and Claude Code 2.1.123 plugin lifecycle, live Codex CLI 0.144.4 and Claude Code 2.1.215 OAuth revocation/reconnect, nine-test Apple Container PostgreSQL and managed Neon integration, reversible local migration, idempotent managed-Neon forward migration, one-day managed-Neon PITR, account lifecycle, security-boundary, WebKit e2e, Git restore, local deployment, MCP discovery, OCI image, Caddy, Compose, and OpenTofu checks pass.
 - Native Safari 26.5 Touch ID passkey enrollment and passkey-only sign-in pass against the provisioned DigitalOcean/Neon staging origin through Computer Use.
 - Native Safari household creation plus the deployed Backblaze upload and isolated restore pass against the signed staging repository; Neon checkpoints and operator health confirm compliance retention, zero backup gaps, valid fsck/signatures, and a healthy restore drill.
 - The public immutable `@fullwell/household-food-journal-agent@1.0.0` registry artifact matches the prepared integrity and passes clean Node 24 installation plus isolated Codex and Claude lifecycle tests.
@@ -36,7 +36,7 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 ## Structural debt register
 
 - DigitalOcean Block Storage failover fencing, production Neon 30-day history/scheduled snapshots, combined Git-plus-Neon RPO/RTO recovery, and provisioned staging rollback remain unproven. Live Backblaze Object Lock and isolated deployed Git recovery pass.
-- Public npm installation and isolated Codex/Claude lifecycle behavior pass; real host OAuth, reconnect, setup, invitation, sharing, and selective-import workflows still need external compatibility evidence. Apple, email, and passkey authentication pass native Safari staging ceremonies.
+- Public npm installation, isolated Codex/Claude lifecycle behavior, and real host OAuth revocation/reconnect pass; public marketplace discovery plus setup, invitation, collection sharing, and selective-import workflows still need external compatibility evidence. Apple, email, and passkey authentication pass native Safari staging ceremonies.
 - Manual VoiceOver, authenticated keyboard/zoom accessibility, iPhone hardware and non-Apple screen-reader coverage, provisioned load/soak and OAuth/import/Neon race coverage, privacy, secret-rotation, and manual release reviews remain no-go gates.
 
 ## Maintenance rule

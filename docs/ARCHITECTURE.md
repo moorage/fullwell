@@ -39,6 +39,8 @@ Path: `apps/server/`
 
 Internal modules should follow the server product domains: auth, households, profiles, journal content, collections, imports, Git, persistence, MCP, web, and workers. HTTP, MCP, Neon, Git, mail, clock, randomness, and filesystem access remain typed adapters at module edges.
 
+The OAuth boundary advertises protected-resource and authorization-server metadata, including dynamic client registration and public-client token authentication. Registration accepts only a bounded native-client metadata allowlist. The authorization endpoint validates the registered redirect, client name, requested scopes, PKCE challenge, and exact MCP resource across both the redirect to the React consent screen and the submitted decision; the token endpoint accepts the standards-compatible optional `resource` parameter without consuming a code when that resource is invalid. The MCP transport supports initialize, the no-ID `notifications/initialized` lifecycle notification with an empty `202` response, tool discovery, and authenticated tool calls.
+
 ### Browser frontend
 
 Purpose: implement accessible React 19.2 flows for sign-in, passkeys, pending invitations, collection preview, selective import, account management, and install handoff.
@@ -68,6 +70,8 @@ Purpose: package shared Codex and Claude skills, host manifests, remote MCP conf
 Path: `packages/agent-client/`, with repository discovery catalogs at `.agents/plugins/marketplace.json` for Codex and `.claude-plugin/marketplace.json` for Claude.
 
 The agent client never contains canonical household data, account state, credentials, a Git synchronization engine, or a programmatic semantic classifier. Codex and Claude use the same skill source files and the same remote MCP endpoint.
+
+The immutable npm package is the plugin payload, not a public marketplace catalog. Until a repository or catalog is intentionally published, host release checks may install that payload through the repository-local catalogs, but public catalog discovery remains a separate release blocker.
 
 ### Operational persistence
 

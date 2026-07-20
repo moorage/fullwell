@@ -25,6 +25,7 @@ const ToolCallSchema = z.object({
 
 const McpRequestSchema = z.union([
   z.object({ jsonrpc: z.literal("2.0"), id: z.union([z.string(), z.number()]), method: z.literal("initialize"), params: z.unknown().optional() }).strict(),
+  z.object({ jsonrpc: z.literal("2.0"), method: z.literal("notifications/initialized"), params: z.unknown().optional() }).strict(),
   z.object({ jsonrpc: z.literal("2.0"), id: z.union([z.string(), z.number()]), method: z.literal("tools/list"), params: z.unknown().optional() }).strict(),
   ToolCallSchema,
 ]);
@@ -174,7 +175,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   });
 
   app.get("/.well-known/oauth-protected-resource", async () => ({ resource: new URL("/mcp", dependencies.publicOrigin).toString(), authorization_servers: [dependencies.publicOrigin.toString()], scopes_supported: ["journal:read", "journal:write", "household:manage", "collection:share", "journal:export"] }));
-  app.get("/.well-known/oauth-authorization-server", async () => ({ issuer: dependencies.publicOrigin.toString(), authorization_endpoint: new URL("/oauth/authorize", dependencies.publicOrigin), token_endpoint: new URL("/oauth/token", dependencies.publicOrigin), revocation_endpoint: new URL("/oauth/revoke", dependencies.publicOrigin), response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], code_challenge_methods_supported: ["S256"] }));
+  app.get("/.well-known/oauth-authorization-server", async () => ({ issuer: dependencies.publicOrigin.toString(), authorization_endpoint: new URL("/oauth/authorize", dependencies.publicOrigin), token_endpoint: new URL("/oauth/token", dependencies.publicOrigin), revocation_endpoint: new URL("/oauth/revoke", dependencies.publicOrigin), registration_endpoint: new URL("/oauth/register", dependencies.publicOrigin), response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], token_endpoint_auth_methods_supported: ["none"], code_challenge_methods_supported: ["S256"] }));
   app.get("/mcp", { config: { rateLimit: { max: 120, timeWindow: 60_000, groupId: "mcp" } } }, async (request) => {
     await authenticate(request.headers.authorization, dependencies.authentication);
     throw new AppError("VALIDATION_FAILED", "MCP requests must use POST");
@@ -184,6 +185,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     const principal = await authenticate(request.headers.authorization, dependencies.authentication);
     const rpc = McpRequestSchema.parse(request.body);
     if (rpc.method === "initialize") return reply.send({ jsonrpc: "2.0", id: rpc.id, result: { protocolVersion: "2025-06-18", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "household-food-journal", version: "0.1.0" } } });
+    if (rpc.method === "notifications/initialized") return reply.code(202).send();
     if (rpc.method === "tools/list") return reply.send({ jsonrpc: "2.0", id: rpc.id, result: { tools: toolCatalog() } });
     const toolStartedAt = performance.now();
     const result = await dependencies.service.call(rpc.params.name, rpc.params.arguments, principal);

@@ -83,6 +83,8 @@ Run schema changes only through `npm run migrate` with a direct Neon URL, an exa
 
 As implementation lands, add real commands for unit, contract, Neon integration, Git integration, OAuth/MCP interoperability, security, agent eval, browser e2e, backup/restore, and deployed persistence smoke tests. The deployed smoke must prove that a canary repository survives a container restart and a controlled Droplet failover procedure without using production household data.
 
+OAuth/MCP interoperability evidence must exercise each supported host's actual dynamic registration payload, authorization and token requests, initialize request, no-ID initialized notification, tool discovery, revocation, and reconnect. Protocol fixtures remain required, but they do not substitute for a current host handshake because hosts may add standards-compatible registration fields or token parameters and may require notification-specific HTTP semantics.
+
 The repository verification entry points include:
 
 - `npm run test:unit`

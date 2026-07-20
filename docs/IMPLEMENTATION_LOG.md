@@ -6,7 +6,7 @@
   - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
 
-- current milestone: the DigitalOcean staging service is live and healthy with real Apple, Resend, native Safari passkey authentication, browser household creation, a non-empty encrypted Backblaze restore drill, and the public npm agent package; the active ExecPlan remains open on DigitalOcean failover, production Neon retention/snapshots and combined recovery, real host OAuth workflows, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
+- current milestone: the DigitalOcean staging service is live and healthy with real Apple, Resend, native Safari passkey authentication, browser household creation, a non-empty encrypted Backblaze restore drill, the public npm agent package, and real Codex/Claude OAuth revocation and reconnect; the active ExecPlan remains open on public marketplace discovery, complete agent workflows, DigitalOcean failover, production Neon retention/snapshots and combined recovery, external security review, provisioned load, manual accessibility, recovery, and release blockers recorded in `docs/release/verification-evidence.md`
 - implemented React 19.2 SSR/hydration, server-authorized web contexts, public collection privacy states, no-JavaScript forms, Fastify MCP/OAuth, Apple/Resend adapters, Neon persistence, Git mutation/import provenance, reversible migrations, shared contracts, and the Codex/Claude agent package
 - implemented DigitalOcean OpenTofu, Block Storage initialization checks, pinned Node 24 Docker build, Compose/Caddy/systemd deployment, local deployment/MCP smokes, legal drafts, and operations/release runbooks
 - set the reviewed DigitalOcean staging baseline to a 1 GiB Basic Droplet, 50 GiB Block Storage volume, weekly backups, and 2 GiB low-swappiness host swap; the documented estimate is $12.20 per month before tax and production sizing remains gated on staging load evidence
@@ -42,10 +42,14 @@
 - replaced the unpublished agent package's placeholder hostname with `fullwell.souschefstudio.com` across MCP, install, homepage, privacy, and terms metadata; strengthened package validation against cross-origin drift and passed the package build, eval, dry-run pack, and isolated Codex/Claude lifecycle gates
 - created the free public `@fullwell` npm scope, enabled passkey-backed account 2FA, and published `@fullwell/household-food-journal-agent@1.0.0`; registry metadata confirms the prepared SHA-1 and SHA-512 integrity, 15-file tarball, public access, and `latest` tag
 - installed the public package on Node 24 in Apple Container and from a clean host prefix; extended the lifecycle harness to accept a downloaded package root, fixed its nested-dependency filter, and passed Codex install/remove/reinstall plus Claude install/update/disable/re-enable/uninstall against the registry artifact
+- completed live OAuth with Codex CLI 0.144.4 and Claude Code 2.1.215 against staging by advertising dynamic registration and public-client authentication, accepting bounded native-client metadata, rendering validated React consent, accepting the optional token-request resource indicator, and acknowledging the no-ID MCP initialized notification
+- exercised deployed grant revocation and reconnect through native Safari accessibility automation: recent passkey authentication authorized cleanup, ten duplicate retry grants were removed, Claude reported authentication required after revocation, and one clean Codex plus one clean Claude grant reconnected; Claude's MCP health check then reported connected and the Account page showed exactly two active grants
+- deployed `hfj-staging:oauth-20260720-6-runtime` with rollback image `hfj-staging:oauth-20260720-5-runtime`; the transferred OCI archive SHA-256 was `9c1cebea7cdbe88315c217dcc2729c9b39319a6bd1435f78bb0831c86e60d8c1`, and public liveness plus fresh Codex and Claude handshakes passed after deployment
+- kept the public npm artifact and public host catalogs as separate release gates; the local catalogs can install the registry payload for verification, but no repository or catalog was uploaded and public marketplace discovery remains blocked
 - added the exact-host/direct-endpoint/TLS-gated migration runner with advisory locking and content-hash ledger updates; applied schema `0005` idempotently and passed all nine integration tests on a one-day schema-only Neon branch
 - restored the disposable Neon branch to its verified 11:28 PDT history point in 0.26 seconds, confirmed the complete operational schema and all five content-hashed migration rows, and set both the restored branch and its preserved rollback branch to expire after one day
 - fixed Neon account leave reusing its existing household transaction instead of opening a second transaction that waits on the same advisory lock
-- expanded deterministic unit, component, domain, service, adapter, worker, HTTP view-model, React interaction, load, and security coverage to 97.07% statements/lines, 95.07% functions, and 90.46% branches across 192 passing tests
+- expanded deterministic unit, component, domain, service, adapter, worker, HTTP view-model, React interaction, load, and security coverage to 97.1% statements/lines, 94.9% functions, and 90.4% branches across 195 passing tests
 - expanded WebKit evidence to 18 passing checks with six intentional project-specific skips, including axe, reduced motion, export layout, native disclosure, and overflow assertions; manual VoiceOver, authenticated keyboard/zoom, and hardware-device review remain open
 - fixed in-memory household lock-tail cleanup so completed queues are released instead of retained; process composition roots and Neon adapters remain assigned to deployment/browser and isolated PostgreSQL integration gates
 - commands run include:
@@ -66,6 +70,10 @@
   - `HFJ_AGENT_PACKAGE_ROOT=<public-install> node --test packages/agent-client/tests/packaging/host-lifecycle.test.mjs`
   - `container run --rm node:24-alpine npm install --prefix /tmp/fullwell-verify @fullwell/household-food-journal-agent@1.0.0 --ignore-scripts --no-package-lock --prefer-online --registry=https://registry.npmjs.org`
   - `claude plugin validate packages/agent-client`
+  - `npx vitest run apps/server/src/http/app.test.ts apps/server/src/oauth/routes.test.ts apps/server/src/oauth/service.test.ts apps/web/src/test/route.test.ts apps/web/src/test/app.test.tsx`
+  - `CODEX_HOME=<isolated-profile> codex mcp login household-food-journal`
+  - `claude mcp login plugin:household-food-journal:household-food-journal`
+  - `claude mcp list`
   - `npm run test:e2e`
   - `npm run capture:screencast -- --output artifacts/screencasts/account-export.mp4` (unsupported: macOS ffmpeg has no `x11grab` input)
   - `TEST_DATABASE_URL=... npm run test:integration`

@@ -31,3 +31,4 @@
 - Passed the first non-empty deployed Backblaze recovery drill: the staging maintenance timer uploaded an encrypted, compliance-retained bundle and signed manifest, and an explicit isolated restore verified download, decryption, hashes, HEAD, object count, fsck, and commit signatures.
 - Replaced the agent package's placeholder service URLs with the deployed Fullwell origin and made packaging validation require one HTTPS origin across MCP, install, homepage, privacy, and terms metadata.
 - Published `@fullwell/household-food-journal-agent@1.0.0` as a public immutable npm package and added a public-artifact override to the isolated Codex and Claude lifecycle harness.
+- Completed live Codex and Claude MCP OAuth interoperability with advertised dynamic registration, bounded native-client metadata, React consent, token-request resource validation, and the MCP initialized notification; verified duplicate-grant cleanup, revocation, and clean reconnects in native Safari.

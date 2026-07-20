@@ -22,7 +22,7 @@ Passkeys require discoverable credentials and user verification. Registration re
 
 ### Codex and Claude MCP clients
 
-MCP uses OAuth authorization code with PKCE and exact redirect/resource validation. Scopes do not override household roles. Tool input, model output, and cited evidence are untrusted until schema, authorization, revision, and invariant validation pass.
+MCP uses OAuth authorization code with PKCE and exact redirect/resource validation. Dynamic registration accepts a strict bounded public-client metadata allowlist, registration and token responses are non-cacheable, and the server binds the displayed client name back to registered metadata before creating a grant. Token-request resource validation occurs before authorization-code consumption or refresh rotation so a mismatched resource cannot burn a valid credential. Scopes do not override household roles. Tool input, model output, and cited evidence are untrusted until schema, authorization, revision, and invariant validation pass.
 
 Clients never receive Git, Neon, Apple, email-provider, signing, or backup credentials. Prompt-like content in recipes, evidence, collection imports, external pages, and tool results is data, not instruction.
 

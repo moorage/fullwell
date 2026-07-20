@@ -84,6 +84,7 @@ export interface OAuthStore {
 
 export interface AuthorizationRequest {
   readonly clientId: string;
+  readonly clientName: string;
   readonly redirectUri: string;
   readonly state: string;
   readonly codeChallenge: string;

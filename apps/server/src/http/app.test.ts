@@ -58,6 +58,9 @@ describe("Fastify application", () => {
 
   it("publishes and invokes the complete MCP tool catalog", async () => {
     const { app } = await fixture();
+    const initialized = await app.inject({ method: "POST", url: "/mcp", headers: { authorization: "Bearer test-owner-token" }, payload: { jsonrpc: "2.0", method: "notifications/initialized" } });
+    expect(initialized.statusCode).toBe(202);
+    expect(initialized.body).toBe("");
     const list = await app.inject({ method: "POST", url: "/mcp", headers: { authorization: "Bearer test-owner-token" }, payload: { jsonrpc: "2.0", id: 1, method: "tools/list" } });
     expect(list.statusCode).toBe(200);
     const names = list.json().result.tools.map((tool: { name: string }) => tool.name);
@@ -167,6 +170,11 @@ describe("Fastify application", () => {
     expect(unauthorized.headers["www-authenticate"]).toContain("oauth-protected-resource");
     const unauthorizedGet = await app.inject({ method: "GET", url: "/mcp" });
     expect(unauthorizedGet.statusCode).toBe(401);
+    const oauthMetadata = await app.inject({ method: "GET", url: "/.well-known/oauth-authorization-server" });
+    expect(oauthMetadata.json()).toMatchObject({
+      registration_endpoint: "https://example.test/oauth/register",
+      token_endpoint_auth_methods_supported: ["none"],
+    });
     const ready = await app.inject({ method: "GET", url: "/health/ready" });
     expect(ready.statusCode).toBe(200);
     expect(ready.headers["referrer-policy"]).toBe("no-referrer");

@@ -26,4 +26,32 @@ describe("resolveWebRoute", () => {
     expect(resolveWebRoute("/invite/family/join-me?state=authenticated")).toEqual({ page: "invite", token: "join-me" });
     expect(resolveWebRoute("/c/share?state=revoked")).toEqual({ page: "collection", token: "share" });
   });
+
+  it("parses a complete validated OAuth consent handoff", () => {
+    const query = new URLSearchParams({
+      client_name: "Codex",
+      response_type: "code",
+      client_id: "client-1",
+      redirect_uri: "http://127.0.0.1:1455/callback",
+      scope: "journal:read journal:write",
+      state: "state-value-0001",
+      code_challenge: "c".repeat(43),
+      code_challenge_method: "S256",
+      resource: "https://journal.example.test/mcp",
+    });
+    expect(resolveWebRoute(`/authorize?${query}`)).toEqual({
+      page: "authorize",
+      authorization: {
+        clientName: "Codex",
+        responseType: "code",
+        clientId: "client-1",
+        redirectUri: "http://127.0.0.1:1455/callback",
+        scope: "journal:read journal:write",
+        state: "state-value-0001",
+        codeChallenge: "c".repeat(43),
+        codeChallengeMethod: "S256",
+        resource: "https://journal.example.test/mcp",
+      },
+    });
+  });
 });

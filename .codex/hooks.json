@@ -1,52 +1,90 @@
 {
   "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup|resume|clear|compact",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/session_context.mjs\"",
-            "timeout": 10,
-            "statusMessage": "Loading harness context"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
+    "PostCompact": [
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/capture_event.mjs\"",
-            "timeout": 10,
-            "statusMessage": "Capturing prompt signal"
+            "command": "bd codex-hook PostCompact",
+            "statusMessage": "Scheduling Beads context refresh",
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "manual|auto"
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash|apply_patch|Edit|Write|mcp__.*",
         "hooks": [
           {
-            "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/capture_event.mjs\"",
+            "statusMessage": "Capturing tool signal",
             "timeout": 10,
-            "statusMessage": "Capturing tool signal"
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "Bash|apply_patch|Edit|Write|mcp__.*"
       }
     ],
     "PreCompact": [
       {
-        "matcher": "manual|auto",
         "hooks": [
           {
-            "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/capture_event.mjs\"",
+            "statusMessage": "Capturing compaction signal",
             "timeout": 10,
-            "statusMessage": "Capturing compaction signal"
+            "type": "command"
+          }
+        ],
+        "matcher": "manual|auto"
+      },
+      {
+        "hooks": [
+          {
+            "command": "bd codex-hook PreCompact",
+            "statusMessage": "Checking Beads context",
+            "type": "command"
+          }
+        ],
+        "matcher": "manual|auto"
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/session_context.mjs\"",
+            "statusMessage": "Loading harness context",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "startup|resume|clear|compact"
+      },
+      {
+        "hooks": [
+          {
+            "command": "bd codex-hook SessionStart",
+            "statusMessage": "Loading Beads context",
+            "type": "command"
+          }
+        ],
+        "matcher": "startup|resume|clear"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/stop_verify.mjs\"",
+            "statusMessage": "Checking verification state",
+            "timeout": 10,
+            "type": "command"
+          },
+          {
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/session_wrapup.mjs\"",
+            "statusMessage": "Summarizing improvement signals",
+            "timeout": 10,
+            "type": "command"
           }
         ]
       }
@@ -55,28 +93,31 @@
       {
         "hooks": [
           {
-            "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/capture_event.mjs\"",
+            "statusMessage": "Capturing subagent signal",
             "timeout": 10,
-            "statusMessage": "Capturing subagent signal"
+            "type": "command"
           }
         ]
       }
     ],
-    "Stop": [
+    "UserPromptSubmit": [
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/stop_verify.mjs\"",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/capture_event.mjs\"",
+            "statusMessage": "Capturing prompt signal",
             "timeout": 10,
-            "statusMessage": "Checking verification state"
-          },
+            "type": "command"
+          }
+        ]
+      },
+      {
+        "hooks": [
           {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/session_wrapup.mjs\"",
-            "timeout": 10,
-            "statusMessage": "Summarizing improvement signals"
+            "command": "bd codex-hook UserPromptSubmit",
+            "statusMessage": "Refreshing Beads context",
+            "type": "command"
           }
         ]
       }

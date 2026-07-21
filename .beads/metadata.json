@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "fullwell",
+  "project_id": "4a27b5be-6bfb-4aae-a363-ef60c9364c9c"
+}

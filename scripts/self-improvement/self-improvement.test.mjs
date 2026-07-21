@@ -130,9 +130,14 @@ try {
 }
 
 const hooks = JSON.parse(readFileSync(".codex/hooks.json", "utf8"));
-for (const groups of Object.values(hooks.hooks)) {
+for (const [event, groups] of Object.entries(hooks.hooks)) {
   for (const group of groups) {
     for (const hook of group.hooks) {
+      const beadsEvent = hook.command.match(/^bd codex-hook (PostCompact|PreCompact|SessionStart|UserPromptSubmit)$/)?.[1];
+      if (beadsEvent !== undefined) {
+        assert.equal(beadsEvent, event, `Beads hook event matches its group: ${hook.command}`);
+        continue;
+      }
       const script = hook.command.match(/\/\.codex\/hooks\/([^"]+)/)?.[1];
       assert.ok(script, `hook command should point at a repo-local script: ${hook.command}`);
       assert.ok(existsSync(path.join(".codex", "hooks", script)), `hook script exists: ${script}`);

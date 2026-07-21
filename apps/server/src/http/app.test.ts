@@ -63,8 +63,10 @@ describe("Fastify application", () => {
     expect(initialized.body).toBe("");
     const list = await app.inject({ method: "POST", url: "/mcp", headers: { authorization: "Bearer test-owner-token" }, payload: { jsonrpc: "2.0", id: 1, method: "tools/list" } });
     expect(list.statusCode).toBe(200);
-    const names = list.json().result.tools.map((tool: { name: string }) => tool.name);
+    const tools = list.json().result.tools as Array<{ name: string; description: string }>;
+    const names = tools.map((tool) => tool.name);
     expect(names).toEqual(Object.keys(ToolInputSchemas));
+    expect(tools.find(({ name }) => name === "hfj_update_onboarding")?.description).toContain("Start, skip, or resume");
 
     const create = await app.inject({ method: "POST", url: "/mcp", headers: { authorization: "Bearer test-owner-token" }, payload: { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "hfj_create_household", arguments: { name: "Our Kitchen", idempotency_key: "household-key-1" } } } });
     expect(create.statusCode).toBe(200);
@@ -178,7 +180,12 @@ describe("Fastify application", () => {
     const ready = await app.inject({ method: "GET", url: "/health/ready" });
     expect(ready.statusCode).toBe(200);
     expect(ready.headers["referrer-policy"]).toBe("no-referrer");
-    expect(ready.headers["content-security-policy"]).toContain("form-action 'self' https://appleid.apple.com");
+    expect(ready.headers["content-security-policy"]).toContain("form-action 'self' https://appleid.apple.com https://wa.me https://api.whatsapp.com");
+    expect(ready.headers["content-security-policy"]).not.toContain("http://127.0.0.1");
+    const nativeConsent = await app.inject({ method: "GET", url: "/authorize?redirect_uri=http%3A%2F%2F127.0.0.1%3A1455%2Foauth%2Fcallback" });
+    expect(nativeConsent.headers["content-security-policy"]).toContain("http://127.0.0.1:1455");
+    const remoteConsent = await app.inject({ method: "GET", url: "/authorize?redirect_uri=https%3A%2F%2Fattacker.example%2Foauth%2Fcallback" });
+    expect(remoteConsent.headers["content-security-policy"]).not.toContain("attacker.example");
     expect((await app.inject({ method: "GET", url: "/health/operator" })).statusCode).toBe(503);
     expect((await app.inject({ method: "GET", url: "/metrics" })).statusCode).toBe(503);
     await app.close();

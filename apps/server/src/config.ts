@@ -34,6 +34,21 @@ const ConfigSchema = z.object({
   APPLE_PRIVATE_KEY: z.string().min(1).optional(),
   MAIL_PROVIDER_API_KEY: z.string().min(1).optional(),
   MAIL_FROM: z.string().min(3).optional(),
+  WHATSAPP_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+  WHATSAPP_WEBHOOK_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+  WHATSAPP_LINKING_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+  WHATSAPP_RUNNER_CLAIMS_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+  WHATSAPP_SERVICE_REPLIES_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+  WHATSAPP_MODE: z.literal("service_only").optional(),
+  WHATSAPP_GRAPH_API_VERSION: z.string().regex(/^v\d+\.\d+$/).optional(),
+  WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().regex(/^\d{6,32}$/).optional(),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().regex(/^\d{6,32}$/).optional(),
+  WHATSAPP_CONTACT_URL: z.url().optional(),
+  WHATSAPP_APP_SECRET: z.string().min(16).optional(),
+  WHATSAPP_ACCESS_TOKEN: z.string().min(32).optional(),
+  WHATSAPP_VERIFY_TOKEN: z.string().min(32).optional(),
+  MESSAGE_ENCRYPTION_KEY: z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional(),
+  WHATSAPP_FREE_SERVICE_SEND_CUTOFF: z.iso.datetime({ offset: true }).default("2026-10-01T00:00:00-07:00"),
 });
 
 export type AppConfig = Readonly<z.infer<typeof ConfigSchema>>;
@@ -72,6 +87,21 @@ export function parseConfig(env: NodeJS.ProcessEnv): AppConfig {
     APPLE_PRIVATE_KEY: secret(env, "APPLE_PRIVATE_KEY"),
     MAIL_PROVIDER_API_KEY: secret(env, "MAIL_PROVIDER_API_KEY"),
     MAIL_FROM: env.MAIL_FROM,
+    WHATSAPP_ENABLED: env.WHATSAPP_ENABLED,
+    WHATSAPP_WEBHOOK_ENABLED: env.WHATSAPP_WEBHOOK_ENABLED,
+    WHATSAPP_LINKING_ENABLED: env.WHATSAPP_LINKING_ENABLED,
+    WHATSAPP_RUNNER_CLAIMS_ENABLED: env.WHATSAPP_RUNNER_CLAIMS_ENABLED,
+    WHATSAPP_SERVICE_REPLIES_ENABLED: env.WHATSAPP_SERVICE_REPLIES_ENABLED,
+    WHATSAPP_MODE: env.WHATSAPP_MODE,
+    WHATSAPP_GRAPH_API_VERSION: env.WHATSAPP_GRAPH_API_VERSION || undefined,
+    WHATSAPP_BUSINESS_ACCOUNT_ID: secret(env, "WHATSAPP_BUSINESS_ACCOUNT_ID"),
+    WHATSAPP_PHONE_NUMBER_ID: secret(env, "WHATSAPP_PHONE_NUMBER_ID"),
+    WHATSAPP_CONTACT_URL: secret(env, "WHATSAPP_CONTACT_URL"),
+    WHATSAPP_APP_SECRET: secret(env, "WHATSAPP_APP_SECRET"),
+    WHATSAPP_ACCESS_TOKEN: secret(env, "WHATSAPP_ACCESS_TOKEN"),
+    WHATSAPP_VERIFY_TOKEN: secret(env, "WHATSAPP_VERIFY_TOKEN"),
+    MESSAGE_ENCRYPTION_KEY: secret(env, "MESSAGE_ENCRYPTION_KEY"),
+    WHATSAPP_FREE_SERVICE_SEND_CUTOFF: env.WHATSAPP_FREE_SERVICE_SEND_CUTOFF,
   });
   if (config.NODE_ENV === "production") {
     if (config.AUTH_MODE === "test") throw new Error("AUTH_MODE=test is forbidden in production");
@@ -97,6 +127,30 @@ export function parseConfig(env: NodeJS.ProcessEnv): AppConfig {
   if (configuredBackupKeys.length !== 0 && configuredBackupKeys.length !== backupKeys.length) throw new Error("Object backup configuration must be complete");
   if (config.NODE_ENV === "production" && config.OBJECT_STORAGE_ENDPOINT !== undefined && new URL(config.OBJECT_STORAGE_ENDPOINT).protocol !== "https:") {
     throw new Error("Production object storage must use HTTPS");
+  }
+  const whatsappGates = [
+    config.WHATSAPP_WEBHOOK_ENABLED,
+    config.WHATSAPP_LINKING_ENABLED,
+    config.WHATSAPP_RUNNER_CLAIMS_ENABLED,
+    config.WHATSAPP_SERVICE_REPLIES_ENABLED,
+  ];
+  if (!config.WHATSAPP_ENABLED && whatsappGates.some(Boolean)) throw new Error("WhatsApp rollout gates require WHATSAPP_ENABLED=true");
+  if (config.WHATSAPP_ENABLED) {
+    const required = [
+      "WHATSAPP_MODE", "WHATSAPP_GRAPH_API_VERSION", "WHATSAPP_BUSINESS_ACCOUNT_ID", "WHATSAPP_PHONE_NUMBER_ID",
+      "WHATSAPP_CONTACT_URL", "WHATSAPP_APP_SECRET", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_VERIFY_TOKEN", "MESSAGE_ENCRYPTION_KEY",
+    ] as const;
+    const missing = required.filter((key) => config[key] === undefined);
+    if (missing.length > 0) throw new Error(`WhatsApp configuration is incomplete: ${missing.join(", ")}`);
+    const contactUrl = config.WHATSAPP_CONTACT_URL;
+    if (contactUrl === undefined) throw new Error("WhatsApp configuration is incomplete: WHATSAPP_CONTACT_URL");
+    if (config.NODE_ENV === "production" && new URL(contactUrl).protocol !== "https:") {
+      throw new Error("Production WhatsApp contact URL must use HTTPS");
+    }
+  }
+  const maximumFreeCutoff = Date.parse("2026-10-01T00:00:00-07:00");
+  if (Date.parse(config.WHATSAPP_FREE_SERVICE_SEND_CUTOFF) > maximumFreeCutoff) {
+    throw new Error("WHATSAPP_FREE_SERVICE_SEND_CUTOFF cannot move past Meta's paid service-message change");
   }
   return config;
 }

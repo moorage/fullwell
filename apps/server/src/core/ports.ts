@@ -16,6 +16,7 @@ import type {
   JsonValue,
   MembershipRecord,
   MutationRecord,
+  OnboardingRecord,
   OperationalHealthSnapshot,
   Principal,
   RepositoryMembershipState,
@@ -96,11 +97,17 @@ export interface RepositorySnapshot {
   readonly files: ReadonlyArray<{ readonly path: string; readonly content: string; readonly revision: GitObjectId }>;
 }
 
+export interface RestockingRepositorySnapshot {
+  readonly head: GitObjectId;
+  readonly files: ReadonlyArray<{ readonly path: string; readonly content: string }>;
+}
+
 export interface HouseholdRepositoryPort {
   provision(householdId: HouseholdId, name: string, actorId: string, occurredAt: string): Promise<GitObjectId>;
   head(householdId: HouseholdId): Promise<GitObjectId>;
   findCommitByRequestId(householdId: HouseholdId, requestId: RequestId): Promise<GitObjectId | null>;
   snapshot(householdId: HouseholdId): Promise<RepositorySnapshot>;
+  restockingSnapshot(householdId: HouseholdId): Promise<RestockingRepositorySnapshot>;
   commit(householdId: HouseholdId, expectedHead: GitObjectId, changes: ReadonlyArray<RepositoryChange>, metadata: CommitMetadata): Promise<GitObjectId>;
   read(householdId: HouseholdId, path: string): Promise<string | null>;
   bundle(householdId: HouseholdId): Promise<Uint8Array>;
@@ -122,6 +129,8 @@ export interface OperationalStorePort {
   leaveMembership(userId: UserId, householdId: HouseholdId, removedAt: string): Promise<"left" | "not_found" | "sole_owner">;
   setDefaultHousehold(userId: UserId, householdId: HouseholdId): Promise<void>;
   getDefaultHousehold(userId: UserId): Promise<HouseholdId | null>;
+  listOnboardingRecords(userId: UserId, householdId: HouseholdId): Promise<ReadonlyArray<OnboardingRecord>>;
+  compareAndSetOnboarding(record: OnboardingRecord, expectedRevision: number): Promise<boolean>;
   saveInvitation(invitation: InvitationRecord): Promise<void>;
   getInvitation(id: string): Promise<InvitationRecord | null>;
   findInvitationByTokenHash(tokenHash: string): Promise<InvitationRecord | null>;

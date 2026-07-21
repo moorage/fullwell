@@ -1,6 +1,10 @@
 # Fullwell Agent Client
 
-One shared skill package connects Codex and Claude to the hosted Household Food Journal MCP service. The service performs authentication and all canonical mutations; this package contains no credentials, household data, Git client, or synchronization state.
+One shared skill package connects Codex and Claude to the hosted Household Food Journal MCP service and defines the local-only grocery-restocking workflow. The service performs authentication and all canonical journal mutations; this package contains no credentials, household data, Git client, or synchronization state.
+
+After installation, start with `@Fullwell hi` in Codex or `Set up Fullwell.` in Claude. The shared skills ask about grocery sources first and recipe sources second, skip a declined section without showing a setup menu, and resume per-user progress through the hosted MCP service. A section is complete only when its canonical household report exists.
+
+The restocking skill reads only a private revisioned snapshot prepared by `@fullwell/local-runner`. Product selection and retailer cart control stay on the user's Mac; the WhatsApp gateway relays encrypted user-facing text and transport state only.
 
 ## Development
 

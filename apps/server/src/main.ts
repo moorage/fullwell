@@ -35,6 +35,8 @@ import { FileExportArtifactStore } from "./exports/artifact-store.js";
 import { createOperatorAuthenticator, HealthService } from "./health/health.js";
 import { ServiceObservability } from "./telemetry/observability.js";
 import { BackupCryptography } from "./backup/backup-cryptography.js";
+import { createMessagingRuntime } from "./messaging/runtime.js";
+import { RunnerSnapshotService } from "./runner/snapshot-service.js";
 
 const config = parseConfig(process.env);
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
@@ -76,7 +78,7 @@ const backupCryptography = config.BACKUP_ENCRYPTION_KEY === undefined || config.
   : new BackupCryptography(config.BACKUP_ENCRYPTION_KEY, config.BACKUP_MANIFEST_PRIVATE_KEY, config.BACKUP_MANIFEST_PUBLIC_KEY, config.BACKUP_KEY_ID);
 const health = new HealthService(store, repository, {
   clock,
-  expectedSchemaVersion: "0005",
+  expectedSchemaVersion: "0007",
   repositoryRoot: config.HOUSEHOLD_REPOSITORY_ROOT,
   signingConfigured: config.GIT_SIGNING_KEY !== undefined && config.GIT_ALLOWED_SIGNERS_FILE !== undefined && backupCryptography !== null,
 });
@@ -87,6 +89,24 @@ const productionAuthentication = new OAuthBearerAuthenticator(oauth, async (clie
 const authentication: AuthenticationPort = config.AUTH_MODE === "test"
   ? new DeterministicTestAuthenticator()
   : productionAuthentication;
+const messaging = createMessagingRuntime({
+  config,
+  connection,
+  operationalStore: store,
+  authentication,
+  browserAuth,
+  clock,
+  random,
+  hasher,
+  telemetry,
+});
+const runner = messaging === undefined ? undefined : {
+  authentication,
+  snapshots: new RunnerSnapshotService(repository, {
+    withHouseholdLock: async (householdId, operation) => await store.withHouseholdLock(householdId, operation),
+    authorize: async (principal, deviceId, householdId) => await messaging.service.authorizeRunner(principal, deviceId, householdId),
+  }, clock),
+};
 const webViewModels = await WebViewModelService.create({
   service,
   store,
@@ -99,6 +119,7 @@ const webViewModels = await WebViewModelService.create({
   verifyCsrf: browserCsrfVerifier(browserAuth),
   listPasskeys: (userId) => browserAuth.listPasskeys(userId),
   accountSummary: (userId) => accounts.summary(userId),
+  ...(messaging === undefined ? {} : { messagingStatus: (principal, setup) => messaging.service.accountStatus(principal, setup) }),
 });
 const app = await buildApp({
   service,
@@ -125,6 +146,8 @@ const app = await buildApp({
     clock,
     resolveBrowserPrincipal: async (request) => request.cookies.hfj_session === undefined ? null : browserAuth.authenticateSession(request.cookies.hfj_session),
   },
+  ...(messaging === undefined ? {} : { messaging }),
+  ...(runner === undefined ? {} : { runner }),
   web: {
     assetsRoot: resolve(repositoryRoot, "apps/web/dist"),
     contextFor: (request) => webViewModels.contextFor(request),

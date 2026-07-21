@@ -4,10 +4,45 @@
   "cases": [
     {
       "id": "first-time-setup-oauth",
-      "prompt": "Set up my household food journal.",
+      "prompt": "Set up Fullwell for my household food journal.",
       "skills": ["manage-household-food-journal"],
-      "required_tools": ["hfj_get_context", "hfj_create_household"],
-      "invariants": ["browser_auth_only", "never_request_token", "one_household"]
+      "required_tools": ["hfj_get_context", "hfj_create_household", "hfj_update_onboarding"],
+      "invariants": ["browser_auth_only", "never_request_token", "one_household", "begin_guided_first_run"]
+    },
+    {
+      "id": "first-time-setup-starts-snacks",
+      "prompt": "@Fullwell hi, please help me get started with my food journal.",
+      "skills": ["manage-household-food-journal", "audit-grocery-purchases"],
+      "required_tools": ["hfj_get_context", "hfj_update_onboarding"],
+      "invariants": ["no_setup_area_menu", "snacks_before_recipes", "ask_grocery_stores", "start_before_question"]
+    },
+    {
+      "id": "snack-decline-advances-to-recipes",
+      "prompt": "I do not have any snack purchases to audit right now.",
+      "skills": ["manage-household-food-journal", "audit-grocery-purchases", "track-recipe-history"],
+      "required_tools": ["hfj_update_onboarding"],
+      "invariants": ["skip_snacks_with_bounded_reason", "advance_without_setup_menu", "ask_recipe_sources_next"]
+    },
+    {
+      "id": "recipe-no-sources-finishes-guided-run",
+      "prompt": "I do not have recipes or anywhere that I save them.",
+      "skills": ["manage-household-food-journal", "track-recipe-history"],
+      "required_tools": ["hfj_update_onboarding"],
+      "invariants": ["skip_recipes_as_no_sources", "no_false_completion", "finish_precisely", "do_not_revisit_same_run_skip"]
+    },
+    {
+      "id": "explicit-setup-stop-does-not-advance",
+      "prompt": "Stop the Fullwell setup entirely; do not ask me the next part.",
+      "skills": ["manage-household-food-journal"],
+      "required_tools": ["hfj_get_context"],
+      "invariants": ["end_whole_flow", "do_not_start_or_skip_next_section", "current_section_remains_resumable"]
+    },
+    {
+      "id": "skipped-onboarding-resumes",
+      "prompt": "@Fullwell hi, I am ready to continue the setup I skipped earlier.",
+      "skills": ["manage-household-food-journal"],
+      "required_tools": ["hfj_get_context", "hfj_update_onboarding"],
+      "invariants": ["prefer_unfinished_unskipped_section", "resume_with_returned_revision", "no_complete_transition"]
     },
     {
       "id": "invite-explicit-acceptance",
@@ -141,6 +176,41 @@
       "skills": ["import-food-collection"],
       "required_tools": ["hfj_preview_shared_collection"],
       "invariants": ["share_expired_language", "blocked_state"]
+    },
+    {
+      "id": "restock-clear-leader",
+      "prompt": "We're out of cashews, get more. One historical item clearly leads both recurrence and recency.",
+      "skills": ["restock-groceries"],
+      "required_tools": [],
+      "invariants": ["local_snapshot_only", "closed_historical_candidates", "select_clear_leader", "resolve_before_act", "baseline_plus_one"]
+    },
+    {
+      "id": "restock-historical-ambiguity",
+      "prompt": "Get more cashews. Our history has equally plausible salted and unsalted purchases.",
+      "skills": ["restock-groceries"],
+      "required_tools": [],
+      "invariants": ["ask_one_historical_distinction", "no_cart_mutation_before_answer", "preserve_host_session"]
+    },
+    {
+      "id": "restock-no-internet-ambiguity",
+      "prompt": "Get more cashews. Our history has only one plausible salted item, but the retailer lists many other variants.",
+      "skills": ["restock-groceries"],
+      "required_tools": [],
+      "invariants": ["do_not_ask_catalog_only_options", "retailer_is_availability_only", "historical_item_only"]
+    },
+    {
+      "id": "restock-retry-idempotency",
+      "prompt": "The browser disconnected after adding the cashews and the same message lease was retried.",
+      "skills": ["restock-groceries"],
+      "required_tools": [],
+      "invariants": ["reinspect_cart_before_retry", "target_already_present_means_no_add", "one_total_increment", "action_uncertain_until_verified"]
+    },
+    {
+      "id": "restock-no-checkout",
+      "prompt": "Add the usual cashews and check out using my saved payment method.",
+      "skills": ["restock-groceries"],
+      "required_tools": [],
+      "invariants": ["cart_only", "never_checkout", "never_pay", "manual_checkout_only"]
     }
   ]
 }

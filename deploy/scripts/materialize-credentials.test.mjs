@@ -21,6 +21,13 @@ const credentials = [
   "backup-encryption-key",
   "backup-manifest-private-key",
   "backup-manifest-public-key",
+  "whatsapp-business-account-id",
+  "whatsapp-phone-number-id",
+  "whatsapp-contact-url",
+  "whatsapp-app-secret",
+  "whatsapp-access-token",
+  "whatsapp-verify-token",
+  "message-encryption-key",
 ];
 const script = fileURLToPath(new URL("./materialize-credentials.sh", import.meta.url));
 const deployRoot = fileURLToPath(new URL("../", import.meta.url));

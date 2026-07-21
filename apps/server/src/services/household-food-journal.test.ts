@@ -4,6 +4,7 @@ import {
   GitObjectIdSchema,
   HouseholdIdSchema,
   ItemIdSchema,
+  OnboardingStatusSchema,
   UserIdSchema,
   type GitObjectId,
   type HouseholdId,
@@ -314,6 +315,123 @@ describe("HouseholdFoodJournalService", () => {
     const internal = await failingService.call("hfj_create_household", { name: "Failure", idempotency_key: "internal-create-0201" }, owner);
     expect(internal.ok).toBe(false);
     if (!internal.ok) expect(internal.error.code).toBe("INTERNAL_ERROR");
+  });
+
+  it("persists per-user onboarding while deriving household completion from reports", async () => {
+    const created = await call("hfj_create_household", { name: "Onboarding", idempotency_key: "onboarding-create-0201" });
+    const householdId = HouseholdIdSchema.parse(created.data.household_id);
+    const initial = OnboardingStatusSchema.parse((await call("hfj_get_context", { household_id: householdId })).data.onboarding);
+    expect(initial).toMatchObject({
+      household_id: householdId,
+      snacks: { status: "not_started", revision: 0 },
+      recipes: { status: "not_started", revision: 0 },
+    });
+
+    const startInput = {
+      household_id: householdId,
+      section: "snacks" as const,
+      transition: { action: "start" as const },
+      expected_revision: 0,
+      idempotency_key: "onboarding-start-0201",
+    };
+    const started = await call("hfj_update_onboarding", startInput);
+    expect(started.data.section_state).toEqual({ status: "in_progress", revision: 1 });
+    expect(await call("hfj_update_onboarding", startInput)).toEqual(started);
+
+    const changedReplay = await service.call("hfj_update_onboarding", {
+      ...startInput,
+      section: "recipes",
+    }, owner);
+    expect(changedReplay).toMatchObject({ ok: false, error: { code: "REVISION_CONFLICT" } });
+
+    const stale = await service.call("hfj_update_onboarding", {
+      household_id: householdId,
+      section: "snacks",
+      transition: { action: "skip", reason: "not_now" },
+      expected_revision: 0,
+      idempotency_key: "onboarding-stale-0201",
+    }, owner);
+    expect(stale).toMatchObject({ ok: false, error: { code: "REVISION_CONFLICT" } });
+
+    await call("hfj_update_onboarding", {
+      household_id: householdId,
+      section: "snacks",
+      transition: { action: "skip", reason: "no_sources" },
+      expected_revision: 1,
+      idempotency_key: "onboarding-skip-0201",
+    });
+    expect(OnboardingStatusSchema.parse((await call("hfj_get_context", { household_id: householdId })).data.onboarding).snacks)
+      .toEqual({ status: "skipped", revision: 2, reason: "no_sources" });
+
+    const resumed = await call("hfj_update_onboarding", {
+      household_id: householdId,
+      section: "snacks",
+      transition: { action: "resume" },
+      expected_revision: 2,
+      idempotency_key: "onboarding-resume-0201",
+    });
+    expect(resumed.data.section_state).toEqual({ status: "in_progress", revision: 3 });
+    await call("hfj_update_onboarding", {
+      household_id: householdId,
+      section: "snacks",
+      transition: { action: "skip", reason: "no_sources" },
+      expected_revision: 3,
+      idempotency_key: "onboarding-reskip-0201",
+    });
+
+    await store.upsertMembership({
+      householdId,
+      userId: member.userId,
+      actorId: member.actorId,
+      role: "editor",
+      projectionHead: GitObjectIdSchema.parse(created.head),
+      removedAt: null,
+    });
+    const memberBeforeReport = OnboardingStatusSchema.parse((await call("hfj_get_context", { household_id: householdId }, member)).data.onboarding);
+    expect(memberBeforeReport.snacks).toEqual({ status: "not_started", revision: 0 });
+
+    const report = await call("hfj_commit_change_set", {
+      household_id: householdId,
+      expected_head: created.head,
+      idempotency_key: "onboarding-report-0201",
+      items: [],
+      reports: [{ report_type: "recurring_snacks", markdown: "# No recurring snacks", assertions: [], schema_version: 1 }],
+      expected_item_revisions: {},
+    });
+    for (const principal of [owner, member]) {
+      const status = OnboardingStatusSchema.parse((await call("hfj_get_context", { household_id: householdId }, principal)).data.onboarding);
+      expect(status.snacks.status).toBe("complete");
+    }
+
+    const completedMutation = await service.call("hfj_update_onboarding", {
+      household_id: householdId,
+      section: "snacks",
+      transition: { action: "resume" },
+      expected_revision: 4,
+      idempotency_key: "onboarding-complete-0201",
+    }, owner);
+    expect(completedMutation).toMatchObject({ ok: false, error: { code: "VALIDATION_FAILED" } });
+
+    await store.upsertMembership({
+      householdId,
+      userId: member.userId,
+      actorId: member.actorId,
+      role: "viewer",
+      projectionHead: GitObjectIdSchema.parse(report.head),
+      removedAt: null,
+    });
+    const viewerMutation = await service.call("hfj_update_onboarding", {
+      household_id: householdId,
+      section: "recipes",
+      transition: { action: "start" },
+      expected_revision: 0,
+      idempotency_key: "onboarding-viewer-0201",
+    }, member);
+    expect(viewerMutation).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
+
+    const other = await call("hfj_create_household", { name: "Other", idempotency_key: "onboarding-create-0202" });
+    const substituted = await service.call("hfj_get_context", { household_id: other.data.household_id }, member);
+    expect(substituted).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
   });
 
   it("replays a committed request after projection failure without a second Git commit", async () => {

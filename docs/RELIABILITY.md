@@ -47,7 +47,7 @@ Browser household leave and account deletion use the same transaction-scoped hou
 - authenticated operator health exposes reconciliation backlog, oldest incomplete mutation, backup age, last fsck result, signature status, volume capacity, Neon migration state, and last restore drill.
 - public health responses reveal no tenant counts, paths, credentials, repository identifiers, or provider error bodies.
 
-The live and readiness routes are public and contain no counts or paths. Production readiness checks Neon, schema `0005`, Git, volume identity/writability, application/manifest signing configuration, and single-writer leadership. `/health/operator` uses a dedicated HMAC-compared bearer credential and adds incomplete/reconciliation-required mutation counts and age, quarantine count, backup gaps/age, volume capacity, fsck/signature failure counts, and restore-drill freshness. Missing, stale, or failed evidence degrades operator health.
+The live and readiness routes are public and contain no counts or paths. Production readiness checks Neon, schema `0007`, Git, volume identity/writability, application/manifest signing configuration, and single-writer leadership. `/health/operator` uses a dedicated HMAC-compared bearer credential and adds incomplete/reconciliation-required mutation counts and age, quarantine count, backup gaps/age, volume capacity, fsck/signature failure counts, restore-drill freshness, messaging queue age/depth, and runner-online state. Missing, stale, or failed evidence degrades operator health.
 
 ## Backups and recovery
 
@@ -68,6 +68,16 @@ Use one request ID across HTTP/MCP, Neon mutation rows, Git commit trailers, job
 The server generates request IDs and returns `X-Request-ID`; caller-supplied values are ignored. Structured JSON logs allowlist safe attributes and pseudonymize household/export IDs. The operator-authenticated `/metrics` endpoint exposes OpenMetrics counters, histograms, runtime metrics, rate-limit rejections, reconciliation backlog, backup gaps/age, fsck/signature failures, restore-drill state, quarantines, and volume usage. Authentication, OAuth, MCP tools, mutation replay/conflict/outcome, lock wait, reconciliation, backup, and cleanup use bounded categories only.
 
 Do not log or label metrics with access/refresh/share/invitation tokens, emails, household titles, food or recipe names, order IDs, source URLs, evidence bodies, user-authored notes, Git signing material, or raw provider responses.
+
+WhatsApp operator health reports only aggregate open/queued/leased/follow-up/response counts, oldest open age, active runners, runners seen within five minutes, and whether the free channel gate is available. Open work with no online runner degrades operator health. Alert on increasing oldest-open age, lease churn, response-ready accumulation, cleanup failure, provider failure classes, and any blocked paid-send event; never attach message, sender, household, food, store, or cart labels.
+
+Meta redelivery is deduplicated transactionally before capacity checks. One primary runner owns one exclusive renewable lease; an expired lease preserves the same request identity. Cart idempotency remains local: write baseline/target before mutation, re-observe on recovery, do not increment when equal, and block when above target. A stale HEAD, revoked grant/link/device/membership, invalid snapshot, CAPTCHA, or uncertain cart blocks instead of replaying a click.
+
+An encrypted `response_ready` result is retried before the linked device's next authenticated claim returns work. This lets an operator open the service-reply gate after a controlled host proof without requiring another user message or creating a second envelope. Failed provider sends leave the response encrypted and retryable; only a provider-accepted response records a hashed delivery receipt and advances the envelope.
+
+The Codex runner verifies its dedicated project before every resolution or action turn. Any configured MCP other than `node_repl`, a missing Browser or Chrome plugin, an unavailable exact-origin approval, or isolated-login drift blocks the task before cart mutation. The keyring-backed noninteractive host passed the fake-retailer quantity-one and duplicate-replay proof on 2026-07-21. Claims are enabled for the linked staging runner; service replies are disabled while Meta business/display-name review blocks outbound acceptance.
+
+The gateway retains encrypted bodies no longer than seven days and removes expired envelopes, receipts, challenges, and unconfirmed links through scheduled maintenance. Late results are not sent outside an open pre-cutoff service window. The compiled zero-cost cutoff prevents intake, linking, claims, and replies on or after `2026-10-01T00:00:00-07:00`.
 
 ## Load and concurrency gates
 

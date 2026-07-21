@@ -6,6 +6,7 @@
 - [ ] Codex and Claude manifests/catalogs are versioned together, point to identical skills/MCP URL, and pass official validators.
 - [ ] Every row in `manual-matrix.md` is complete; unsupported surfaces are truthfully explained.
 - [ ] Install, OAuth, setup, invite, grocery, recipe, collection, selective import, migration, export, revocation, leave, and deletion flows pass.
+- [ ] Direct WhatsApp linking, signed inbound/retry, local Codex/Claude restocking, evidence-only ambiguity, idempotent no-checkout cart action, reply/delivery, offline, cutoff, revoke, and uninstall flows pass.
 - [ ] Upgrade, disable, re-enable, uninstall, and rollback preserve canonical data.
 
 ## Quality and safety
@@ -25,6 +26,7 @@
 - [ ] Git signing, fsck, signed manifest, off-site Object Lock backup, isolated restore, projection rebuild, and canary persistence pass.
 - [ ] Single-writer failover and reserved-IP/volume movement are rehearsed with the old writer independently fenced.
 - [ ] Alerts cover auth abuse, mutation failure, lock wait, conflict, reconciliation, projection mismatch, invalid repository/signature, backup age, restore drill, and volume capacity.
+- [ ] Alerts cover messaging queue age/depth, lease churn, zero online runners with open work, cleanup/provider failures, expired service windows, and blocked paid sends without sensitive labels.
 
 ## Go and rollback
 

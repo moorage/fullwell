@@ -7,6 +7,7 @@ import type {
   RequestId,
   ToolEnvelope,
   ToolName,
+  UserId,
 } from "@hfj/contracts";
 import {
   CollectionIdSchema,
@@ -16,16 +17,22 @@ import {
   ImportIdSchema,
   InvitationIdSchema,
   ItemIdSchema,
+  OnboardingStatusSchema,
   RequestIdSchema,
   ShareIdSchema,
   SnapshotIdSchema,
   ToolInputSchemas,
+  type OnboardingRecord,
+  type OnboardingSection,
+  type OnboardingSectionState,
+  type OnboardingStatus,
 } from "@hfj/contracts";
 import { AppError } from "../core/errors.js";
 import type { Clock, ExportArtifactPort, HouseholdRepositoryPort, OperationalStorePort, RandomSource, RepositoryChange, TelemetryPort, TokenHasher } from "../core/ports.js";
 import type { JsonValue, MembershipRecord, MutationRecord, Principal } from "../core/types.js";
 import { requireMembership, requireScope } from "../domain/authorization.js";
 import { markdownDocument, validateItemEvidence, validateReport } from "../domain/journal-validation.js";
+import { transitionOnboarding } from "../domain/onboarding.js";
 import { stableJson } from "../adapters/memory.js";
 import { MutationRunner } from "./mutation-runner.js";
 import { MemoryExportArtifactStore } from "../exports/artifact-store.js";
@@ -40,7 +47,7 @@ export class HouseholdFoodJournalService {
     private readonly clock: Clock,
     private readonly random: RandomSource,
     private readonly hasher: TokenHasher,
-    telemetry: TelemetryPort,
+    private readonly telemetry: TelemetryPort,
     private readonly publicOrigin: URL,
     private readonly exportArtifacts: ExportArtifactPort = new MemoryExportArtifactStore(),
   ) {
@@ -53,6 +60,7 @@ export class HouseholdFoodJournalService {
         case "hfj_get_context": return this.read(await this.getContext(input, principal));
         case "hfj_create_household": return this.write(await this.createHousehold(input, principal));
         case "hfj_select_household": return this.read(await this.selectHousehold(input, principal));
+        case "hfj_update_onboarding": return this.write(await this.updateOnboarding(input, principal));
         case "hfj_create_family_invite": return this.write(await this.createInvite(input, principal));
         case "hfj_accept_family_invite": return this.write(await this.acceptInvite(input, principal));
         case "hfj_revoke_family_invite": return this.write(await this.revokeInvite(input, principal));
@@ -87,6 +95,9 @@ export class HouseholdFoodJournalService {
     requireScope(principal, "journal:read");
     const memberships = await this.store.listMemberships(principal.userId);
     const selected = parsed.household_id ?? await this.store.getDefaultHousehold(principal.userId);
+    const selectedMembership = selected === null ? undefined : memberships.find(({ household }) => household.id === selected);
+    if (selected !== null && selectedMembership === undefined) throw new AppError("FORBIDDEN", "You do not have access to that household");
+    const onboarding = selected === null ? null : await this.onboardingStatus(principal.userId, selected);
     return {
       data: {
         user: { display_name: principal.displayName },
@@ -94,8 +105,9 @@ export class HouseholdFoodJournalService {
         default_household_id: selected,
         pending_intent: null,
         granted_scopes: [...principal.scopes].sort(),
+        onboarding: onboarding === null ? null : jsonRoundTrip(onboarding),
       },
-      head: selected === null ? null : (await this.store.getHousehold(selected))?.repositoryHead ?? null,
+      head: selectedMembership?.household.repositoryHead ?? null,
     };
   }
 
@@ -142,6 +154,82 @@ export class HouseholdFoodJournalService {
     await this.store.setDefaultHousehold(principal.userId, parsed.household_id);
     const household = await this.requiredHousehold(parsed.household_id);
     return { data: { status: "completed", household_id: parsed.household_id }, head: household.repositoryHead };
+  }
+
+  private async updateOnboarding(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_update_onboarding.parse(input);
+    requireScope(principal, "journal:write");
+    await requireMembership(this.store, principal, parsed.household_id, "editor");
+    const requestFingerprint = this.mutationFingerprint("hfj_update_onboarding", parsed);
+    const existing = await this.store.getMutation(principal.userId, "hfj_update_onboarding", parsed.idempotency_key);
+    const replay = this.mutationReplay(existing, requestFingerprint);
+    if (replay !== null) return replay;
+
+    const requestId = existing?.requestId ?? this.requestId();
+    const occurredAt = existing?.createdAt ?? this.now();
+    if (existing === null) {
+      const record = this.mutationRecord(requestId, principal, "hfj_update_onboarding", parsed.idempotency_key, parsed.household_id, occurredAt);
+      record.response = { _request_fingerprint: requestFingerprint };
+      await this.store.saveMutation(record);
+    }
+
+    const outcome = await this.store.withHouseholdLock(parsed.household_id, async (): Promise<OperationalMutationOutcome> => {
+      const currentMutation = await this.store.getMutation(principal.userId, "hfj_update_onboarding", parsed.idempotency_key);
+      const lockedReplay = this.mutationReplay(currentMutation, requestFingerprint);
+      if (lockedReplay !== null) return { status: "completed", result: lockedReplay };
+      if (currentMutation === null) throw new AppError("INTERNAL_ERROR", "Onboarding mutation record was not found");
+      await this.store.transitionMutation(currentMutation.requestId, "locked");
+
+      let prepared: { readonly next: OnboardingRecord; readonly head: GitObjectId };
+      try {
+        const membership = await requireMembership(this.store, principal, parsed.household_id, "editor");
+        const head = await this.repository.head(parsed.household_id);
+        if (membership.projectionHead !== head) throw new AppError("PROJECTION_DRIFT", "Membership projection does not match Git", true);
+        if (await this.reportExists(parsed.household_id, parsed.section)) {
+          throw new AppError("VALIDATION_FAILED", "That onboarding section is already complete");
+        }
+        const records = await this.store.listOnboardingRecords(principal.userId, parsed.household_id);
+        const current = records.find((record) => record.section === parsed.section);
+        prepared = {
+          head,
+          next: transitionOnboarding(current, {
+            userId: principal.userId,
+            householdId: parsed.household_id,
+            section: parsed.section,
+            transition: parsed.transition,
+            expectedRevision: parsed.expected_revision,
+            occurredAt,
+          }),
+        };
+      } catch (error) {
+        await this.store.transitionMutation(currentMutation.requestId, "failed_before_commit", { failure: errorName(error) });
+        return { status: "failed", error };
+      }
+
+      if (!await this.store.compareAndSetOnboarding(prepared.next, parsed.expected_revision)) {
+        const error = new AppError("REVISION_CONFLICT", "Onboarding changed in another session");
+        await this.store.transitionMutation(currentMutation.requestId, "failed_before_commit", { failure: errorName(error) });
+        return { status: "failed", error };
+      }
+      const data = {
+        status: "completed",
+        household_id: parsed.household_id,
+        section: parsed.section,
+        section_state: jsonRoundTrip(this.stateFromRecord(prepared.next)),
+      } satisfies Record<string, JsonValue>;
+      await this.store.transitionMutation(currentMutation.requestId, "completed", {
+        commitId: prepared.head,
+        response: { ...data, _request_fingerprint: requestFingerprint },
+      });
+      return { status: "completed", result: { data, head: prepared.head, requestId: currentMutation.requestId } };
+    });
+    if (outcome.status === "failed") {
+      const error = outcome.error instanceof Error ? outcome.error : new Error("Onboarding mutation failed");
+      this.telemetry.error("mutation.failed", error, { tool: "hfj_update_onboarding", request_id: requestId, error_code: errorName(outcome.error) });
+      throw outcome.error;
+    }
+    this.telemetry.event("mutation.completed", { tool: "hfj_update_onboarding", request_id: outcome.result.requestId });
+    return outcome.result;
   }
 
   private async createInvite(input: unknown, principal: Principal): Promise<WriteResult> {
@@ -475,11 +563,11 @@ export class HouseholdFoodJournalService {
     await requireMembership(this.store, principal, parsed.household_id, "viewer");
     const requestFingerprint = this.mutationFingerprint("hfj_export_household", parsed);
     const existing = await this.store.getMutation(principal.userId, "hfj_export_household", parsed.idempotency_key);
-    const replay = this.exportReplay(existing, requestFingerprint);
+    const replay = this.mutationReplay(existing, requestFingerprint);
     if (replay !== null) return replay;
     const prepared = await this.store.withHouseholdLock(parsed.household_id, async () => {
       const lockedExisting = await this.store.getMutation(principal.userId, "hfj_export_household", parsed.idempotency_key);
-      const lockedReplay = this.exportReplay(lockedExisting, requestFingerprint);
+      const lockedReplay = this.mutationReplay(lockedExisting, requestFingerprint);
       if (lockedReplay !== null) return { status: "replayed" as const, result: lockedReplay };
       const requestId = lockedExisting?.requestId ?? this.requestId();
       const now = lockedExisting?.createdAt ?? this.now();
@@ -497,7 +585,7 @@ export class HouseholdFoodJournalService {
     try {
       return await this.store.withHouseholdLock(parsed.household_id, async () => {
         const lockedExisting = await this.store.getMutation(principal.userId, "hfj_export_household", parsed.idempotency_key);
-        const lockedReplay = this.exportReplay(lockedExisting, requestFingerprint);
+        const lockedReplay = this.mutationReplay(lockedExisting, requestFingerprint);
         if (lockedReplay !== null) return lockedReplay;
         const { requestId, now } = prepared;
         await this.store.transitionMutation(requestId, "locked");
@@ -533,7 +621,7 @@ export class HouseholdFoodJournalService {
     }
   }
 
-  private exportReplay(existing: MutationRecord | null, requestFingerprint: string): WriteResult | null {
+  private mutationReplay(existing: MutationRecord | null, requestFingerprint: string): WriteResult | null {
     if (typeof existing?.response?._request_fingerprint === "string" && existing.response._request_fingerprint !== requestFingerprint) {
       throw new AppError("REVISION_CONFLICT", "The idempotency key was already used for a different request");
     }
@@ -541,6 +629,36 @@ export class HouseholdFoodJournalService {
     const data = { ...existing.response };
     delete data._request_fingerprint;
     return { data, head: existing.commitId, requestId: existing.requestId };
+  }
+
+  private async onboardingStatus(userId: UserId, householdId: HouseholdId): Promise<OnboardingStatus> {
+    const records = await this.store.listOnboardingRecords(userId, householdId);
+    const bySection = new Map(records.map((record) => [record.section, record]));
+    const [snacksComplete, recipesComplete] = await Promise.all([
+      this.reportExists(householdId, "snacks"),
+      this.reportExists(householdId, "recipes"),
+    ]);
+    return OnboardingStatusSchema.parse({
+      household_id: householdId,
+      snacks: this.onboardingSectionState(bySection.get("snacks"), snacksComplete),
+      recipes: this.onboardingSectionState(bySection.get("recipes"), recipesComplete),
+    });
+  }
+
+  private onboardingSectionState(record: OnboardingRecord | undefined, complete: boolean): OnboardingSectionState {
+    if (complete) return { status: "complete", revision: record?.revision ?? 0 };
+    return record === undefined ? { status: "not_started", revision: 0 } : this.stateFromRecord(record);
+  }
+
+  private stateFromRecord(record: OnboardingRecord): OnboardingSectionState {
+    return record.status === "skipped"
+      ? { status: "skipped", revision: record.revision, reason: record.skip_reason }
+      : { status: "in_progress", revision: record.revision };
+  }
+
+  private async reportExists(householdId: HouseholdId, section: OnboardingSection): Promise<boolean> {
+    const path = section === "snacks" ? "snacks/reports/recurring-snacks.md" : "recipes/reports/recipe-index.md";
+    return await this.repository.read(householdId, path) !== null;
   }
 
   private async activeShare(token: string) {
@@ -594,6 +712,9 @@ export class HouseholdFoodJournalService {
 
 interface ReadResult { readonly data: JsonValue; readonly head: GitObjectId | null }
 interface WriteResult { readonly data: Record<string, JsonValue>; readonly head: GitObjectId; readonly requestId: RequestId }
+type OperationalMutationOutcome =
+  | { readonly status: "completed"; readonly result: WriteResult }
+  | { readonly status: "failed"; readonly error: unknown };
 
 function itemFrontmatter(item: import("@hfj/contracts").JournalItem): object {
   const { body_markdown: _body, ...frontmatter } = item;

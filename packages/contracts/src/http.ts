@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { HouseholdIdSchema } from "./ids.js";
 import { IdempotencyKeySchema } from "./common.js";
+export {
+  RunnerClaimRequestSchema,
+  RunnerCompletionSchema,
+  RunnerDeviceRegistrationSchema,
+  RunnerHeartbeatSchema,
+  WhatsAppLinkRequestSchema,
+} from "./messaging.js";
 
 export const MagicLinkRequestSchema = z.object({ email: z.email(), pending_intent: z.string().max(2048).optional() }).strict();
 export const MagicLinkCompleteSchema = z.object({ token: z.string().min(32).max(512), transaction: z.string().min(16).max(256) }).strict();

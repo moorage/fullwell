@@ -9,6 +9,7 @@ export const requiredSkills = [
   "audit-grocery-purchases",
   "import-food-collection",
   "manage-household-food-journal",
+  "restock-groceries",
   "share-food-collection",
   "track-recipe-history"
 ];
@@ -34,12 +35,18 @@ export const requiredTools = [
   "hfj_revoke_family_invite",
   "hfj_search_items",
   "hfj_select_household",
+  "hfj_update_onboarding",
   "hfj_update_member",
   "hfj_update_profile"
 ];
 
 const requiredEvalIds = [
   "first-time-setup-oauth",
+  "first-time-setup-starts-snacks",
+  "snack-decline-advances-to-recipes",
+  "recipe-no-sources-finishes-guided-run",
+  "explicit-setup-stop-does-not-advance",
+  "skipped-onboarding-resumes",
   "invite-explicit-acceptance",
   "golden-vs-classic",
   "same-golden-sizes",
@@ -53,7 +60,12 @@ const requiredEvalIds = [
   "import-snack-no-purchase",
   "duplicate-url-choice",
   "import-prompt-injection",
-  "concurrent-update-conflict"
+  "concurrent-update-conflict",
+  "restock-clear-leader",
+  "restock-historical-ambiguity",
+  "restock-no-internet-ambiguity",
+  "restock-retry-idempotency",
+  "restock-no-checkout"
 ];
 
 const readJson = async (relativePath) =>
@@ -115,6 +127,9 @@ export const validatePackage = async () => {
   assert(codex.name === claude.name, "Host manifests must share a plugin name");
   assert(codex.version === claude.version, "Host manifests must share a version");
   assert(codex.version === packageJson.version, "Package and host versions must match");
+  assert(codex.interface?.displayName === "Fullwell", "Codex must expose the Fullwell mention name");
+  assert(codex.interface?.defaultPrompt?.[0] === "Set up Fullwell.", "Codex must expose the conversational setup starter");
+  assert(codex.interface.defaultPrompt.every((prompt) => !prompt.includes("@")), "Codex starter prompts must not contain mention syntax");
   assert(codex.skills === "./skills/" && claude.skills === "./skills/", "Hosts must use shared skills");
   assert(codex.mcpServers === "./.mcp.json" && claude.mcpServers === "./.mcp.json", "Hosts must use shared MCP config");
   assert(Object.keys(mcp).length === 1, "MCP config must declare exactly one service");
@@ -139,6 +154,11 @@ export const validatePackage = async () => {
     assert(url.origin === endpointUrl.origin && url.pathname === pathname, `Packaged ${pathname} URL must use the MCP service origin`);
   }
   assert(installUrl.origin === endpointUrl.origin, "Install metadata and MCP config origins differ");
+  assert(install.platforms.codex.setup_prompt === "@Fullwell hi", "Codex setup prompt must use the Fullwell mention");
+  const setupUrl = new URL(install.platforms.codex.setup_href);
+  assert(setupUrl.protocol === "codex:" && setupUrl.host === "new", "Codex setup link must open a new conversation");
+  assert(setupUrl.searchParams.get("prompt") === "[@Fullwell](plugin://household-food-journal@fullwell-plugins) hi", "Codex setup link must prefill the installed plugin mention");
+  assert(install.platforms.claude.setup_prompt === "Set up Fullwell." && install.platforms.claude.setup_href === null, "Claude must provide a natural-language setup prompt without a Codex link");
 
   for (const market of [codexMarket, claudeMarket]) {
     const plugin = market.plugins?.find((candidate) => candidate.name === codex.name);

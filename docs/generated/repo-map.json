@@ -25,6 +25,26 @@
           "children": [
             {
               "type": "dir",
+              "name": "beads",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "SKILL.md"
+                },
+                {
+                  "type": "dir",
+                  "name": "agents",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "openai.yaml"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "dir",
               "name": "create-exec-plan",
               "children": [
                 {
@@ -108,6 +128,198 @@
               ]
             }
           ]
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "name": ".beads",
+      "children": [
+        {
+          "type": "file",
+          "name": ".gitignore"
+        },
+        {
+          "type": "file",
+          "name": ".local_version"
+        },
+        {
+          "type": "file",
+          "name": "README.md"
+        },
+        {
+          "type": "dir",
+          "name": "backup",
+          "children": [
+            {
+              "type": "file",
+              "name": "339i6f99cuu5135k62uji3jmcmkfnojt.darc"
+            },
+            {
+              "type": "file",
+              "name": "LOCK"
+            },
+            {
+              "type": "file",
+              "name": "backup_state.json"
+            },
+            {
+              "type": "file",
+              "name": "chrnbjt6rfpe9uv3anmh2kg8120dtqc9.darc"
+            },
+            {
+              "type": "file",
+              "name": "ejnlb3s49v440oodg0ref6i7f37q5fom.darc"
+            },
+            {
+              "type": "file",
+              "name": "eptgj77ilfqglfv3vm61agm16ifj2h9l.darc"
+            },
+            {
+              "type": "file",
+              "name": "idjec7r4lfj0sp5f36hlo1slc3b41aec.darc"
+            },
+            {
+              "type": "file",
+              "name": "jhgl69f70lr83h63r7924hjphmj26vo2.darc"
+            },
+            {
+              "type": "file",
+              "name": "manifest"
+            },
+            {
+              "type": "dir",
+              "name": "oldgen",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "file",
+          "name": "config.yaml"
+        },
+        {
+          "type": "dir",
+          "name": "embeddeddolt",
+          "children": [
+            {
+              "type": "file",
+              "name": ".lock"
+            },
+            {
+              "type": "dir",
+              "name": "fullwell",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": ".dolt",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "config.json"
+                    },
+                    {
+                      "type": "dir",
+                      "name": "noms",
+                      "children": [
+                        {
+                          "type": "file",
+                          "name": "LOCK"
+                        },
+                        {
+                          "type": "file",
+                          "name": "journal.idx"
+                        },
+                        {
+                          "type": "file",
+                          "name": "manifest"
+                        },
+                        {
+                          "type": "dir",
+                          "name": "oldgen",
+                          "children": []
+                        },
+                        {
+                          "type": "file",
+                          "name": "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "file",
+                      "name": "repo_state.json"
+                    },
+                    {
+                      "type": "dir",
+                      "name": "temptf",
+                      "children": [
+                        {
+                          "type": "file",
+                          "name": "dolt_embedded_metrics"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "file",
+          "name": "export-state.json"
+        },
+        {
+          "type": "dir",
+          "name": "hooks",
+          "children": [
+            {
+              "type": "file",
+              "name": "post-checkout"
+            },
+            {
+              "type": "file",
+              "name": "post-merge"
+            },
+            {
+              "type": "file",
+              "name": "pre-commit"
+            },
+            {
+              "type": "file",
+              "name": "pre-push"
+            },
+            {
+              "type": "file",
+              "name": "prepare-commit-msg"
+            }
+          ]
+        },
+        {
+          "type": "file",
+          "name": "interactions.jsonl"
+        },
+        {
+          "type": "file",
+          "name": "issues.jsonl"
+        },
+        {
+          "type": "file",
+          "name": "last-touched"
+        },
+        {
+          "type": "file",
+          "name": "metadata.json"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "name": ".claude",
+      "children": [
+        {
+          "type": "file",
+          "name": "settings.json"
         }
       ]
     },
@@ -221,6 +433,10 @@
     {
       "type": "file",
       "name": "CHANGELOG.md"
+    },
+    {
+      "type": "file",
+      "name": "CLAUDE.md"
     },
     {
       "type": "file",
@@ -420,6 +636,10 @@
                     },
                     {
                       "type": "file",
+                      "name": "restocking-snapshot.ts"
+                    },
+                    {
+                      "type": "file",
                       "name": "types.ts"
                     }
                   ]
@@ -443,6 +663,14 @@
                     {
                       "type": "file",
                       "name": "journal-validation.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "onboarding.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "onboarding.ts"
                     },
                     {
                       "type": "file",
@@ -544,6 +772,84 @@
                 },
                 {
                   "type": "dir",
+                  "name": "messaging",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "cipher.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "cipher.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "cleanup-worker.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "cleanup-worker.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "memory-store.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "memory-store.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "neon-store.integration.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "neon-store.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "ports.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "routes.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "routes.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "runtime.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "service.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "service.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "whatsapp-cloud-api.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "whatsapp-cloud-api.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "whatsapp-webhook.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "whatsapp-webhook.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
                   "name": "oauth",
                   "children": [
                     {
@@ -603,6 +909,28 @@
                     {
                       "type": "file",
                       "name": "neon.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "runner",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "routes.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "routes.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "snapshot-service.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "snapshot-service.ts"
                     }
                   ]
                 },
@@ -969,6 +1297,14 @@
             {
               "type": "file",
               "name": "visual-system.md"
+            },
+            {
+              "type": "file",
+              "name": "whatsapp-local-restocking-feasibility.md"
+            },
+            {
+              "type": "file",
+              "name": "whatsapp-local-restocking-state-matrix.md"
             }
           ]
         },
@@ -983,6 +1319,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-15-household-food-journal-v1.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-20-whatsapp-local-restocking.md"
                 }
               ]
             },
@@ -997,6 +1337,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-15-specialize-household-food-journal-harness.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-21-conversational-fullwell-onboarding.md"
                 }
               ]
             }
@@ -1027,6 +1371,14 @@
                 {
                   "type": "file",
                   "name": ".gitkeep"
+                },
+                {
+                  "type": "file",
+                  "name": "conversational-fullwell-onboarding.md"
+                },
+                {
+                  "type": "file",
+                  "name": "evidence-backed-grocery-restocking.md"
                 }
               ]
             },
@@ -1241,6 +1593,22 @@
         {
           "type": "file",
           "name": "0005_backup_evidence.sql"
+        },
+        {
+          "type": "file",
+          "name": "0006_messaging_gateway.down.sql"
+        },
+        {
+          "type": "file",
+          "name": "0006_messaging_gateway.sql"
+        },
+        {
+          "type": "file",
+          "name": "0007_conversational_onboarding.down.sql"
+        },
+        {
+          "type": "file",
+          "name": "0007_conversational_onboarding.sql"
         }
       ]
     },
@@ -1340,6 +1708,10 @@
                 },
                 {
                   "type": "file",
+                  "name": "restocking-and-cart-safety.md"
+                },
+                {
+                  "type": "file",
                   "name": "semantic-food-rules.md"
                 }
               ]
@@ -1381,6 +1753,16 @@
                 {
                   "type": "dir",
                   "name": "manage-household-food-journal",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "SKILL.md"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "restock-groceries",
                   "children": [
                     {
                       "type": "file",
@@ -1480,6 +1862,14 @@
                 },
                 {
                   "type": "file",
+                  "name": "messaging.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "onboarding.ts"
+                },
+                {
+                  "type": "file",
                   "name": "tools.ts"
                 }
               ]
@@ -1487,6 +1877,196 @@
             {
               "type": "file",
               "name": "tsconfig.json"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "local-runner",
+          "children": [
+            {
+              "type": "file",
+              "name": "CHANGELOG.md"
+            },
+            {
+              "type": "file",
+              "name": "README.md"
+            },
+            {
+              "type": "dir",
+              "name": "launchd",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "com.fullwell.local-runner.plist"
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": "package.json"
+            },
+            {
+              "type": "dir",
+              "name": "src",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "auth",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "connect.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "connect.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "keychain.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "keychain.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "token-manager.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "token-manager.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "file",
+                  "name": "cli.test.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "cli.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "config.test.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "config.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "gateway-client.test.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "gateway-client.ts"
+                },
+                {
+                  "type": "dir",
+                  "name": "host",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "adapters.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "claude.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "codex-capabilities.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "codex.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "process.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "process.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "prompt.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "types.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "file",
+                  "name": "launchd.test.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "launchd.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "node-runtime.test.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "node-runtime.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "runner.test.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "runner.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "snapshot-cache.test.ts"
+                },
+                {
+                  "type": "file",
+                  "name": "snapshot-cache.ts"
+                },
+                {
+                  "type": "dir",
+                  "name": "state",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "action-receipts.test.ts"
+                    },
+                    {
+                      "type": "file",
+                      "name": "action-receipts.ts"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "testing",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "snapshot.fixture.ts"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": "tsconfig.json"
+            },
+            {
+              "type": "file",
+              "name": "vitest.config.ts"
             }
           ]
         }
@@ -1527,6 +2107,14 @@
             {
               "type": "file",
               "name": "mcp-smoke.mjs"
+            },
+            {
+              "type": "file",
+              "name": "messaging-smoke.mjs"
+            },
+            {
+              "type": "file",
+              "name": "messaging-smoke.test.mjs"
             },
             {
               "type": "file",
@@ -1638,6 +2226,16 @@
           "type": "dir",
           "name": "smoke",
           "children": []
+        },
+        {
+          "type": "dir",
+          "name": "spikes",
+          "children": [
+            {
+              "type": "file",
+              "name": "verify-local-agent-hosts.mjs"
+            }
+          ]
         }
       ]
     },
@@ -1655,7 +2253,27 @@
             },
             {
               "type": "file",
+              "name": "fake-retailer.spec.ts"
+            },
+            {
+              "type": "file",
               "name": "web.spec.ts"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "fixtures",
+          "children": [
+            {
+              "type": "dir",
+              "name": "fake-retailer",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "server.mjs"
+                }
+              ]
             }
           ]
         },

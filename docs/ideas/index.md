@@ -22,4 +22,5 @@ Every document under `docs/ideas/backlog/` must appear here.
 
 | Priority lane | Status | Impact | Confidence | Effort | Idea | Why now | Doc |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| _none_ | _none_ | _none_ | _none_ | _none_ | No pre-implementation ideas are currently queued. | Accepted Household Food Journal work is governed by product specs and ExecPlans. | _n/a_ |
+| `now` | `promoted` | `high` | `high` | `medium` | Conversational first-run Fullwell onboarding | Turns a successful plugin install into an evidence-safe path to the snack and recipe reports that make restocking useful. | [brief](../../docs/ideas/backlog/conversational-fullwell-onboarding.md), [ExecPlan](../../docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md) |
+| `next` | `promoted` | `high` | `medium` | `large` | Local-agent grocery restocking with WhatsApp gateway | Converts local journal history into a low-friction cart action while keeping the server limited to direct, no-middleware message relay. | [brief](../../docs/ideas/backlog/evidence-backed-grocery-restocking.md), [ExecPlan](../../docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md) |

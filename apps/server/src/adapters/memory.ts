@@ -5,6 +5,8 @@ import type {
   GitObjectId,
   HouseholdId,
   MutationState,
+  OnboardingRecord,
+  OnboardingSection,
   RequestId,
   ToolName,
   UserId,
@@ -20,6 +22,7 @@ import type {
   SessionRecord,
   SessionStorePort,
 } from "../core/ports.js";
+import { isRestockingSnapshotPath } from "../core/restocking-snapshot.js";
 import type {
   BackupCheckpointRecord,
   HouseholdProjection,
@@ -80,6 +83,14 @@ export class MemoryHouseholdRepository implements HouseholdRepositoryPort {
     return {
       head: repository.head,
       files: [...repository.files].map(([path, content]) => ({ path, content, revision: repository.revisions.get(path) ?? repository.head })),
+    };
+  }
+
+  async restockingSnapshot(householdId: HouseholdId) {
+    const snapshot = await this.snapshot(householdId);
+    return {
+      head: snapshot.head,
+      files: snapshot.files.filter((file) => isRestockingSnapshotPath(file.path)).map(({ path, content }) => ({ path, content })),
     };
   }
 
@@ -156,6 +167,7 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
   private readonly households = new Map<HouseholdId, HouseholdRecord>();
   private readonly memberships = new Map<string, MembershipRecord>();
   private readonly defaultHouseholds = new Map<UserId, HouseholdId>();
+  private readonly onboarding = new Map<string, OnboardingRecord>();
   private readonly invitations = new Map<string, InvitationRecord>();
   private readonly shares = new Map<string, ShareRecord>();
   private readonly mutations = new Map<string, MutationRecord>();
@@ -204,6 +216,16 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
   }
   async setDefaultHousehold(userId: UserId, householdId: HouseholdId): Promise<void> { this.defaultHouseholds.set(userId, householdId); }
   async getDefaultHousehold(userId: UserId): Promise<HouseholdId | null> { return this.defaultHouseholds.get(userId) ?? null; }
+  async listOnboardingRecords(userId: UserId, householdId: HouseholdId): Promise<ReadonlyArray<OnboardingRecord>> {
+    return [...this.onboarding.values()].filter((record) => record.user_id === userId && record.household_id === householdId);
+  }
+  async compareAndSetOnboarding(record: OnboardingRecord, expectedRevision: number): Promise<boolean> {
+    const key = this.onboardingKey(record.user_id, record.household_id, record.section);
+    const current = this.onboarding.get(key);
+    if ((current?.revision ?? 0) !== expectedRevision || record.revision !== expectedRevision + 1) return false;
+    this.onboarding.set(key, record);
+    return true;
+  }
   async saveInvitation(invitation: InvitationRecord): Promise<void> { this.invitations.set(invitation.id, invitation); }
   async getInvitation(id: string): Promise<InvitationRecord | null> { return this.invitations.get(id) ?? null; }
   async findInvitationByTokenHash(tokenHash: string): Promise<InvitationRecord | null> {
@@ -320,6 +342,7 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
   addSession(token: string, session: SessionRecord): void { this.sessions.set(token, session); }
 
   private membershipKey(householdId: HouseholdId, userId: UserId): string { return `${householdId}\0${userId}`; }
+  private onboardingKey(userId: UserId, householdId: HouseholdId, section: OnboardingSection): string { return `${userId}\0${householdId}\0${section}`; }
   private activeOwnerCount(householdId: HouseholdId): number {
     return [...this.memberships.values()].filter((membership) => membership.householdId === householdId && membership.removedAt === null && membership.role === "owner").length;
   }

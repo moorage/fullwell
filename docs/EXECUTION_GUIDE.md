@@ -27,6 +27,8 @@ The DigitalOcean Droplet runs Ubuntu, so production continues to use the checked
 
 The application unit decrypts credentials through `LoadCredentialEncrypted`, then `materialize-credentials.sh` copies only the declared files into its private `/run/household-food-journal/credentials` runtime directory as `root:10001` with mode `0440`. Docker Compose bind-backed secrets preserve source ownership and mode, so pointing Compose directly at systemd's root-only credential directory prevents the UID `10001` application from reading them. Rotate a credential by replacing its encrypted blob and restarting the unit; restart reacquires the encrypted sources and forces container recreation because Compose does not detect secret-content rotation as a configuration change. Reload is intentionally unsupported. The runtime directory exists only while the application unit is active; the maintenance unit reuses it and never decrypts a second copy.
 
+The direct WhatsApp gateway adds separate encrypted credentials for the WABA and phone-number identifiers/contact URL, Meta app secret, access token, webhook verification token, and independent message-encryption key. Keep all rollout gates false until the credential set is complete and the previous gate has staging evidence. The Graph API version is non-secret but must be pinned to a version supported by the connected Meta account. No identifier or credential value belongs in Git, an ExecPlan, a screenshot, shell history, or a smoke transcript.
+
 ## Useful loop
 
 1. Read the current milestone.

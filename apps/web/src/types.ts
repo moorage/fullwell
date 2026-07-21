@@ -54,6 +54,8 @@ export type InstallHost = {
   label: string;
   command: string;
   next: string;
+  setupPrompt: string;
+  setupHref: string | null;
 };
 
 export type PasskeySummary = {
@@ -65,6 +67,13 @@ export type PasskeySummary = {
 
 export type SignInMethodSummary = { provider: "apple" | "magic_link"; label: string };
 export type ConnectedGrantSummary = { id: string; clientName: string; scopes: readonly string[] };
+export type MessagingStatus =
+  | { kind: "disabled"; availableThroughLabel: string }
+  | { kind: "not_configured"; availableThroughLabel: string }
+  | { kind: "setup"; availableThroughLabel: string; deviceId: string; householdId: string; deviceName: string }
+  | { kind: "pending_confirmation"; availableThroughLabel: string; linkId: string; deviceId: string; householdId: string; deviceName: string; confirmationExpiresLabel: string }
+  | { kind: "expired"; availableThroughLabel: string; linkId: string; deviceId: string; householdId: string; deviceName: string; confirmationExpiresLabel: string }
+  | { kind: "linked"; availableThroughLabel: string; deviceId: string; householdId: string; deviceName: string; lastSeenLabel: string | null };
 
 export type WebRenderContext = {
   security: { csrfToken: string; idempotencyPrefix: string };
@@ -76,6 +85,7 @@ export type WebRenderContext = {
     methods: readonly SignInMethodSummary[];
     grants: readonly ConnectedGrantSummary[];
   };
+  messaging: MessagingStatus;
   viewer: { displayName: string; email: string };
   households: readonly HouseholdSummary[];
   members: readonly Member[];

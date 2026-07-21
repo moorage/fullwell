@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ArrowRight, Check, Clipboard, Terminal } from "lucide-react";
+import { ArrowRight, Check, Clipboard, MessageCircle, Terminal } from "lucide-react";
 import { AppShell } from "../components/app-shell.js";
-import { Button, PageHeader } from "../components/ui.js";
+import { Button, ButtonLink, PageHeader } from "../components/ui.js";
 import { useWebContext } from "../context.js";
 
 export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" }) {
@@ -10,6 +10,8 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
   const [host, setHost] = useState(initialHost);
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
+  const [promptCopyFailed, setPromptCopyFailed] = useState(false);
   const detail = hostDetails[host];
 
   async function copyCommand() {
@@ -20,6 +22,16 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
 
   function requestCopy(): void {
     copyCommand().catch(() => setCopyFailed(true));
+  }
+
+  async function copyPrompt() {
+    await navigator.clipboard.writeText(detail.setupPrompt);
+    setPromptCopied(true);
+    setPromptCopyFailed(false);
+  }
+
+  function requestPromptCopy(): void {
+    copyPrompt().catch(() => setPromptCopyFailed(true));
   }
 
   return (
@@ -41,6 +53,8 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
                 setHost(option);
                 setCopied(false);
                 setCopyFailed(false);
+                setPromptCopied(false);
+                setPromptCopyFailed(false);
               }}
             >
               Use with {hostDetails[option].label}
@@ -61,7 +75,7 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
                 {copied ? "Copied" : "Copy"}
               </Button>
             </div>
-            <span className="share-failure" role="status">{copyFailed ? "Copy failed. Select the command text instead." : null}</span>
+            {copyFailed ? <span className="share-failure" role="status">Copy failed. Select the command text instead.</span> : null}
           </div>
         </section>
         <section className="install-step" aria-labelledby="start-heading">
@@ -69,6 +83,22 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
           <div>
             <h2 id="start-heading">Start a conversation</h2>
             <p>{detail.next}</p>
+            {detail.setupHref === null ? null : (
+              <ButtonLink href={detail.setupHref} className="setup-conversation-link">
+                <MessageCircle aria-hidden="true" size={18} /> Start Fullwell setup
+              </ButtonLink>
+            )}
+            <p>{detail.setupHref === null ? `Open ${detail.label} and send:` : "Or send this in Codex:"}</p>
+            <div className="command-box setup-prompt">
+              <MessageCircle aria-hidden="true" size={20} />
+              <code>{detail.setupPrompt}</code>
+              <Button type="button" variant="quiet" onClick={requestPromptCopy} title="Copy setup prompt">
+                {promptCopied ? <Check aria-hidden="true" size={18} /> : <Clipboard aria-hidden="true" size={18} />}
+                {promptCopied ? "Copied" : "Copy prompt"}
+              </Button>
+            </div>
+            {promptCopyFailed ? <span className="share-failure" role="status">Copy failed. Select the setup prompt instead.</span> : null}
+            {detail.setupHref === null ? null : <p className="fine-print">The button fills a new conversation. Review the prompt, then press Send.</p>}
             <p className="trust-line">Sign-in opens in your browser. Never paste a code or access key into chat.</p>
           </div>
         </section>

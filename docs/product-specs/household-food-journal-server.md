@@ -169,6 +169,7 @@ PostgreSQL owns:
 - materialized membership authorization used at request time;
 - per-household mutation locks and durable mutation status;
 - idempotency keys and stored responses;
+- per-user, per-household snack and recipe onboarding progress and bounded skip reasons;
 - hashed family-invitation and collection-share tokens;
 - collection expiration and immediate revocation state;
 - search projections that can be rebuilt from Git;
@@ -227,6 +228,8 @@ Required capabilities:
 
 Authorization-server metadata must advertise the dynamic registration endpoint and public-client token authentication. Dynamic registration must accept the bounded standards-compatible native-client metadata emitted by supported hosts, persist only the metadata needed for validation and consent, and return a non-cacheable response. The server-rendered consent screen must derive the client name and exact requested scopes from the validated authorization request rather than from free-form browser input.
 
+For the macOS local runner, the consent page's Content Security Policy may add only the exact validated `http://127.0.0.1:<ephemeral-port>` origin for a bounded `/oauth/callback` redirect. This exception is route-specific; all other pages retain the normal form destinations, and OAuth validation still requires an exact dynamically registered redirect URI before issuing a code.
+
 Authorization-code and refresh-token requests may repeat the RFC resource indicator. Validate it against the MCP audience before consuming or rotating a credential. After a successful initialize response, accept the no-ID `notifications/initialized` lifecycle notification and return an empty successful notification response before serving tool discovery.
 
 Initial scopes:
@@ -238,8 +241,11 @@ Initial scopes:
 | `household:manage` | Create households and manage invitations/members when the household role permits it. |
 | `collection:share` | Publish and revoke collection snapshots. |
 | `journal:export` | Request portable exports. |
+| `runner:messages` | Receive linked fixed-purpose restocking requests on one registered Mac. |
 
 Scopes do not override household roles. A token with `journal:write` still cannot write a viewer-only household.
+
+`runner:messages` also requires `journal:read` and current household membership for the restocking snapshot. It does not grant checkout, general remote-agent, or journal-write authority. The consent screen names the linked-Mac behavior explicitly.
 
 Do not place access tokens, refresh tokens, authorization codes, or Apple client secrets in Git, logs, MCP tool output, URLs, or analytics.
 
@@ -564,7 +570,7 @@ Tool results must remain concise. Large Markdown bodies and evidence lists shoul
 
 Input: optional `household_id`.
 
-Output: user display data, editable/readable households with roles, default household, pending invitation/import intent, granted scopes, and current repository HEADs.
+Output: user display data, editable/readable households with roles, default household, pending invitation/import intent, granted scopes, current repository HEADs, and the selected household's snack and recipe onboarding states. Reject a supplied household ID unless the caller has a current membership before reading repository state.
 
 #### `hfj_create_household`
 
@@ -577,6 +583,12 @@ Output: household ID, owner role, repository HEAD, and onboarding state.
 Input: `household_id`.
 
 Output: selected default household. All later mutation tools still require an explicit household ID.
+
+#### `hfj_update_onboarding`
+
+Input: `household_id`, section (`snacks` or `recipes`), transition (`start`, bounded `skip`, or `resume`), `expected_revision`, and `idempotency_key`.
+
+Output: the updated per-user section state and current repository HEAD. Owners and editors may mutate their own onboarding state; viewers may only read it. The server compare-and-sets the onboarding row and completes the idempotency record in the same household-scoped Neon transaction. It rejects stale revisions and never accepts a client-authored `complete` transition. `complete` is derived from the canonical `snacks/reports/recurring-snacks.md` or `recipes/reports/recipe-index.md` file in the membership-authorized household repository.
 
 #### `hfj_create_family_invite`
 
@@ -795,7 +807,23 @@ Do not copy the source household ID or private actor IDs.
 
 Exact repeat imports are idempotent and default to skip. Possible duplicates require explicit user or agent resolution. The server may identify candidates but must not make a semantic merge decision.
 
-## 15. Operational database
+## 15. WhatsApp Restocking Gateway
+
+WhatsApp restocking uses direct Meta Cloud API integration. Twilio, a BSP, or another middleware messaging vendor is not part of the data path. The server is a transport gateway only: it must not inspect household snack content, call an LLM, infer a product or store, browse a retailer, or mutate a cart.
+
+The signed webhook boundary verifies `X-Hub-Signature-256` against the exact bounded raw request body before JSON parsing. It accepts bounded text and delivery-status events, records unsupported event counts without reflecting provider content, HMACs provider/sender/delivery identifiers for lookup, encrypts message and destination bodies with authenticated encryption, and transactionally deduplicates provider retries before enforcing queue capacity.
+
+Linking requires both sides. A recently authenticated browser creates a hashed, single-use, ten-minute challenge bound to one user, household, browser session, and registered primary runner. A valid signed WhatsApp message consumes the challenge and creates a pending link. The same browser session explicitly confirms it before that sender can route work. Revocation immediately disables the link and device and prevents claims and pre-action authorization.
+
+The gateway serializes work to one primary device with an exclusive 90-second renewable lease, at most eight open envelopes per link and 1,000 globally. Message bodies expire within seven days. A `needs_input` terminal result becomes `awaiting_user`; the next linked inbound text resumes the same envelope and local host session. When replies were gated during host execution, the next authenticated claim retries the encrypted `response_ready` result before returning new work, without requiring another inbound message. Provider delivery receipts store only a hashed delivery ID, bounded status/failure class, and timestamps.
+
+The runner snapshot route is membership-authorized and read-only. It returns an ETag/HEAD, content hash, bounded manifest, and archive containing only the snack profile, snack items, cited purchase evidence, recurring-snacks report, and format marker. Archive paths, modes, types, file counts, individual sizes, total size, hashes, and HEAD are validated. The browser and runner never receive Git credentials.
+
+Before a local cart mutation, the runner revalidates its OAuth grant, device, provider link, membership, and authoritative HEAD. The server does not receive the selected item, store, cart quantity, browser state, or local action receipt. Local results are relayed only while the user-opened 24-hour service window remains valid and the compiled zero-cost cutoff has not arrived.
+
+No template-send operation exists. Configuration may move the compiled `2026-10-01T00:00:00-07:00` cutoff earlier but not later. At or after it, valid webhooks are acknowledged but no cart work is enqueued, claimed, or replied to. Re-enabling requires an explicit product/code change that accepts a bounded paid-message policy.
+
+## 16. Operational database
 
 Minimum tables:
 
@@ -818,18 +846,19 @@ Minimum tables:
 - `search_items`
 - `backup_checkpoints`
 - `reconciliation_jobs`
+- `onboarding_preferences`
 
 Use explicit foreign keys, unique constraints, expiry indexes, and row-level application authorization. Secrets and raw tokens must be encrypted or hashed as appropriate. Migrations require forward and rollback instructions; destructive data migrations require a verified backup and a staged rehearsal.
 
 The service must be able to rebuild `household_memberships`, content search projections, and repository checkpoints from repositories plus private identity mappings. OAuth and session state is intentionally not rebuilt from Git.
 
-## 16. Security requirements
+## 17. Security requirements
 
-### 16.1 Tenant isolation
+### 17.1 Tenant isolation
 
 Every request resolves an authenticated user and explicit household ID before reading a repository. Test all cross-household permutations. A repository path, item ID, share ID, or mutation ID from another household must return a non-enumerating not-found/forbidden response.
 
-### 16.2 Git safety
+### 17.2 Git safety
 
 - Do not expose a Git network port.
 - Do not accept arbitrary refs, revisions, paths, commit messages, authors, or Git arguments from clients.
@@ -840,7 +869,7 @@ Every request resolves an authenticated user and explicit household ID before re
 - Sign commits and verify signatures during backup and restore drills.
 - Prohibit force updates and deletion of `main`.
 
-### 16.3 Web and OAuth safety
+### 17.3 Web and OAuth safety
 
 - TLS only, with HSTS in production.
 - Secure, HttpOnly, SameSite cookies.
@@ -857,7 +886,7 @@ The single-writer server enforces a 300-request-per-minute per-client-IP baselin
 
 Rate-limit keys never include tokens, emails, household IDs, or user-authored content. The in-process store is valid only for the documented single-writer topology; a multi-instance deployment requires a shared supported store and a new abuse/race review.
 
-### 16.4 Content safety
+### 17.4 Content safety
 
 - Treat imported collections, recipe pages, evidence summaries, and model-authored Markdown as untrusted input.
 - Escape output and sanitize Markdown.
@@ -866,11 +895,11 @@ Rate-limit keys never include tokens, emails, household IDs, or user-authored co
 - Enforce allowed URL schemes (`https`, and reviewed `http` exceptions only for local development).
 - Avoid server-side URL fetches in version 1.
 
-### 16.5 Privacy
+### 17.5 Privacy
 
 Classify order references, source locators, cooking notes, and household membership as private. Keep raw request bodies out of logs. Use structured redaction before telemetry. Public collection serialization must be an allowlist projection with snapshot tests proving that private fields cannot appear.
 
-## 17. Backup, audit durability, and recovery
+## 18. Backup, audit durability, and recovery
 
 Git history can be rewritten by an administrator, so central Git alone is not sufficient evidence of untampered history.
 
@@ -896,7 +925,7 @@ Recovery objectives for version 1:
 
 Document restore steps and test them before launch.
 
-## 18. Reconciliation and failure handling
+## 19. Reconciliation and failure handling
 
 Provide an idempotent reconciler that can:
 
@@ -910,7 +939,7 @@ Provide an idempotent reconciler that can:
 
 Do not catch broad exceptions and return success-shaped defaults. Each failed operation records a bounded failure code, retryability, and operator correlation ID. Never include private content in the error.
 
-## 19. Observability
+## 20. Observability
 
 Emit structured metrics and logs for:
 
@@ -928,7 +957,7 @@ Emit structured metrics and logs for:
 
 Use request IDs across HTTP, MCP, PostgreSQL mutation rows, Git trailers, and operator logs. Do not use household titles, recipe names, order IDs, URLs, emails, or share tokens as metric labels.
 
-## 20. Accessibility and user experience
+## 21. Accessibility and user experience
 
 All public and authenticated web flows must:
 
@@ -944,9 +973,9 @@ All public and authenticated web flows must:
 
 The UI should use household and food language, not Git, repository, MCP, OAuth, token, or commit terminology. Technical export details may appear only in an advanced export panel.
 
-## 21. Testing requirements
+## 22. Testing requirements
 
-### 21.1 Unit tests
+### 22.1 Unit tests
 
 Target 100% line and branch coverage for:
 
@@ -962,7 +991,7 @@ Target 100% line and branch coverage for:
 - OAuth redirect, scope, and token validation;
 - error mapping and redaction.
 
-### 21.2 Git integration tests
+### 22.2 Git integration tests
 
 Use real temporary repositories and the real supported Git executable. Test:
 
@@ -976,17 +1005,17 @@ Use real temporary repositories and the real supported Git executable. Test:
 - idempotent retry finding the existing commit;
 - export bundles, `git fsck`, signature verification, and restore.
 
-### 21.3 Database integration tests
+### 22.3 Database integration tests
 
 Run against the supported PostgreSQL version. Test constraints, expiry cleanup, token reuse detection, invitation races, final-owner protection, cross-tenant authorization, advisory locks, migration rollback, and projection rebuilds.
 
-### 21.4 OAuth and MCP contract tests
+### 22.4 OAuth and MCP contract tests
 
 Test protected-resource metadata, authorization metadata, dynamic registration, PKCE, redirect validation, token-request resource indicators, scopes, refresh rotation, lifecycle notifications, revocation, and tool schemas using current Codex and Claude clients in addition to protocol-level fixtures.
 
 Publish a machine-readable tool schema artifact consumed by the client repository's contract tests. Breaking schema changes require a versioned migration and coordinated client release.
 
-### 21.5 Browser end-to-end tests
+### 22.5 Browser end-to-end tests
 
 Cover:
 
@@ -1002,7 +1031,7 @@ Cover:
 10. Web Share fallback to copy/email/text drafts.
 11. Account deletion and final-owner protection.
 
-### 21.6 Security tests
+### 22.6 Security tests
 
 Include tests for cross-household ID substitution, token enumeration, CSRF, open redirects, stored/reflected XSS, malicious Markdown, prompt-injection text, path traversal, Git argument injection, symlink/submodule insertion, oversized input, replay, refresh-token reuse, share-token leakage through referrers, and log redaction.
 
@@ -1010,7 +1039,7 @@ Malformed JSON, unsupported media types, and oversized request bodies must fail 
 
 No new LLM-involved server behavior may ship without evals. The server should not call an LLM in version 1; semantic reasoning belongs to the connected Codex or Claude client.
 
-## 22. Deployment
+## 23. Deployment
 
 Deploy one containerized application process on one DigitalOcean Droplet initially, with:
 
@@ -1028,7 +1057,7 @@ Database releases must run through an explicit one-shot migration command, never
 
 Before horizontal scaling, prove that transaction-scoped Neon advisory locking, shared persistent repository storage, Git filesystem semantics, writer fencing, and split-brain prevention are safe on the chosen platform. Otherwise remain single-instance with a documented Droplet and volume failover procedure.
 
-## 23. Delivery phases
+## 24. Delivery phases
 
 ### Phase 1: Foundation
 
@@ -1057,7 +1086,7 @@ Before horizontal scaling, prove that transaction-scoped Neon advisory locking, 
 
 Every phase must ship with its tests and migrations. Do not defer foundational authorization, idempotency, audit, or backup work to a post-launch phase.
 
-## 24. Definition of done
+## 25. Definition of done
 
 The server is complete when:
 
@@ -1078,7 +1107,7 @@ The server is complete when:
 - deterministic tests meet the coverage target and all integration, browser, client-contract, security, and accessibility gates pass;
 - deployment and rollback procedures have been exercised in staging.
 
-## 25. Implementation references
+## 26. Implementation references
 
 Verify protocol details against current primary documentation before coding and again before release:
 

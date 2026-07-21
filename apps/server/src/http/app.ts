@@ -15,6 +15,8 @@ import { registerAccountRoutes, type AccountRouteDependencies } from "../account
 import { registerOAuthRoutes, type OAuthRouteDependencies } from "../oauth/routes.js";
 import { registerWebExperience, type WebExperience } from "./web.js";
 import type { ObservabilityPort } from "../telemetry/observability.js";
+import { registerMessagingRoutes, type MessagingRouteDependencies } from "../messaging/routes.js";
+import { registerRunnerRoutes, type RunnerRouteDependencies } from "../runner/routes.js";
 
 const ToolCallSchema = z.object({
   jsonrpc: z.literal("2.0"),
@@ -41,6 +43,7 @@ const ContentParserErrorSchema = z.object({
     "FST_ERR_CTP_INVALID_MEDIA_TYPE",
   ]),
 }).passthrough();
+const BASE_CONTENT_SECURITY_POLICY = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self' https://appleid.apple.com https://wa.me https://api.whatsapp.com";
 
 export interface AppDependencies {
   readonly service: HouseholdFoodJournalService;
@@ -65,6 +68,8 @@ export interface AppDependencies {
     readonly clock: Clock;
     resolveBrowserPrincipal?(request: FastifyRequest): Promise<Principal | null>;
   };
+  readonly messaging?: MessagingRouteDependencies;
+  readonly runner?: RunnerRouteDependencies;
 }
 
 export async function buildApp(dependencies: AppDependencies): Promise<FastifyInstance> {
@@ -146,11 +151,13 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   if (dependencies.browserAuth !== undefined) await registerBrowserAuthRoutes(app, dependencies.browserAuth);
   if (dependencies.account !== undefined) await registerAccountRoutes(app, dependencies.account);
   if (dependencies.oauth !== undefined) await registerOAuthRoutes(app, dependencies.oauth);
-  app.addHook("onSend", async (_request, reply, payload) => {
+  if (dependencies.messaging !== undefined) await registerMessagingRoutes(app, dependencies.messaging);
+  if (dependencies.runner !== undefined) await registerRunnerRoutes(app, dependencies.runner);
+  app.addHook("onSend", async (request, reply, payload) => {
     reply.header("x-content-type-options", "nosniff");
     reply.header("referrer-policy", "no-referrer");
     reply.header("x-frame-options", "DENY");
-    reply.header("content-security-policy", "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self' https://appleid.apple.com");
+    reply.header("content-security-policy", contentSecurityPolicy(request));
     return payload;
   });
 
@@ -163,18 +170,18 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   app.get("/health/operator", { config: { rateLimit: { max: 120, timeWindow: 60_000, groupId: "operator" } } }, async (request, reply) => {
     if (dependencies.operatorAuthentication === undefined) throw new AppError("PROVIDER_UNAVAILABLE", "Operator health is not configured");
     dependencies.operatorAuthentication(request.headers.authorization);
-    const report = await health.operatorHealth();
+    const report = await operatorHealthReport(health, dependencies.messaging?.service);
     observeOperatorHealth(dependencies.observability, report);
     return reply.send(report);
   });
   app.get("/metrics", { config: { rateLimit: { max: 120, timeWindow: 60_000, groupId: "operator" } } }, async (request, reply) => {
     if (dependencies.operatorAuthentication === undefined || dependencies.observability === undefined) throw new AppError("PROVIDER_UNAVAILABLE", "Metrics are not configured");
     dependencies.operatorAuthentication(request.headers.authorization);
-    observeOperatorHealth(dependencies.observability, await health.operatorHealth());
+    observeOperatorHealth(dependencies.observability, await operatorHealthReport(health, dependencies.messaging?.service));
     return reply.header("content-type", dependencies.observability.metricsContentType).send(await dependencies.observability.metrics());
   });
 
-  app.get("/.well-known/oauth-protected-resource", async () => ({ resource: new URL("/mcp", dependencies.publicOrigin).toString(), authorization_servers: [dependencies.publicOrigin.toString()], scopes_supported: ["journal:read", "journal:write", "household:manage", "collection:share", "journal:export"] }));
+  app.get("/.well-known/oauth-protected-resource", async () => ({ resource: new URL("/mcp", dependencies.publicOrigin).toString(), authorization_servers: [dependencies.publicOrigin.toString()], scopes_supported: ["journal:read", "journal:write", "household:manage", "collection:share", "journal:export", "runner:messages"] }));
   app.get("/.well-known/oauth-authorization-server", async () => ({ issuer: dependencies.publicOrigin.toString(), authorization_endpoint: new URL("/oauth/authorize", dependencies.publicOrigin), token_endpoint: new URL("/oauth/token", dependencies.publicOrigin), revocation_endpoint: new URL("/oauth/revoke", dependencies.publicOrigin), registration_endpoint: new URL("/oauth/register", dependencies.publicOrigin), response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], token_endpoint_auth_methods_supported: ["none"], code_challenge_methods_supported: ["S256"] }));
   app.get("/mcp", { config: { rateLimit: { max: 120, timeWindow: 60_000, groupId: "mcp" } } }, async (request) => {
     await authenticate(request.headers.authorization, dependencies.authentication);
@@ -235,17 +242,46 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   return app;
 }
 
+function contentSecurityPolicy(request: FastifyRequest): string {
+  const loopbackOrigin = nativeOAuthLoopbackOrigin(request);
+  return loopbackOrigin === null ? BASE_CONTENT_SECURITY_POLICY : `${BASE_CONTENT_SECURITY_POLICY} ${loopbackOrigin}`;
+}
+
+function nativeOAuthLoopbackOrigin(request: FastifyRequest): string | null {
+  if (request.method !== "GET") return null;
+  const requestUrl = new URL(request.raw.url ?? "/", "https://local.invalid");
+  if (requestUrl.pathname !== "/authorize") return null;
+  const value = requestUrl.searchParams.get("redirect_uri");
+  if (value === null || !URL.canParse(value)) return null;
+  const redirect = new URL(value);
+  const port = Number(redirect.port);
+  if (
+    redirect.protocol !== "http:" || redirect.hostname !== "127.0.0.1" ||
+    !Number.isInteger(port) || port < 1 || port > 65_535 ||
+    redirect.username !== "" || redirect.password !== "" ||
+    redirect.pathname !== "/oauth/callback" || redirect.search !== "" || redirect.hash !== ""
+  ) return null;
+  return redirect.origin;
+}
+
 async function authenticate(header: string | undefined, provider: AuthenticationPort) { return await provider.authenticate(header); }
+const ToolDescriptions: Partial<Record<ToolName, string>> = {
+  hfj_update_onboarding: "Start, skip, or resume the current user's snack or recipe onboarding section; completion is derived from canonical reports.",
+};
 function toolCatalog(): Array<{ name: ToolName; description: string; inputSchema: object }> {
-  return Object.entries(ToolInputSchemas).map(([name, schema]) => ({ name: ToolNameSchema.parse(name), description: name.replaceAll("_", " "), inputSchema: z.toJSONSchema(schema) }));
+  return Object.entries(ToolInputSchemas).map(([name, schema]) => {
+    const toolName = ToolNameSchema.parse(name);
+    return { name: toolName, description: ToolDescriptions[toolName] ?? name.replaceAll("_", " "), inputSchema: z.toJSONSchema(schema) };
+  });
 }
 function httpStatus(code: string): number {
   if (code === "AUTH_REQUIRED") return 401;
   if (code === "FORBIDDEN") return 403;
   if (code === "NOT_FOUND") return 404;
-  if (["REVISION_CONFLICT", "PROJECTION_DRIFT", "RECONCILIATION_REQUIRED"].includes(code)) return 409;
+  if (["REVISION_CONFLICT", "PROJECTION_DRIFT", "RECONCILIATION_REQUIRED", "LEASE_CONFLICT"].includes(code)) return 409;
+  if (code === "MESSAGE_EXPIRED") return 410;
   if (code === "RATE_LIMITED") return 429;
-  if (code === "PROVIDER_UNAVAILABLE") return 503;
+  if (code === "PROVIDER_UNAVAILABLE" || code === "CHANNEL_DISABLED") return 503;
   return code === "INTERNAL_ERROR" ? 500 : 400;
 }
 
@@ -253,7 +289,21 @@ function safeRoute(route: string | undefined): string {
   return route !== undefined && route.startsWith("/") && route.length <= 160 ? route : "unmatched";
 }
 
-function observeOperatorHealth(observability: ObservabilityPort | undefined, report: Awaited<ReturnType<HealthService["operatorHealth"]>>): void {
+async function operatorHealthReport(health: HealthService, messaging: MessagingRouteDependencies["service"] | undefined) {
+  const [report, messagingHealth] = await Promise.all([
+    health.operatorHealth(),
+    messaging?.operatorHealth() ?? Promise.resolve(null),
+  ]);
+  return messagingHealth === null
+    ? { ...report, messaging: null }
+    : {
+      ...report,
+      status: report.status === "healthy" && messagingHealth.healthy ? "healthy" as const : "degraded" as const,
+      messaging: messagingHealth,
+    };
+}
+
+function observeOperatorHealth(observability: ObservabilityPort | undefined, report: Awaited<ReturnType<typeof operatorHealthReport>>): void {
   observability?.observeOperatorHealth({
     incompleteMutations: report.reconciliation.incomplete_mutations,
     quarantinedHouseholds: report.reconciliation.quarantined_households,
@@ -265,6 +315,19 @@ function observeOperatorHealth(observability: ObservabilityPort | undefined, rep
     restoreDrillHealthy: report.backup.restore_drill_healthy,
     volumeUsedPercent: report.volume.usedPercent,
   });
+  if (report.messaging !== null) {
+    observability?.observeMessagingHealth({
+      openMessages: report.messaging.open_messages,
+      queuedMessages: report.messaging.queued_messages,
+      leasedMessages: report.messaging.leased_messages,
+      awaitingUserMessages: report.messaging.awaiting_user_messages,
+      responseReadyMessages: report.messaging.response_ready_messages,
+      oldestOpenAgeSeconds: report.messaging.oldest_open_age_seconds,
+      activeRunnerDevices: report.messaging.active_runner_devices,
+      onlineRunnerDevices: report.messaging.online_runner_devices,
+      channelAvailable: report.messaging.channel_available,
+    });
+  }
 }
 
 export function authenticationCategory(route: string): string | null {

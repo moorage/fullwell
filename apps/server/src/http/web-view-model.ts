@@ -9,14 +9,22 @@ import type { HouseholdRecord, MembershipRecord, Principal } from "../core/types
 import type { PasskeyCredential } from "../auth/types.js";
 import type { IdentityMethodProvider } from "../auth/types.js";
 import type { OAuthGrantSummary } from "../oauth/types.js";
+import type { MessagingAccountStatus } from "../messaging/service.js";
 import { HouseholdFoodJournalService } from "../services/household-food-journal.js";
 import type { WebCreateHouseholdInput, WebImportInput } from "./web.js";
 
 const InstallMetadataSchema = z.object({
   release: z.string().min(1),
   platforms: z.object({
-    codex: z.object({ label: z.string(), primary_action: z.string(), fallback_commands: z.array(z.string()).min(1) }),
-    claude: z.object({ label: z.string(), primary_action: z.string(), fallback_commands: z.array(z.string()).min(1) }),
+    codex: z.object({
+      label: z.string(), primary_action: z.string(), setup_prompt: z.string().min(1),
+      setup_href: z.url().refine((value) => new URL(value).protocol === "codex:").nullable(),
+      fallback_commands: z.array(z.string()).min(1),
+    }),
+    claude: z.object({
+      label: z.string(), primary_action: z.string(), setup_prompt: z.string().min(1),
+      setup_href: z.null(), fallback_commands: z.array(z.string()).min(1),
+    }),
   }),
 });
 
@@ -38,6 +46,7 @@ export class WebViewModelService {
     private readonly verifyCsrf: ((request: FastifyRequest, submittedToken: string) => Promise<void>) | undefined,
     private readonly listPasskeys: ((userId: Principal["userId"]) => Promise<readonly PasskeyCredential[]>) | undefined,
     private readonly accountSummary: ((userId: Principal["userId"]) => Promise<{ readonly methods: readonly IdentityMethodProvider[]; readonly grants: readonly OAuthGrantSummary[] }>) | undefined,
+    private readonly messagingStatus: ((principal: Principal, setup: { readonly deviceId?: string; readonly householdId?: string }) => Promise<MessagingAccountStatus>) | undefined,
   ) {}
 
   static async create(options: {
@@ -52,6 +61,7 @@ export class WebViewModelService {
     verifyCsrf?: (request: FastifyRequest, submittedToken: string) => Promise<void>;
     listPasskeys?: (userId: Principal["userId"]) => Promise<readonly PasskeyCredential[]>;
     accountSummary?: (userId: Principal["userId"]) => Promise<{ readonly methods: readonly IdentityMethodProvider[]; readonly grants: readonly OAuthGrantSummary[] }>;
+    messagingStatus?: (principal: Principal, setup: { readonly deviceId?: string; readonly householdId?: string }) => Promise<MessagingAccountStatus>;
   }): Promise<WebViewModelService> {
     const metadata = InstallMetadataSchema.parse(JSON.parse(await readFile(options.installMetadataPath, "utf8")));
     return new WebViewModelService(
@@ -66,6 +76,7 @@ export class WebViewModelService {
       options.verifyCsrf,
       options.listPasskeys,
       options.accountSummary,
+      options.messagingStatus,
     );
   }
 
@@ -138,13 +149,33 @@ export class WebViewModelService {
     const account = principal === null || pathname !== "/account" || this.accountSummary === undefined
       ? { methods: [], grants: [] }
       : await this.accountSummary(principal.userId);
+    const setupDeviceId = requestUrl.searchParams.get("runner_device");
+    const setupHouseholdId = requestUrl.searchParams.get("household_id");
+    const messaging = principal === null || pathname !== "/account" || this.messagingStatus === undefined
+      ? { kind: "disabled" as const, availableThrough: "2026-10-01T07:00:00.000Z" }
+      : await this.messagingStatus(principal, {
+        ...(setupDeviceId === null ? {} : { deviceId: setupDeviceId }),
+        ...(setupHouseholdId === null ? {} : { householdId: setupHouseholdId }),
+      });
 
     return {
       security: { csrfToken, idempotencyPrefix: this.random.opaqueId("web") },
       canonicalUrl: this.publicOrigin.toString(),
       install: { hosts: {
-        codex: { label: hostName(this.install.platforms.codex.label), command: this.install.platforms.codex.fallback_commands.join(" && "), next: this.install.platforms.codex.primary_action },
-        claude: { label: hostName(this.install.platforms.claude.label), command: this.install.platforms.claude.fallback_commands.join(" && "), next: this.install.platforms.claude.primary_action },
+        codex: {
+          label: hostName(this.install.platforms.codex.label),
+          command: this.install.platforms.codex.fallback_commands.join(" && "),
+          next: this.install.platforms.codex.primary_action,
+          setupPrompt: this.install.platforms.codex.setup_prompt,
+          setupHref: this.install.platforms.codex.setup_href,
+        },
+        claude: {
+          label: hostName(this.install.platforms.claude.label),
+          command: this.install.platforms.claude.fallback_commands.join(" && "),
+          next: this.install.platforms.claude.primary_action,
+          setupPrompt: this.install.platforms.claude.setup_prompt,
+          setupHref: this.install.platforms.claude.setup_href,
+        },
       } },
       auth: {
         passkeysEnabled: this.listPasskeys !== undefined,
@@ -157,6 +188,7 @@ export class WebViewModelService {
         methods: account.methods.map((provider) => ({ provider, label: provider === "apple" ? "Apple" : "Email magic link" })),
         grants: account.grants.map((grant) => ({ id: grant.id, clientName: grant.clientName, scopes: [...grant.scopes] })),
       },
+      messaging: messagingView(messaging),
       viewer: { displayName: principal?.displayName ?? "", email: "" },
       households,
       members: selectedMembership === undefined || principal === null ? [] : await this.membersFor(selectedMembership.household, principal),
@@ -256,6 +288,17 @@ export class WebViewModelService {
       expiresLabel: new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(invitation.expiresAt)),
     };
   }
+}
+
+function messagingView(status: MessagingAccountStatus): WebRenderContext["messaging"] {
+  const availableThroughLabel = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "America/Los_Angeles" })
+    .format(new Date(Date.parse(status.availableThrough) - 1));
+  if (status.kind === "disabled" || status.kind === "not_configured") return { kind: status.kind, availableThroughLabel };
+  if (status.kind === "setup") return { ...status, availableThroughLabel };
+  if (status.kind === "linked") {
+    return { ...status, availableThroughLabel, lastSeenLabel: status.lastSeenAt === null ? null : formatDate(status.lastSeenAt) };
+  }
+  return { ...status, availableThroughLabel, confirmationExpiresLabel: formatDate(status.confirmationExpiresAt) };
 }
 
 function emptyCollection(token: string): WebRenderContext["publicCollection"] {

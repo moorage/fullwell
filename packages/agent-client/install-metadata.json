@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "release": "1.0.0",
+  "release": "1.1.0",
   "mcp_url": "https://fullwell.souschefstudio.com/mcp",
   "install_page": "https://fullwell.souschefstudio.com/install",
   "platforms": {
@@ -8,7 +8,9 @@
       "label": "Use with Codex",
       "marketplace": "fullwell-plugins",
       "plugin": "household-food-journal",
-      "primary_action": "Open Plugins, choose Fullwell, and install Household Food Journal.",
+      "primary_action": "After installation, start Fullwell with the prompt below.",
+      "setup_prompt": "@Fullwell hi",
+      "setup_href": "codex://new?prompt=%5B%40Fullwell%5D(plugin%3A%2F%2Fhousehold-food-journal%40fullwell-plugins)%20hi",
       "fallback_commands": [
         "codex plugin marketplace add fullwell/household-food-journal",
         "codex"
@@ -18,7 +20,9 @@
       "label": "Use with Claude",
       "marketplace": "fullwell-plugins",
       "plugin": "household-food-journal",
-      "primary_action": "Open Plugins, choose Fullwell, and install Household Food Journal.",
+      "primary_action": "After installation, start Fullwell with the prompt below.",
+      "setup_prompt": "Set up Fullwell.",
+      "setup_href": null,
       "fallback_commands": [
         "claude plugin marketplace add fullwell/household-food-journal",
         "claude plugin install household-food-journal@fullwell-plugins"

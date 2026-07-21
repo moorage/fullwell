@@ -28,3 +28,5 @@ Recipe import is direct Saved evidence but establishes neither Cooked nor Liked.
 ## Local migration
 
 Upload only recognized profiles, evidence, recipe entries, snack ledger rows, and reports after showing counts and validation failures. Exclude credentials, cookies, browser state, unrelated messages, and transient captures. Use a stable migration ID, bounded batches, post-import count comparison, and spot checks. Leave the local workspace unchanged unless separately asked to archive it.
+
+For local restocking, read only the revisioned restocking snapshot. Do not upload its Markdown, purchase evidence, provider message, retailer state, cart contents, host session, or action receipt to a server-side agent. The gateway receives only encrypted relay text and transport state.

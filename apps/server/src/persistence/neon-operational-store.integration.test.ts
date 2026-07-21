@@ -6,6 +6,7 @@ import {
   GitObjectIdSchema,
   HouseholdIdSchema,
   InvitationIdSchema,
+  OnboardingRecordSchema,
   RequestIdSchema,
   ShareIdSchema,
   UserIdSchema,
@@ -188,6 +189,31 @@ describeDatabase("NeonOperationalStore", () => {
     expect(await store.getMembership(householdId, ownerId)).toMatchObject({ role: "owner", projectionHead: rebuiltHead });
   });
 
+  it("persists onboarding progress with optimistic revisions", async () => {
+    const started = OnboardingRecordSchema.parse({
+      user_id: ownerId,
+      household_id: householdId,
+      section: "snacks",
+      status: "in_progress",
+      skip_reason: null,
+      revision: 1,
+      updated_at: "2026-07-21T20:00:00.000Z",
+    });
+    expect(await store.compareAndSetOnboarding({ ...started, revision: 3 }, 0)).toBe(false);
+    expect(await store.compareAndSetOnboarding(started, 0)).toBe(true);
+    expect(await store.compareAndSetOnboarding({ ...started, revision: 2 }, 0)).toBe(false);
+
+    const skipped = OnboardingRecordSchema.parse({
+      ...started,
+      status: "skipped",
+      skip_reason: "not_now",
+      revision: 2,
+      updated_at: "2026-07-21T20:01:00.000Z",
+    });
+    expect(await store.compareAndSetOnboarding(skipped, 1)).toBe(true);
+    expect(await store.listOnboardingRecords(ownerId, householdId)).toEqual([skipped]);
+  });
+
   it("claims export downloads once for their requester and reclaims terminal rows", async () => {
     const active = {
       id: "exp_0000000000000101",
@@ -243,7 +269,7 @@ describeDatabase("NeonOperationalStore", () => {
       signatureFailureCount: 0,
       lastRestoreDrillAt: "2026-07-15T12:07:00.000Z",
       lastRestoreDrillSucceeded: true,
-      schemaVersion: "0005",
+      schemaVersion: "0007",
     });
     await store.transitionMutation(pending.requestId, "failed_before_commit", { failure: "test_cleanup" });
     expect((await store.operatorHealth()).incompleteMutationCount).toBe(0);

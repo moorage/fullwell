@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   CollectionSnapshotSchema,
   EvidenceSchema,
+  HostActionReceiptSchema,
+  HouseholdSnapshotManifestSchema,
+  OnboardingRecordSchema,
+  OnboardingSectionStateSchema,
+  RunnerClaimRequestSchema,
+  RunnerCompletionSchema,
   ToolInputSchemas,
   parseToolInput,
 } from "./index.js";
@@ -50,8 +56,76 @@ describe("contract boundaries", () => {
   });
 
   it("publishes the complete stable tool catalog", () => {
-    expect(Object.keys(ToolInputSchemas)).toHaveLength(22);
+    expect(Object.keys(ToolInputSchemas)).toHaveLength(23);
     expect(ToolInputSchemas.hfj_get_context).toBeDefined();
+    expect(ToolInputSchemas.hfj_update_onboarding).toBeDefined();
     expect(ToolInputSchemas.hfj_export_household).toBeDefined();
+  });
+
+  it("keeps onboarding transitions typed and completion server-derived", () => {
+    expect(parseToolInput("hfj_update_onboarding", {
+      household_id: "hsh_0123456789abcdef",
+      section: "snacks",
+      transition: { action: "skip", reason: "no_sources" },
+      expected_revision: 0,
+      idempotency_key: "onboarding-1",
+    })).toMatchObject({ transition: { action: "skip", reason: "no_sources" } });
+    expect(() => parseToolInput("hfj_update_onboarding", {
+      household_id: "hsh_0123456789abcdef",
+      section: "recipes",
+      transition: { action: "complete" },
+      expected_revision: 0,
+      idempotency_key: "onboarding-2",
+    })).toThrow();
+    expect(OnboardingSectionStateSchema.safeParse({ status: "complete", revision: 0 }).success).toBe(true);
+    expect(OnboardingRecordSchema.safeParse({
+      user_id: "usr_0123456789abcdef",
+      household_id: "hsh_0123456789abcdef",
+      section: "recipes",
+      status: "in_progress",
+      skip_reason: "not_now",
+      revision: 1,
+      updated_at: "2026-07-21T20:00:00.000Z",
+    }).success).toBe(false);
+  });
+
+  it("rejects invalid runner leases and implicit terminal success", () => {
+    expect(RunnerClaimRequestSchema.safeParse({
+      device_id: "dev_0123456789abcdef",
+      wait_seconds: 26,
+    }).success).toBe(false);
+    expect(RunnerCompletionSchema.safeParse({
+      device_id: "dev_0123456789abcdef",
+      lease_id: "lse_0123456789abcdef",
+      terminal: { kind: "completed" },
+      host_session_id: null,
+    }).success).toBe(false);
+  });
+
+  it("keeps local cart receipts explicit and monotonic", () => {
+    const receipt = {
+      request_id: "req_0123456789abcdef",
+      envelope_id: "msg_0123456789abcdef",
+      selected_item_reference: "snacks/items/cashews.md",
+      retailer_origin: "https://grocer.example/",
+      retailer_locator: "products/cashews",
+      baseline_quantity: 2,
+      target_quantity: 2,
+      host_session_id: null,
+      state: "ready_to_act",
+      updated_at: "2026-07-20T12:00:00.000Z",
+    };
+    expect(HostActionReceiptSchema.safeParse(receipt).success).toBe(false);
+    expect(HostActionReceiptSchema.safeParse({ ...receipt, target_quantity: 3 }).success).toBe(true);
+  });
+
+  it("requires hashed, user-only snapshot manifests", () => {
+    expect(HouseholdSnapshotManifestSchema.safeParse({
+      household_id: "hsh_0123456789abcdef",
+      head: "a".repeat(40),
+      content_sha256: "b".repeat(64),
+      created_at: "2026-07-20T12:00:00.000Z",
+      files: [{ path: "profiles/snacks.md", sha256: "c".repeat(64), bytes: 42, mode: 0o644 }],
+    }).success).toBe(false);
   });
 });

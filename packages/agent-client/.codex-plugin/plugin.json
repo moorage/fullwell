@@ -1,6 +1,6 @@
 {
   "name": "household-food-journal",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Keep an evidence-backed family food journal with Codex.",
   "homepage": "https://fullwell.souschefstudio.com/install",
   "license": "UNLICENSED",
@@ -8,7 +8,7 @@
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "Household Food Journal",
+    "displayName": "Fullwell",
     "shortDescription": "Audit groceries, remember recipes, and share collections.",
     "longDescription": "Maintain a private, evidence-backed household food journal and share only intentional collection snapshots.",
     "developerName": "Fullwell",
@@ -18,7 +18,7 @@
     "privacyPolicyURL": "https://fullwell.souschefstudio.com/privacy",
     "termsOfServiceURL": "https://fullwell.souschefstudio.com/terms",
     "defaultPrompt": [
-      "Set up my household food journal.",
+      "Set up Fullwell.",
       "Audit my recent snack and drink purchases.",
       "Share a collection of our favorite recipes."
     ],

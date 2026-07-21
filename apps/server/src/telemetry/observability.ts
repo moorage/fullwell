@@ -19,6 +19,7 @@ export interface HttpObservation {
 export interface ObservabilityPort extends TelemetryPort {
   observeHttp(input: HttpObservation): void;
   observeOperatorHealth(input: OperatorMetricSnapshot): void;
+  observeMessagingHealth(input: MessagingMetricSnapshot): void;
   rateLimited(route: string): void;
   metrics(): Promise<string>;
   readonly metricsContentType: string;
@@ -34,6 +35,18 @@ export interface OperatorMetricSnapshot {
   readonly signatureFailures: number;
   readonly restoreDrillHealthy: boolean;
   readonly volumeUsedPercent: number;
+}
+
+export interface MessagingMetricSnapshot {
+  readonly openMessages: number;
+  readonly queuedMessages: number;
+  readonly leasedMessages: number;
+  readonly awaitingUserMessages: number;
+  readonly responseReadyMessages: number;
+  readonly oldestOpenAgeSeconds: number | null;
+  readonly activeRunnerDevices: number;
+  readonly onlineRunnerDevices: number;
+  readonly channelAvailable: boolean;
 }
 
 export interface ObservabilityOptions {
@@ -58,6 +71,15 @@ export class ServiceObservability implements ObservabilityPort {
   private readonly signatureFailures: Gauge;
   private readonly restoreDrillHealthy: Gauge;
   private readonly volumeUsedPercent: Gauge;
+  private readonly messagingOpenMessages: Gauge;
+  private readonly messagingQueuedMessages: Gauge;
+  private readonly messagingLeasedMessages: Gauge;
+  private readonly messagingAwaitingUserMessages: Gauge;
+  private readonly messagingResponseReadyMessages: Gauge;
+  private readonly messagingOldestOpenAge: Gauge;
+  private readonly messagingActiveRunnerDevices: Gauge;
+  private readonly messagingOnlineRunnerDevices: Gauge;
+  private readonly messagingChannelAvailable: Gauge;
   private readonly stdout: (line: string) => void;
   private readonly stderr: (line: string) => void;
 
@@ -83,6 +105,15 @@ export class ServiceObservability implements ObservabilityPort {
     this.signatureFailures = new Gauge({ name: "hfj_repository_signature_failures", help: "Repositories failing the latest signature check", registers: [this.registry] });
     this.restoreDrillHealthy = new Gauge({ name: "hfj_restore_drill_healthy", help: "Whether restore-drill evidence is current and successful", registers: [this.registry] });
     this.volumeUsedPercent = new Gauge({ name: "hfj_repository_volume_used_percent", help: "Repository volume used percent", registers: [this.registry] });
+    this.messagingOpenMessages = new Gauge({ name: "hfj_messaging_open_messages", help: "Open messaging envelopes", registers: [this.registry] });
+    this.messagingQueuedMessages = new Gauge({ name: "hfj_messaging_queued_messages", help: "Queued messaging envelopes", registers: [this.registry] });
+    this.messagingLeasedMessages = new Gauge({ name: "hfj_messaging_leased_messages", help: "Leased messaging envelopes", registers: [this.registry] });
+    this.messagingAwaitingUserMessages = new Gauge({ name: "hfj_messaging_awaiting_user_messages", help: "Messaging envelopes awaiting a user follow-up", registers: [this.registry] });
+    this.messagingResponseReadyMessages = new Gauge({ name: "hfj_messaging_response_ready_messages", help: "Messaging envelopes with an unsent response", registers: [this.registry] });
+    this.messagingOldestOpenAge = new Gauge({ name: "hfj_messaging_oldest_open_age_seconds", help: "Age of the oldest open messaging envelope", registers: [this.registry] });
+    this.messagingActiveRunnerDevices = new Gauge({ name: "hfj_messaging_active_runner_devices", help: "Active local runner devices", registers: [this.registry] });
+    this.messagingOnlineRunnerDevices = new Gauge({ name: "hfj_messaging_online_runner_devices", help: "Runner devices seen within five minutes", registers: [this.registry] });
+    this.messagingChannelAvailable = new Gauge({ name: "hfj_messaging_channel_available", help: "Whether free WhatsApp intake is available", registers: [this.registry] });
   }
 
   event(name: string, attributes: Readonly<Record<string, string | number | boolean>> = {}): void {
@@ -117,6 +148,17 @@ export class ServiceObservability implements ObservabilityPort {
     this.signatureFailures.set(input.signatureFailures);
     this.restoreDrillHealthy.set(input.restoreDrillHealthy ? 1 : 0);
     this.volumeUsedPercent.set(input.volumeUsedPercent);
+  }
+  observeMessagingHealth(input: MessagingMetricSnapshot): void {
+    this.messagingOpenMessages.set(input.openMessages);
+    this.messagingQueuedMessages.set(input.queuedMessages);
+    this.messagingLeasedMessages.set(input.leasedMessages);
+    this.messagingAwaitingUserMessages.set(input.awaitingUserMessages);
+    this.messagingResponseReadyMessages.set(input.responseReadyMessages);
+    this.messagingOldestOpenAge.set(input.oldestOpenAgeSeconds ?? 0);
+    this.messagingActiveRunnerDevices.set(input.activeRunnerDevices);
+    this.messagingOnlineRunnerDevices.set(input.onlineRunnerDevices);
+    this.messagingChannelAvailable.set(input.channelAvailable ? 1 : 0);
   }
   metrics(): Promise<string> { return this.registry.metrics(); }
   get metricsContentType(): string { return this.registry.contentType; }

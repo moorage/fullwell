@@ -84,6 +84,8 @@ main { flex: 1; }
 .command-box { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; max-width: 760px; padding: 10px 10px 10px 14px; border: 1px solid var(--ink); border-radius: 6px; background: #1e2420; color: #fff; }
 .command-box code { overflow-x: auto; font: 13px/1.4 SFMono-Regular, Consolas, monospace; }
 .command-box .button { min-height: 36px; padding: 7px 10px; border-color: #667069; color: white; }
+.setup-conversation-link { margin-bottom: 18px; }
+.setup-prompt { margin-bottom: 8px; }
 .trust-line, .pending-intent { padding-left: 12px; border-left: 3px solid var(--leaf); color: var(--muted); }
 .trouble { margin: 10px 0 28px; padding: 14px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 .trouble summary, .create-disclosure summary, .advanced-export summary, .danger-zone summary { cursor: pointer; font-weight: 800; }

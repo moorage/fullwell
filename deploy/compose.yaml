@@ -27,6 +27,14 @@ services:
       OBJECT_STORAGE_PREFIX: ${OBJECT_STORAGE_PREFIX:-household-food-journal/v1}
       BACKUP_KEY_ID: ${BACKUP_KEY_ID:?set backup key identifier}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-35}
+      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}
+      WHATSAPP_WEBHOOK_ENABLED: ${WHATSAPP_WEBHOOK_ENABLED:-false}
+      WHATSAPP_LINKING_ENABLED: ${WHATSAPP_LINKING_ENABLED:-false}
+      WHATSAPP_RUNNER_CLAIMS_ENABLED: ${WHATSAPP_RUNNER_CLAIMS_ENABLED:-false}
+      WHATSAPP_SERVICE_REPLIES_ENABLED: ${WHATSAPP_SERVICE_REPLIES_ENABLED:-false}
+      WHATSAPP_MODE: ${WHATSAPP_MODE:-service_only}
+      WHATSAPP_GRAPH_API_VERSION: ${WHATSAPP_GRAPH_API_VERSION:-}
+      WHATSAPP_FREE_SERVICE_SEND_CUTOFF: ${WHATSAPP_FREE_SERVICE_SEND_CUTOFF:-2026-10-01T00:00:00-07:00}
       DATABASE_URL_FILE: /run/secrets/database_url
       DATABASE_DIRECT_URL_FILE: /run/secrets/database_direct_url
       TOKEN_PEPPER_FILE: /run/secrets/token_pepper
@@ -41,6 +49,13 @@ services:
       BACKUP_ENCRYPTION_KEY_FILE: /run/secrets/backup_encryption_key
       BACKUP_MANIFEST_PRIVATE_KEY_FILE: /run/secrets/backup_manifest_private_key
       BACKUP_MANIFEST_PUBLIC_KEY_FILE: /run/secrets/backup_manifest_public_key
+      WHATSAPP_BUSINESS_ACCOUNT_ID_FILE: /run/secrets/whatsapp_business_account_id
+      WHATSAPP_PHONE_NUMBER_ID_FILE: /run/secrets/whatsapp_phone_number_id
+      WHATSAPP_CONTACT_URL_FILE: /run/secrets/whatsapp_contact_url
+      WHATSAPP_APP_SECRET_FILE: /run/secrets/whatsapp_app_secret
+      WHATSAPP_ACCESS_TOKEN_FILE: /run/secrets/whatsapp_access_token
+      WHATSAPP_VERIFY_TOKEN_FILE: /run/secrets/whatsapp_verify_token
+      MESSAGE_ENCRYPTION_KEY_FILE: /run/secrets/message_encryption_key
     secrets:
       - database_url
       - database_direct_url
@@ -56,6 +71,13 @@ services:
       - backup_encryption_key
       - backup_manifest_private_key
       - backup_manifest_public_key
+      - whatsapp_business_account_id
+      - whatsapp_phone_number_id
+      - whatsapp_contact_url
+      - whatsapp_app_secret
+      - whatsapp_access_token
+      - whatsapp_verify_token
+      - message_encryption_key
     volumes:
       - type: bind
         source: /data/households
@@ -134,3 +156,17 @@ secrets:
     file: ${DEPLOY_CREDENTIALS_DIRECTORY}/backup-manifest-private-key
   backup_manifest_public_key:
     file: ${DEPLOY_CREDENTIALS_DIRECTORY}/backup-manifest-public-key
+  whatsapp_business_account_id:
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/whatsapp-business-account-id
+  whatsapp_phone_number_id:
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/whatsapp-phone-number-id
+  whatsapp_contact_url:
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/whatsapp-contact-url
+  whatsapp_app_secret:
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/whatsapp-app-secret
+  whatsapp_access_token:
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/whatsapp-access-token
+  whatsapp_verify_token:
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/whatsapp-verify-token
+  message_encryption_key:
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/message-encryption-key

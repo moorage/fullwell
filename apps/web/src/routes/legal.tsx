@@ -5,13 +5,14 @@ export function PrivacyRoute() {
   return (
     <AppShell>
       <article className="legal-page page-band">
-        <PageHeader title="Privacy Policy"><p>Effective July 15, 2026</p></PageHeader>
+        <PageHeader title="Privacy Policy"><p>Effective July 20, 2026</p></PageHeader>
         <section><h2>The short version</h2><p>Fullwell stores account and household information to provide a private, collaborative food journal. Household journal content stays private unless a member deliberately publishes a collection snapshot.</p></section>
         <section><h2>What Fullwell stores</h2><p>We store your display name, sign-in identifiers, household memberships, connected agent permissions, and operational security records. Household journals may contain food names, recipe links, selected preparation notes, and evidence that you asked an agent to record.</p><p>We do not ask agents or browsers to store your Fullwell password because Fullwell does not use service-specific passwords.</p></section>
+        <section><h2>WhatsApp restocking</h2><p>If you link WhatsApp, Meta carries your request and Fullwell's reply. Fullwell briefly stores encrypted message text and bounded delivery state so your Mac can receive the task. Product reasoning and approved-retailer cart control happen locally through Codex or Claude; the server does not receive the selected product, store, cart quantity, or browser session.</p><p>You can revoke the connection from Account. Link challenges expire after ten minutes, encrypted transport records expire within seven days, and disconnecting the runner removes its local snapshot and action receipts.</p></section>
         <section><h2>Public collection links</h2><p>A collection link shows only the snapshot fields chosen by its publisher. It does not reveal household membership, order identifiers, private evidence, purchase dates, private notes, or the rest of a household. Anyone with an active link can view that snapshot until it expires or is revoked, so share links thoughtfully.</p></section>
-        <section><h2>Service providers and location</h2><p>Fullwell uses DigitalOcean for application hosting and durable journal storage, Neon for operational PostgreSQL data, an email provider for sign-in and notices, and Apple when you choose Continue with Apple. Exact production providers and retention settings are documented before launch.</p></section>
+        <section><h2>Service providers and location</h2><p>Fullwell uses DigitalOcean for application hosting and durable journal storage, Neon for operational PostgreSQL data, an email provider for sign-in and notices, Apple when you choose Continue with Apple, and Meta when you enable WhatsApp restocking. Exact production providers and retention settings are documented before launch.</p></section>
         <section><h2>Control and retention</h2><p>You may export household data you can access, revoke agent access, leave households, and request account deletion. Security and household audit records may retain a pseudonymous former-member label so remaining members can understand changes. Backup retention and deletion timing follow the published production schedule.</p></section>
-        <section><h2>Contact</h2><p>Questions or requests can be sent to <a href="mailto:privacy@fullwell.example">privacy@fullwell.example</a>.</p></section>
+        <section><h2>Contact</h2><p>Questions or requests can be sent to <a href="mailto:privacy@fullwell.app">privacy@fullwell.app</a>.</p></section>
       </article>
     </AppShell>
   );

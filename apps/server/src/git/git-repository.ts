@@ -5,7 +5,8 @@ import { dirname, join, resolve } from "node:path";
 import type { GitObjectId, HouseholdId, RequestId } from "@hfj/contracts";
 import { GitObjectIdSchema } from "@hfj/contracts";
 import { AppError } from "../core/errors.js";
-import type { CommitMetadata, HouseholdRepositoryPort, RepositoryChange, RepositorySnapshot } from "../core/ports.js";
+import type { CommitMetadata, HouseholdRepositoryPort, RepositoryChange, RepositorySnapshot, RestockingRepositorySnapshot } from "../core/ports.js";
+import { isRestockingSnapshotPath } from "../core/restocking-snapshot.js";
 import { stableJson, validateRepositoryPath } from "../adapters/memory.js";
 import { assertExportSize } from "../exports/policy.js";
 
@@ -71,6 +72,18 @@ export class GitHouseholdRepository implements HouseholdRepositoryPort {
       ]);
       files.push({ path, content, revision: GitObjectIdSchema.parse(revisionOutput.trim()) });
     }
+    return { head, files };
+  }
+
+  async restockingSnapshot(householdId: HouseholdId): Promise<RestockingRepositorySnapshot> {
+    const repository = this.repositoryPath(householdId);
+    const head = await this.head(householdId);
+    const tree = await git([
+      "--git-dir", repository, "ls-tree", "-rz", "--format=%(objectmode)%x09%(objecttype)%x09%(path)", head,
+    ]);
+    const paths = restockingPathsFromTree(tree);
+    if (paths.length > 2_000) throw new AppError("PROJECTION_DRIFT", "Household repository contains too many restocking files");
+    const files = await Promise.all(paths.map(async (path) => ({ path, content: await git(["--git-dir", repository, "show", `${head}:${path}`]) })));
     return { head, files };
   }
 
@@ -202,6 +215,24 @@ export function validateExportTree(tree: string): void {
     if (match?.[1] === undefined) throw new AppError("PROJECTION_DRIFT", "Household repository contains an unsafe export entry");
     validateRepositoryPath(match[1]);
   }
+}
+
+function restockingPathsFromTree(tree: string): string[] {
+  const entries = tree.split("\0").filter(Boolean);
+  if (entries.length > 10_000) throw new AppError("PROJECTION_DRIFT", "Household repository contains too many files");
+  const paths: string[] = [];
+  for (const entry of entries) {
+    const match = /^(\d{6})\t([^\t]+)\t(.+)$/.exec(entry);
+    if (match?.[3] === undefined) throw new AppError("PROJECTION_DRIFT", "Household repository contains an invalid tree entry");
+    const path = match[3];
+    validateRepositoryPath(path);
+    if (!isRestockingSnapshotPath(path)) continue;
+    if (match[1] !== "100644" || match[2] !== "blob") {
+      throw new AppError("PROJECTION_DRIFT", "Household repository contains an unsafe restocking entry");
+    }
+    paths.push(path);
+  }
+  return paths.sort((left, right) => left.localeCompare(right));
 }
 
 class GitProcessError extends Error {

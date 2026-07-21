@@ -10,6 +10,7 @@ const scopeLabels: Readonly<Record<string, string>> = {
   "household:manage": "Manage household membership and invitations",
   "collection:share": "Create, publish, and revoke selected collections",
   "journal:export": "Create household exports",
+  "runner:messages": "Receive linked restocking requests on this Mac",
 };
 
 export function AuthorizeRoute({ authorization }: { authorization?: OAuthAuthorizationRequest | undefined }) {

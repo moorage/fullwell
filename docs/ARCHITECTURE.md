@@ -21,13 +21,20 @@ Browser ------- React 19.2 web experience ------------+---- TypeScript applicati
                                                             |     authoritative household Git repos
                                                             |
                                                             `---- encrypted off-site backup
+
+WhatsApp user ---- Meta Cloud API webhook ---- gateway queue
+                                                   |
+                                                   `---- authenticated long-poll ---- local macOS runner
+                                                                                           |
+                                                                                           +---- read-only snack snapshot
+                                                                                           `---- Codex/Claude + approved retailer
 ```
 
 Version 1 deploys one containerized application process on one DigitalOcean Droplet. The React build is served by that service; it is not a separately deployed backend or authority boundary. Household repositories live on an attached DigitalOcean Block Storage volume mounted at `/data/households`.
 
 `Dockerfile` is the portable OCI build recipe. Apple silicon macOS development uses Apple's `container` CLI for local image builds and an isolated PostgreSQL 17 verification database. The DigitalOcean Ubuntu host uses Docker Compose under systemd for the production process and mounted-volume contract; Apple Container is not a production dependency. This separation keeps the local harness native to the development host without changing the Linux deployment boundary.
 
-Neon PostgreSQL stores accounts, sessions, OAuth grants, membership authorization projections, mutation records, idempotency responses, token hashes, jobs, search projections, and reconciliation checkpoints. It is not authoritative for journal content. Git owns exportable household content and audit history.
+Neon PostgreSQL stores accounts, sessions, OAuth grants, membership authorization projections, mutation records, idempotency responses, per-user onboarding progress, token hashes, jobs, search projections, and reconciliation checkpoints. It is not authoritative for journal content or onboarding completion. Git owns exportable household content, audit history, and the canonical reports from which completion is derived.
 
 ## Implemented modules
 
@@ -43,7 +50,7 @@ The OAuth boundary advertises protected-resource and authorization-server metada
 
 ### Browser frontend
 
-Purpose: implement accessible React 19.2 flows for sign-in, passkeys, pending invitations, collection preview, selective import, account management, and install handoff.
+Purpose: implement accessible React 19.2 flows for sign-in, passkeys, pending invitations, collection preview, selective import, account management, and install-to-conversation handoff.
 
 Path: `apps/web/`
 
@@ -71,7 +78,19 @@ Path: `packages/agent-client/`, with repository discovery catalogs at `.agents/p
 
 The agent client never contains canonical household data, account state, credentials, a Git synchronization engine, or a programmatic semantic classifier. Codex and Claude use the same skill source files and the same remote MCP endpoint.
 
-The immutable npm package is the plugin payload, not a public marketplace catalog. Until a repository or catalog is intentionally published, host release checks may install that payload through the repository-local catalogs, but public catalog discovery remains a separate release blocker.
+The immutable npm package is the plugin payload, not a public marketplace catalog. Until a repository or catalog is intentionally published, host release checks may install that payload through the repository-local catalogs, but public catalog discovery remains a separate release blocker. The Codex manifest exposes `Fullwell` as the mention name while retaining the stable `household-food-journal` plugin and MCP identifiers. Shared skills drive snack-then-recipe first run through the typed onboarding tool; no application code interprets conversational declines.
+
+### Messaging gateway and local runner
+
+Purpose: route one fixed-purpose WhatsApp restocking workflow to a user's Mac without moving household semantic reasoning or retailer credentials onto the server.
+
+Paths: `apps/server/src/messaging/`, `apps/server/src/runner/`, and `packages/local-runner/`.
+
+The messaging gateway verifies the exact raw webhook body, parses bounded provider events, links one sender to one recently authenticated browser and primary runner, encrypts message bodies, deduplicates provider retries, leases work, relays bounded terminal text, records hashed delivery receipts, and expires operational state. It has no import path to journal projection/search code, agent hosts, or browser control. Neon owns this operational queue; Git remains authoritative for journal content.
+
+The runner snapshot boundary is separate from messaging. After an authenticated claim, it rechecks current membership, device/link state, and authoritative Git HEAD, then returns only `FORMAT_VERSION`, `profiles/snacks.md`, `snacks/items/**/*.md`, `snacks/evidence/**/*.json`, and `snacks/reports/recurring-snacks.md`. The runner validates and caches those files under the user's Application Support directory. It never receives repository credentials and never writes Git.
+
+The runner revalidates the allowlisted snapshot files and serializes them into the fixed trusted Codex or Claude Code prompt; the child receives no host-exposed file, shell, or search tool. Codex runs from a dedicated trusted project and separate keyring-backed `CODEX_HOME`; every turn preflights exactly the `node_repl` MCP bridge and the Browser/Chrome plugins while disabling apps, hooks, multi-agent work, remote plugins, and user rules. Browser Use persists only the configured exact retailer origin in that isolated home. The host has no general MCP, checkout, payment, subscription, or substitution authority. Local action receipts own cart idempotency. OAuth refresh credentials live in macOS Keychain; the LaunchAgent and local config contain no secret.
 
 ### Operational persistence
 
@@ -136,13 +155,13 @@ DigitalOcean App Platform is not the version 1 target because its application fi
 
 OpenTofu state is operational infrastructure data, not application data. It lives in a dedicated Neon PostgreSQL database and role through the direct TLS endpoint; the backend uses database advisory locks and a distinct schema per environment. Backblaze is reserved for compliance-locked application backups because its S3-compatible API does not implement OpenTofu's conditional lock write.
 
-The production health path distinguishes process readiness, Neon reachability/schema compatibility, mounted-volume identity and writability, Git availability, signing readiness, and single-writer leadership without exposing secrets or tenant data. A separately authenticated operator route adds bounded reconciliation, backup-gap/age, fsck/signature failure, restore-drill, and capacity state; `/metrics` exposes the same operational gauges plus low-cardinality HTTP/runtime metrics in OpenMetrics format.
+The production health path distinguishes process readiness, Neon reachability/schema compatibility, mounted-volume identity and writability, Git availability, signing readiness, and single-writer leadership without exposing secrets or tenant data. A separately authenticated operator route adds bounded reconciliation, backup-gap/age, fsck/signature failure, restore-drill, messaging queue/age, runner-online, and capacity state; `/metrics` exposes the same operational gauges plus low-cardinality HTTP/runtime metrics in OpenMetrics format.
 
 Fastify applies a global and route-specific `@fastify/rate-limit` policy keyed by the client IP after one trusted Caddy hop. `ServiceObservability` is the sole production telemetry adapter for request, MCP, mutation, reconciliation, and maintenance events; it allowlists attribute keys, pseudonymizes entity IDs, and never records request bodies or capability material.
 
 ## Current release limitations
 
-The application foundation, durable Git-to-Neon reconciliation, portable exports, production rate limits/telemetry, operator health, encrypted immutable backup/restore, WebAuthn passkeys, browser account lifecycle, 22-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, public immutable npm agent package, and DigitalOcean deployment assets are implemented. Native Safari enrollment, passkey-only sign-in, household creation, the deployed encrypted Backblaze restore drill, and public-package Codex/Claude lifecycle verification pass. Version 1 is not production-ready while production Neon retention/snapshot and combined recovery evidence, DigitalOcean failover, full security/accessibility/load validation, and external staging compatibility remain open in the active ExecPlan.
+The application foundation, durable Git-to-Neon reconciliation, portable exports, production rate limits/telemetry, operator health, encrypted immutable backup/restore, WebAuthn passkeys, browser account lifecycle, 23-tool MCP surface, React SSR shell, Neon operational store, Git mutation path, OAuth server, Apple and Resend adapters, public immutable npm agent package, and DigitalOcean deployment assets are implemented. Native Safari enrollment, passkey-only sign-in, household creation, the deployed encrypted Backblaze restore drill, and public-package Codex/Claude lifecycle verification pass. Version 1 is not production-ready while production Neon retention/snapshot and combined recovery evidence, DigitalOcean failover, full security/accessibility/load validation, and external staging compatibility remain open in the active ExecPlan.
 
 ## Maintenance rules
 

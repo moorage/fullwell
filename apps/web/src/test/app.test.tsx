@@ -17,9 +17,13 @@ describe("web experience", () => {
     renderApp("/install");
     expect(screen.getByRole("button", { name: "Use with Codex" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText(/codex plugins install/)).toBeVisible();
+    expect(screen.getByRole("link", { name: "Start Fullwell setup" })).toHaveAttribute("href", demoWebContext.install.hosts.codex.setupHref);
+    expect(screen.getByText("@Fullwell hi")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Use with Claude" }));
     expect(screen.getByText(/claude plugin install/)).toBeVisible();
     expect(screen.queryByText(/codex plugins install/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Start Fullwell setup" })).not.toBeInTheDocument();
+    expect(screen.getByText("Set up Fullwell.")).toBeVisible();
   });
 
   it("reports install-command copy success and failure", async () => {
@@ -36,6 +40,27 @@ describe("web experience", () => {
     await user.click(screen.getByRole("button", { name: "Copy" }));
     expect(screen.getByRole("status")).toHaveTextContent("Copy failed");
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
+  });
+
+  it("copies the conversational setup prompt separately from the install command", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    renderApp("/install");
+    await user.click(screen.getByRole("button", { name: "Copy prompt" }));
+    expect(writeText).toHaveBeenCalledWith("@Fullwell hi");
+  });
+
+  it("reports a setup-prompt copy failure without hiding the manual prompt", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: vi.fn(async () => { throw new Error("clipboard unavailable"); }) },
+    });
+    renderApp("/install");
+    await user.click(screen.getByRole("button", { name: "Copy prompt" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Select the setup prompt instead");
+    expect(screen.getByText("@Fullwell hi")).toBeVisible();
   });
 
   it("does not accept an invitation when its preview opens", () => {
@@ -106,7 +131,7 @@ describe("web experience", () => {
       response_type: "code",
       client_id: "client-1",
       redirect_uri: "http://127.0.0.1:1455/callback",
-      scope: "journal:read journal:write",
+      scope: "journal:read journal:write runner:messages",
       state: "state-value-0001",
       code_challenge: "c".repeat(43),
       code_challenge_method: "S256",
@@ -119,11 +144,12 @@ describe("web experience", () => {
     expect(form).toHaveFormValues({
       client_id: "client-1",
       redirect_uri: "http://127.0.0.1:1455/callback",
-      scope: "journal:read journal:write",
+      scope: "journal:read journal:write runner:messages",
       csrf_token: demoWebContext.security.csrfToken,
       approve: "true",
     });
     expect(screen.getByText("Add evidence and update journal entries")).toBeVisible();
+    expect(screen.getByText("Receive linked restocking requests on this Mac")).toBeVisible();
   });
 
   it("renders passkey, email-sent, and unavailable public states from server context", () => {
@@ -141,6 +167,13 @@ describe("web experience", () => {
 
     renderApp("/c/unavailable/import/plan", { ...demoWebContext, collectionState: "revoked" });
     expect(screen.getByRole("heading", { name: "This collection is no longer shared" })).toBeVisible();
+  });
+
+  it("discloses the WhatsApp transport and local restocking boundary", () => {
+    renderApp("/privacy");
+    expect(screen.getByRole("heading", { name: "WhatsApp restocking" })).toBeVisible();
+    expect(screen.getByText(/Meta carries your request/)).toBeVisible();
+    expect(screen.getByText(/Product reasoning and approved-retailer cart control happen locally/)).toBeVisible();
   });
 
   it.each([
@@ -217,6 +250,42 @@ describe("web experience", () => {
     expect(screen.getByRole("button", { name: "Delete account" }).closest("form")).toHaveAttribute("action", "/account/delete");
   });
 
+  it("renders two-sided WhatsApp setup, confirmation, and revocation states", () => {
+    const rendered = renderApp("/account", {
+      ...demoWebContext,
+      messaging: {
+        kind: "setup", availableThroughLabel: "Sep 30, 2026", deviceId: "dev_0000000000000001",
+        householdId: demoWebContext.households[0]?.id ?? "hsh_0000000000000001", deviceName: "Kitchen Mac",
+      },
+    });
+    const link = screen.getByRole("button", { name: "Link WhatsApp" }).closest("form");
+    expect(link).toHaveAttribute("action", "/account/messaging/whatsapp/link");
+    expect(link?.querySelector('input[name="csrf"]')).toHaveValue(demoWebContext.security.csrfToken);
+
+    rendered.rerender(<App url="/account" context={{
+      ...demoWebContext,
+      messaging: {
+        kind: "pending_confirmation", availableThroughLabel: "Sep 30, 2026", linkId: "lnk_0000000000000001",
+        deviceId: "dev_0000000000000001", householdId: demoWebContext.households[0]?.id ?? "hsh_0000000000000001",
+        deviceName: "Kitchen Mac", confirmationExpiresLabel: "Jul 20, 2026",
+      },
+    }} />);
+    expect(screen.getByRole("button", { name: "Confirm connection" }).closest("form")).toHaveAttribute("action", "/account/messaging/whatsapp/confirm");
+
+    rendered.rerender(<App url="/account" context={{
+      ...demoWebContext,
+      messaging: {
+        kind: "linked", availableThroughLabel: "Sep 30, 2026", deviceId: "dev_0000000000000001",
+        householdId: demoWebContext.households[0]?.id ?? "hsh_0000000000000001", deviceName: "Kitchen Mac", lastSeenLabel: null,
+      },
+    }} />);
+    const messagingSection = screen.getByRole("heading", { name: "WhatsApp" }).closest("section");
+    if (messagingSection === null) throw new Error("WhatsApp section was not rendered");
+    const revoke = within(messagingSection).getByRole("button", { name: "Revoke" }).closest("form");
+    expect(revoke).toHaveAttribute("action", "/account/messaging/whatsapp/revoke");
+    expect(revoke?.querySelector('input[name="confirmation"]')).toHaveAttribute("placeholder", "Type REVOKE");
+  });
+
   it("renders enrolled passkeys with CSRF-bound removal and enrollment controls", () => {
     renderApp("/account", {
       ...demoWebContext,
@@ -253,5 +322,9 @@ describe("web experience", () => {
 
   it("rejects malformed serialized render data", () => {
     expect(() => parseWebRenderContext({ ...demoWebContext, security: { csrfToken: "short", idempotencyPrefix: "short" } })).toThrow();
+    expect(() => parseWebRenderContext({
+      ...demoWebContext,
+      install: { hosts: { ...demoWebContext.install.hosts, codex: { ...demoWebContext.install.hosts.codex, setupHref: "https://attacker.example/new" } } },
+    })).toThrow("Only Codex new-conversation URLs are accepted");
   });
 });

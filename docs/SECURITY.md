@@ -24,7 +24,25 @@ Passkeys require discoverable credentials and user verification. Registration re
 
 MCP uses OAuth authorization code with PKCE and exact redirect/resource validation. Dynamic registration accepts a strict bounded public-client metadata allowlist, registration and token responses are non-cacheable, and the server binds the displayed client name back to registered metadata before creating a grant. Token-request resource validation occurs before authorization-code consumption or refresh rotation so a mismatched resource cannot burn a valid credential. Scopes do not override household roles. Tool input, model output, and cited evidence are untrusted until schema, authorization, revision, and invariant validation pass.
 
+The consent page's Content Security Policy permits the validated native-runner redirect only as the exact `http://127.0.0.1:<ephemeral-port>` origin from its bounded `/oauth/callback` request. Other pages do not receive a loopback form destination, and remote, unbound, credentialed, query-bearing, or fragment-bearing callback values do not widen the policy.
+
 Clients never receive Git, Neon, Apple, email-provider, signing, or backup credentials. Prompt-like content in recipes, evidence, collection imports, external pages, and tool results is data, not instruction.
+
+Conversational first run stores only a bounded section, state, skip reason, revision, and timestamp per user and household. It never persists the user's refusal text, store names, recipe sources, or browser choice in the operational onboarding row. A selected household is membership-authorized before either canonical report path is read, and viewers cannot mutate onboarding. The install-page `codex://new` action contains only the fixed installed-plugin mention and greeting, prefills without sending, and grants no source or browser authorization.
+
+### WhatsApp gateway and local runner
+
+The public webhook verifies HMAC over the exact raw body before parsing and accepts only bounded supported provider events. Sender, message, and delivery identifiers are HMACed; message and destination bodies are authenticated-encrypted; plaintext exists only at the webhook/provider adapter and authenticated runner boundaries. No message body, phone/provider ID, food/store/cart value, or link token is logged or labeled in metrics.
+
+Outbound Graph failures are reduced at the provider boundary to a numeric code and optional numeric subcode. Raw Meta error bodies, trace identifiers, provider text, destinations, and credentials are neither logged nor returned through operator health.
+
+Linking is a two-sided proof bound to a recent browser session, one user/household, and one registered primary runner. Sender proof alone creates only a pending link. Claims and pre-action checks require `runner:messages`, `journal:read`, current membership, a live device, a confirmed link, and the authoritative HEAD. Revocation fails closed and causes local cache/receipt purge.
+
+The server messaging module cannot import journal search/projection, LLM, host, or browser-control code. The snapshot module exposes a fixed read-only path allowlist and no Git credential. The runner revalidates and serializes only those snapshot files into one trusted restocking prompt. Codex runs from a dedicated trusted project and separate `CODEX_HOME`; before every turn the runner requires exactly the `node_repl` MCP server plus the enabled Browser and Chrome plugins, and disables apps, hooks, shell, search, multi-agent work, remote plugins, and user rules. The local host treats provider/journal/retailer text as untrusted data and is restricted to one retailer origin. Checkout, payment, subscription, fees, unrelated cart edits, and novel substitution are outside the protocol.
+
+Project configuration isolation is not an operating-system credential boundary. The isolated Codex login uses macOS Keychain and has no file-backed credential. Browser Use persists only the approved exact origin in the isolated home's `browser/config.toml`; capability drift, file-backed credentials exposed to the host process, or missing origin approval blocks claims and cannot be bypassed with `never_ask` or a broad browser policy.
+
+OAuth refresh tokens live in Keychain. Runner config, LaunchAgent, logs, snapshots, and receipts are mode-restricted and secret-free. Local disconnect purges local state even when remote revocation fails. Encrypted gateway bodies expire within seven days; cleanup and destructive schema rollback are tested.
 
 ### Neon PostgreSQL
 
@@ -54,7 +72,7 @@ Application abuse controls use `@fastify/rate-limit` with a global per-client-IP
 
 ## Secrets and credentials
 
-Expected secret classes include Neon runtime and migration URLs, Apple credentials, OAuth signing/encryption keys, cookie keys, HMAC peppers, the dedicated operator bearer token, email-provider credentials, Git signing keys, DigitalOcean deployment credentials, and backup encryption credentials.
+Expected secret classes include Neon runtime and migration URLs, Apple credentials, OAuth signing/encryption keys, cookie keys, HMAC peppers, the dedicated operator bearer token, email-provider credentials, Git signing keys, DigitalOcean deployment credentials, backup encryption credentials, Meta app/access/webhook credentials, and the independent message-encryption key.
 
 The operator token is not an OAuth access token and grants no household or MCP access. It protects `/health/operator` and `/metrics`, is HMAC-compared, is rate limited, and must be rotated as an encrypted systemd credential. Public liveness/readiness never return tenant counts, storage paths, repository identifiers, or provider error bodies.
 
@@ -67,7 +85,7 @@ On the Droplet, systemd decrypts the encrypted credential blobs into a root-only
 
 ## Required security tests
 
-Application implementation must cover cross-household ID substitution, role/scope mismatch, CSRF, redirect validation, OAuth replay and refresh-token reuse, invitation/share enumeration and replay, final-owner races, idempotency races, path and Git argument injection, unsafe repository objects, XSS and malicious Markdown, prompt-injection content, oversized input, archive traversal, log redaction, and private-field collection leakage.
+Application implementation must cover cross-household ID substitution, role/scope mismatch, CSRF, redirect validation, OAuth replay and refresh-token reuse, invitation/share enumeration and replay, final-owner races, idempotency races, webhook signature and provider retry behavior, two-sided link binding, lease/revocation races, paid-window blocking, idempotent cart recovery, path and Git argument injection, unsafe repository objects, XSS and malicious Markdown, prompt-injection content, oversized input, archive traversal, log redaction, and private-field collection leakage.
 
 The deterministic local matrix exercises those boundaries across domain, auth, OAuth, account, HTTP, Git, export, telemetry, load/race, and cross-surface security suites. Its direct adversarial probes verify bounded malformed/unsupported/oversized-body rejection, non-reflecting 400/413/415 responses, route-template capability redaction, React text escaping, prompt-like content remaining data, HTTP(S)-only browser URLs, recognizable repository-secret absence across tracked and untracked files, and no server environment access from browser source. Production browser source maps are disabled. This evidence does not replace an external staging security review or live provider and secret-rotation exercises.
 

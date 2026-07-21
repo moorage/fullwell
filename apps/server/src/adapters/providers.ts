@@ -63,14 +63,14 @@ export class DeterministicTestAuthenticator implements AuthenticationPort {
       userId: UserIdSchema.parse("usr_0000000000000001"),
       actorId: ActorIdSchema.parse("act_0000000000000001"),
       displayName: "Test Owner",
-      scopes: new Set<OAuthScope>(["journal:read", "journal:write", "household:manage", "collection:share", "journal:export"]),
+      scopes: new Set<OAuthScope>(["journal:read", "journal:write", "household:manage", "collection:share", "journal:export", "runner:messages"]),
       client: "test",
     });
     this.principals.set("test-member-token", {
       userId: UserIdSchema.parse("usr_0000000000000002"),
       actorId: ActorIdSchema.parse("act_0000000000000002"),
       displayName: "Test Member",
-      scopes: new Set<OAuthScope>(["journal:read", "journal:write", "household:manage", "collection:share", "journal:export"]),
+      scopes: new Set<OAuthScope>(["journal:read", "journal:write", "household:manage", "collection:share", "journal:export", "runner:messages"]),
       client: "test",
     });
   }

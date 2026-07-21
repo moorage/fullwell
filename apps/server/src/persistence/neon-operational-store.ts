@@ -12,6 +12,9 @@ import {
   JournalItemSchema,
   MutationStateSchema,
   OAuthScopeSchema,
+  OnboardingRecordSchema,
+  OnboardingSectionSchema,
+  OnboardingSkipReasonSchema,
   RequestIdSchema,
   RoleSchema,
   ShareIdSchema,
@@ -20,6 +23,7 @@ import {
   type GitObjectId,
   type HouseholdId,
   type MutationState,
+  type OnboardingRecord,
   type RequestId,
   type ToolName,
   type UserId,
@@ -112,6 +116,16 @@ const MutationRowSchema = z.object({
   response: z.record(z.string(), JsonValueSchema).nullable(),
   failure_code: z.string().nullable(),
   created_at: TimestampSchema,
+  updated_at: TimestampSchema,
+});
+
+const OnboardingRowSchema = z.object({
+  user_id: UserIdSchema,
+  household_id: HouseholdIdSchema,
+  section: OnboardingSectionSchema,
+  status: z.enum(["in_progress", "skipped"]),
+  skip_reason: OnboardingSkipReasonSchema.nullable(),
+  revision: z.coerce.number().int().positive(),
   updated_at: TimestampSchema,
 });
 
@@ -237,6 +251,43 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
     `;
     if (rows[0] === undefined) return null;
     return HouseholdIdSchema.nullable().parse(rows[0].default_household_id);
+  }
+
+  async listOnboardingRecords(userId: UserId, householdId: HouseholdId): Promise<ReadonlyArray<OnboardingRecord>> {
+    const rows = await this.sql()<Record<string, unknown>[]>`
+      SELECT user_id, household_id, section, status, skip_reason, revision, updated_at
+      FROM onboarding_preferences
+      WHERE user_id = ${userId} AND household_id = ${householdId}
+      ORDER BY section
+    `;
+    return rows.map(onboardingFromRow);
+  }
+
+  async compareAndSetOnboarding(record: OnboardingRecord, expectedRevision: number): Promise<boolean> {
+    if (record.revision !== expectedRevision + 1) return false;
+    const sql = this.sql();
+    const rows = expectedRevision === 0
+      ? await sql<Record<string, unknown>[]>`
+          INSERT INTO onboarding_preferences (
+            user_id, household_id, section, status, skip_reason, revision, updated_at
+          ) VALUES (
+            ${record.user_id}, ${record.household_id}, ${record.section}, ${record.status},
+            ${record.skip_reason}, ${record.revision}, ${record.updated_at}
+          )
+          ON CONFLICT (user_id, household_id, section) DO NOTHING
+          RETURNING user_id
+        `
+      : await sql<Record<string, unknown>[]>`
+          UPDATE onboarding_preferences
+          SET status = ${record.status}, skip_reason = ${record.skip_reason},
+              revision = ${record.revision}, updated_at = ${record.updated_at}
+          WHERE user_id = ${record.user_id}
+            AND household_id = ${record.household_id}
+            AND section = ${record.section}
+            AND revision = ${expectedRevision}
+          RETURNING user_id
+        `;
+    return rows.length === 1;
   }
 
   async saveInvitation(invitation: InvitationRecord): Promise<void> {
@@ -549,10 +600,21 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
         (SELECT count(*)::integer FROM repository_verification_checkpoints WHERE NOT signatures_valid) AS signature_failure_count,
         (SELECT completed_at FROM restore_drill_checkpoints WHERE singleton) AS last_restore_drill_at,
         (SELECT succeeded FROM restore_drill_checkpoints WHERE singleton) AS last_restore_drill_succeeded,
-        CASE WHEN EXISTS (
-          SELECT 1 FROM information_schema.tables
-          WHERE table_schema = 'public' AND table_name = 'repository_verification_checkpoints'
-        ) THEN '0005' ELSE 'unknown' END AS schema_version
+        CASE
+          WHEN EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name = 'onboarding_preferences'
+          ) THEN '0007'
+          WHEN EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name = 'message_envelopes'
+          ) THEN '0006'
+          WHEN EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name = 'repository_verification_checkpoints'
+          ) THEN '0005'
+          ELSE 'unknown'
+        END AS schema_version
       FROM mutation_requests
     `;
     return operationalHealthFromRow(rows[0]);
@@ -697,6 +759,11 @@ function shareFromRow(input: unknown): ShareRecord {
 function mutationFromRow(input: unknown): MutationRecord {
   const row = MutationRowSchema.parse(input);
   return { requestId: row.request_id, userId: row.user_id, tool: row.tool_name, idempotencyKey: row.idempotency_key, householdId: row.household_id, state: row.state, commitId: row.commit_id, response: row.response, failure: row.failure_code, createdAt: row.created_at, updatedAt: row.updated_at };
+}
+
+function onboardingFromRow(input: unknown): OnboardingRecord {
+  const row = OnboardingRowSchema.parse(input);
+  return OnboardingRecordSchema.parse(row);
 }
 
 function exportDownloadFromRow(input: unknown): ExportDownloadRecord {

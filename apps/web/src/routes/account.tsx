@@ -1,11 +1,11 @@
-import { Bot, DoorOpen, Download, Fingerprint, KeyRound, LogOut, Mail, Pencil, Trash2, Unplug, Users } from "lucide-react";
+import { Bot, DoorOpen, Download, Fingerprint, KeyRound, LogOut, Mail, MessageCircle, Pencil, Trash2, Unplug, Users } from "lucide-react";
 import { AppShell } from "../components/app-shell.js";
 import { PasskeyEnrollment } from "../components/passkey-actions.js";
 import { Button, HiddenFormFields, PageHeader } from "../components/ui.js";
 import { useWebContext } from "../context.js";
 
 export function AccountRoute() {
-  const { auth, households, security, viewer } = useWebContext();
+  const { auth, households, messaging, security, viewer } = useWebContext();
   return (
     <AppShell context="workspace" active="account">
       <section className="workspace-page page-band">
@@ -136,6 +136,10 @@ export function AccountRoute() {
           )}
           <a className="text-link" href="/install">Review agent installation</a>
         </section>
+        <section className="account-section" aria-labelledby="messaging-heading">
+          <header><h2 id="messaging-heading">WhatsApp</h2><p>No-message-cost window through {messaging.availableThroughLabel}</p></header>
+          <WhatsAppConnection status={messaging} csrf={security.csrfToken} />
+        </section>
         <form action="/auth/sign-out" method="post">
           <HiddenFormFields />
           <Button type="submit" variant="secondary"><LogOut aria-hidden="true" size={18} /> Sign out</Button>
@@ -152,4 +156,19 @@ export function AccountRoute() {
       </section>
     </AppShell>
   );
+}
+
+function WhatsAppConnection({ status, csrf }: { status: ReturnType<typeof useWebContext>["messaging"]; csrf: string }) {
+  if (status.kind === "disabled") return <p className="section-empty">WhatsApp restocking is disabled.</p>;
+  if (status.kind === "not_configured") {
+    return <div className="account-row"><span className="row-icon"><MessageCircle aria-hidden="true" /></span><div><h3>Not connected</h3><p>Install and connect a local runner before linking WhatsApp.</p></div><a className="text-link" href="/install">Install runner</a></div>;
+  }
+  if (status.kind === "setup") {
+    return <div className="account-row"><span className="row-icon"><MessageCircle aria-hidden="true" /></span><div><h3>Fullwell on WhatsApp</h3><p>Ready to link with {status.deviceName}.</p></div><form action="/account/messaging/whatsapp/link" method="post"><input type="hidden" name="csrf" value={csrf} /><input type="hidden" name="household_id" value={status.householdId} /><input type="hidden" name="device_id" value={status.deviceId} /><Button type="submit">Link WhatsApp</Button></form></div>;
+  }
+  if (status.kind === "pending_confirmation") {
+    return <div className="account-row"><span className="row-icon"><MessageCircle aria-hidden="true" /></span><div><h3>Confirm WhatsApp</h3><p>The WhatsApp code was received for {status.deviceName}. Confirmation expires {status.confirmationExpiresLabel}.</p></div><form action="/account/messaging/whatsapp/confirm" method="post"><input type="hidden" name="csrf" value={csrf} /><input type="hidden" name="link_id" value={status.linkId} /><Button type="submit">Confirm connection</Button></form></div>;
+  }
+  const expired = status.kind === "expired";
+  return <div className="account-row"><span className="row-icon"><MessageCircle aria-hidden="true" /></span><div><h3>{expired ? "Link expired" : "Fullwell on WhatsApp"}</h3><p>{expired ? `The confirmation for ${status.deviceName} expired ${status.confirmationExpiresLabel}.` : `${status.deviceName} · ${status.lastSeenLabel === null ? "Runner has not checked in" : `Last runner check-in ${status.lastSeenLabel}`}`}</p></div><form className="confirmation-form" action="/account/messaging/whatsapp/revoke" method="post"><input type="hidden" name="csrf" value={csrf} /><input type="hidden" name="device_id" value={status.deviceId} /><label><span className="sr-only">Type REVOKE to disconnect WhatsApp</span><input name="confirmation" placeholder="Type REVOKE" required /></label><Button type="submit" variant="danger"><Unplug aria-hidden="true" size={17} /> {expired ? "Clear" : "Revoke"}</Button></form></div>;
 }

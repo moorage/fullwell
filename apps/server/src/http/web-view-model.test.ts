@@ -83,6 +83,9 @@ describe("WebViewModelService", () => {
         createdAt: "2026-07-15T12:00:00.000Z",
         lastUsedAt: "2026-07-16T12:00:00.000Z",
       }],
+      messagingStatus: async (_principal, setup) => setup.deviceId === undefined || setup.householdId === undefined
+        ? { kind: "not_configured", availableThrough: "2026-10-01T07:00:00.000Z" }
+        : { kind: "setup", availableThrough: "2026-10-01T07:00:00.000Z", deviceId: setup.deviceId, householdId: setup.householdId, deviceName: "Kitchen Mac" },
     });
   });
 
@@ -110,11 +113,14 @@ describe("WebViewModelService", () => {
       invite: z.object({ state: z.string() }).passthrough(),
       collectionState: z.string(),
       security: z.object({ csrfToken: z.string() }).passthrough(),
-      install: z.object({ hosts: z.object({ codex: z.object({ label: z.string() }).passthrough() }).passthrough() }).passthrough(),
+      install: z.object({ hosts: z.object({ codex: z.object({
+        label: z.string(), setupPrompt: z.string(), setupHref: z.string().nullable(),
+      }).passthrough() }).passthrough() }).passthrough(),
       auth: z.object({
         passkeysEnabled: z.boolean(),
         passkeys: z.array(z.object({ id: z.string(), createdLabel: z.string(), lastUsedLabel: z.string().nullable() }).passthrough()),
       }),
+      messaging: z.object({ kind: z.string(), availableThroughLabel: z.string() }).passthrough(),
     }).passthrough().parse(responseBody);
   }
 
@@ -124,6 +130,10 @@ describe("WebViewModelService", () => {
     expect(anonymous.households).toEqual([]);
     expect(anonymous.security.csrfToken).toHaveLength(32);
     expect(anonymous.install.hosts.codex.label).toBe("Codex");
+    expect(anonymous.install.hosts.codex).toMatchObject({
+      setupPrompt: "@Fullwell hi",
+      setupHref: "codex://new?prompt=%5B%40Fullwell%5D(plugin%3A%2F%2Fhousehold-food-journal%40fullwell-plugins)%20hi",
+    });
 
     const authenticated = await context(`/households/${householdId}/members`, true, "c".repeat(32));
     expect(authenticated.viewer.displayName).toBe("Test Owner");
@@ -136,6 +146,9 @@ describe("WebViewModelService", () => {
       passkeysEnabled: true,
       passkeys: [{ id: "credential_51", createdLabel: "Jul 15, 2026", lastUsedLabel: "Jul 16, 2026" }],
     });
+    expect(account.messaging).toMatchObject({ kind: "not_configured", availableThroughLabel: "Sep 30, 2026" });
+    const setup = await context(`/account?runner_device=dev_0000000000000001&household_id=${householdId}`, true);
+    expect(setup.messaging).toMatchObject({ kind: "setup", deviceName: "Kitchen Mac" });
 
     const collections = await context(`/households/${householdId}/collections`, true);
     expect(collections.collections.map((entry: { status: string }) => entry.status).sort()).toEqual(["expired", "private", "published"]);

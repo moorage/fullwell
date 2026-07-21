@@ -17,6 +17,8 @@ import type {
   UserId,
 } from "@hfj/contracts";
 
+export type { OnboardingRecord } from "@hfj/contracts";
+
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 export type ErrorCode = ContractError["code"];

@@ -2,6 +2,7 @@ import {
   ActorIdSchema,
   GitObjectIdSchema,
   HouseholdIdSchema,
+  OnboardingRecordSchema,
   RequestIdSchema,
   UserIdSchema,
 } from "@hfj/contracts";
@@ -126,6 +127,30 @@ describe("memory adapters", () => {
     await expect(store.leaveMembership(userId, householdId, "2026-07-15T12:12:00.000Z")).resolves.toBe("left");
     expect(await store.getDefaultHousehold(userId)).toBeNull();
     await expect(store.leaveMembership(userId, householdId, "2026-07-15T12:13:00.000Z")).resolves.toBe("not_found");
+  });
+
+  it("compares onboarding revisions and isolates each user's progress", async () => {
+    const store = new MemoryOperationalStore();
+    const head = GitObjectIdSchema.parse("7".repeat(40));
+    await store.createHousehold(
+      { id: householdId, name: "Kitchen", repositoryHead: head, provisioningState: "ready", createdAt: "2026-07-15T12:00:00.000Z" },
+      { householdId, userId, actorId, role: "owner", projectionHead: head, removedAt: null },
+    );
+    const record = OnboardingRecordSchema.parse({
+      user_id: userId,
+      household_id: householdId,
+      section: "snacks",
+      status: "skipped",
+      skip_reason: "no_sources",
+      revision: 1,
+      updated_at: "2026-07-21T20:00:00.000Z",
+    });
+
+    expect(await store.listOnboardingRecords(userId, householdId)).toEqual([]);
+    expect(await store.compareAndSetOnboarding(record, 0)).toBe(true);
+    expect(await store.compareAndSetOnboarding({ ...record, revision: 2 }, 0)).toBe(false);
+    expect(await store.listOnboardingRecords(userId, householdId)).toEqual([record]);
+    expect(await store.listOnboardingRecords(UserIdSchema.parse("usr_0000000000000802"), householdId)).toEqual([]);
   });
 
   it("serializes JSON deterministically and rejects every unsafe repository path shape", () => {

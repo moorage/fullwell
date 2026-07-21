@@ -23,6 +23,11 @@ describe("ServiceObservability", () => {
       oldestIncompleteAgeSeconds: 90, oldestBackupAgeSeconds: null,
       fsckFailures: 1, signatureFailures: 2, restoreDrillHealthy: false, volumeUsedPercent: 42.5,
     });
+    telemetry.observeMessagingHealth({
+      openMessages: 4, queuedMessages: 2, leasedMessages: 1, awaitingUserMessages: 1,
+      responseReadyMessages: 0, oldestOpenAgeSeconds: 75, activeRunnerDevices: 2,
+      onlineRunnerDevices: 1, channelAvailable: true,
+    });
 
     const logs = [...stdout, ...stderr].join("");
     expect(logs).toContain('"request_id":"req_0000000000000001"');
@@ -42,6 +47,10 @@ describe("ServiceObservability", () => {
     expect(metrics).toContain("hfj_repository_signature_failures 2");
     expect(metrics).toContain("hfj_restore_drill_healthy 0");
     expect(metrics).toContain("hfj_repository_volume_used_percent 42.5");
+    expect(metrics).toContain("hfj_messaging_open_messages 4");
+    expect(metrics).toContain("hfj_messaging_oldest_open_age_seconds 75");
+    expect(metrics).toContain("hfj_messaging_online_runner_devices 1");
+    expect(metrics).toContain("hfj_messaging_channel_available 1");
     expect(metrics).not.toContain("private");
   });
 

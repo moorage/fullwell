@@ -14,6 +14,8 @@ import { BackupCryptography } from "./backup/backup-cryptography.js";
 import { BackupService } from "./backup/backup-service.js";
 import { GitBundleRestoreVerifier } from "./backup/git-bundle-restore-verifier.js";
 import { S3CompatibleBackupProvider } from "./backup/s3-compatible-backup.js";
+import { MessagingCleanupWorker } from "./messaging/cleanup-worker.js";
+import { NeonMessageEnvelopeStore } from "./messaging/neon-store.js";
 
 const command = process.argv[2] ?? "all";
 if (!["all", "health", "backup", "restore-drill"].includes(command)) throw new Error(`Unknown maintenance command: ${command}`);
@@ -42,6 +44,9 @@ try {
   const exportCleanup = command === "all" && operationalStore !== null
     ? await new ExportCleanupWorker(operationalStore, new FileExportArtifactStore(config.EXPORT_ROOT), new SystemClock(), telemetry).run()
     : { checked: 0, removed: 0, failed: 0 };
+  const messagingCleanup = command === "all" && database !== null
+    ? await new MessagingCleanupWorker(new NeonMessageEnvelopeStore(database), new SystemClock(), telemetry).run()
+    : { removed: 0, failed: 0 };
   const backup = operationalStore === null ? null : createBackupService(config, repository, operationalStore, telemetry);
   const backupResult = (command === "all" || command === "backup") && backup !== null
     ? await backup.run()
@@ -52,8 +57,8 @@ try {
     : null;
   const repositories = command === "health" ? [] : await verifyRepositories(repository, config.HOUSEHOLD_REPOSITORY_ROOT);
   const invalid = repositories.filter((entry) => !entry.valid);
-  process.stdout.write(`${JSON.stringify({ ok: invalid.length === 0 && reconciliation.quarantined === 0 && exportCleanup.failed === 0 && backupResult.failed === 0, database: databaseHealth, reconciliation, export_cleanup: exportCleanup, backup: backupResult, restore_drill: restoreDrill, repositories })}\n`);
-  if (invalid.length > 0 || reconciliation.quarantined > 0 || exportCleanup.failed > 0 || backupResult.failed > 0) process.exitCode = 1;
+  process.stdout.write(`${JSON.stringify({ ok: invalid.length === 0 && reconciliation.quarantined === 0 && exportCleanup.failed === 0 && messagingCleanup.failed === 0 && backupResult.failed === 0, database: databaseHealth, reconciliation, export_cleanup: exportCleanup, messaging_cleanup: messagingCleanup, backup: backupResult, restore_drill: restoreDrill, repositories })}\n`);
+  if (invalid.length > 0 || reconciliation.quarantined > 0 || exportCleanup.failed > 0 || messagingCleanup.failed > 0 || backupResult.failed > 0) process.exitCode = 1;
 } finally {
   if (database !== null) await database.close();
 }

@@ -18,6 +18,7 @@ import {
   JournalItemSchema,
   ReportSchema,
 } from "./domain.js";
+import { OnboardingActionSchema, OnboardingSectionSchema } from "./onboarding.js";
 
 const HouseholdMutationSchema = z.object({
   household_id: HouseholdIdSchema,
@@ -34,6 +35,11 @@ export const ToolInputSchemas = {
     idempotency_key: IdempotencyKeySchema,
   }).strict(),
   hfj_select_household: z.object({ household_id: HouseholdIdSchema }).strict(),
+  hfj_update_onboarding: HouseholdMutationSchema.extend({
+    section: OnboardingSectionSchema,
+    transition: OnboardingActionSchema,
+    expected_revision: z.number().int().nonnegative(),
+  }).strict(),
   hfj_create_family_invite: RevisionedHouseholdMutationSchema.extend({
     role: z.enum(["editor", "viewer"]),
     intended_email_hint: z.email().optional(),
@@ -123,6 +129,7 @@ export type ToolName = keyof typeof ToolInputSchemas;
 export const ToolNameSchema = z.enum(Object.keys(ToolInputSchemas) as [ToolName, ...ToolName[]]);
 export const MutatingToolNames = new Set<ToolName>([
   "hfj_create_household", "hfj_create_family_invite", "hfj_accept_family_invite",
+  "hfj_update_onboarding",
   "hfj_revoke_family_invite", "hfj_update_member", "hfj_remove_member",
   "hfj_update_profile", "hfj_append_evidence", "hfj_commit_change_set",
   "hfj_create_collection", "hfj_create_collection_share", "hfj_revoke_collection_share",

@@ -23,7 +23,14 @@ for credential in \
   object-storage-secret-access-key \
   backup-encryption-key \
   backup-manifest-private-key \
-  backup-manifest-public-key
+  backup-manifest-public-key \
+  whatsapp-business-account-id \
+  whatsapp-phone-number-id \
+  whatsapp-contact-url \
+  whatsapp-app-secret \
+  whatsapp-access-token \
+  whatsapp-verify-token \
+  message-encryption-key
 do
   source_file=$source_dir/$credential
   test -f "$source_file" || { echo "missing systemd credential: $credential" >&2; exit 1; }

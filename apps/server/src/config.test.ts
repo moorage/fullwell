@@ -59,4 +59,28 @@ describe("parseConfig", () => {
     expect(parseConfig(production)).toMatchObject({ OBJECT_STORAGE_REGION: "us-west-004", BACKUP_RETENTION_DAYS: 35 });
     expect(() => parseConfig({ ...production, OBJECT_STORAGE_ENDPOINT: "http://storage.example.test" })).toThrow(/HTTPS/);
   });
+
+  it("requires complete service-only WhatsApp configuration and a non-billable cutoff", () => {
+    expect(() => parseConfig({ NODE_ENV: "test", WHATSAPP_WEBHOOK_ENABLED: "true" })).toThrow(/WHATSAPP_ENABLED/);
+    expect(() => parseConfig({ NODE_ENV: "test", WHATSAPP_ENABLED: "true" })).toThrow(/incomplete/);
+    const configured = {
+      NODE_ENV: "test",
+      WHATSAPP_ENABLED: "true",
+      WHATSAPP_WEBHOOK_ENABLED: "true",
+      WHATSAPP_LINKING_ENABLED: "true",
+      WHATSAPP_RUNNER_CLAIMS_ENABLED: "true",
+      WHATSAPP_SERVICE_REPLIES_ENABLED: "true",
+      WHATSAPP_MODE: "service_only",
+      WHATSAPP_GRAPH_API_VERSION: "v24.0",
+      WHATSAPP_BUSINESS_ACCOUNT_ID: "123456789012345",
+      WHATSAPP_PHONE_NUMBER_ID: "123456789012346",
+      WHATSAPP_CONTACT_URL: "https://wa.me/15555550100",
+      WHATSAPP_APP_SECRET: "a".repeat(32),
+      WHATSAPP_ACCESS_TOKEN: "t".repeat(64),
+      WHATSAPP_VERIFY_TOKEN: "v".repeat(32),
+      MESSAGE_ENCRYPTION_KEY: Buffer.alloc(32, 3).toString("base64url"),
+    };
+    expect(parseConfig(configured)).toMatchObject({ WHATSAPP_ENABLED: true, WHATSAPP_MODE: "service_only" });
+    expect(() => parseConfig({ ...configured, WHATSAPP_FREE_SERVICE_SEND_CUTOFF: "2026-10-01T00:00:01-07:00" })).toThrow(/cannot move past/);
+  });
 });

@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Added conversational Fullwell first run with a typed per-user onboarding state tool, snack-then-recipe questions, natural section skipping, server-derived completion, and an install-page handoff for `@Fullwell hi`.
+- Retry encrypted `response_ready` WhatsApp results from the linked runner's next authenticated claim, align outbound text requests with Meta's documented headers, and reduce failed Graph responses to numeric diagnostics without retaining provider bodies.
+- Accept only event-matched managed Beads lifecycle hooks alongside the self-improvement harness's repo-local hook scripts.
+- Fix native local-runner OAuth consent by allowing only its validated exact `127.0.0.1` callback origin through the consent page's CSP form boundary.
+- Fix the local Codex runner's structured-output schema so current Codex hosts accept the restocking result union.
+- Make the macOS runner's external Chrome backend available to its sandboxed Codex child process.
+- Revalidate and embed the bounded restocking snapshot in host prompts, disable Codex shell/search and Claude file tools, and keep provider replies gated when the isolated host lacks browser control.
+- Run Codex from a dedicated trusted project and separate keyring-backed `CODEX_HOME`, reject MCP/plugin capability drift before every host turn, persist only the exact fake-retailer Browser Use origin, and pass the noninteractive quantity-one plus duplicate-replay cart gate.
+
+- Added a direct Meta Cloud API WhatsApp gateway with signed raw-body webhooks, two-sided sender/device linking, authenticated-encrypted queues, provider retry deduplication, bounded leases, delivery receipts, retention cleanup, aggregate operator metrics, and a hard zero-paid-message cutoff.
+- Added a macOS local runner with OAuth PKCE, Keychain storage, a secret-free LaunchAgent, fixed-path Git-authoritative snack snapshots, Codex and Claude Code adapters, pre-action authorization, local cart idempotency receipts, and fail-closed disconnect/revocation.
+- Added the shared restocking skill/evals, fake retailer and browser tests, Account setup/confirm/revoke UX, schema `0006`, encrypted deployment credentials, rollout gates, and messaging operations/privacy documentation.
+- Fixed deployed readiness to recognize schema `0006` so the WhatsApp release can pass the staging gate.
+- Fixed the Account WhatsApp-link handoff by allowing only WhatsApp's `wa.me` and `api.whatsapp.com` redirect origins through the existing CSP form boundary.
+- Fixed WhatsApp linking to acknowledge signed webhook delivery without attempting an outbound confirmation while the service-reply rollout gate is disabled.
 - Published the public agent package as `@fullwell/fullwell`, deprecated the prior package name with a rename notice, and preserved the `household-food-journal` host plugin and MCP service identifiers.
 - Added the React 19.2 SSR and hydration web experience for install, sign-in, household administration, invitations, public collections, selective import, and legal routes.
 - Added the Fastify MCP/OAuth application service, typed 22-tool contracts, Git-backed household mutation path, Neon operational persistence, reversible migrations, and browser authentication adapters.

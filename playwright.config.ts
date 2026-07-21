@@ -10,12 +10,20 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
-  webServer: {
-    command: "npm run build && PORT=4187 PUBLIC_ORIGIN=http://127.0.0.1:4187 AUTH_MODE=test npm run dev",
-    reuseExistingServer: true,
-    timeout: 120_000,
-    url: "http://127.0.0.1:4187/health/live",
-  },
+  webServer: [
+    {
+      command: "npm run build && PORT=4187 PUBLIC_ORIGIN=http://127.0.0.1:4187 AUTH_MODE=test npm run dev",
+      reuseExistingServer: true,
+      timeout: 120_000,
+      url: "http://127.0.0.1:4187/health/live",
+    },
+    {
+      command: "node tests/fixtures/fake-retailer/server.mjs",
+      reuseExistingServer: true,
+      timeout: 30_000,
+      url: "http://127.0.0.1:4289/health",
+    },
+  ],
   projects: [
     { name: "desktop-webkit", use: { ...devices["Desktop Safari"] } },
     { name: "mobile-webkit", use: { ...devices["iPhone 13"] } },

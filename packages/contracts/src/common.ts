@@ -8,6 +8,7 @@ export const OAuthScopeSchema = z.enum([
   "household:manage",
   "collection:share",
   "journal:export",
+  "runner:messages",
 ]);
 export const DateTimeSchema = z.iso.datetime({ offset: true });
 export const DateSchema = z.iso.date();
@@ -34,6 +35,9 @@ export const ErrorCodeSchema = z.enum([
   "PROJECTION_DRIFT",
   "RECONCILIATION_REQUIRED",
   "PROVIDER_UNAVAILABLE",
+  "CHANNEL_DISABLED",
+  "LEASE_CONFLICT",
+  "MESSAGE_EXPIRED",
   "INTERNAL_ERROR",
 ]);
 

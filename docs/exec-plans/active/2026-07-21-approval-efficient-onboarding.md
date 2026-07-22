@@ -18,6 +18,7 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 - [x] 2026-07-22T05:52Z: Re-ran the required screencast command; Homebrew FFmpeg 8.0.1 rejected its Linux-only `x11grab` input with code 234, so no MP4 was produced.
 - [x] 2026-07-22T05:58Z: Published immutable `@fullwell/fullwell@1.1.3`, matched the prepared registry checksum, passed downloaded Codex/Claude lifecycle tests, and updated both current host installations to enabled `fullwell@fullwell` version `1.1.3`.
 - [x] 2026-07-22T05:58Z: From the separate `fullwell-tester` folder, current Codex on `gpt-5.6-sol` made exactly one Fullwell call (`hfj_get_context`), no Fullwell mutation, and asked the snack question without the generic "what's on your mind" reply; the transcript filter retained only tool identity and boolean response checks.
+- [x] 2026-07-22T06:12Z: Replaced unexplained snack/recipe setup labels with benefit-first guidance and concrete restocking/recipe-recall examples, updated the client specification and eval invariants, prepared package `1.1.4`, and passed package validation plus isolated Codex and Claude lifecycles.
 - [ ] Milestone 4 - synchronize documentation, verify, publish, deploy, and live-test.
 
 ## Surprises & Discoveries

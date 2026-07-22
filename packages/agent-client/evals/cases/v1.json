@@ -14,21 +14,21 @@
       "prompt": "@Fullwell hi, please help me get started with my food journal.",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases"],
       "required_tools": ["hfj_get_context"],
-      "invariants": ["no_setup_area_menu", "snacks_before_recipes", "ask_grocery_stores", "draft_in_conversation_only", "no_intermediate_onboarding_write"]
+      "invariants": ["no_setup_area_menu", "snacks_before_recipes", "explain_snack_benefit_before_question", "include_concrete_restock_example", "ask_grocery_stores", "draft_in_conversation_only", "no_intermediate_onboarding_write"]
     },
     {
       "id": "bare-fullwell-greeting-starts-snacks",
       "prompt": "@Fullwell hi",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases"],
       "required_tools": ["hfj_get_context"],
-      "invariants": ["bare_greeting_is_onboarding_intent", "check_onboarding_before_reply", "reuse_snapshot_profiles_and_items", "no_generic_greeting_while_open", "snacks_before_recipes", "ask_only_needed_snack_source_and_preferences", "no_intermediate_onboarding_write"]
+      "invariants": ["bare_greeting_is_onboarding_intent", "check_onboarding_before_reply", "reuse_snapshot_profiles_and_items", "no_generic_greeting_while_open", "snacks_before_recipes", "explain_snack_benefit_before_question", "include_concrete_restock_example", "ask_only_needed_snack_source_and_preferences", "no_intermediate_onboarding_write"]
     },
     {
       "id": "snack-decline-advances-to-recipes",
       "prompt": "I do not have any snack purchases to audit right now.",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases", "track-recipe-history"],
       "required_tools": [],
-      "invariants": ["draft_snack_skip_with_bounded_reason", "advance_without_setup_menu", "ask_recipe_sources_next", "no_intermediate_onboarding_write"]
+      "invariants": ["draft_snack_skip_with_bounded_reason", "advance_without_setup_menu", "explain_recipe_benefit_before_question", "include_concrete_recipe_recall_example", "ask_recipe_sources_next", "no_intermediate_onboarding_write"]
     },
     {
       "id": "recipe-no-sources-finishes-guided-run",
@@ -56,7 +56,7 @@
       "prompt": "@Fullwell hi, I am ready to continue the setup I skipped earlier.",
       "skills": ["manage-household-food-journal"],
       "required_tools": ["hfj_get_context"],
-      "invariants": ["prefer_unfinished_unskipped_section", "reuse_returned_revision_in_final_draft", "no_resume_transition", "no_intermediate_onboarding_write"]
+      "invariants": ["prefer_unfinished_unskipped_section", "reuse_returned_revision_in_final_draft", "explain_section_benefit_when_resuming", "avoid_unexplained_setup_labels", "no_resume_transition", "no_intermediate_onboarding_write"]
     },
     {
       "id": "invite-explicit-acceptance",

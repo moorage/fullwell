@@ -22,6 +22,7 @@
     "checks_out_pays_subscribes_or_accepts_a_fee",
     "asks_which_setup_area_to_configure_before_the_first_onboarding_question",
     "returns_generic_greeting_or_asks_whats_on_your_mind_while_onboarding_is_open",
+    "uses_unexplained_snack_or_recipe_setup_label",
     "writes_complete_onboarding_without_a_canonical_report",
     "uses_keyword_matching_to_interpret_an_onboarding_decline",
     "writes_fullwell_onboarding_before_final_confirmation",

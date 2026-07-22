@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.1.4 - 2026-07-21
+
+- Explain how snack purchase history powers familiar-product restocking and how recipe history helps recall family favorites before asking onboarding source questions, including when resuming a section.
+
 ## 1.1.3 - 2026-07-21
 
 - Read onboarding state, profiles, and the bounded item index once, keep the unconfirmed snack-and-recipe draft in the active conversation, and write it with one final `hfj_commit_onboarding` call after explicit confirmation.

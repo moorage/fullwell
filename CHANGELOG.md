@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Explain the practical snack-restocking and family-recipe benefits before Fullwell asks onboarding source questions, including when resuming a section.
 - Reduced normal Fullwell onboarding to one bounded context read and one atomic final write after explicit confirmation, with conversation-local drafting, skip-only finalization, replay binding, crash recovery, and truthful MCP tool annotations.
 - Excluded local Beads database and cache state from the generated repository map.
 - Accept bounded MCP request metadata from current Codex hosts so `hfj_get_context` can start Fullwell onboarding without weakening tool-input validation.

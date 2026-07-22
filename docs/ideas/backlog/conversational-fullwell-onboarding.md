@@ -11,7 +11,7 @@
 
 ## Why this matters
 
-Installing Fullwell currently exposes useful starter prompts but does not guide a new user from installation to the recurring-snack and recipe-index reports that power the product. A user can send a WhatsApp restocking request before any purchase evidence exists and receive a correct but confusing blocked response. Fullwell needs a short first-run conversation that begins with the first necessary question and naturally advances when a user has nothing to audit or does not want to continue a section.
+Installing Fullwell currently exposes useful starter prompts but does not guide a new user from installation to the recurring-snack and recipe-index reports that power the product. A user can send a WhatsApp restocking request before any purchase evidence exists and receive a correct but confusing blocked response. Fullwell needs a short first-run conversation that gives the user a concrete reason for each section before asking its first necessary question, then naturally advances when a user has nothing to audit or does not want to continue.
 
 ## Current evidence
 
@@ -20,10 +20,11 @@ Installing Fullwell currently exposes useful starter prompts but does not guide 
 - Snack and recipe reports already have separate evidence-first skills and canonical Git paths, so onboarding should coordinate rather than duplicate them.
 - The user explicitly requested that `@Fullwell hi` begin asking questions without a setup menu and that natural replies such as `no`, `I do not have recipes`, or `nevermind` advance to the next section.
 - Real Codex onboarding then showed that separately persisting start, skip, profile, evidence, and report steps caused repeated MCP approval prompts. On 2026-07-21 the user approved a read-draft-commit iteration that keeps unconfirmed work ephemeral and reduces the normal Fullwell path to one initial read plus one final confirmed write.
+- A live resume prompt that only said "snack setup" did not explain the payoff to a new user. Snack onboarding should connect past orders to a concrete request such as "Restock cashews," and recipe onboarding should connect saved/cooked/liked history to finding family favorites again before either section asks for sources.
 
 ## Proposed direction
 
-Treat onboarding as a small typed state machine with an approval-efficient orchestration layer. `hfj_get_context` returns per-user section state plus both profiles and a bounded item identity index from one consistent selected-household snapshot. The host keeps the unconfirmed snack-and-recipe draft only in the active conversation, presents one final summary, and calls `hfj_commit_onboarding` once after explicit confirmation. That final tool validates same-request evidence and conclusions together, creates one canonical Git commit when content changes, and compare-and-sets bounded Neon skip outcomes with recovery intent. The legacy `hfj_update_onboarding` transition remains compatible with older clients. Household-wide completion remains derived from canonical reports.
+Treat onboarding as a small typed state machine with an approval-efficient orchestration layer. `hfj_get_context` returns per-user section state plus both profiles and a bounded item identity index from one consistent selected-household snapshot. Before the first question in each new or resumed section, the host briefly explains what that history enables in everyday terms; it never relies on an unexplained "setup" label. The host keeps the unconfirmed snack-and-recipe draft only in the active conversation, presents one final summary, and calls `hfj_commit_onboarding` once after explicit confirmation. That final tool validates same-request evidence and conclusions together, creates one canonical Git commit when content changes, and compare-and-sets bounded Neon skip outcomes with recovery intent. The legacy `hfj_update_onboarding` transition remains compatible with older clients. Household-wide completion remains derived from canonical reports.
 
 ## Non-goals
 

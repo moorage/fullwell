@@ -82,7 +82,7 @@ const webRenderContextSchema: z.ZodType<WebRenderContext> = z.object({
   viewer: z.object({ displayName: z.string(), email: z.string() }),
   households: z.array(z.object({
     id: z.string().min(1), name: z.string().min(1), role: householdRoleSchema, members: z.number().int().nonnegative(),
-    recipes: z.number().int().nonnegative(), snacks: z.number().int().nonnegative(), updatedLabel: z.string(),
+    recipes: z.number().int().nonnegative(), groceries: z.number().int().nonnegative(), updatedLabel: z.string(),
   })),
   members: z.array(z.object({
     id: z.string().min(1), name: z.string().min(1), detail: z.string(), role: householdRoleSchema, isCurrentUser: z.boolean().optional(),

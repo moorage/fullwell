@@ -4,7 +4,7 @@ Date: 2026-07-20
 
 ## Decision
 
-Proceed with a direct Meta Cloud API gateway and a local macOS runner. The server verifies, encrypts, queues, leases, and relays messages. It does not read household snack files, run an LLM, choose a product or store, or control a retailer. Codex or Claude Code reads the authorized Markdown snapshot and controls only the configured retailer origin on the user's Mac.
+Proceed with a direct Meta Cloud API gateway and a local macOS runner. The server verifies, encrypts, queues, leases, and relays messages. It does not read household grocery files, run an LLM, choose a product or store, or control a retailer. Codex or Claude Code reads the authorized snack, ingredient, condiment, and other-grocery snapshot and controls only the configured retailer origin on the user's Mac.
 
 No BSP, Twilio, or middleware messaging vendor is used. The connected Fullwell identity is a Meta-provided, platform-only virtual identity, not a PSTN or Google Voice number. Live WABA, phone-number, app, token, webhook, sender, household, device, and retailer identifiers remain outside Git.
 

@@ -99,8 +99,7 @@ const ItemBaseSchema = z.object({
   body_markdown: z.string().max(100_000),
 });
 
-export const SnackItemSchema = ItemBaseSchema.extend({
-  kind: z.literal("snack"),
+const GroceryItemFieldsSchema = ItemBaseSchema.extend({
   display_name: z.string().min(1).max(300),
   brand: z.string().max(200).nullable(),
   product_line: z.string().max(200).nullable(),
@@ -112,7 +111,14 @@ export const SnackItemSchema = ItemBaseSchema.extend({
   known_size_variants: z.array(z.string().min(1).max(100)).max(50),
   image_page_url: SafeHttpUrlSchema.nullable(),
   image_url: SafeHttpUrlSchema.nullable(),
-}).strict();
+});
+
+export const GroceryItemKindSchema = z.enum(["snack", "ingredient", "condiment", "other_grocery"]);
+export const JournalItemKindSchema = z.enum(["snack", "ingredient", "condiment", "other_grocery", "recipe"]);
+export const SnackItemSchema = GroceryItemFieldsSchema.extend({ kind: z.literal("snack") }).strict();
+export const IngredientItemSchema = GroceryItemFieldsSchema.extend({ kind: z.literal("ingredient") }).strict();
+export const CondimentItemSchema = GroceryItemFieldsSchema.extend({ kind: z.literal("condiment") }).strict();
+export const OtherGroceryItemSchema = GroceryItemFieldsSchema.extend({ kind: z.literal("other_grocery") }).strict();
 
 export const RecipeItemSchema = ItemBaseSchema.extend({
   kind: z.literal("recipe"),
@@ -129,7 +135,13 @@ export const RecipeItemSchema = ItemBaseSchema.extend({
   image_page_url: SafeHttpUrlSchema.nullable(),
 }).strict();
 
-export const JournalItemSchema = z.discriminatedUnion("kind", [SnackItemSchema, RecipeItemSchema]);
+export const JournalItemSchema = z.discriminatedUnion("kind", [
+  SnackItemSchema,
+  IngredientItemSchema,
+  CondimentItemSchema,
+  OtherGroceryItemSchema,
+  RecipeItemSchema,
+]);
 
 export const ReportAssertionSchema = z.object({
   row_id: z.string().min(1).max(200),
@@ -199,7 +211,11 @@ export const MutationStateSchema = z.enum([
 
 export type Evidence = z.infer<typeof EvidenceSchema>;
 export type JournalItem = z.infer<typeof JournalItemSchema>;
+export type GroceryItemKind = z.infer<typeof GroceryItemKindSchema>;
 export type SnackItem = z.infer<typeof SnackItemSchema>;
+export type IngredientItem = z.infer<typeof IngredientItemSchema>;
+export type CondimentItem = z.infer<typeof CondimentItemSchema>;
+export type OtherGroceryItem = z.infer<typeof OtherGroceryItemSchema>;
 export type RecipeItem = z.infer<typeof RecipeItemSchema>;
 export type Report = z.infer<typeof ReportSchema>;
 export type CollectionSnapshot = z.infer<typeof CollectionSnapshotSchema>;

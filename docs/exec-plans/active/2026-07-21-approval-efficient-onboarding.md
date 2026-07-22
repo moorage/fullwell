@@ -10,6 +10,9 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 ## Progress
 
+- [x] 2026-07-22T21:24Z: Milestone 7 complete locally - mixed grocery kinds, canonical paths, one-pass low-frequency learning, broader runner snapshot/prompt, user messaging, dashboard counts, package `1.1.7`, 39 cross-host eval cases, 300 deterministic tests with 11 expected database skips, and 29 WebKit checks with seven intentional project skips pass; release is not committed, published, or deployed.
+- [x] 2026-07-22T21:10Z: Framed the grocery-history expansion with UX, semantic-data, privacy, reliability, and eval perspectives; claimed Bead `fullwell-gs8.7` and decomposed one-pass collection, first-class grocery kinds, restocking availability, and compatibility work.
+- [x] 2026-07-22T21:10Z: Passed the Milestone 7 feature-critic gate after requiring below-threshold grocery identities, distinct standard/Japanese mayonnaise formulations, canonical item-area validation, legacy purchase-evidence readability, one shared order traversal, and runner-snapshot coverage.
 - [x] 2026-07-22T03:27Z: Created and claimed Bead `fullwell-gs8`, read the architecture/specification/prior onboarding plan, and completed product, UX, security, reliability, and eval framing.
 - [x] 2026-07-22T03:27Z: Decomposed the work into bounded snapshot, atomic mutation, agent/eval, and release milestones with explicit conflict, payload, recovery, and rollback behavior.
 - [x] 2026-07-22T03:31Z: Passed the failure-oriented feature-critic gate after adding snapshot consistency, explicit final confirmation, unique optional section outcomes, legacy skipped-state behavior, a no-empty-commit skip-only path, and pre-confirmation payload checks.
@@ -48,6 +51,10 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 ## Decision Log
 
+- 2026-07-22: Keep `snacks` as the internal onboarding section, profile, completion-report type, and legacy path for backward compatibility, but describe the section to people as grocery-history onboarding for snacks, ingredients, condiments, and other groceries.
+- 2026-07-22: Add first-class `ingredient`, `condiment`, and `other_grocery` journal item kinds beside `snack` and `recipe`. Store them under `ingredients/items/`, `condiments/items/`, and `groceries/items/`; write new purchase evidence under `groceries/evidence/` while continuing to read legacy `snacks/evidence/`.
+- 2026-07-22: One authorized order-detail traversal must classify every in-scope grocery line into an evidence-backed item. The recurrence threshold controls report inclusion, not whether a low-frequency item such as parsley is learned. Semantic classification remains agent-authored rather than keyword code.
+- 2026-07-22: The restocking snapshot includes all four grocery item areas plus legacy and current purchase evidence. Historical formulations remain separate, so a negative qualifier such as "not the Japanese one" filters candidates instead of merging mayonnaise identities.
 - 2026-07-22: Supersede the conversation-only draft decision. Store a versioned JSON checkpoint under `~/.codex/fullwell/drafts/<user-id>/<household-id>/onboarding.json`, or the active Codex home equivalent, with `0700` directories and `0600` atomic files. The user explicitly accepts that another person with access to the same operating-system account can read it; the required boundary is preventing accidental Fullwell user or household mixing, not encryption at rest.
 - 2026-07-22: Bind every checkpoint to the authenticated Fullwell user ID, household ID, repository HEAD, both onboarding revisions, and a local draft revision. Never scan another identity shard, merge a stale checkpoint, or store credentials, cookies, browser state, access tokens, refresh tokens, or raw page captures.
 - 2026-07-22: Delete the matching checkpoint after a confirmed commit or explicit whole-flow cancellation. Expired, malformed, mismatched, or concurrent-write-conflicted checkpoints fail closed and leave canonical Fullwell state unchanged.
@@ -311,6 +318,63 @@ Verification:
 - `npm run test:packaging --workspace @fullwell/fullwell`
 - `npm run test:load`
 - `npm run test:security`
+- `npm run verify`
+- `npm run verify:docs`
+- `npm run verify:execplan`
+
+### Milestone 7 - One-pass whole-grocery learning
+
+Files:
+
+- `packages/contracts/src/domain.ts`
+- `packages/contracts/src/tools.ts`
+- `packages/contracts/src/contracts.test.ts`
+- `apps/server/src/domain/journal-validation.ts`
+- `apps/server/src/domain/repository-projection.ts`
+- `apps/server/src/services/household-food-journal.ts`
+- `apps/server/src/core/restocking-snapshot.ts`
+- `apps/server/src/runner/snapshot-service.test.ts`
+- `packages/local-runner/src/snapshot-cache.ts`
+- `packages/local-runner/src/host/prompt.ts`
+- `apps/server/src/http/web-view-model.ts`
+- `packages/agent-client/skills/manage-household-food-journal/SKILL.md`
+- `packages/agent-client/skills/audit-grocery-purchases/SKILL.md`
+- `packages/agent-client/skills/restock-groceries/SKILL.md`
+- `packages/agent-client/references/semantic-food-rules.md`
+- `packages/agent-client/references/restocking-and-cart-safety.md`
+- `packages/agent-client/evals/`
+- `docs/product-specs/household-food-journal-client.md`
+- `docs/product-specs/household-food-journal-server.md`
+- `docs/ARCHITECTURE.md`
+- `CHANGELOG.md`
+- `packages/agent-client/CHANGELOG.md`
+
+Tasks:
+
+1. Extend the strict journal-item and search contracts with `ingredient`, `condiment`, and `other_grocery`, retaining the existing grocery identity fields and semantic distinctions. Map each kind to a canonical item directory and reject a mismatched directory during projection rebuild.
+2. Route new purchase evidence to the general grocery evidence area, continue rebuilding legacy snack evidence, and include all grocery item/evidence areas in the credential-free restocking snapshot. Preserve the existing snack profile and report paths as compatibility identifiers.
+3. Make the authorized audit traverse each qualifying order detail once and author an evidence-backed item for every in-scope grocery identity during that pass. Apply the recurrence threshold only to report assertions; preserve observed store and exact product provenance for later source selection.
+4. Teach restocking to resolve ingredients, condiments, and other groceries from the same closed historical candidate set. Keep formulations such as standard and Japanese-style mayonnaise separate and honor natural exclusions without introducing keyword classification code.
+5. Replace snack-only benefit copy with friendly grocery-wide messaging and examples covering snacks, ingredients, condiments, and more. Keep the snack-then-recipe onboarding state order and the one-read/local-draft/one-write approval boundary unchanged.
+6. Add contract, projection, service, runner-snapshot, packaging, and cross-host eval coverage for mixed-kind onboarding, below-threshold parsley, negative mayonnaise formulation selection, legacy evidence compatibility, and no second order-history pass.
+
+Feature-critic constraints:
+
+- A non-recurring item is still learned; only its omission from a recurrence report is allowed.
+- The item kind and repository directory must agree, but legacy `snacks/evidence/` remains readable so existing households reconcile without migration.
+- The runner snapshot must contain every new grocery item area and `groceries/evidence/`, or WhatsApp requests would appear supported while lacking product/source evidence.
+- `snacks` remains the internal onboarding section/report compatibility key. Do not add a third onboarding section or force existing users to repeat setup.
+- Agent instructions assign grocery kinds and interpret exclusions. Server and client programs validate enumerated structure only and never classify food names.
+- Deploy the additive server contract before publishing the client that can emit new kinds. After a new-kind write, rollback must use a schema-compatible image rather than an older image that rejects the repository format.
+
+Verification:
+
+- `npm run test --workspace @hfj/contracts`
+- `npm run test --workspace @hfj/server -- domain/journal-validation.test.ts domain/repository-projection.test.ts services/household-food-journal.test.ts runner/snapshot-service.test.ts`
+- `npm run test --workspace @fullwell/local-runner -- src/snapshot-cache.test.ts src/host/adapters.test.ts src/runner.test.ts`
+- `npm run test:evals --workspace @fullwell/fullwell`
+- `npm run test:packaging --workspace @fullwell/fullwell`
+- `npm run test:e2e`
 - `npm run verify`
 - `npm run verify:docs`
 - `npm run verify:execplan`

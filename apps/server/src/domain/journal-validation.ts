@@ -37,3 +37,22 @@ export function markdownDocument(frontmatter: object, body: string): string {
   const lines = Object.entries(frontmatter).sort(([left], [right]) => left.localeCompare(right)).map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
   return `---\n${lines.join("\n")}\n---\n${body.replaceAll("\r\n", "\n")}\n`;
 }
+
+export function journalItemArea(kind: JournalItem["kind"]): "snacks" | "ingredients" | "condiments" | "groceries" | "recipes" {
+  switch (kind) {
+    case "snack": return "snacks";
+    case "ingredient": return "ingredients";
+    case "condiment": return "condiments";
+    case "other_grocery": return "groceries";
+    case "recipe": return "recipes";
+  }
+}
+
+export function journalItemPath(item: JournalItem): string {
+  return `${journalItemArea(item.kind)}/items/${item.id}.md`;
+}
+
+export function journalEvidencePath(evidence: Evidence): string {
+  const area = evidence.kind === "purchase" ? "groceries" : "recipes";
+  return `${area}/evidence/${evidence.observed_at.slice(0, 4)}/${evidence.id}.json`;
+}

@@ -4,11 +4,11 @@ The WhatsApp gateway relays bounded text. It does not read household food files,
 
 ## Closed historical candidates
 
-Preference candidates must already exist as snack items with cited purchase evidence in the snapshot. Use distinct-order recurrence, last purchase date, exact identity fields, and observed stores. Availability, search ranking, advertising, retailer recommendations, and internet popularity are not preference evidence.
+Preference candidates must already exist as `snack`, `ingredient`, `condiment`, or `other_grocery` items with cited purchase evidence in the snapshot. Use distinct-order recurrence, last purchase date, exact identity fields, and observed stores. Availability, search ranking, advertising, retailer recommendations, and internet popularity are not preference evidence.
 
 Ask a follow-up only when two or more historical candidates remain plausible. The question may name only distinctions represented among those candidates. For example, ask `Salted or unsalted?` only if both salted and unsalted cashews are plausible prior purchases. Do not ask it merely because both variants exist online.
 
-One candidate can be selected without a question when it is the only plausible historical match or when it is both the clear distinct-order recurrence leader and the clear recency leader. Do not use keyword code, package quantity, retailer prominence, or an unsupported tie-breaker to manufacture certainty.
+One candidate can be selected without a question when it is the only plausible historical match or when it is both the clear distinct-order recurrence leader and the clear recency leader. Honor user exclusions against distinctions actually present in the historical candidates; for example, "not the Japanese one" excludes Japanese-style mayonnaise but does not authorize a novel brand. Do not use keyword code, package quantity, retailer prominence, or an unsupported tie-breaker to manufacture certainty.
 
 ## Two-phase cart authority
 

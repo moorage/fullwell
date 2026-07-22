@@ -65,6 +65,21 @@ describe("contract boundaries", () => {
     expect(ToolInputSchemas.hfj_export_household).toBeDefined();
   });
 
+  it("accepts every grocery item kind as a search boundary", () => {
+    for (const kind of ["snack", "ingredient", "condiment", "other_grocery", "recipe"] as const) {
+      expect(parseToolInput("hfj_search_items", {
+        household_id: "hsh_0123456789abcdef",
+        query: "mayo",
+        kind,
+      })).toMatchObject({ kind });
+    }
+    expect(() => parseToolInput("hfj_search_items", {
+      household_id: "hsh_0123456789abcdef",
+      query: "mayo",
+      kind: "household_supply",
+    })).toThrow();
+  });
+
   it("keeps onboarding transitions typed and completion server-derived", () => {
     expect(parseToolInput("hfj_update_onboarding", {
       household_id: "hsh_0123456789abcdef",
@@ -198,10 +213,10 @@ function onboardingEvidence(index: number) {
   };
 }
 
-function onboardingItem(index: number) {
+function onboardingItem(index: number, kind: "snack" | "ingredient" | "condiment" | "other_grocery" = "snack") {
   return {
     id: `itm_${index.toString(16).padStart(16, "0")}`,
-    kind: "snack",
+    kind,
     display_name: `Snack ${index}`,
     brand: null,
     product_line: null,

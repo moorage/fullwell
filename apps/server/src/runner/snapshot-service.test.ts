@@ -30,6 +30,10 @@ async function fixture() {
     { path: "profiles/snacks.md", content: "# Snack profile\n", appendOnly: false },
     { path: "snacks/items/cashews.md", content: "# Salted cashews\n", appendOnly: false },
     { path: "snacks/evidence/2026/order-one.json", content: "{\"store\":\"fixture\"}\n", appendOnly: true },
+    { path: "ingredients/items/parsley.md", content: "# Flat-leaf parsley\n", appendOnly: false },
+    { path: "condiments/items/mayo.md", content: "# Standard mayonnaise\n", appendOnly: false },
+    { path: "groceries/items/dish-soap.md", content: "# Dish soap\n", appendOnly: false },
+    { path: "groceries/evidence/2026/order-two.json", content: "{\"store\":\"fixture\"}\n", appendOnly: true },
     { path: "snacks/reports/recurring-snacks.md", content: "# Recurring\n", appendOnly: false },
     { path: "recipes/private.md", content: "# Must stay server-side\n", appendOnly: false },
   ], {
@@ -58,7 +62,11 @@ describe("RunnerSnapshotService", () => {
     if (result.kind !== "snapshot") throw new Error("Expected a snapshot");
     expect(result.response.manifest).toMatchObject({ household_id: householdId, head, created_at: "2026-07-20T16:02:00.000Z" });
     expect(result.response.manifest.files.map((file) => file.path)).toEqual([
+      "condiments/items/mayo.md",
       "FORMAT_VERSION",
+      "groceries/evidence/2026/order-two.json",
+      "groceries/items/dish-soap.md",
+      "ingredients/items/parsley.md",
       "profiles/snacks.md",
       "snacks/evidence/2026/order-one.json",
       "snacks/items/cashews.md",
@@ -66,8 +74,9 @@ describe("RunnerSnapshotService", () => {
     ]);
     expect(result.response.manifest.files.every((file) => file.mode === 0o600 && file.sha256.length === 64)).toBe(true);
     const archive = unzipSync(Buffer.from(result.response.archive_base64, "base64"));
-    expect(Object.keys(archive).sort()).toEqual(result.response.manifest.files.map((file) => file.path));
+    expect(Object.keys(archive).sort((left, right) => left.localeCompare(right))).toEqual(result.response.manifest.files.map((file) => file.path));
     expect(strFromU8(archive["snacks/items/cashews.md"] ?? new Uint8Array())).toBe("# Salted cashews\n");
+    expect(strFromU8(archive["ingredients/items/parsley.md"] ?? new Uint8Array())).toBe("# Flat-leaf parsley\n");
     expect(result.response.archive_base64).not.toContain("Private Household Name");
     expect(authorize).toHaveBeenCalledWith(principal, deviceId, householdId);
   });

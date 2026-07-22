@@ -515,6 +515,57 @@ describe("HouseholdFoodJournalService", () => {
     });
   });
 
+  it("commits and searches every grocery area in one onboarding mutation", async () => {
+    const created = await call("hfj_create_household", { name: "Whole grocery audit", idempotency_key: "grocery-kinds-create-0201" });
+    const householdId = HouseholdIdSchema.parse(created.data.household_id);
+    const evidence = [
+      groceryPurchaseEvidence(21, "Cashews", "Market", "order-21"),
+      groceryPurchaseEvidence(22, "Flat-leaf parsley", "Produce Shop", "order-22"),
+      groceryPurchaseEvidence(23, "Classic mayonnaise", "Market", "order-23"),
+      groceryPurchaseEvidence(24, "Japanese mayonnaise", "Asian Market", "order-24"),
+      groceryPurchaseEvidence(25, "Dish soap", "Market", "order-25"),
+    ];
+    const items = [
+      groceryItem(21, "snack", "Cashews", evidence[0]?.id ?? "", { category: "nuts" }),
+      groceryItem(22, "ingredient", "Flat-leaf parsley", evidence[1]?.id ?? "", { category: "herb", format: "fresh", produce_variety: "flat-leaf" }),
+      groceryItem(23, "condiment", "Classic mayonnaise", evidence[2]?.id ?? "", { category: "mayonnaise", formulation: "standard" }),
+      groceryItem(24, "condiment", "Japanese mayonnaise", evidence[3]?.id ?? "", { category: "mayonnaise", formulation: "Japanese-style" }),
+      groceryItem(25, "other_grocery", "Dish soap", evidence[4]?.id ?? "", { category: "household supply" }),
+    ];
+    const committed = await call("hfj_commit_onboarding", {
+      household_id: householdId,
+      expected_head: created.head,
+      idempotency_key: "grocery-kinds-commit-0201",
+      sections: [{ section: "snacks", outcome: "complete", expected_revision: 0 }],
+      evidence,
+      items,
+      reports: [{
+        report_type: "recurring_snacks",
+        markdown: "# Grocery history\n\nSnacks, ingredients, condiments, and other groceries.",
+        assertions: [],
+        schema_version: 1,
+      }],
+      expected_item_revisions: {},
+    });
+    expect(committed.data.item_ids).toHaveLength(5);
+    expect((await call("hfj_search_items", { household_id: householdId, query: "parsley", kind: "ingredient" })).data.items)
+      .toEqual([expect.objectContaining({ kind: "ingredient", title: "Flat-leaf parsley" })]);
+    expect((await call("hfj_search_items", { household_id: householdId, query: "mayonnaise", kind: "condiment" })).data.items)
+      .toEqual([
+        expect.objectContaining({ distinguishing_fields: expect.objectContaining({ formulation: "standard" }) }),
+        expect.objectContaining({ distinguishing_fields: expect.objectContaining({ formulation: "Japanese-style" }) }),
+      ]);
+    const paths = (await repository.snapshot(householdId)).files.map(({ path }) => path);
+    expect(paths).toEqual(expect.arrayContaining([
+      `snacks/items/${items[0]?.id}.md`,
+      `ingredients/items/${items[1]?.id}.md`,
+      `condiments/items/${items[2]?.id}.md`,
+      `condiments/items/${items[3]?.id}.md`,
+      `groceries/items/${items[4]?.id}.md`,
+      `groceries/evidence/2026/${evidence[0]?.id}.json`,
+    ]));
+  });
+
   it("atomically commits and replays 10,000 onboarding evidence records and items", async () => {
     const created = await call("hfj_create_household", { name: "Large onboarding", idempotency_key: "onboarding-large-create-0201" });
     const householdId = HouseholdIdSchema.parse(created.data.household_id);
@@ -741,6 +792,55 @@ function largeOnboardingItem(index: number) {
     schema_version: 1,
     body_markdown: "",
   };
+}
+
+function groceryPurchaseEvidence(index: number, title: string, store: string, orderReference: string) {
+  const suffix = index.toString(16).padStart(16, "0");
+  return {
+    id: `evd_${suffix}`,
+    kind: "purchase",
+    observed_at: "2026-07-22T12:00:00.000Z",
+    evidence_date: "2026-07-22",
+    date_precision: "day",
+    source_type: "grocery_order",
+    source_label: store,
+    stable_locator: `${orderReference}/${suffix}`,
+    summary: title,
+    actor_id: owner.actorId,
+    limitations: [],
+    schema_version: 1,
+    purchase: { store, order_reference: orderReference, line_item_title: title, order_date: "2026-07-22" },
+  } as const;
+}
+
+function groceryItem(
+  index: number,
+  kind: "snack" | "ingredient" | "condiment" | "other_grocery",
+  displayName: string,
+  evidenceId: string,
+  fields: Partial<{ category: string; formulation: string; format: string; produce_variety: string }>,
+) {
+  const suffix = index.toString(16).padStart(16, "0");
+  return {
+    id: `itm_${suffix}`,
+    kind,
+    display_name: displayName,
+    brand: null,
+    product_line: null,
+    flavor: null,
+    formulation: fields.formulation ?? null,
+    format: fields.format ?? null,
+    category: fields.category ?? "grocery",
+    produce_variety: fields.produce_variety ?? null,
+    known_size_variants: [],
+    image_page_url: null,
+    image_url: null,
+    evidence_ids: [evidenceId],
+    created_at: "2026-07-22T12:00:00.000Z",
+    updated_at: "2026-07-22T12:00:00.000Z",
+    schema_version: 1,
+    body_markdown: "Observed source is recorded in the cited purchase evidence.",
+  } as const;
 }
 
 class FailingProvisionRepository extends MemoryHouseholdRepository {

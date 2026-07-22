@@ -215,7 +215,7 @@ export class WebViewModelService {
         role: membership.role,
         members: (await this.store.listHouseholdMemberships(household.id)).length,
         recipes: values.filter(({ item }) => item.kind === "recipe").length,
-        snacks: values.filter(({ item }) => item.kind === "snack").length,
+        groceries: values.filter(({ item }) => item.kind !== "recipe").length,
         updatedLabel: "Repository synchronized",
       };
     }));

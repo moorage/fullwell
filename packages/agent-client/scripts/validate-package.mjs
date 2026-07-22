@@ -71,7 +71,10 @@ const requiredEvalIds = [
   "restock-historical-ambiguity",
   "restock-no-internet-ambiguity",
   "restock-retry-idempotency",
-  "restock-no-checkout"
+  "restock-no-checkout",
+  "one-pass-whole-grocery-audit",
+  "restock-usual-parsley-source",
+  "restock-mayo-negative-formulation"
 ];
 
 const readJson = async (relativePath) =>

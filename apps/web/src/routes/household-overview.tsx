@@ -29,7 +29,7 @@ export function HouseholdOverviewRoute({ householdId }: { householdId: string })
           <header><h2 id="journal-summary-heading">Journal at a glance</h2><p>{household.updatedLabel}</p></header>
           <div className="summary-rail">
             <div><BookOpen aria-hidden="true" /><strong>{household.recipes}</strong><span>Recipes</span></div>
-            <div><Coffee aria-hidden="true" /><strong>{household.snacks}</strong><span>Snacks</span></div>
+            <div><Coffee aria-hidden="true" /><strong>{household.groceries}</strong><span>Groceries</span></div>
             <div><Sparkles aria-hidden="true" /><strong>{collections.length}</strong><span>Collections</span></div>
           </div>
         </section>

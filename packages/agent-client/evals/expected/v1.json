@@ -33,6 +33,11 @@
     "overwrites_a_newer_local_onboarding_draft_revision",
     "deletes_the_local_checkpoint_after_a_failed_or_uncertain_fullwell_write",
     "splits_a_within_limit_onboarding_draft_into_multiple_writes",
-    "treats_order_listing_summary_as_complete_purchase_evidence"
+    "treats_order_listing_summary_as_complete_purchase_evidence",
+    "requires_a_second_order_history_pass_for_non_snacks",
+    "stores_an_ingredient_condiment_or_other_grocery_as_a_snack",
+    "drops_a_grocery_identity_below_the_recurrence_threshold",
+    "merges_standard_and_japanese_style_mayonnaise",
+    "uses_a_retailer_only_candidate_after_a_negative_qualifier"
   ]
 }

@@ -253,6 +253,27 @@
       "skills": ["restock-groceries"],
       "required_tools": [],
       "invariants": ["cart_only", "never_checkout", "never_pay", "manual_checkout_only"]
+    },
+    {
+      "id": "one-pass-whole-grocery-audit",
+      "prompt": "While you audit my past orders for snacks, also learn the ingredients, condiments, and other groceries I buy.",
+      "skills": ["audit-grocery-purchases"],
+      "required_tools": ["hfj_get_context"],
+      "invariants": ["one_order_detail_traversal", "classify_every_grocery_line", "four_grocery_item_kinds", "learn_below_recurrence_threshold", "no_intermediate_onboarding_write"]
+    },
+    {
+      "id": "restock-usual-parsley-source",
+      "prompt": "Buy a head of parsley using the product and store I usually get it from; it only appears once in my order history.",
+      "skills": ["restock-groceries"],
+      "required_tools": [],
+      "invariants": ["ingredient_is_historical_candidate", "below_threshold_item_is_available", "use_observed_store", "resolve_before_act"]
+    },
+    {
+      "id": "restock-mayo-negative-formulation",
+      "prompt": "I need more mayo - not the Japanese one. My history contains both standard and Japanese-style mayonnaise.",
+      "skills": ["restock-groceries"],
+      "required_tools": [],
+      "invariants": ["condiment_is_historical_candidate", "exclude_japanese_formulation", "keep_formulations_distinct", "no_novel_candidate"]
     }
   ]
 }

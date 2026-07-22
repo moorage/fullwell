@@ -5,7 +5,7 @@ import { useWebContext } from "../context.js";
 import type { OAuthAuthorizationRequest } from "../types.js";
 
 const scopeLabels: Readonly<Record<string, string>> = {
-  "journal:read": "Read household recipes, snacks, evidence, and reports",
+  "journal:read": "Read household recipes, groceries, evidence, and reports",
   "journal:write": "Add evidence and update journal entries",
   "household:manage": "Manage household membership and invitations",
   "collection:share": "Create, publish, and revoke selected collections",

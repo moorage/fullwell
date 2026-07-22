@@ -26,7 +26,7 @@ WhatsApp user ---- Meta Cloud API webhook ---- gateway queue
                                                    |
                                                    `---- authenticated long-poll ---- local macOS runner
                                                                                            |
-                                                                                           +---- read-only snack snapshot
+                                                                                           +---- read-only grocery snapshot
                                                                                            `---- Codex/Claude + approved retailer
 ```
 
@@ -88,7 +88,7 @@ Paths: `apps/server/src/messaging/`, `apps/server/src/runner/`, and `packages/lo
 
 The messaging gateway verifies the exact raw webhook body, parses bounded provider events, links one sender to one recently authenticated browser and primary runner, encrypts message bodies, deduplicates provider retries, leases work, relays bounded terminal text, records hashed delivery receipts, and expires operational state. It has no import path to journal projection/search code, agent hosts, or browser control. Neon owns this operational queue; Git remains authoritative for journal content.
 
-The runner snapshot boundary is separate from messaging. After an authenticated claim, it rechecks current membership, device/link state, and authoritative Git HEAD, then returns only `FORMAT_VERSION`, `profiles/snacks.md`, `snacks/items/**/*.md`, `snacks/evidence/**/*.json`, and `snacks/reports/recurring-snacks.md`. The runner validates and caches those files under the user's Application Support directory. It never receives repository credentials and never writes Git.
+The runner snapshot boundary is separate from messaging. After an authenticated claim, it rechecks current membership, device/link state, and authoritative Git HEAD, then returns only `FORMAT_VERSION`, `profiles/snacks.md`, the compatibility `snacks/reports/recurring-snacks.md`, grocery items under `snacks/`, `ingredients/`, `condiments/`, and `groceries/`, plus purchase evidence under current `groceries/evidence/` and legacy `snacks/evidence/`. The runner validates and caches those files under the user's Application Support directory. It never receives repository credentials and never writes Git.
 
 The runner revalidates the allowlisted snapshot files and serializes them into the fixed trusted Codex or Claude Code prompt; the child receives no host-exposed file, shell, or search tool. Codex runs from a dedicated trusted project and separate keyring-backed `CODEX_HOME`; every turn preflights exactly the `node_repl` MCP bridge and the Browser/Chrome plugins while disabling apps, hooks, multi-agent work, remote plugins, and user rules. Browser Use persists only the configured exact retailer origin in that isolated home. The host has no general MCP, checkout, payment, subscription, or substitution authority. Local action receipts own cart idempotency. OAuth refresh credentials live in macOS Keychain; the LaunchAgent and local config contain no secret.
 

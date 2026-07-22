@@ -1,6 +1,6 @@
 {
   "name": "fullwell",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "description": "Keep an evidence-backed family food journal with Codex.",
   "homepage": "https://fullwell.souschefstudio.com/install",
   "license": "UNLICENSED",
@@ -19,7 +19,7 @@
     "termsOfServiceURL": "https://fullwell.souschefstudio.com/terms",
     "defaultPrompt": [
       "Set up Fullwell.",
-      "Audit my recent snack and drink purchases.",
+      "Learn the snacks, ingredients, condiments, and other groceries I buy.",
       "Share a collection of our favorite recipes."
     ],
     "brandColor": "#16745B"

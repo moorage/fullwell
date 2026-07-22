@@ -54,6 +54,8 @@ describe("agent host adapters", () => {
       expect(invocation.stdin).toContain("<provider-message>");
       expect(invocation.stdin).toContain("<snapshot-files>");
       expect(invocation.stdin).toContain("Browser Use skill through node_repl");
+      expect(invocation.stdin).toContain("snack, ingredient, condiment, and other-grocery items");
+      expect(invocation.stdin).toContain("not the Japanese one");
       const schemaIndex = invocation.args.indexOf("--output-schema") + 1;
       const schemaPath = invocation.args[schemaIndex];
       if (schemaPath === undefined) throw new Error("Missing schema path");

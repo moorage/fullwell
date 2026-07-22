@@ -16,6 +16,7 @@ import {
   CollectionItemSchema,
   EvidenceSchema,
   JournalItemSchema,
+  JournalItemKindSchema,
   ReportSchema,
 } from "./domain.js";
 import {
@@ -81,7 +82,7 @@ export const ToolInputSchemas = {
   hfj_search_items: z.object({
     household_id: HouseholdIdSchema,
     query: z.string().trim().min(1).max(300),
-    kind: z.enum(["recipe", "snack"]).optional(),
+    kind: JournalItemKindSchema.optional(),
     cursor: z.string().max(300).optional(),
     limit: z.number().int().min(1).max(100).default(25),
   }).strict(),

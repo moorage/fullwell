@@ -17,7 +17,7 @@
 - Logs contain request IDs and safe categories but no email, household title, food name, order ID, source URL, body, or token.
 - Meta/WhatsApp is disclosed as the optional direct messaging processor; no BSP/middleware vendor is present. Prove plaintext exists only at the signed webhook/provider adapter and authenticated local-runner boundaries.
 - Searchable gateway state contains only HMACed provider identifiers and bounded status/timestamps; message and destination bodies are authenticated-encrypted and deleted within seven days.
-- The restocking snapshot contains only the fixed snack path allowlist, remains on the Mac, and is purged with local receipts/tokens/config on revocation or disconnect. The gateway never receives selected product, store, cart quantity, retailer browser state, or action receipts.
+- The restocking snapshot contains only the fixed snack, ingredient, condiment, other-grocery, purchase-evidence, profile, report, and format path allowlist; it remains on the Mac and is purged with local receipts/tokens/config on revocation or disconnect. The gateway never receives selected product, store, cart quantity, retailer browser state, or action receipts.
 
 ## Local automated evidence
 

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Learn snacks, ingredients, condiments, and other groceries during the same order-history pass, preserve low-frequency items and product formulations, and expose every grocery area to source-aware restocking.
 - Raise the confirmed onboarding aggregate to 10,000 evidence records and 10,000 items inside a route-specific 16 MiB MCP envelope, with exact-limit validation, prospective repository-capacity checks, and argument-vector-safe Git staging.
 - Refresh the transitive `fast-uri` production dependency to patched releases after the release audit detected GHSA-v2hh-gcrm-f6hx.
 - Persist resumable Fullwell onboarding checkpoints under the Codex home, sharded by stable Fullwell user and household IDs, bound to the current server snapshot, and excluded from canonical state until the one confirmed final write.

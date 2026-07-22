@@ -1,6 +1,6 @@
 # Fullwell Local Runner
 
-The Fullwell local runner receives fixed-purpose restocking requests from the Fullwell gateway, refreshes and revalidates a read-only household snack snapshot, serializes its allowlisted files into the trusted host prompt, and invokes Codex or Claude Code on the user's Mac without file, shell, or search tools. Product selection and retailer computer use happen locally. The gateway does not read the snapshot or choose products.
+The Fullwell local runner receives fixed-purpose restocking requests from the Fullwell gateway, refreshes and revalidates a read-only household grocery snapshot, serializes its allowlisted snack, ingredient, condiment, and other-grocery files into the trusted host prompt, and invokes Codex or Claude Code on the user's Mac without file, shell, or search tools. Product selection and retailer computer use happen locally. The gateway does not read the snapshot or choose products.
 
 ## Requirements
 

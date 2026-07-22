@@ -24,6 +24,9 @@ test("each eval has a unique identity and runs on both hosts", async () => {
   assert.ok(bareGreeting?.invariants.includes("explain_snack_benefit_before_question"));
   assert.ok(bareGreeting?.invariants.includes("include_concrete_restock_example"));
   assert.ok(bareGreeting?.invariants.includes("no_intermediate_onboarding_write"));
+  assert.ok(managingSkill.includes("snacks, ingredients, condiments, and other groceries"));
+  assert.ok(managingSkill.includes("Buy a head of parsley"));
+  assert.ok(managingSkill.includes("not the Japanese one"));
   const recipeTransition = matrix.cases.find((testCase) => testCase.id === "snack-decline-advances-to-recipes");
   assert.ok(recipeTransition?.invariants.includes("explain_recipe_benefit_before_question"));
   assert.ok(recipeTransition?.invariants.includes("include_concrete_recipe_recall_example"));
@@ -39,6 +42,18 @@ test("each eval has a unique identity and runs on both hosts", async () => {
   assert.ok(groceryAuditSkill.includes("treat order-history listing pages as discovery only"));
   assert.ok(groceryAuditSkill.includes("Open the detail page for every qualifying delivered or completed order"));
   assert.ok(groceryAuditSkill.includes("mark that order incomplete"));
+  const wholeGroceryAudit = matrix.cases.find((testCase) => testCase.id === "one-pass-whole-grocery-audit");
+  assert.ok(wholeGroceryAudit?.invariants.includes("one_order_detail_traversal"));
+  assert.ok(wholeGroceryAudit?.invariants.includes("learn_below_recurrence_threshold"));
+  assert.ok(groceryAuditSkill.includes("never revisit the orders in a second pass"));
+  assert.ok(groceryAuditSkill.includes("even when it appears in only one order"));
+  const parsley = matrix.cases.find((testCase) => testCase.id === "restock-usual-parsley-source");
+  assert.ok(parsley?.invariants.includes("ingredient_is_historical_candidate"));
+  const mayonnaise = matrix.cases.find((testCase) => testCase.id === "restock-mayo-negative-formulation");
+  assert.ok(mayonnaise?.invariants.includes("exclude_japanese_formulation"));
+  assert.ok(expected.forbidden_behaviors.includes("stores_an_ingredient_condiment_or_other_grocery_as_a_snack"));
+  assert.ok(expected.forbidden_behaviors.includes("drops_a_grocery_identity_below_the_recurrence_threshold"));
+  assert.ok(expected.forbidden_behaviors.includes("merges_standard_and_japanese_style_mayonnaise"));
   const snackBenefit = managingSkill.indexOf("Restock cashews");
   const snackQuestion = managingSkill.indexOf("Ask the first missing question");
   const recipeBenefit = managingSkill.indexOf("What was that pasta we loved?");

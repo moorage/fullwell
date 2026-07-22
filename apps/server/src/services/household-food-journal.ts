@@ -33,7 +33,7 @@ import { AppError } from "../core/errors.js";
 import type { Clock, ExportArtifactPort, HouseholdRepositoryPort, OperationalStorePort, RandomSource, RepositoryChange, TelemetryPort, TokenHasher } from "../core/ports.js";
 import type { JsonValue, MembershipRecord, MutationRecord, Principal } from "../core/types.js";
 import { requireMembership, requireScope } from "../domain/authorization.js";
-import { markdownDocument, validateItemEvidence, validateReport } from "../domain/journal-validation.js";
+import { journalEvidencePath, journalItemPath, markdownDocument, validateItemEvidence, validateReport } from "../domain/journal-validation.js";
 import { nextOnboardingSkip, transitionOnboarding } from "../domain/onboarding.js";
 import { stableJson } from "../adapters/memory.js";
 import { MutationRunner } from "./mutation-runner.js";
@@ -565,7 +565,7 @@ export class HouseholdFoodJournalService {
       if (evidence.supersedes_evidence_id !== undefined && !projection.evidence.has(evidence.supersedes_evidence_id)) throw new AppError("VALIDATION_FAILED", "Correction evidence must reference an existing event");
     }
     const changes: RepositoryChange[] = parsed.evidence.map((evidence) => ({
-      path: `${evidence.kind === "purchase" ? "snacks" : "recipes"}/evidence/${evidence.observed_at.slice(0, 4)}/${evidence.id}.json`,
+      path: journalEvidencePath(evidence),
       content: stableJson(evidence), appendOnly: true,
     }));
     return await this.mutations.run({
@@ -589,7 +589,7 @@ export class HouseholdFoodJournalService {
     const ids = new Set([...projection.items.keys(), ...parsed.items.map((item) => item.id)]);
     for (const report of parsed.reports) validateReport(report, projection.evidence, ids);
     const changes: RepositoryChange[] = [
-      ...parsed.items.map((item) => ({ path: `${item.kind === "snack" ? "snacks" : "recipes"}/items/${item.id}.md`, content: markdownDocument(itemFrontmatter(item), item.body_markdown), appendOnly: false })),
+      ...parsed.items.map((item) => ({ path: journalItemPath(item), content: markdownDocument(itemFrontmatter(item), item.body_markdown), appendOnly: false })),
       ...parsed.reports.map((report) => ({ path: report.report_type === "recurring_snacks" ? "snacks/reports/recurring-snacks.md" : "recipes/reports/recipe-index.md", content: report.markdown.endsWith("\n") ? report.markdown : `${report.markdown}\n`, appendOnly: false })),
     ];
     return await this.mutations.run({
@@ -717,7 +717,7 @@ export class HouseholdFoodJournalService {
       });
       const changes: RepositoryChange[] = [...newItems, ...mergedItems].flatMap(({ item, evidence }) => [
         { path: `${item.kind === "recipe" ? "recipes" : "snacks"}/evidence/${importedAt.slice(0, 4)}/${evidence.id}.json`, content: stableJson(evidence), appendOnly: true },
-        { path: `${item.kind === "recipe" ? "recipes" : "snacks"}/items/${item.id}.md`, content: markdownDocument(itemFrontmatter(item), item.body_markdown), appendOnly: false },
+        { path: journalItemPath(item), content: markdownDocument(itemFrontmatter(item), item.body_markdown), appendOnly: false },
       ]);
       changes.push({ path: `imports/${importedAt.slice(0, 4)}/${importId}.json`, content: stableJson({ import_id: importId, source_collection_id: share.snapshot.collection_id, source_snapshot_id: share.snapshot.id, imported_at: importedAt, selections: parsed.selections, schema_version: 1 }), appendOnly: true });
       return { importId, newItems, mergedItems, changes };
@@ -925,7 +925,7 @@ function profileSnapshot(profile: { readonly markdown: string; readonly revision
 }
 function evidenceChange(evidence: import("@hfj/contracts").Evidence): RepositoryChange {
   return {
-    path: `${evidence.kind === "purchase" ? "snacks" : "recipes"}/evidence/${evidence.observed_at.slice(0, 4)}/${evidence.id}.json`,
+    path: journalEvidencePath(evidence),
     content: stableJson(evidence),
     appendOnly: true,
   };
@@ -935,7 +935,7 @@ function profileChange(profile: "snacks" | "recipes", markdown: string): Reposit
 }
 function itemChange(item: import("@hfj/contracts").JournalItem): RepositoryChange {
   return {
-    path: `${item.kind === "snack" ? "snacks" : "recipes"}/items/${item.id}.md`,
+    path: journalItemPath(item),
     content: markdownDocument(itemFrontmatter(item), item.body_markdown),
     appendOnly: false,
   };
@@ -948,8 +948,8 @@ function reportChange(report: import("@hfj/contracts").Report): RepositoryChange
   };
 }
 function exactDuplicate(source: import("@hfj/contracts").CollectionItem, item: import("@hfj/contracts").JournalItem): boolean {
-  if (source.kind !== item.kind) return false;
-  if (item.kind === "recipe") return source.canonical_recipe_url !== null && item.canonical_url === source.canonical_recipe_url;
+  if (source.kind === "recipe") return item.kind === "recipe" && source.canonical_recipe_url !== null && item.canonical_url === source.canonical_recipe_url;
+  if (item.kind !== "snack") return false;
   return source.title === item.display_name && source.brand === item.brand && source.flavor === item.flavor && source.formulation === item.formulation && source.format === item.format;
 }
 function importEvidence(

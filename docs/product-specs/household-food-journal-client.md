@@ -94,7 +94,7 @@ The installed package declares the remote Streamable HTTP MCP endpoint and no be
 
 After authentication, the agent calls `hfj_get_context`. If the user has no household, it asks for a household name and calls `hfj_create_household`. If the user arrived through a pending family invitation or collection import, it resumes that intent instead of creating an unrelated household.
 
-After the household is available, the agent begins guided first run immediately. A Fullwell greeting must read onboarding state, both onboarding profiles, and the bounded item identity index once before producing a visible reply. While any section remains unresolved, it must not return a generic greeting, ask what is on the user's mind, ask what the user wants to set up, or present a snacks-versus-recipes menu. Before the first question for each section, including a resumed section, it briefly explains the practical benefit in friendly language rather than referring to unexplained "snack setup" or "recipe setup." Snacks use a concrete restocking example: learning from past orders lets a later request such as "Restock cashews" identify the familiar product without guessing, with cart confirmation still required. Recipes explain that remembering what the family saves, cooks, and likes supports later questions such as "What was that pasta we loved?" or "What should we make again?" It then asks only for missing grocery source authorization and snack preferences needed for the audit, followed by missing recipe source meaning, authorization, and preferences.
+After the household is available, the agent begins guided first run immediately. A Fullwell greeting must read onboarding state, both onboarding profiles, and the bounded item identity index once before producing a visible reply. While any section remains unresolved, it must not return a generic greeting, ask what is on the user's mind, ask what the user wants to set up, or present a groceries-versus-recipes menu. Before the first question for each section, including a resumed section, it briefly explains the practical benefit in friendly language rather than referring to unexplained "snack setup" or "recipe setup." The internal `snacks` section is presented as one grocery-history pass that learns snacks, ingredients, condiments, and other groceries. Its examples include "Restock cashews," "Buy a head of parsley," and "I need more mayo - not the Japanese one," using past orders to identify both the familiar product and usual store with cart confirmation still required. Recipes explain that remembering what the family saves, cooks, and likes supports later questions such as "What was that pasta we loved?" or "What should we make again?" It then asks only for missing grocery source authorization and preferences needed for the audit, followed by missing recipe source meaning, authorization, and preferences.
 
 The agent makes no intermediate Fullwell mutation. It checkpoints the unconfirmed setup draft as versioned JSON under `~/.codex/fullwell/drafts/<fullwell-user-id>/<household-id>/onboarding.json`, or the configured Codex home equivalent, so a long audit can resume after compaction or a closed conversation. Every load must exactly match the authenticated Fullwell user ID, household ID, repository HEAD, and both onboarding revisions; a stale, expired, malformed, or mismatched draft fails closed and is never merged. Local writes compare a monotonically increasing draft revision, use atomic replacement, and keep directories `0700` and files `0600`. This is logical account separation rather than encryption: another person who can access the same operating-system account may read the file.
 
@@ -125,23 +125,25 @@ For an invite recipient:
 
 Never accept an invitation automatically merely because the URL was opened.
 
-### 5.3 Audit snacks and drinks
+### 5.3 Audit grocery purchases
 
 Preserve the existing audit workflow, including shop selection, approved background browser, sign-in preflight, complete order expansion, exact line-item evidence, trailing date windows, and distinct-order counting.
 
 The agent must:
 
-1. load the household's snack profile through `hfj_get_profile`;
+1. load the household's grocery-history settings through the compatibility `snacks` profile;
 2. ask which stores to inspect when the profile is absent;
 3. ask which installed browser may be used in the background;
 4. verify the user is signed in to every store before collecting any store;
 5. inspect every qualifying order and expand all item lists;
 6. submit exact evidence with `hfj_append_evidence`;
-7. make identity and category decisions itself;
+7. classify every in-scope line as `snack`, `ingredient`, `condiment`, or `other_grocery` and make identity decisions itself;
 8. submit item and report changes through `hfj_commit_change_set` with cited evidence IDs;
 9. ask at the end of every update whether the user's shops have changed.
 
-#### Snack identity rules
+The browser traverses every qualifying order detail once and collects all grocery areas together. It authors or updates an evidence-backed item for every in-scope identity, including a one-off or otherwise below-threshold purchase. The recurrence threshold controls report assertions only and must not discard an item needed for a later source-aware request.
+
+#### Grocery identity rules
 
 Only collapse package-size or count differences. Keep separate rows when any of these differ:
 
@@ -160,6 +162,8 @@ Required examples:
 - Red bean, taro, sesame, lotus, and custard buns are separate.
 - Bars, pints, and drinks are separate formats.
 - Red and green grapes are separate pantry varieties.
+- Fresh and dried parsley are separate formats.
+- Standard and Japanese-style mayonnaise are separate formulations.
 
 The agent counts distinct `(store, order identifier)` pairs. It does not sum quantities.
 
@@ -253,7 +257,7 @@ When the agent finds an existing Household Food Journal workspace, offer a one-t
 1. Install and connect one Fullwell local runner to one household, choose Codex or Claude Code, and approve one retailer origin directly in the host/browser. Codex uses a dedicated trusted project, a separate `CODEX_HOME`, and a keyring-backed login rather than the user's general host configuration.
 2. Grant exact `journal:read` and `runner:messages` OAuth scopes. Secrets remain in Keychain; no token is copied.
 3. From Account, create a ten-minute WhatsApp link, send the prefilled link text, and return to the same recent browser session to confirm the pending connection.
-4. Send a restocking request such as `We're out of cashews, get more`. The server routes it without reading household snack files or choosing a product.
+4. Send a restocking request such as `We're out of cashews, get more`, `Buy a head of parsley`, or `I need more mayo - not the Japanese one`. The server routes it without reading household grocery files or choosing a product.
 5. The local agent reads the current restocking snapshot and considers only products/stores supported by cited household purchase evidence. Retailer search can establish availability, not preference.
 6. If one plausible historical candidate remains, add the requested quantity to that cart. If distinct historical candidates remain plausible, ask one concise question using only distinctions present in those candidates. Do not invent generic internet options.
 7. Before changing the cart, recheck the current grant, membership, device/link state, and Git HEAD. Inspect the existing cart, persist a baseline and target, act once, and re-read the quantity.
@@ -325,11 +329,11 @@ The MCP config contains only the public HTTPS URL and transport declaration. It 
 
 ### `manage-household-food-journal`
 
-Trigger for every Fullwell greeting, including a bare `@Fullwell hi`, or setup starter, authentication, guided first run, household selection, family invitations, membership questions, profile changes, migration, export, and account/household status. Guided first run reads server state before replying, starts snacks before recipes with preference-aware source questions, skips a declined section with a bounded reason, and advances without a generic help question or setup-area menu.
+Trigger for every Fullwell greeting, including a bare `@Fullwell hi`, or setup starter, authentication, guided first run, household selection, family invitations, membership questions, profile changes, migration, export, and account/household status. Guided first run reads server state before replying, starts one grocery-history pass before recipes with preference-aware source questions, skips a declined section with a bounded reason, and advances without a generic help question or setup-area menu.
 
 ### `audit-grocery-purchases`
 
-Trigger for purchase-history audits, recurring snack reports, pantry comparisons, store changes, and recurrence recalculation. Carry forward the full existing collection and snack-identity safeguards. When operating an authorized browser, treat order-history listings as discovery only: traverse the complete date window, open every qualifying delivered or completed order detail, expand every complete-item control, and verify exact line items through the subtotal or order-total boundary. If hidden items cannot be exposed, identify the incomplete order and do not claim the audit or affected recurrence result is complete.
+Trigger for purchase-history audits, recurring grocery reports, pantry comparisons, store changes, and recurrence recalculation. In one order-detail traversal, learn snacks, ingredients, condiments, and other groceries, including identities below the report threshold. Carry forward the full identity safeguards. When operating an authorized browser, treat order-history listings as discovery only: traverse the complete date window, open every qualifying delivered or completed order detail, expand every complete-item control, and verify exact line items through the subtotal or order-total boundary. If hidden items cannot be exposed, identify the incomplete order and do not claim the audit or affected recurrence result is complete.
 
 ### `restock-groceries`
 
@@ -365,7 +369,7 @@ The client is coded against these stable tool names. Complete schemas and author
 | `hfj_remove_member` | Remove a member or leave a household without violating final-owner protection. |
 | `hfj_get_profile` | Read source, browser, store, and audit preferences. |
 | `hfj_update_profile` | Commit user-confirmed profile changes. |
-| `hfj_search_items` | Find recipes and snacks in the active household. |
+| `hfj_search_items` | Find recipes and snack, ingredient, condiment, or other-grocery items in the active household. |
 | `hfj_get_item` | Read a complete item, evidence references, and revision. |
 | `hfj_append_evidence` | Append immutable purchase, recipe discovery, cooking, or import evidence. |
 | `hfj_commit_change_set` | Commit agent-authored entries, reports, and corrections with expected revisions. |
@@ -476,8 +480,8 @@ Use a mock server generated from the server tool schemas. Cover successful resul
 At minimum, test these end-to-end prompts in both Codex and Claude:
 
 1. First-time setup creates one household after OAuth and never asks for a token.
-2. The exact bare greeting `@Fullwell hi` reads onboarding state, explains how past orders power a concrete restocking request, and starts necessary snack source and preference questions without a generic greeting or setup-area choice.
-3. Declining snacks advances directly to a friendly explanation of recipe recall followed by recipe sources, with a bounded skip reason.
+2. The exact bare greeting `@Fullwell hi` reads onboarding state, explains how one past-order pass learns snacks, ingredients, condiments, and more for concrete source-aware restocking requests, and starts only necessary grocery source and preference questions without a generic greeting or setup-area choice.
+3. Declining grocery-history onboarding advances directly to a friendly explanation of recipe recall followed by recipe sources, with a bounded skip reason.
 4. Having no recipe sources ends guided first run without claiming the section is complete.
 5. An explicit request to stop the whole setup does not start or skip the next section.
 6. A skipped section resumes with its current revision after unfinished unskipped sections.
@@ -498,6 +502,9 @@ At minimum, test these end-to-end prompts in both Codex and Claude:
 21. A closed conversation resumes only the local checkpoint matching the current Fullwell user, household, HEAD, and onboarding revisions.
 22. A stale, corrupt, expired, identity-mismatched, or concurrently superseded local checkpoint fails closed without mixing data.
 23. Successful finalization and explicit cancellation delete the exact checkpoint, while failed or uncertain finalization retains it.
+24. One grocery-history pass produces separate snack, ingredient, condiment, and other-grocery items without revisiting orders.
+25. A single parsley purchase remains available as an ingredient with its observed source even below the recurrence threshold.
+26. Standard and Japanese-style mayonnaise remain separate, and `not the Japanese one` excludes only the latter historical formulation.
 
 Maintain eval fixtures for LLM-involved identity, classification, privacy, and conflict-resolution paths. Target 100% coverage for deterministic packaging and adapter code.
 

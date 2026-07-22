@@ -139,8 +139,8 @@ function validateArchive(response: HouseholdSnapshotResponse, archive: Record<st
 
 export function isRestockingPath(path: string): boolean {
   return path === "FORMAT_VERSION" || path === "profiles/snacks.md" || path === "snacks/reports/recurring-snacks.md" ||
-    /^snacks\/items\/(?:[a-zA-Z0-9._-]+\/)*[a-zA-Z0-9._-]+\.md$/.test(path) ||
-    /^snacks\/evidence\/(?:[a-zA-Z0-9._-]+\/)*[a-zA-Z0-9._-]+\.json$/.test(path);
+    /^(?:snacks|ingredients|condiments|groceries)\/items\/(?:[a-zA-Z0-9._-]+\/)*[a-zA-Z0-9._-]+\.md$/.test(path) ||
+    /^(?:snacks|groceries)\/evidence\/(?:[a-zA-Z0-9._-]+\/)*[a-zA-Z0-9._-]+\.json$/.test(path);
 }
 
 async function restockingFilePaths(root: string, directory = ""): Promise<string[]> {
@@ -161,8 +161,10 @@ async function restockingFilePaths(root: string, directory = ""): Promise<string
 }
 
 function isRestockingDirectory(path: string): boolean {
-  return path === "profiles" || path === "snacks" || path === "snacks/items" || path.startsWith("snacks/items/") ||
-    path === "snacks/evidence" || path.startsWith("snacks/evidence/") || path === "snacks/reports";
+  return path === "profiles" ||
+    /^(?:snacks|ingredients|condiments|groceries)(?:\/items(?:\/[a-zA-Z0-9._-]+)*)?$/.test(path) ||
+    /^(?:snacks|groceries)\/evidence(?:\/[a-zA-Z0-9._-]+)*$/.test(path) ||
+    path === "snacks/reports";
 }
 
 function safeChild(root: string, path: string): string {

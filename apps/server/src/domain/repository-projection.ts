@@ -13,6 +13,7 @@ import {
   type UserId,
 } from "@hfj/contracts";
 import { AppError } from "../core/errors.js";
+import { journalItemPath } from "./journal-validation.js";
 import type { RepositorySnapshot } from "../core/ports.js";
 import type { HouseholdProjection, RepositoryMembershipState } from "../core/types.js";
 
@@ -58,14 +59,15 @@ export function rebuildRepositoryState(
   const memberships: RepositoryMembershipState[] = [];
 
   for (const file of snapshot.files) {
-    if (/^(snacks|recipes)\/evidence\/\d{4}\/evd_[0-9a-z]{16,64}\.json$/.test(file.path)) {
+    if (/^(snacks|groceries|recipes)\/evidence\/\d{4}\/evd_[0-9a-z]{16,64}\.json$/.test(file.path)) {
       const parsed = parseJson(EvidenceSchema, file.content, file.path);
       evidence.set(parsed.id, parsed);
       continue;
     }
-    if (/^(snacks|recipes)\/items\/itm_[0-9a-z]{16,64}\.md$/.test(file.path)) {
+    if (/^(snacks|ingredients|condiments|groceries|recipes)\/items\/itm_[0-9a-z]{16,64}\.md$/.test(file.path)) {
       const document = parseMarkdownDocument(file.content, file.path);
       const item = parseValue(JournalItemSchema, { ...document.frontmatter, body_markdown: document.body }, file.path);
+      if (journalItemPath(item) !== file.path) throw projectionError(file.path);
       items.set(item.id, { item, revision: file.revision });
       continue;
     }

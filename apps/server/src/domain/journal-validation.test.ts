@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EvidenceIdSchema, EvidenceSchema, ItemIdSchema, JournalItemSchema, ReportSchema } from "@hfj/contracts";
-import { markdownDocument, validateItemEvidence, validateReport } from "./journal-validation.js";
+import { journalEvidencePath, journalItemArea, journalItemPath, markdownDocument, validateItemEvidence, validateReport } from "./journal-validation.js";
 
 const actorId = "act_0000000000000301";
 const baseEvidence = {
@@ -82,6 +82,42 @@ describe("journal validation", () => {
       evidence_ids: [purchase.id], created_at: baseEvidence.observed_at, updated_at: baseEvidence.observed_at, schema_version: 1, body_markdown: "",
     });
     expect(() => validateItemEvidence(snack, new Map([[purchase.id, purchase]]))).not.toThrow();
+  });
+
+  it("maps grocery kinds and new purchase evidence to canonical areas", () => {
+    const groceryBase = {
+      id: "itm_0000000000000305",
+      display_name: "Flat-leaf parsley",
+      brand: null,
+      product_line: null,
+      flavor: null,
+      formulation: null,
+      format: "fresh",
+      category: "herb",
+      produce_variety: "flat-leaf",
+      known_size_variants: [],
+      image_page_url: null,
+      image_url: null,
+      evidence_ids: [purchase.id],
+      created_at: baseEvidence.observed_at,
+      updated_at: baseEvidence.observed_at,
+      schema_version: 1,
+      body_markdown: "Usually bought at Market.",
+    };
+    const areas = [
+      ["snack", "snacks"],
+      ["ingredient", "ingredients"],
+      ["condiment", "condiments"],
+      ["other_grocery", "groceries"],
+      ["recipe", "recipes"],
+    ] as const;
+    for (const [kind, area] of areas) expect(journalItemArea(kind)).toBe(area);
+    for (const [kind, area] of areas.slice(0, 4)) {
+      const item = JournalItemSchema.parse({ ...groceryBase, kind });
+      expect(journalItemPath(item)).toBe(`${area}/items/${item.id}.md`);
+    }
+    expect(journalEvidencePath(purchase)).toBe(`groceries/evidence/2026/${purchase.id}.json`);
+    expect(journalEvidencePath(discovery)).toBe(`recipes/evidence/2026/${discovery.id}.json`);
   });
 
   it("validates report item, evidence, distinct-order, and date assertions", () => {

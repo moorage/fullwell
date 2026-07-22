@@ -8,6 +8,10 @@ export function snapshotResponse(headCharacter = "a", entries: Record<string, st
   FORMAT_VERSION: "1\n",
   "profiles/snacks.md": "# Shops\n",
   "snacks/items/cashews.md": "# Salted cashews\n",
+  "ingredients/items/parsley.md": "# Flat-leaf parsley\n",
+  "condiments/items/mayonnaise.md": "# Standard mayonnaise\n",
+  "groceries/items/dish-soap.md": "# Dish soap\n",
+  "groceries/evidence/2026/order-one.json": "{\"store\":\"Market\"}\n",
 }): HouseholdSnapshotResponse {
   const files = Object.entries(entries).sort(([left], [right]) => left.localeCompare(right));
   const contentHash = createHash("sha256");

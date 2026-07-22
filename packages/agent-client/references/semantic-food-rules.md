@@ -2,9 +2,9 @@
 
 Semantic judgments belong to the connected agent. Server and client code may validate structure and deterministic arithmetic, but must not classify foods, decide identity, merge variants, infer recipe status, or author report prose.
 
-## Snacks and drinks
+## Purchased groceries
 
-Collapse only package-size or count differences for the same brand, product line, flavor, formulation, and format. Keep rows separate when brand, product line, flavor, formulation, format, or materially different produce variety differs.
+During a grocery-history audit, classify every in-scope purchased identity as exactly one of `snack`, `ingredient`, `condiment`, or `other_grocery`. Classification is contextual and agent-authored; program code must not infer it from words in a title. Collapse only package-size or count differences for the same brand, product line, flavor, formulation, and format. Keep rows separate when brand, product line, flavor, formulation, format, or materially different produce variety differs.
 
 - Golden and classic sandwich cookies are separate.
 - Different sizes of the same branded Golden cookie may combine.
@@ -13,8 +13,10 @@ Collapse only package-size or count differences for the same brand, product line
 - Red bean, taro, sesame, lotus, and custard buns are separate.
 - Bars, pints, and drinks are separate formats.
 - Red and green grapes are separate varieties.
+- Fresh flat-leaf parsley and dried parsley are separate formats; a low-frequency fresh parsley purchase is still an ingredient item.
+- Standard mayonnaise and Japanese-style mayonnaise are separate formulations. A request excluding the Japanese one must retain only supported non-Japanese historical candidates.
 
-Count distinct `(store, order identifier)` pairs, never item quantities. Inspect every qualifying order and expand every item list before reporting recurrence. Preserve exact private line-item evidence for every conclusion.
+Count distinct `(store, order identifier)` pairs, never item quantities. Inspect every qualifying order and expand every item list once, collecting snacks, ingredients, condiments, and other groceries together. Preserve exact private line-item evidence and observed stores for every item. The recurrence threshold controls report rows only; retain an evidence-backed item below the threshold so future requests can still use its known product and source.
 
 ## Recipes
 

@@ -13,7 +13,7 @@ export const households: readonly HouseholdSummary[] = [
     role: "owner",
     members: 4,
     recipes: 38,
-    snacks: 22,
+    groceries: 22,
     updatedLabel: "Updated yesterday",
   },
   {
@@ -22,7 +22,7 @@ export const households: readonly HouseholdSummary[] = [
     role: "viewer",
     members: 6,
     recipes: 14,
-    snacks: 9,
+    groceries: 9,
     updatedLabel: "Updated 5 days ago",
   },
 ];

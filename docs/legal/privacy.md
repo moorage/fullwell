@@ -20,7 +20,7 @@ We do not ask for store passwords, one-time codes, browser cookies, Apple privat
 
 We use information to authenticate you, authorize household access, preserve an auditable journal, prevent duplicate or conflicting changes, deliver magic links and security notices, create exports, publish only collections you approve, support imports, detect abuse, reconcile storage, and restore from failure. We do not sell personal information or use private journal content for advertising.
 
-Programs validate structure and deterministic evidence relationships. Connected Codex or Claude agents, under your direction, make semantic food judgments and author journal prose. The central service does not use a separate model to classify your food or write reports. For optional WhatsApp restocking, the central service verifies and routes the message only. Codex or Claude reads the fixed snack snapshot and controls the approved retailer locally on your Mac; the server does not receive the selected product, store, cart quantity, browser session, or local action receipt.
+Programs validate structure and deterministic evidence relationships. Connected Codex or Claude agents, under your direction, make semantic food judgments and author journal prose. The central service does not use a separate model to classify your food or write reports. For optional WhatsApp restocking, the central service verifies and routes the message only. Codex or Claude reads the fixed grocery snapshot for snacks, ingredients, condiments, and other groceries and controls the approved retailer locally on your Mac; the server does not receive the selected product, store, cart quantity, browser session, or local action receipt.
 
 ## Household and public sharing
 

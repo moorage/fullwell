@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Accept snack, ingredient, condiment, and other-grocery item areas plus current and legacy purchase evidence in the fixed restocking snapshot.
 - Add the macOS local runner with OAuth PKCE, Keychain credentials, a secret-free LaunchAgent, a validated restocking-only snapshot cache, Codex and Claude Code host adapters, pre-action authorization, and idempotent local action receipts.
 - Add fail-closed revocation, stale-HEAD recovery, host timeout and process-group cancellation, and unconditional local-data purge during disconnect.
 - Use flat, typed structured-output objects accepted by the current Codex API and narrow them into the runner's result union at the adapter boundary.

@@ -21,7 +21,7 @@ export function HouseholdsRoute() {
               </div>
               <dl>
                 <div><dt>Recipes</dt><dd>{household.recipes}</dd></div>
-                <div><dt>Snacks</dt><dd>{household.snacks}</dd></div>
+                <div><dt>Groceries</dt><dd>{household.groceries}</dd></div>
               </dl>
               <span>{household.updatedLabel}</span>
               <ArrowRight aria-hidden="true" size={19} />

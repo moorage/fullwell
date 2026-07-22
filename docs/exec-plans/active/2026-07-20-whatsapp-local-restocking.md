@@ -12,6 +12,7 @@ This plan promotes `docs/ideas/backlog/evidence-backed-grocery-restocking.md`. I
 
 ## Progress
 
+- [x] 2026-07-22: Expanded the fixed server and macOS-runner snapshot allowlists plus host policy from snack-only items to separate snack, ingredient, condiment, and other-grocery items, retaining current and legacy purchase evidence for source-aware parsley and mayonnaise requests.
 - [x] 2026-07-20T17:50Z: Captured the feature in the idea backlog, completed the expert-roundtable framing, and recorded the closed-world product-selection and no-checkout boundaries.
 - [x] 2026-07-20T17:50Z: Verified from current primary documentation that Meta Cloud API can be integrated directly without a BSP, that user-initiated service replies are free inside the 24-hour window, that Claude Code exposes non-interactive and Chrome surfaces, and that Codex desktop exposes local scheduled tasks and Computer Use.
 - [x] 2026-07-20T17:50Z: Decomposed the work into feasibility, contracts, direct WhatsApp transport, local snapshot/runner, host adapters, agent behavior, end-to-end UX, and release-hardening milestones.
@@ -305,7 +306,7 @@ Add `packages/agent-client/skills/restock-groceries/SKILL.md` plus `packages/age
 The agent must:
 
 1. read the current local snapshot before product reasoning;
-2. use only historical snack items and cited purchase evidence as preference candidates;
+2. use only historical snack, ingredient, condiment, and other-grocery items with cited purchase evidence as preference candidates;
 3. consider identity fields, distinct-order recurrence, last purchase date, and observed stores;
 4. select without a question only when one plausible historical candidate remains or the same candidate is both the clear recurrence and recency leader;
 5. ask one concise question when distinct historical candidates remain plausible, using only their actual distinguishing fields;

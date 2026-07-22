@@ -106,7 +106,7 @@ describe("WebViewModelService", () => {
     const responseBody: unknown = response.json();
     return z.object({
       viewer: z.object({ displayName: z.string() }),
-      households: z.array(z.object({ name: z.string(), members: z.number(), recipes: z.number(), snacks: z.number() }).passthrough()),
+      households: z.array(z.object({ name: z.string(), members: z.number(), recipes: z.number(), groceries: z.number() }).passthrough()),
       members: z.array(z.object({ name: z.string(), isCurrentUser: z.boolean().optional() }).passthrough()),
       collections: z.array(z.object({ status: z.string() }).passthrough()),
       publicCollection: z.object({ token: z.string(), title: z.string(), sharedBy: z.string(), items: z.array(z.object({ source: z.string(), note: z.string().optional(), imageAlt: z.string().optional() }).passthrough()) }).passthrough(),
@@ -141,7 +141,7 @@ describe("WebViewModelService", () => {
 
     const authenticated = await context(`/households/${householdId}/members`, true, "c".repeat(32));
     expect(authenticated.viewer.displayName).toBe("Test Owner");
-    expect(authenticated.households[0]).toMatchObject({ name: "View Model Kitchen", members: 1, recipes: 0, snacks: 0 });
+    expect(authenticated.households[0]).toMatchObject({ name: "View Model Kitchen", members: 1, recipes: 0, groceries: 0 });
     expect(authenticated.members[0]).toMatchObject({ name: "Test Owner", isCurrentUser: true });
     expect(authenticated.security.csrfToken).toBe("c".repeat(32));
 

@@ -100,6 +100,66 @@ describe("rebuildRepositoryState", () => {
     ]);
   });
 
+  it("rebuilds new grocery areas while retaining legacy snack evidence", () => {
+    const purchase = {
+      id: "evd_0000000000000910",
+      kind: "purchase",
+      observed_at: "2026-07-15T12:00:00.000Z",
+      evidence_date: "2026-07-15",
+      date_precision: "day",
+      source_type: "store",
+      source_label: "Market",
+      stable_locator: "orders/0910/items/parsley",
+      summary: "Flat-leaf parsley",
+      actor_id: actorId,
+      limitations: [],
+      schema_version: 1,
+      purchase: { store: "Market", order_reference: "0910", line_item_title: "Flat-leaf parsley", order_date: "2026-07-15" },
+    };
+    const ingredient = {
+      id: "itm_0000000000000910",
+      kind: "ingredient",
+      display_name: "Flat-leaf parsley",
+      brand: null,
+      product_line: null,
+      flavor: null,
+      formulation: null,
+      format: "fresh",
+      category: "herb",
+      produce_variety: "flat-leaf",
+      known_size_variants: [],
+      image_page_url: null,
+      image_url: null,
+      evidence_ids: [purchase.id],
+      created_at: purchase.observed_at,
+      updated_at: purchase.observed_at,
+      schema_version: 1,
+    };
+    const files = [
+      file(`groceries/evidence/2026/${purchase.id}.json`, stableJson(purchase), earlier),
+      file(`ingredients/items/${ingredient.id}.md`, markdownDocument(ingredient, "Usually bought at Market."), earlier),
+    ];
+    const rebuilt = rebuildRepositoryState({ head, files }, new Map());
+    expect(rebuilt.projection.evidence.get(purchase.id)).toMatchObject({ kind: "purchase" });
+    expect(rebuilt.projection.items.get(ingredient.id)).toMatchObject({ item: { kind: "ingredient", display_name: "Flat-leaf parsley" } });
+
+    const legacy = rebuildRepositoryState({ head, files: [file(`snacks/evidence/2026/${purchase.id}.json`, stableJson(purchase), earlier)] }, new Map());
+    expect(legacy.projection.evidence.get(purchase.id)).toMatchObject({ kind: "purchase" });
+  });
+
+  it("rejects a grocery item stored in the wrong canonical area", () => {
+    const ingredient = {
+      id: "itm_0000000000000911", kind: "ingredient", display_name: "Parsley", brand: null, product_line: null, flavor: null,
+      formulation: null, format: "fresh", category: "herb", produce_variety: null, known_size_variants: [], image_page_url: null,
+      image_url: null, evidence_ids: ["evd_0000000000000911"], created_at: "2026-07-15T12:00:00.000Z",
+      updated_at: "2026-07-15T12:00:00.000Z", schema_version: 1,
+    };
+    expect(() => rebuildRepositoryState({
+      head,
+      files: [file(`snacks/items/${ingredient.id}.md`, markdownDocument(ingredient, ""), earlier)],
+    }, new Map())).toThrowError(/cannot be projected/);
+  });
+
   it.each([
     ["invalid JSON", file("snacks/evidence/2026/evd_0000000000000901.json", "{", head)],
     ["invalid JSON schema", file("snacks/evidence/2026/evd_0000000000000901.json", "{}", head)],

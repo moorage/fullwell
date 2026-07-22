@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.1.7 - 2026-07-22
+
+- Learn snacks, ingredients, condiments, and other groceries in one onboarding pass; retain below-threshold items and honor evidence-backed exclusions such as standard rather than Japanese-style mayonnaise during restocking.
+
 ## 1.1.6 - 2026-07-22
 
 - Commit confirmed guided onboarding drafts with up to 10,000 evidence records and 10,000 items in one request of at most 16 MiB; never split a within-limit draft into intermediate Fullwell writes.

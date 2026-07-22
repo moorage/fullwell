@@ -327,9 +327,16 @@ profiles/
   snacks.md
   recipes.md
 snacks/
-  evidence/<year>/<evidence-id>.json
+  evidence/<year>/<evidence-id>.json  # legacy read compatibility
   items/<snack-id>.md
   reports/recurring-snacks.md
+ingredients/
+  items/<ingredient-id>.md
+condiments/
+  items/<condiment-id>.md
+groceries/
+  evidence/<year>/<evidence-id>.json
+  items/<other-grocery-id>.md
 recipes/
   evidence/<year>/<evidence-id>.json
   items/<recipe-id>.md
@@ -357,7 +364,8 @@ All text is UTF-8 with LF endings. JSON uses deterministic key ordering and a tr
 
 Files under these paths may be created but never modified or deleted by ordinary mutations:
 
-- `snacks/evidence/`
+- `snacks/evidence/` for legacy purchase evidence
+- `groceries/evidence/`
 - `recipes/evidence/`
 - `imports/`
 - `audit/`
@@ -396,11 +404,12 @@ Recipe discovery evidence may include canonical recipe URL, audited page URL, di
 
 Cooking evidence includes recipe candidate or ID, date, result, changes, and whether each change is one-time or confirmed typical.
 
-### 10.2 Snack item
+### 10.2 Grocery item
 
 Typed frontmatter must include:
 
 - `id`
+- `kind`: `snack`, `ingredient`, `condiment`, or `other_grocery`
 - `display_name`
 - `brand`
 - `product_line`
@@ -417,9 +426,9 @@ Typed frontmatter must include:
 - `updated_at`
 - `schema_version`
 
-The Markdown body may contain agent-authored identity reasoning, pantry notes, source examples, recurrence assertions, and restock notes.
+The Markdown body may contain agent-authored identity reasoning, pantry notes, observed store examples, recurrence assertions, and restock notes. Canonical item paths are `snacks/items/`, `ingredients/items/`, `condiments/items/`, and `groceries/items/` respectively. New purchase evidence is stored under `groceries/evidence/`; reconciliation continues to read legacy `snacks/evidence/` without rewriting history.
 
-Server validation may verify that a submitted recurrence count equals the number of distinct cited private order keys. It must not choose which line items belong to the snack item.
+Server validation may verify that a submitted recurrence count equals the number of distinct cited private order keys and that item kind matches its canonical path. It must not classify a line item, choose its grocery kind, or decide semantic identity. An item remains valid below the recurrence threshold; the threshold controls report assertions only.
 
 ### 10.3 Recipe item
 
@@ -648,7 +657,7 @@ Output: new blob revision and commit.
 
 #### `hfj_search_items`
 
-Input: `household_id`, query, kinds, cursor, limit no greater than 100.
+Input: `household_id`, query, optional kind (`snack`, `ingredient`, `condiment`, `other_grocery`, or `recipe`), cursor, limit no greater than 100.
 
 Output: bounded summaries with IDs, kind, title, distinguishing fields, image, updated time, and blob revision. Search is a rebuildable projection and must not decide semantic identity.
 
@@ -815,7 +824,7 @@ Exact repeat imports are idempotent and default to skip. Possible duplicates req
 
 ## 15. WhatsApp Restocking Gateway
 
-WhatsApp restocking uses direct Meta Cloud API integration. Twilio, a BSP, or another middleware messaging vendor is not part of the data path. The server is a transport gateway only: it must not inspect household snack content, call an LLM, infer a product or store, browse a retailer, or mutate a cart.
+WhatsApp restocking uses direct Meta Cloud API integration. Twilio, a BSP, or another middleware messaging vendor is not part of the data path. The server is a transport gateway only: it must not inspect household grocery content, call an LLM, infer a product or store, browse a retailer, or mutate a cart.
 
 The signed webhook boundary verifies `X-Hub-Signature-256` against the exact bounded raw request body before JSON parsing. It accepts bounded text and delivery-status events, records unsupported event counts without reflecting provider content, HMACs provider/sender/delivery identifiers for lookup, encrypts message and destination bodies with authenticated encryption, and transactionally deduplicates provider retries before enforcing queue capacity.
 
@@ -823,7 +832,7 @@ Linking requires both sides. A recently authenticated browser creates a hashed, 
 
 The gateway serializes work to one primary device with an exclusive 90-second renewable lease, at most eight open envelopes per link and 1,000 globally. Message bodies expire within seven days. A `needs_input` terminal result becomes `awaiting_user`; the next linked inbound text resumes the same envelope and local host session. When replies were gated during host execution, the next authenticated claim retries the encrypted `response_ready` result before returning new work, without requiring another inbound message. Provider delivery receipts store only a hashed delivery ID, bounded status/failure class, and timestamps.
 
-The runner snapshot route is membership-authorized and read-only. It returns an ETag/HEAD, content hash, bounded manifest, and archive containing only the snack profile, snack items, cited purchase evidence, recurring-snacks report, and format marker. Archive paths, modes, types, file counts, individual sizes, total size, hashes, and HEAD are validated. The browser and runner never receive Git credentials.
+The runner snapshot route is membership-authorized and read-only. It returns an ETag/HEAD, content hash, bounded manifest, and archive containing only the compatibility snack profile and report, all snack/ingredient/condiment/other-grocery items, current `groceries/evidence/`, legacy `snacks/evidence/`, and the format marker. Archive paths, modes, types, file counts, individual sizes, total size, hashes, and HEAD are validated. The browser and runner never receive Git credentials.
 
 Before a local cart mutation, the runner revalidates its OAuth grant, device, provider link, membership, and authoritative HEAD. The server does not receive the selected item, store, cart quantity, browser state, or local action receipt. Local results are relayed only while the user-opened 24-hour service window remains valid and the compiled zero-cost cutoff has not arrived.
 

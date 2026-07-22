@@ -6,7 +6,7 @@ export type HouseholdSummary = {
   role: HouseholdRole;
   members: number;
   recipes: number;
-  snacks: number;
+  groceries: number;
   updatedLabel: string;
 };
 

@@ -28,6 +28,7 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 - [x] 2026-07-22T19:55Z: Reframed the live 196-item/804-evidence failure with UX, security, architecture, reliability, and eval lenses; traced the effective limit to onboarding schema caps plus the global one-megabyte parser rather than a domain constraint.
 - [x] 2026-07-22T19:55Z: Passed the Milestone 6 feature-critic gate after adding route-specific parser scope, duplicate-item rejection, pre-commit repository-capacity checks, argument-vector-safe Git staging, exact/over-limit tests, response-size observation, and an explicit no-live-bulk-write rule.
 - [x] 2026-07-22T20:06Z: Milestone 6 complete - raised only onboarding to 10,000 items and 10,000 evidence records, limited `POST /mcp` to 16 MiB while retaining the one-megabyte default elsewhere, added pre-Git capacity and argument-safe staging, prepared shared package `1.1.6`, and passed contract, server, security, load, eval, package, browser, and full repository gates.
+- [x] 2026-07-22T20:22Z: Release audit found the newly disclosed `fast-uri` GHSA-v2hh-gcrm-f6hx advisory before deployment; refreshed only the affected transitive lockfile releases, restored zero production vulnerabilities, and discarded the pre-fix image from release consideration.
 
 ## Surprises & Discoveries
 
@@ -42,6 +43,7 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 - 2026-07-22: The live Codex smoke showed that ad hoc shell construction of the helper's stdin JSON is error-prone. The packaged lifecycle and runtime tests cover the boundary, but future client ergonomics should provide a host-native wrapper so an agent never needs to recover a hidden identifier by inspecting the draft root; the successful release smoke ultimately loaded and deleted only the context-bound shard.
 - 2026-07-22: A real grocery audit produced 196 items and 804 evidence records, proving the original 100/500 caps were below normal user data. The actual coupled constraints are the one-megabyte global HTTP parser, the 16 MiB local checkpoint, Git's 10,000-file reconciliation guard, and argument-vector growth when staging thousands of paths.
 - 2026-07-22: The compact 10,000-item/10,000-evidence service fixture commits and exactly replays in about 0.6 seconds in the full deterministic suite. A real isolated Git repository commits 20,000 onboarding paths in under nine seconds without process argument expansion, so no live household bulk write was needed for acceptance evidence.
+- 2026-07-22: The first release image build surfaced a new high-severity `fast-uri` advisory despite the preceding application gates. The immutable artifact was not deployed; updating the three affected transitive lock entries to patched releases restored a zero-vulnerability production audit before rebuilding.
 
 ## Decision Log
 

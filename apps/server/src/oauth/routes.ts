@@ -31,6 +31,7 @@ const TokenRequestSchema = z.discriminatedUnion("grant_type", [
     grant_type: z.literal("refresh_token"),
     refresh_token: z.string().min(32).max(512),
     client_id: z.string().min(1).max(2048),
+    scope: z.string().min(1).max(512).optional(),
     resource: z.url().max(4096).optional(),
   }).strict(),
 ]);
@@ -109,7 +110,7 @@ export async function registerOAuthRoutes(app: FastifyInstance, dependencies: OA
     reply.header("pragma", "no-cache");
     const response = form.grant_type === "authorization_code"
       ? await dependencies.oauth.exchangeAuthorizationCode({ code: form.code, clientId: form.client_id, redirectUri: form.redirect_uri, codeVerifier: form.code_verifier, resource: form.resource })
-      : await dependencies.oauth.exchangeRefreshToken({ refreshToken: form.refresh_token, clientId: form.client_id, resource: form.resource });
+      : await dependencies.oauth.exchangeRefreshToken({ refreshToken: form.refresh_token, clientId: form.client_id, scope: form.scope, resource: form.resource });
     return reply.send(response);
   }));
 

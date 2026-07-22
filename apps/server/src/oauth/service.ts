@@ -137,7 +137,7 @@ export class OAuthService {
     return this.issueTokenPair(consumed.token.grantId, consumed.grant.scopes, consumed.token.audience, null);
   }
 
-  async exchangeRefreshToken(input: { readonly refreshToken: string; readonly clientId: string; readonly resource?: string | undefined }): Promise<TokenResponse> {
+  async exchangeRefreshToken(input: { readonly refreshToken: string; readonly clientId: string; readonly scope?: string | undefined; readonly resource?: string | undefined }): Promise<TokenResponse> {
     if (input.resource !== undefined) validateResource(input.resource, this.resource);
     const now = this.clock.now();
     const tokenHash = this.hasher.hash(input.refreshToken);
@@ -151,6 +151,9 @@ export class OAuthService {
     const grant = await this.store.getGrant(existing.grantId);
     if (grant === null || grant.clientId !== input.clientId || grant.revokedAt !== null) {
       throw new OAuthProtocolError("invalid_grant", "The refresh token is invalid");
+    }
+    if (input.scope !== undefined && !hasSameScopes(parseScopes(input.scope), grant.scopes)) {
+      throw new OAuthProtocolError("invalid_scope", "The requested permissions differ from the original grant");
     }
     const pair = this.buildTokenPair(existing.grantId, existing.audience, existing.familyId, existing.id, grant.scopes);
     const result = await this.store.rotateRefreshToken({ tokenHash, usedAt: now.toISOString(), access: pair.access, refresh: pair.refresh });
@@ -203,6 +206,10 @@ function parseScopes(value: string): ReadonlyArray<OAuthScope> {
   const parsed = requested.map((scope) => OAuthScopeSchema.safeParse(scope));
   if (parsed.some((scope) => !scope.success)) throw new OAuthProtocolError("invalid_scope", "One or more requested permissions are unavailable");
   return parsed.flatMap((scope) => scope.success ? [scope.data] : []);
+}
+
+function hasSameScopes(left: ReadonlyArray<OAuthScope>, right: ReadonlyArray<OAuthScope>): boolean {
+  return left.length === right.length && left.every((scope) => right.includes(scope));
 }
 
 function normalizeRedirectUri(value: string): string {

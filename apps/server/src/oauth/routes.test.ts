@@ -70,6 +70,17 @@ describe("OAuth routes", () => {
     expect(token.statusCode).toBe(200);
     expect(token.headers["cache-control"]).toBe("no-store");
     expect(token.json().token_type).toBe("Bearer");
+    const refreshed = await app.inject({
+      method: "POST", url: "/oauth/token", headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: token.json().refresh_token as string,
+        client_id: clientId,
+        scope: token.json().scope as string,
+      }).toString(),
+    });
+    expect(refreshed.statusCode).toBe(200);
+    expect(refreshed.json().refresh_token).not.toBe(token.json().refresh_token);
     await app.close();
   });
 

@@ -220,7 +220,7 @@ Required capabilities:
 - exact redirect-URI validation;
 - state and nonce validation where applicable;
 - short-lived access tokens;
-- rotated refresh tokens with reuse detection;
+- rotated refresh tokens with reuse detection, including scope-bearing refresh requests from current Codex/RMCP clients when the requested scope matches the original grant;
 - token revocation;
 - resource and audience validation;
 - scoped consent;

@@ -87,7 +87,9 @@ describe("OAuthService", () => {
     const { service } = fixture();
     const { client, code } = await authorize(service);
     const first = await service.exchangeAuthorizationCode({ code, clientId: client.clientId, redirectUri: client.redirectUris[0] ?? "", codeVerifier: verifier });
-    const rotated = await service.exchangeRefreshToken({ refreshToken: first.refresh_token, clientId: client.clientId });
+    await expect(service.exchangeRefreshToken({ refreshToken: first.refresh_token, clientId: client.clientId, scope: "journal:read" }))
+      .rejects.toMatchObject({ code: "invalid_scope" });
+    const rotated = await service.exchangeRefreshToken({ refreshToken: first.refresh_token, clientId: client.clientId, scope: first.scope });
     expect(rotated.refresh_token).not.toBe(first.refresh_token);
     await expect(service.exchangeRefreshToken({ refreshToken: first.refresh_token, clientId: client.clientId }))
       .rejects.toMatchObject({ code: "invalid_grant" });

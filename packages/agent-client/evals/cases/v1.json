@@ -17,6 +17,13 @@
       "invariants": ["no_setup_area_menu", "snacks_before_recipes", "ask_grocery_stores", "start_before_question"]
     },
     {
+      "id": "bare-fullwell-greeting-starts-snacks",
+      "prompt": "@Fullwell hi",
+      "skills": ["manage-household-food-journal", "audit-grocery-purchases"],
+      "required_tools": ["hfj_get_context", "hfj_update_onboarding", "hfj_get_profile"],
+      "invariants": ["bare_greeting_is_onboarding_intent", "check_onboarding_before_reply", "no_generic_greeting_while_open", "snacks_before_recipes", "ask_only_needed_snack_source_and_preferences"]
+    },
+    {
       "id": "snack-decline-advances-to-recipes",
       "prompt": "I do not have any snack purchases to audit right now.",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases", "track-recipe-history"],

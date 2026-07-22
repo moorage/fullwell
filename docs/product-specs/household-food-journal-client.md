@@ -94,7 +94,7 @@ The installed package declares the remote Streamable HTTP MCP endpoint and no be
 
 After authentication, the agent calls `hfj_get_context`. If the user has no household, it asks for a household name and calls `hfj_create_household`. If the user arrived through a pending family invitation or collection import, it resumes that intent instead of creating an unrelated household.
 
-After the household is available, the agent begins guided first run immediately. It must not ask what the user wants to set up or present a snacks-versus-recipes menu. It asks for grocery stores first, then asks where the user saves, finds, or discusses recipes. A natural refusal, `not now`, `never mind`, or statement that the user has no applicable sources skips only the current section and advances to the next one. An explicit request to stop, cancel, or quit the whole setup ends the conversation without starting the next section.
+After the household is available, the agent begins guided first run immediately. A Fullwell greeting must read onboarding state before producing a visible reply. While any section remains unresolved, it must not return a generic greeting, ask what is on the user's mind, ask what the user wants to set up, or present a snacks-versus-recipes menu. It starts with grocery stores and asks only for missing source authorization and snack preferences needed for the audit, then asks where the user saves, finds, or discusses recipes and gathers only missing recipe source meaning, authorization, and preferences. A natural refusal, `not now`, `never mind`, or statement that the user has no applicable sources skips only the current section and advances to the next one. An explicit request to stop, cancel, or quit the whole setup ends the conversation without starting the next section.
 
 The client must never ask the user to paste a token back into the conversation.
 
@@ -321,7 +321,7 @@ The MCP config contains only the public HTTPS URL and transport declaration. It 
 
 ### `manage-household-food-journal`
 
-Trigger for a Fullwell greeting or setup starter, authentication, guided first run, household selection, family invitations, membership questions, profile changes, migration, export, and account/household status. Guided first run reads server state, starts snacks before recipes, skips a declined section with a bounded reason, and advances without a setup-area menu.
+Trigger for every Fullwell greeting, including a bare `@Fullwell hi`, or setup starter, authentication, guided first run, household selection, family invitations, membership questions, profile changes, migration, export, and account/household status. Guided first run reads server state before replying, starts snacks before recipes with preference-aware source questions, skips a declined section with a bounded reason, and advances without a generic help question or setup-area menu.
 
 ### `audit-grocery-purchases`
 
@@ -471,7 +471,7 @@ Use a mock server generated from the server tool schemas. Cover successful resul
 At minimum, test these end-to-end prompts in both Codex and Claude:
 
 1. First-time setup creates one household after OAuth and never asks for a token.
-2. A Fullwell greeting starts snack questions without asking which setup area to configure.
+2. The exact bare greeting `@Fullwell hi` reads onboarding state and starts necessary snack source and preference questions without a generic greeting or setup-area choice.
 3. Declining snacks advances directly to recipe sources with a bounded skip reason.
 4. Having no recipe sources ends guided first run without claiming the section is complete.
 5. An explicit request to stop the whole setup does not start or skip the next section.

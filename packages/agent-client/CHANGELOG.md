@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.1.2 - 2026-07-21
+
+- Route a bare `@Fullwell hi` through unresolved onboarding before general help, starting snacks and then recipes with only the missing source, authorization, and preference questions each audit needs.
+- Add an exact bare-greeting regression eval and forbid generic greetings while onboarding remains open.
+
 ## 1.1.1 - 2026-07-21
 
 - Renamed the public Codex and Claude plugin selectors to `fullwell@fullwell` while retaining the `@fullwell/fullwell` npm package and `household-food-journal` MCP service identifier.

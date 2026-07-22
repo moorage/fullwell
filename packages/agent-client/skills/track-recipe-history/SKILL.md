@@ -1,6 +1,6 @@
 ---
 name: track-recipe-history
-description: Track recipe discovery, Saved, Cooked, and Liked evidence, cooking dates, preparation changes, source scope, and recipe images.
+description: Start or continue Fullwell recipe onboarding and track recipe discovery, source scope and meaning, household preferences, Saved, Cooked, and Liked evidence, cooking dates, preparation changes, and recipe images.
 ---
 
 # Track Recipe History
@@ -8,7 +8,7 @@ description: Track recipe discovery, Saved, Cooked, and Liked evidence, cooking 
 Follow [the MCP contract](../../references/mcp-tool-contract.md), [semantic rules](../../references/semantic-food-rules.md), and [privacy rules](../../references/privacy-and-sharing.md).
 
 1. Call `hfj_get_context` and choose an editable household. If recipe onboarding is `not_started`, call `hfj_update_onboarding` with `transition.action: "start"` and `expected_revision: 0`; if it is `skipped`, resume it with the returned revision. Do not mutate a `complete` section.
-2. Call `hfj_get_profile` for `recipes`. Ask which websites, bookmark services, notes, communications, and other sources are authorized. For each site, clarify the whole discoverable site or exact subsection and what presence means.
+2. Call `hfj_get_profile` for `recipes`. Reuse confirmed source scope, meaning, and household preferences. Ask only for missing or changed websites, bookmark services, notes, communications, preferences, and other authorized sources. For each site, clarify the whole discoverable site or exact subsection and what presence means.
 3. Verify access and sign-in before collection without requesting credentials. Inspect every authorized occurrence, including duplicates and conflicts.
 4. Append discovery, cooking, confirmation, or correction evidence with `hfj_append_evidence` before conclusions. Preserve canonical URL, audited page, displayed image URL, author/publisher, scope meaning, dates, limitations, and provenance.
 5. Use `hfj_search_items` and `hfj_get_item` to find current candidates. Decide recipe identity in reasoning. Keep Saved, Cooked, and Liked independent.

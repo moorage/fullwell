@@ -1,6 +1,6 @@
 ---
 name: audit-grocery-purchases
-description: Audit grocery purchase histories for snacks and drinks, update pantry profiles, compare stores, or recalculate evidence-backed recurrence reports.
+description: Start or continue Fullwell snack onboarding and audit grocery purchase histories for snacks and drinks, including store scope, browser authorization, household preferences, pantry profiles, comparisons, and evidence-backed recurrence reports.
 ---
 
 # Audit Grocery Purchases
@@ -8,7 +8,7 @@ description: Audit grocery purchase histories for snacks and drinks, update pant
 Follow [the MCP contract](../../references/mcp-tool-contract.md), [semantic rules](../../references/semantic-food-rules.md), and [privacy rules](../../references/privacy-and-sharing.md).
 
 1. Call `hfj_get_context` and choose an editable household. If snack onboarding is `not_started`, call `hfj_update_onboarding` with `transition.action: "start"` and `expected_revision: 0`; if it is `skipped`, resume it with the returned revision. Do not mutate a `complete` section.
-2. Call `hfj_get_profile` for `snacks`. Ask which stores to inspect when the profile is absent, then ask which installed browser the user authorizes for background access.
+2. Call `hfj_get_profile` for `snacks`. Reuse confirmed store scope and household preferences. Ask only for missing or changed stores, snack/drink preferences or exclusions that affect interpretation, and which installed browser the user authorizes for background access.
 3. Before collecting any store, verify the user is already signed in to every authorized store. Never request credentials or one-time codes.
 4. Use a trailing 12-month window and recurrence threshold of two distinct orders unless the user requests different values. Inspect every qualifying order, expand every item list, and preserve exact store, order, date, and line-item evidence privately.
 5. Call `hfj_append_evidence` in batches of at most 100 with the current HEAD and a stable idempotency key.

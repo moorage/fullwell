@@ -43,6 +43,7 @@ export const requiredTools = [
 const requiredEvalIds = [
   "first-time-setup-oauth",
   "first-time-setup-starts-snacks",
+  "bare-fullwell-greeting-starts-snacks",
   "snack-decline-advances-to-recipes",
   "recipe-no-sources-finishes-guided-run",
   "explicit-setup-stop-does-not-advance",

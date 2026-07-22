@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "docs" / "generated" / "repo-map.json"
 
 NAME_IGNORE = {
+    ".beads",
     ".git",
     ".next",
     ".terraform",

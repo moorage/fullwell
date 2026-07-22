@@ -1,5 +1,10 @@
 # Verification Evidence
 
+- Approval-efficient onboarding commit `ffaf7a9` is deployed as `hfj-staging:onboarding-20260721-1-runtime`. The checksum-matched Linux/amd64 OCI archive has SHA-256 `48e9b43133dfc5040628ab8d110501ab969658eb543fca16c4013b3252a4e1f5`; its OCI index digest is `sha256:b791554abbcc4ead0956226decc7f8cf34647f07b3d84fe066934f08828c7675`. Public live/readiness, deployment, and MCP discovery smokes pass at schema `0007`, and `hfj-staging:mcp-meta-20260721-1-runtime` remains available for rollback.
+- The read-draft-commit release passes 279 deterministic tests with 11 expected database-gated skips, 11 isolated PostgreSQL tests, seven-migration up/down/up, 29 WebKit checks with seven intentional project skips, 32 Codex/Claude eval cases, isolated host lifecycles, security/load/contract gates, and 96.47% statement/line, 94.85% function, and 90.03% branch coverage. The final write is bounded, replay-bound, recoverable, and returns derived onboarding state without a follow-up read.
+- Public immutable `@fullwell/fullwell@1.1.3` was published at `2026-07-22T05:54:49.747Z`. Registry SHA-1 `1128385f465815864a632e69be9cc665e4cc0a8b` and SHA-512 `sha512-5mA8D3osfyWMn6768LW3gb/aiGZ03HKbiuZ++udIGF3hJCn5VsGgTkFftbQjmgMt9s+XQXhk1qn/eLlbcsjrhQ==` match the prepared artifact; `latest` resolves to `1.1.3`, and the downloaded package passes isolated Codex and Claude lifecycles.
+- Current Codex and Claude both report enabled `fullwell@fullwell` version `1.1.3`. A sanitized current-Codex smoke from the separate `fullwell-tester` folder records one `hfj_get_context`, no Fullwell mutation, a snack-first question, and no generic "what's on your mind" reply without retaining household or food values.
+
 Date: 2026-07-21
 
 ## Passing local evidence
@@ -58,6 +63,8 @@ Date: 2026-07-21
 - `npm audit --omit=dev` reports zero production vulnerabilities.
 
 ## Blocking evidence still required
+
+- Complete a user-directed current-host snack-and-recipe conversation through explicit confirmation and retain a sanitized one-final-write transcript. The automated live smoke stops before mutation because inventing onboarding answers would alter the user's household; server atomicity, replay, recovery, and no-intermediate-write behavior already pass deterministic and PostgreSQL tests.
 
 - A dedicated Meta developer app and employee system user have least-privilege access to the approved WABA. All seven WhatsApp values are installed as encrypted staging credentials, the WhatsApp-aware unit is active, schema `0006` and authenticated operator health pass, the HTTPS callback is verified, only `messages` v25.0 is subscribed, the app is published, and one real provider-identity inbound plus two-sided link passed. No real reply/delivery, provider retry, or token-rotation claim is made yet.
 - The isolated Codex home now uses macOS Keychain without an `auth.json` credential file, and its supported global Browser Use policy allows exactly `http://127.0.0.1:4191`. A fresh noninteractive Codex process completed the fake-retailer flow with quantity `1` and an unchanged duplicate replay. Claude Code must still complete the same fixture flow, and one real retailer add-to-cart without checkout requires separate explicit authorization. Cowork remains unsupported as an inbound Fullwell runner API.

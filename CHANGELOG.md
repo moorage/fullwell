@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reduced normal Fullwell onboarding to one bounded context read and one atomic final write after explicit confirmation, with conversation-local drafting, skip-only finalization, replay binding, crash recovery, and truthful MCP tool annotations.
+- Excluded local Beads database and cache state from the generated repository map.
 - Accept bounded MCP request metadata from current Codex hosts so `hfj_get_context` can start Fullwell onboarding without weakening tool-input validation.
 - Accept Codex/RMCP's scope-bearing OAuth refresh requests while preserving the original grant boundary, preventing Fullwell MCP startup failures after access-token expiry.
 - Added conversational Fullwell first run with a typed per-user onboarding state tool, snack-then-recipe questions, natural section skipping, server-derived completion, and an install-page handoff for `@Fullwell hi`.

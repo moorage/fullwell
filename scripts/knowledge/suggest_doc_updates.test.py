@@ -23,6 +23,11 @@ class SuggestDocUpdatesTests(unittest.TestCase):
 
         self.assertTrue(should_ignore(state_path))
 
+    def test_repo_map_excludes_local_beads_state(self) -> None:
+        database_path = ROOT / ".beads" / "dolt" / "noms"
+
+        self.assertTrue(should_ignore(database_path))
+
     def test_web_changes_require_product_review_and_visible_evidence(self) -> None:
         hints = suggest_updates(["apps/web/src/CollectionPreview.tsx"])
 

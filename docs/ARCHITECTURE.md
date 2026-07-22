@@ -78,7 +78,7 @@ Path: `packages/agent-client/`, with repository discovery catalogs at `.agents/p
 
 The agent client never contains canonical household data, account state, credentials, a Git synchronization engine, or a programmatic semantic classifier. Codex and Claude use the same skill source files and the same remote MCP endpoint.
 
-The immutable npm package is the plugin payload, not a public marketplace catalog. Until a repository or catalog is intentionally published, host release checks may install that payload through the repository-local catalogs, but public catalog discovery remains a separate release blocker. The Codex manifest exposes `Fullwell` as the mention name while retaining the stable `household-food-journal` plugin and MCP identifiers. Shared skills drive snack-then-recipe first run through the typed onboarding tool; no application code interprets conversational declines.
+The immutable npm package is the plugin payload, not a public marketplace catalog. Until a repository or catalog is intentionally published, host release checks may install that payload through the repository-local catalogs, but public catalog discovery remains a separate release blocker. The Codex and Claude adapters expose the branded `fullwell@fullwell` selector, Codex exposes the `Fullwell` mention, and the hosted MCP service retains the stable `household-food-journal` identifier. Shared skills drive snack-then-recipe first run through the typed onboarding tool; no application code interprets conversational declines.
 
 ### Messaging gateway and local runner
 

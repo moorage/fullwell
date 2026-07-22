@@ -113,9 +113,12 @@ describe("WebViewModelService", () => {
       invite: z.object({ state: z.string() }).passthrough(),
       collectionState: z.string(),
       security: z.object({ csrfToken: z.string() }).passthrough(),
-      install: z.object({ hosts: z.object({ codex: z.object({
-        label: z.string(), setupPrompt: z.string(), setupHref: z.string().nullable(),
-      }).passthrough() }).passthrough() }).passthrough(),
+      install: z.object({ hosts: z.object({
+        codex: z.object({
+          label: z.string(), setupPrompt: z.string(), setupHref: z.string().nullable(),
+        }).passthrough(),
+        claude: z.object({ command: z.string() }).passthrough(),
+      }).passthrough() }).passthrough(),
       auth: z.object({
         passkeysEnabled: z.boolean(),
         passkeys: z.array(z.object({ id: z.string(), createdLabel: z.string(), lastUsedLabel: z.string().nullable() }).passthrough()),
@@ -132,8 +135,9 @@ describe("WebViewModelService", () => {
     expect(anonymous.install.hosts.codex.label).toBe("Codex");
     expect(anonymous.install.hosts.codex).toMatchObject({
       setupPrompt: "@Fullwell hi",
-      setupHref: "codex://new?prompt=%5B%40Fullwell%5D(plugin%3A%2F%2Fhousehold-food-journal%40fullwell-plugins)%20hi",
+      setupHref: "codex://new?prompt=%5B%40Fullwell%5D(plugin%3A%2F%2Ffullwell%40fullwell)%20hi",
     });
+    expect(anonymous.install.hosts.claude.command).toContain("claude plugin install fullwell@fullwell");
 
     const authenticated = await context(`/households/${householdId}/members`, true, "c".repeat(32));
     expect(authenticated.viewer.displayName).toBe("Test Owner");

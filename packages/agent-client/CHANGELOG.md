@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.1.1 - 2026-07-21
+
+- Renamed the public Codex and Claude plugin selectors to `fullwell@fullwell` while retaining the `@fullwell/fullwell` npm package and `household-food-journal` MCP service identifier.
+- Corrected the install handoff to add the real `moorage/fullwell` marketplace before installing the plugin.
+
 ## 1.1.0 - 2026-07-21
 
 - Added `Fullwell` mention branding, a setup starter and install handoff, shared snack-then-recipe onboarding guidance, typed start/skip/resume tool coverage, and cross-host decline/resume evals.

@@ -124,7 +124,8 @@ export const validatePackage = async () => {
       readJson("evals/cases/v1.json")
     ]);
 
-  assert(codex.name === claude.name, "Host manifests must share a plugin name");
+  assert(codex.name === "fullwell", "Codex must expose the public fullwell plugin name");
+  assert(claude.name === "fullwell", "Claude must expose the public fullwell plugin name");
   assert(codex.version === claude.version, "Host manifests must share a version");
   assert(codex.version === packageJson.version, "Package and host versions must match");
   assert(codex.interface?.displayName === "Fullwell", "Codex must expose the Fullwell mention name");
@@ -157,11 +158,17 @@ export const validatePackage = async () => {
   assert(install.platforms.codex.setup_prompt === "@Fullwell hi", "Codex setup prompt must use the Fullwell mention");
   const setupUrl = new URL(install.platforms.codex.setup_href);
   assert(setupUrl.protocol === "codex:" && setupUrl.host === "new", "Codex setup link must open a new conversation");
-  assert(setupUrl.searchParams.get("prompt") === "[@Fullwell](plugin://household-food-journal@fullwell-plugins) hi", "Codex setup link must prefill the installed plugin mention");
+  assert(setupUrl.searchParams.get("prompt") === "[@Fullwell](plugin://fullwell@fullwell) hi", "Codex setup link must prefill the installed plugin mention");
   assert(install.platforms.claude.setup_prompt === "Set up Fullwell." && install.platforms.claude.setup_href === null, "Claude must provide a natural-language setup prompt without a Codex link");
 
-  for (const market of [codexMarket, claudeMarket]) {
-    const plugin = market.plugins?.find((candidate) => candidate.name === codex.name);
+  const hostMarkets = [
+    { host: "Codex", market: codexMarket, manifest: codex, install: install.platforms.codex, marketplace: "fullwell" },
+    { host: "Claude", market: claudeMarket, manifest: claude, install: install.platforms.claude, marketplace: "fullwell" },
+  ];
+  for (const { host, market, manifest, install: hostInstall, marketplace } of hostMarkets) {
+    assert(market.name === marketplace, `${host} marketplace name differs`);
+    assert(hostInstall.marketplace === market.name && hostInstall.plugin === manifest.name, `${host} install selector differs`);
+    const plugin = market.plugins?.find((candidate) => candidate.name === manifest.name);
     assert(plugin, `Marketplace ${market.name} is missing the plugin`);
     assert(plugin.source?.source === "npm", `Marketplace ${market.name} must use immutable npm packaging`);
     assert(plugin.source?.package === packageJson.name, `Marketplace ${market.name} package differs`);

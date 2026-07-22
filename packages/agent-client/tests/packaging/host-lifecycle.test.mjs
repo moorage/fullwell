@@ -11,8 +11,10 @@ const execute = promisify(execFile);
 const localPackageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const packageRootOverride = process.env.HFJ_AGENT_PACKAGE_ROOT?.trim();
 const packageRoot = packageRootOverride ? path.resolve(packageRootOverride) : localPackageRoot;
-const pluginName = "household-food-journal";
-const marketplaceName = "fullwell-local-test";
+const codexPluginName = "fullwell";
+const codexMarketplaceName = "fullwell";
+const claudePluginName = "fullwell";
+const claudeMarketplaceName = "fullwell";
 
 async function versionOf(command) {
   try {
@@ -23,7 +25,7 @@ async function versionOf(command) {
   }
 }
 
-async function createPluginCopy(marketplaceRoot) {
+async function createPluginCopy(marketplaceRoot, pluginName) {
   const pluginRoot = path.join(marketplaceRoot, "plugins", pluginName);
   await mkdir(path.dirname(pluginRoot), { recursive: true });
   await cp(packageRoot, pluginRoot, {
@@ -52,15 +54,15 @@ test("Codex CLI installs, reinstalls, and removes the shared package from an iso
   const temporaryRoot = await mkdtemp(path.join(tmpdir(), "hfj-codex-host-"));
   try {
     const marketplaceRoot = path.join(temporaryRoot, "marketplace");
-    await createPluginCopy(marketplaceRoot);
+    await createPluginCopy(marketplaceRoot, codexPluginName);
     const manifestPath = path.join(marketplaceRoot, ".agents", "plugins", "marketplace.json");
     await mkdir(path.dirname(manifestPath), { recursive: true });
     await writeFile(manifestPath, JSON.stringify({
-      name: marketplaceName,
+      name: codexMarketplaceName,
       interface: { displayName: "Fullwell local test" },
       plugins: [{
-        name: pluginName,
-        source: { source: "local", path: `./plugins/${pluginName}` },
+        name: codexPluginName,
+        source: { source: "local", path: `./plugins/${codexPluginName}` },
         policy: { installation: "AVAILABLE", authentication: "ON_USE" },
         category: "Lifestyle",
       }],
@@ -70,18 +72,18 @@ test("Codex CLI installs, reinstalls, and removes the shared package from an iso
     const env = { CODEX_HOME: codexHome };
 
     await run("codex", ["plugin", "marketplace", "add", marketplaceRoot, "--json"], env);
-    const available = JSON.parse((await run("codex", ["plugin", "list", "--marketplace", marketplaceName, "--available", "--json"], env)).stdout);
-    assert.equal(available.available[0]?.pluginId, `${pluginName}@${marketplaceName}`);
-    await run("codex", ["plugin", "add", `${pluginName}@${marketplaceName}`, "--json"], env);
+    const available = JSON.parse((await run("codex", ["plugin", "list", "--marketplace", codexMarketplaceName, "--available", "--json"], env)).stdout);
+    assert.equal(available.available[0]?.pluginId, `${codexPluginName}@${codexMarketplaceName}`);
+    await run("codex", ["plugin", "add", `${codexPluginName}@${codexMarketplaceName}`, "--json"], env);
     const installed = JSON.parse((await run("codex", ["plugin", "list", "--json"], env)).stdout);
-    assert.equal(installed.installed[0]?.pluginId, `${pluginName}@${marketplaceName}`);
+    assert.equal(installed.installed[0]?.pluginId, `${codexPluginName}@${codexMarketplaceName}`);
     assert.equal(installed.installed[0]?.enabled, true);
-    await run("codex", ["plugin", "remove", `${pluginName}@${marketplaceName}`, "--json"], env);
+    await run("codex", ["plugin", "remove", `${codexPluginName}@${codexMarketplaceName}`, "--json"], env);
     assert.deepEqual(JSON.parse((await run("codex", ["plugin", "list", "--json"], env)).stdout).installed, []);
-    await run("codex", ["plugin", "add", `${pluginName}@${marketplaceName}`, "--json"], env);
+    await run("codex", ["plugin", "add", `${codexPluginName}@${codexMarketplaceName}`, "--json"], env);
     assert.equal(JSON.parse((await run("codex", ["plugin", "list", "--json"], env)).stdout).installed[0]?.enabled, true);
-    await run("codex", ["plugin", "remove", `${pluginName}@${marketplaceName}`, "--json"], env);
-    await run("codex", ["plugin", "marketplace", "remove", marketplaceName, "--json"], env);
+    await run("codex", ["plugin", "remove", `${codexPluginName}@${codexMarketplaceName}`, "--json"], env);
+    await run("codex", ["plugin", "marketplace", "remove", codexMarketplaceName, "--json"], env);
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
   }
@@ -93,16 +95,16 @@ test("Claude Code installs, disables, enables, updates, and uninstalls the share
   const temporaryRoot = await mkdtemp(path.join(tmpdir(), "hfj-claude-host-"));
   try {
     const marketplaceRoot = path.join(temporaryRoot, "marketplace");
-    await createPluginCopy(marketplaceRoot);
+    await createPluginCopy(marketplaceRoot, claudePluginName);
     const manifestPath = path.join(marketplaceRoot, ".claude-plugin", "marketplace.json");
     await mkdir(path.dirname(manifestPath), { recursive: true });
     await writeFile(manifestPath, JSON.stringify({
       $schema: "https://anthropic.com/claude-code/marketplace.schema.json",
-      name: marketplaceName,
+      name: claudeMarketplaceName,
       owner: { name: "Fullwell" },
       plugins: [{
-        name: pluginName,
-        source: `./plugins/${pluginName}`,
+        name: claudePluginName,
+        source: `./plugins/${claudePluginName}`,
         description: "Keep an evidence-backed family food journal.",
         version: "1.0.0",
       }],
@@ -112,16 +114,16 @@ test("Claude Code installs, disables, enables, updates, and uninstalls the share
 
     await run("claude", ["plugin", "marketplace", "add", marketplaceRoot, "--scope", "user"], env);
     const available = JSON.parse((await run("claude", ["plugin", "list", "--available", "--json"], env)).stdout);
-    assert.equal(available.available[0]?.pluginId, `${pluginName}@${marketplaceName}`);
-    await run("claude", ["plugin", "install", `${pluginName}@${marketplaceName}`, "--scope", "user"], env);
+    assert.equal(available.available[0]?.pluginId, `${claudePluginName}@${claudeMarketplaceName}`);
+    await run("claude", ["plugin", "install", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"], env);
     assert.equal(installedPlugins((await run("claude", ["plugin", "list", "--json"], env)).stdout)[0]?.enabled, true);
-    await run("claude", ["plugin", "disable", `${pluginName}@${marketplaceName}`, "--scope", "user"], env);
+    await run("claude", ["plugin", "disable", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"], env);
     assert.equal(installedPlugins((await run("claude", ["plugin", "list", "--json"], env)).stdout)[0]?.enabled, false);
-    await run("claude", ["plugin", "enable", `${pluginName}@${marketplaceName}`, "--scope", "user"], env);
-    await run("claude", ["plugin", "update", `${pluginName}@${marketplaceName}`, "--scope", "user"], env);
-    await run("claude", ["plugin", "uninstall", `${pluginName}@${marketplaceName}`, "--scope", "user", "--yes"], env);
+    await run("claude", ["plugin", "enable", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"], env);
+    await run("claude", ["plugin", "update", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"], env);
+    await run("claude", ["plugin", "uninstall", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user", "--yes"], env);
     assert.deepEqual(installedPlugins((await run("claude", ["plugin", "list", "--json"], env)).stdout), []);
-    await run("claude", ["plugin", "marketplace", "remove", marketplaceName], env);
+    await run("claude", ["plugin", "marketplace", "remove", claudeMarketplaceName], env);
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
   }

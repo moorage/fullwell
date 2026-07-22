@@ -16,12 +16,12 @@ describe("web experience", () => {
     const user = userEvent.setup();
     renderApp("/install");
     expect(screen.getByRole("button", { name: "Use with Codex" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText(/codex plugins install/)).toBeVisible();
+    expect(screen.getByText(/codex plugin add fullwell@fullwell/)).toBeVisible();
     expect(screen.getByRole("link", { name: "Start Fullwell setup" })).toHaveAttribute("href", demoWebContext.install.hosts.codex.setupHref);
     expect(screen.getByText("@Fullwell hi")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Use with Claude" }));
-    expect(screen.getByText(/claude plugin install/)).toBeVisible();
-    expect(screen.queryByText(/codex plugins install/)).not.toBeInTheDocument();
+    expect(screen.getByText(/claude plugin install fullwell@fullwell/)).toBeVisible();
+    expect(screen.queryByText(/codex plugin add fullwell@fullwell/)).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Start Fullwell setup" })).not.toBeInTheDocument();
     expect(screen.getByText("Set up Fullwell.")).toBeVisible();
   });
@@ -199,7 +199,7 @@ describe("web experience", () => {
     expect(screen.queryByRole("button", { name: "Sign in with a passkey" })).not.toBeInTheDocument();
 
     renderApp("/install?host=claude");
-    expect(screen.getByText(/claude plugin install/)).toBeVisible();
+    expect(screen.getByText(/claude plugin install fullwell@fullwell/)).toBeVisible();
     renderApp("/c/expired", { ...demoWebContext, collectionState: "expired" });
     expect(screen.getByRole("heading", { name: "This collection has expired" })).toBeVisible();
 

@@ -128,14 +128,14 @@ export const demoWebContext: WebRenderContext = {
     hosts: {
       codex: {
         label: "Codex",
-        command: "codex plugins install fullwell/household-food-journal",
+        command: "codex plugin marketplace add moorage/fullwell && codex plugin add fullwell@fullwell && codex",
         next: "After installation, start Fullwell with the prompt below.",
         setupPrompt: "@Fullwell hi",
-        setupHref: "codex://new?prompt=%5B%40Fullwell%5D(plugin%3A%2F%2Fhousehold-food-journal%40fullwell-plugins)%20hi",
+        setupHref: "codex://new?prompt=%5B%40Fullwell%5D(plugin%3A%2F%2Ffullwell%40fullwell)%20hi",
       },
       claude: {
         label: "Claude",
-        command: "claude plugin install fullwell-household-food-journal",
+        command: "claude plugin marketplace add moorage/fullwell && claude plugin install fullwell@fullwell",
         next: "After installation, start Fullwell with the prompt below.",
         setupPrompt: "Set up Fullwell.",
         setupHref: null,

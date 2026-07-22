@@ -63,6 +63,52 @@ describe("ReconciliationWorker", () => {
     expect(repository.commitCount(householdId)).toBe(1);
   });
 
+  it("recovers deferred onboarding skips after the canonical Git commit", async () => {
+    const store = new MemoryOperationalStore();
+    const repository = new MemoryHouseholdRepository();
+    const service = createService(store, repository);
+    const created = await service.call("hfj_create_household", { name: "Onboarding recovery", idempotency_key: "reconcile-onboarding-create-0801" }, principal);
+    if (!created.ok) throw new Error(created.error.code);
+    const householdId = HouseholdIdSchema.parse(z.object({ household_id: z.string() }).parse(created.data).household_id);
+    const compareAndSet = store.compareAndSetOnboarding.bind(store);
+    let failSkip = true;
+    store.compareAndSetOnboarding = async (record, expectedRevision) => {
+      if (failSkip) {
+        failSkip = false;
+        return false;
+      }
+      return await compareAndSet(record, expectedRevision);
+    };
+    const input = {
+      household_id: householdId,
+      expected_head: created.repository_head,
+      idempotency_key: "reconcile-onboarding-commit-0801",
+      sections: [
+        { section: "snacks" as const, outcome: "complete" as const, expected_revision: 0 },
+        { section: "recipes" as const, outcome: "skip" as const, reason: "not_now" as const, expected_revision: 0 },
+      ],
+      reports: [{ report_type: "recurring_snacks" as const, markdown: "# No recurring snacks", assertions: [], schema_version: 1 }],
+    };
+    expect(await service.call("hfj_commit_onboarding", input, principal)).toMatchObject({
+      ok: false,
+      error: { code: "RECONCILIATION_REQUIRED" },
+    });
+
+    expect(await new ReconciliationWorker(store, repository, new NoopTelemetry()).run()).toEqual({ checked: 1, rebuilt: 1, quarantined: 0 });
+    expect((await store.listOnboardingRecords(principal.userId, householdId))[0]).toMatchObject({
+      section: "recipes",
+      status: "skipped",
+      skip_reason: "not_now",
+      revision: 1,
+    });
+    expect((await store.getMutation(principal.userId, "hfj_commit_onboarding", input.idempotency_key))?.state).toBe("projections_applied");
+    expect(await service.call("hfj_commit_onboarding", input, principal)).toMatchObject({
+      ok: true,
+      data: { onboarding: { snacks: { status: "complete" }, recipes: { status: "skipped" } } },
+    });
+    expect(repository.commitCount(householdId)).toBe(1);
+  });
+
   it("leaves a synchronized household unchanged", async () => {
     const store = new MemoryOperationalStore();
     const repository = new MemoryHouseholdRepository();

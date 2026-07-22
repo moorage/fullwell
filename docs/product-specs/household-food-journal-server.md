@@ -570,7 +570,7 @@ Tool results must remain concise. Large Markdown bodies and evidence lists shoul
 
 Input: optional `household_id`.
 
-Output: user display data, editable/readable households with roles, default household, pending invitation/import intent, granted scopes, current repository HEADs, and the selected household's snack and recipe onboarding states. Reject a supplied household ID unless the caller has a current membership before reading repository state.
+Output: user display data, editable/readable households with roles, default household, pending invitation/import intent, granted scopes, current repository HEADs, and the selected household's snack and recipe onboarding states. For a selected household, also return both onboarding profile Markdown documents with revisions and a deterministic item identity index capped at 200 entries with an explicit truncation flag. Resolve the repository HEAD, household projection HEAD, membership projection HEAD, onboarding state, profiles, and item index under the household lock; reject drift rather than returning a mixed snapshot. Reject a supplied household ID unless the caller has a current membership before reading repository state.
 
 #### `hfj_create_household`
 
@@ -589,6 +589,12 @@ Output: selected default household. All later mutation tools still require an ex
 Input: `household_id`, section (`snacks` or `recipes`), transition (`start`, bounded `skip`, or `resume`), `expected_revision`, and `idempotency_key`.
 
 Output: the updated per-user section state and current repository HEAD. Owners and editors may mutate their own onboarding state; viewers may only read it. The server compare-and-sets the onboarding row and completes the idempotency record in the same household-scoped Neon transaction. It rejects stale revisions and never accepts a client-authored `complete` transition. `complete` is derived from the canonical `snacks/reports/recurring-snacks.md` or `recipes/reports/recipe-index.md` file in the membership-authorized household repository.
+
+#### `hfj_commit_onboarding`
+
+Input: `household_id`, snapshot `expected_head`, `idempotency_key`, up to one explicit outcome per section, up to one changed profile per onboarding profile, bounded evidence, items, canonical reports, and expected revisions for changed existing items. A section outcome is either `skip` with a bounded reason and expected onboarding revision, or `complete` with an expected revision. The server rejects duplicate section/profile entries, an empty draft, a `complete` outcome without the matching canonical report, a skip for an already-complete section, stale Git or onboarding revisions, invalid evidence references, and requests outside the HTTP/schema bounds.
+
+Output: final per-user onboarding state, committed IDs and counts, and repository HEAD. Owners and editors may commit. The normal content path creates one signed Git commit, applies rebuilt projections, and compare-and-sets bounded skip outcomes before reporting success. Recovery metadata contains only section, reason, and revision; the reconciliation worker reapplies it after rebuilding a Git-committed request. A skip-only draft completes in one household-scoped operational transaction against the unchanged verified HEAD and does not create an empty Git commit. Repeating the exact request with the same idempotency key returns the original result; reusing the key for different input fails.
 
 #### `hfj_create_family_invite`
 

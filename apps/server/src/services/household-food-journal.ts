@@ -23,6 +23,8 @@ import {
   SnapshotIdSchema,
   ToolInputSchemas,
   type OnboardingRecord,
+  type OnboardingCommitOutcome,
+  type OnboardingSkipOutcome,
   type OnboardingSection,
   type OnboardingSectionState,
   type OnboardingStatus,
@@ -32,7 +34,7 @@ import type { Clock, ExportArtifactPort, HouseholdRepositoryPort, OperationalSto
 import type { JsonValue, MembershipRecord, MutationRecord, Principal } from "../core/types.js";
 import { requireMembership, requireScope } from "../domain/authorization.js";
 import { markdownDocument, validateItemEvidence, validateReport } from "../domain/journal-validation.js";
-import { transitionOnboarding } from "../domain/onboarding.js";
+import { nextOnboardingSkip, transitionOnboarding } from "../domain/onboarding.js";
 import { stableJson } from "../adapters/memory.js";
 import { MutationRunner } from "./mutation-runner.js";
 import { MemoryExportArtifactStore } from "../exports/artifact-store.js";
@@ -61,6 +63,7 @@ export class HouseholdFoodJournalService {
         case "hfj_create_household": return this.write(await this.createHousehold(input, principal));
         case "hfj_select_household": return this.read(await this.selectHousehold(input, principal));
         case "hfj_update_onboarding": return this.write(await this.updateOnboarding(input, principal));
+        case "hfj_commit_onboarding": return this.write(await this.commitOnboarding(input, principal));
         case "hfj_create_family_invite": return this.write(await this.createInvite(input, principal));
         case "hfj_accept_family_invite": return this.write(await this.acceptInvite(input, principal));
         case "hfj_revoke_family_invite": return this.write(await this.revokeInvite(input, principal));
@@ -97,7 +100,29 @@ export class HouseholdFoodJournalService {
     const selected = parsed.household_id ?? await this.store.getDefaultHousehold(principal.userId);
     const selectedMembership = selected === null ? undefined : memberships.find(({ household }) => household.id === selected);
     if (selected !== null && selectedMembership === undefined) throw new AppError("FORBIDDEN", "You do not have access to that household");
-    const onboarding = selected === null ? null : await this.onboardingStatus(principal.userId, selected);
+    const snapshot = selected === null ? null : await this.store.withHouseholdLock(selected, async () => {
+      const membership = await requireMembership(this.store, principal, selected, "viewer");
+      const household = await this.requiredHousehold(selected);
+      const head = await this.repository.head(selected);
+      if (household.repositoryHead !== head || membership.projectionHead !== head) {
+        throw new AppError("PROJECTION_DRIFT", "The household snapshot does not match Git", true);
+      }
+      const projection = await this.store.projection(selected);
+      const items = [...projection.items.values()]
+        .sort((left, right) => left.item.id.localeCompare(right.item.id))
+        .map(({ item, revision }) => itemSummary(item, revision));
+      const itemLimit = 200;
+      return {
+        head,
+        onboarding: await this.onboardingStatus(principal.userId, selected),
+        profiles: {
+          snacks: profileSnapshot(projection.profiles.get("snacks")),
+          recipes: profileSnapshot(projection.profiles.get("recipes")),
+        },
+        items: items.slice(0, itemLimit),
+        items_truncated: items.length > itemLimit,
+      };
+    });
     return {
       data: {
         user: { display_name: principal.displayName },
@@ -105,9 +130,14 @@ export class HouseholdFoodJournalService {
         default_household_id: selected,
         pending_intent: null,
         granted_scopes: [...principal.scopes].sort(),
-        onboarding: onboarding === null ? null : jsonRoundTrip(onboarding),
+        onboarding: snapshot === null ? null : jsonRoundTrip(snapshot.onboarding),
+        onboarding_snapshot: snapshot === null ? null : jsonRoundTrip({
+          profiles: snapshot.profiles,
+          items: snapshot.items,
+          items_truncated: snapshot.items_truncated,
+        }),
       },
-      head: selectedMembership?.household.repositoryHead ?? null,
+      head: snapshot?.head ?? selectedMembership?.household.repositoryHead ?? null,
     };
   }
 
@@ -230,6 +260,162 @@ export class HouseholdFoodJournalService {
     }
     this.telemetry.event("mutation.completed", { tool: "hfj_update_onboarding", request_id: outcome.result.requestId });
     return outcome.result;
+  }
+
+  private async commitOnboarding(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_commit_onboarding.parse(input);
+    const hasCanonicalChanges = parsed.profiles.length + parsed.evidence.length + parsed.items.length + parsed.reports.length > 0;
+    if (!hasCanonicalChanges) return await this.commitOnboardingSkips(parsed, principal);
+
+    const skips = parsed.sections.filter((section) => section.outcome === "skip");
+    let projection = await this.store.projection(parsed.household_id);
+    return await this.mutations.run({
+      principal,
+      tool: "hfj_commit_onboarding",
+      householdId: parsed.household_id,
+      idempotencyKey: parsed.idempotency_key,
+      requestFingerprint: this.mutationFingerprint("hfj_commit_onboarding", parsed),
+      expectedHead: parsed.expected_head,
+      minimumRole: "editor",
+      requiredScope: "journal:write",
+      summary: "onboarding: commit confirmed journal setup",
+      recoveryData: { _onboarding_skips: jsonRoundTrip(skips) },
+      enforceFingerprintOnReplay: true,
+      buildChanges: async () => {
+        if ((await this.requiredHousehold(parsed.household_id)).repositoryHead !== parsed.expected_head) {
+          throw new AppError("PROJECTION_DRIFT", "The household projection does not match the onboarding snapshot", true);
+        }
+        projection = await this.store.projection(parsed.household_id);
+        const prospectiveEvidence = new Map(projection.evidence);
+        for (const evidence of parsed.evidence) {
+          if (prospectiveEvidence.has(evidence.id)) throw new AppError("REVISION_CONFLICT", `Evidence already exists: ${evidence.id}`);
+          if (evidence.supersedes_evidence_id !== undefined && !prospectiveEvidence.has(evidence.supersedes_evidence_id)) {
+            throw new AppError("VALIDATION_FAILED", "Correction evidence must reference an existing event");
+          }
+          prospectiveEvidence.set(evidence.id, evidence);
+        }
+        for (const item of parsed.items) {
+          validateItemEvidence(item, prospectiveEvidence);
+          const current = projection.items.get(item.id);
+          const expected = parsed.expected_item_revisions[item.id];
+          if (current !== undefined && expected !== current.revision) throw new AppError("REVISION_CONFLICT", `Item changed: ${item.id}`);
+          if (current === undefined && expected !== undefined) throw new AppError("REVISION_CONFLICT", `New item has an unexpected revision: ${item.id}`);
+        }
+        const itemIds = new Set([...projection.items.keys(), ...parsed.items.map((item) => item.id)]);
+        for (const report of parsed.reports) validateReport(report, prospectiveEvidence, itemIds);
+        await this.validateOnboardingOutcomes(parsed.household_id, parsed.sections, parsed.reports.map(({ report_type }) => report_type));
+        return [
+          ...parsed.evidence.map(evidenceChange),
+          ...parsed.profiles.map(({ profile, markdown }) => profileChange(profile, markdown)),
+          ...parsed.items.map(itemChange),
+          ...parsed.reports.map(reportChange),
+        ];
+      },
+      applyProjection: async (head, _requestId, occurredAt) => {
+        for (const evidence of parsed.evidence) projection.evidence.set(evidence.id, evidence);
+        for (const { profile, markdown } of parsed.profiles) projection.profiles.set(profile, { markdown, revision: head });
+        for (const item of parsed.items) projection.items.set(item.id, { item, revision: head });
+        await this.applyOnboardingSkips(principal.userId, parsed.household_id, skips, occurredAt);
+        const onboarding = await this.onboardingStatus(principal.userId, parsed.household_id);
+        return {
+          status: "completed",
+          item_ids: parsed.items.map(({ id }) => id),
+          evidence_ids: parsed.evidence.map(({ id }) => id),
+          report_count: parsed.reports.length,
+          profiles: parsed.profiles.map(({ profile }) => profile),
+          onboarding: jsonRoundTrip(onboarding),
+        };
+      },
+    });
+  }
+
+  private async commitOnboardingSkips(
+    parsed: ReturnType<typeof ToolInputSchemas.hfj_commit_onboarding.parse>,
+    principal: Principal,
+  ): Promise<WriteResult> {
+    const skips = parsed.sections.filter((section) => section.outcome === "skip");
+    if (skips.length === 0) throw new AppError("VALIDATION_FAILED", "The confirmed onboarding draft has no changes");
+    requireScope(principal, "journal:write");
+    await requireMembership(this.store, principal, parsed.household_id, "editor");
+    const requestFingerprint = this.mutationFingerprint("hfj_commit_onboarding", parsed);
+    const existing = await this.store.getMutation(principal.userId, "hfj_commit_onboarding", parsed.idempotency_key);
+    const replay = this.mutationReplay(existing, requestFingerprint);
+    if (replay !== null) return replay;
+    const requestId = existing?.requestId ?? this.requestId();
+    const occurredAt = existing?.createdAt ?? this.now();
+    if (existing === null) {
+      const record = this.mutationRecord(requestId, principal, "hfj_commit_onboarding", parsed.idempotency_key, parsed.household_id, occurredAt);
+      record.response = { _request_fingerprint: requestFingerprint, _onboarding_skips: jsonRoundTrip(skips) };
+      await this.store.saveMutation(record);
+    }
+    const outcome = await this.store.withHouseholdLock(parsed.household_id, async (): Promise<OperationalMutationOutcome> => {
+      const currentMutation = await this.store.getMutation(principal.userId, "hfj_commit_onboarding", parsed.idempotency_key);
+      const lockedReplay = this.mutationReplay(currentMutation, requestFingerprint);
+      if (lockedReplay !== null) return { status: "completed", result: lockedReplay };
+      if (currentMutation === null) throw new AppError("INTERNAL_ERROR", "Onboarding mutation record was not found");
+      await this.store.transitionMutation(requestId, "locked");
+      try {
+        const membership = await requireMembership(this.store, principal, parsed.household_id, "editor");
+        const household = await this.requiredHousehold(parsed.household_id);
+        const head = await this.repository.head(parsed.household_id);
+        if (head !== parsed.expected_head) throw new AppError("REVISION_CONFLICT", "The household changed since onboarding began");
+        if (household.repositoryHead !== head || membership.projectionHead !== head) throw new AppError("PROJECTION_DRIFT", "The household snapshot does not match Git", true);
+        await this.validateOnboardingOutcomes(parsed.household_id, parsed.sections, []);
+        await this.applyOnboardingSkips(principal.userId, parsed.household_id, skips, occurredAt);
+        const data = {
+          status: "completed",
+          household_id: parsed.household_id,
+          item_ids: [],
+          evidence_ids: [],
+          report_count: 0,
+          profiles: [],
+          onboarding: jsonRoundTrip(await this.onboardingStatus(principal.userId, parsed.household_id)),
+        } satisfies Record<string, JsonValue>;
+        await this.store.transitionMutation(requestId, "completed", { commitId: head, response: { ...data, _request_fingerprint: requestFingerprint } });
+        return { status: "completed", result: { data, head, requestId } };
+      } catch (error) {
+        await this.store.transitionMutation(requestId, "failed_before_commit", { failure: errorName(error) });
+        return { status: "failed", error };
+      }
+    });
+    if (outcome.status === "failed") throw outcome.error;
+    return outcome.result;
+  }
+
+  private async validateOnboardingOutcomes(
+    householdId: HouseholdId,
+    sections: ReadonlyArray<OnboardingCommitOutcome>,
+    reports: ReadonlyArray<"recurring_snacks" | "recipe_index">,
+  ): Promise<void> {
+    for (const section of sections) {
+      const hasReport = reports.includes(section.section === "snacks" ? "recurring_snacks" : "recipe_index")
+        || await this.reportExists(householdId, section.section);
+      if (section.outcome === "complete" && !hasReport) throw new AppError("VALIDATION_FAILED", "A completed onboarding section requires its canonical report");
+      if (section.outcome === "skip" && hasReport) throw new AppError("VALIDATION_FAILED", "A completed onboarding section cannot be skipped");
+    }
+  }
+
+  private async applyOnboardingSkips(
+    userId: UserId,
+    householdId: HouseholdId,
+    skips: ReadonlyArray<OnboardingSkipOutcome>,
+    occurredAt: string,
+  ): Promise<void> {
+    const records = new Map((await this.store.listOnboardingRecords(userId, householdId)).map((record) => [record.section, record]));
+    for (const skip of skips) {
+      const current = records.get(skip.section);
+      const next = nextOnboardingSkip(current, {
+        userId,
+        householdId,
+        skip,
+        occurredAt,
+      });
+      if (next === null) continue;
+      if (!await this.store.compareAndSetOnboarding(next, skip.expected_revision)) {
+        throw new AppError("REVISION_CONFLICT", "Onboarding changed in another session");
+      }
+      records.set(skip.section, next);
+    }
   }
 
   private async createInvite(input: unknown, principal: Principal): Promise<WriteResult> {
@@ -723,6 +909,44 @@ function itemFrontmatter(item: import("@hfj/contracts").JournalItem): object {
 }
 
 function itemTitle(item: import("@hfj/contracts").JournalItem): string { return item.kind === "recipe" ? item.title : item.display_name; }
+function itemSummary(item: import("@hfj/contracts").JournalItem, revision: GitObjectId): Record<string, JsonValue> {
+  return {
+    id: item.id,
+    kind: item.kind,
+    title: itemTitle(item),
+    revision,
+    distinguishing_fields: item.kind === "recipe"
+      ? { canonical_url: item.canonical_url, author_or_publisher: item.author_or_publisher }
+      : { brand: item.brand, flavor: item.flavor, formulation: item.formulation, format: item.format },
+  };
+}
+function profileSnapshot(profile: { readonly markdown: string; readonly revision: GitObjectId } | undefined): Record<string, JsonValue> {
+  return { markdown: profile?.markdown ?? "", revision: profile?.revision ?? null };
+}
+function evidenceChange(evidence: import("@hfj/contracts").Evidence): RepositoryChange {
+  return {
+    path: `${evidence.kind === "purchase" ? "snacks" : "recipes"}/evidence/${evidence.observed_at.slice(0, 4)}/${evidence.id}.json`,
+    content: stableJson(evidence),
+    appendOnly: true,
+  };
+}
+function profileChange(profile: "snacks" | "recipes", markdown: string): RepositoryChange {
+  return { path: `profiles/${profile}.md`, content: markdown.endsWith("\n") ? markdown : `${markdown}\n`, appendOnly: false };
+}
+function itemChange(item: import("@hfj/contracts").JournalItem): RepositoryChange {
+  return {
+    path: `${item.kind === "snack" ? "snacks" : "recipes"}/items/${item.id}.md`,
+    content: markdownDocument(itemFrontmatter(item), item.body_markdown),
+    appendOnly: false,
+  };
+}
+function reportChange(report: import("@hfj/contracts").Report): RepositoryChange {
+  return {
+    path: report.report_type === "recurring_snacks" ? "snacks/reports/recurring-snacks.md" : "recipes/reports/recipe-index.md",
+    content: report.markdown.endsWith("\n") ? report.markdown : `${report.markdown}\n`,
+    appendOnly: false,
+  };
+}
 function exactDuplicate(source: import("@hfj/contracts").CollectionItem, item: import("@hfj/contracts").JournalItem): boolean {
   if (source.kind !== item.kind) return false;
   if (item.kind === "recipe") return source.canonical_recipe_url !== null && item.canonical_url === source.canonical_recipe_url;

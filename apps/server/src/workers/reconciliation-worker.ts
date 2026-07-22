@@ -1,6 +1,11 @@
-import type { HouseholdId, RequestId, UserId } from "@hfj/contracts";
+import { OnboardingSkipOutcomeSchema, type HouseholdId, type RequestId, type UserId } from "@hfj/contracts";
+import { z } from "zod";
 import type { HouseholdRepositoryPort, OperationalStorePort, TelemetryPort } from "../core/ports.js";
+import type { MutationRecord } from "../core/types.js";
 import { rebuildRepositoryState } from "../domain/repository-projection.js";
+import { nextOnboardingSkip } from "../domain/onboarding.js";
+
+const RecoveredSkipsSchema = z.array(OnboardingSkipOutcomeSchema).max(2);
 
 export interface ReconciliationResult {
   readonly checked: number;
@@ -75,6 +80,7 @@ export class ReconciliationWorker {
         for (const mutation of mutations) {
           const commitId = commits.get(mutation.requestId);
           if (commitId !== null && commitId !== undefined) {
+            await this.applyRecoveredOnboardingSkips(mutation, householdId);
             await this.store.transitionMutation(mutation.requestId, "git_committed", { commitId });
             await this.store.transitionMutation(mutation.requestId, "projections_applied", { commitId });
           }
@@ -89,6 +95,24 @@ export class ReconciliationWorker {
     if (outcome.status === "rebuilt") this.telemetry.event("reconciliation.completed", { household_id: householdId });
     if (outcome.status === "quarantined") this.telemetry.error("reconciliation.quarantined", outcome.error, { household_id: householdId });
     return outcome.status;
+  }
+
+  private async applyRecoveredOnboardingSkips(mutation: MutationRecord, householdId: HouseholdId): Promise<void> {
+    if (mutation.tool !== "hfj_commit_onboarding") return;
+    const parsed = RecoveredSkipsSchema.safeParse(mutation.response?._onboarding_skips ?? []);
+    if (!parsed.success) throw new Error("Onboarding recovery metadata is invalid");
+    const records = new Map((await this.store.listOnboardingRecords(mutation.userId, householdId)).map((record) => [record.section, record]));
+    for (const skip of parsed.data) {
+      const next = nextOnboardingSkip(records.get(skip.section), {
+        userId: mutation.userId,
+        householdId,
+        skip,
+        occurredAt: mutation.createdAt,
+      });
+      if (next === null) continue;
+      if (!await this.store.compareAndSetOnboarding(next, skip.expected_revision)) throw new Error("Onboarding recovery revision conflict");
+      records.set(skip.section, next);
+    }
   }
 }
 

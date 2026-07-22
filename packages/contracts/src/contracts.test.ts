@@ -56,9 +56,10 @@ describe("contract boundaries", () => {
   });
 
   it("publishes the complete stable tool catalog", () => {
-    expect(Object.keys(ToolInputSchemas)).toHaveLength(23);
+    expect(Object.keys(ToolInputSchemas)).toHaveLength(24);
     expect(ToolInputSchemas.hfj_get_context).toBeDefined();
     expect(ToolInputSchemas.hfj_update_onboarding).toBeDefined();
+    expect(ToolInputSchemas.hfj_commit_onboarding).toBeDefined();
     expect(ToolInputSchemas.hfj_export_household).toBeDefined();
   });
 
@@ -87,6 +88,36 @@ describe("contract boundaries", () => {
       revision: 1,
       updated_at: "2026-07-21T20:00:00.000Z",
     }).success).toBe(false);
+  });
+
+  it("requires unique, explicit outcomes in the final onboarding commit", () => {
+    const base = {
+      household_id: "hsh_0123456789abcdef",
+      expected_head: "a".repeat(40),
+      idempotency_key: "onboarding-final-1",
+    };
+    expect(parseToolInput("hfj_commit_onboarding", {
+      ...base,
+      sections: [
+        { section: "snacks", outcome: "skip", reason: "no_sources", expected_revision: 0 },
+        { section: "recipes", outcome: "skip", reason: "not_now", expected_revision: 0 },
+      ],
+    })).toMatchObject({ sections: [{ section: "snacks" }, { section: "recipes" }] });
+    expect(() => parseToolInput("hfj_commit_onboarding", {
+      ...base,
+      sections: [
+        { section: "snacks", outcome: "skip", reason: "no_sources", expected_revision: 0 },
+        { section: "snacks", outcome: "complete", expected_revision: 0 },
+      ],
+    })).toThrow();
+    expect(() => parseToolInput("hfj_commit_onboarding", base)).toThrow();
+    expect(() => parseToolInput("hfj_commit_onboarding", {
+      ...base,
+      profiles: [
+        { profile: "snacks", markdown: "first" },
+        { profile: "snacks", markdown: "second" },
+      ],
+    })).toThrow();
   });
 
   it("rejects invalid runner leases and implicit terminal success", () => {

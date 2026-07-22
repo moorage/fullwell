@@ -63,10 +63,26 @@ describe("Fastify application", () => {
     expect(initialized.body).toBe("");
     const list = await app.inject({ method: "POST", url: "/mcp", headers: { authorization: "Bearer test-owner-token" }, payload: { jsonrpc: "2.0", id: 1, method: "tools/list" } });
     expect(list.statusCode).toBe(200);
-    const tools = list.json().result.tools as Array<{ name: string; description: string }>;
+    const tools = list.json().result.tools as Array<{
+      name: string;
+      description: string;
+      annotations: { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean; openWorldHint: boolean };
+    }>;
     const names = tools.map((tool) => tool.name);
     expect(names).toEqual(Object.keys(ToolInputSchemas));
     expect(tools.find(({ name }) => name === "hfj_update_onboarding")?.description).toContain("Start, skip, or resume");
+    expect(tools.find(({ name }) => name === "hfj_get_context")?.annotations).toEqual({
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    });
+    expect(tools.find(({ name }) => name === "hfj_commit_onboarding")?.annotations).toEqual({
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    });
 
     const create = await app.inject({ method: "POST", url: "/mcp", headers: { authorization: "Bearer test-owner-token" }, payload: { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "hfj_create_household", arguments: { name: "Our Kitchen", idempotency_key: "household-key-1" } } } });
     expect(create.statusCode).toBe(200);

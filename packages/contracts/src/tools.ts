@@ -18,7 +18,11 @@ import {
   JournalItemSchema,
   ReportSchema,
 } from "./domain.js";
-import { OnboardingActionSchema, OnboardingSectionSchema } from "./onboarding.js";
+import {
+  OnboardingActionSchema,
+  OnboardingCommitOutcomeSchema,
+  OnboardingSectionSchema,
+} from "./onboarding.js";
 
 const HouseholdMutationSchema = z.object({
   household_id: HouseholdIdSchema,
@@ -89,6 +93,27 @@ export const ToolInputSchemas = {
   }).strict().refine((value) => value.items.length + value.reports.length > 0, {
     message: "At least one item or report is required",
   }),
+  hfj_commit_onboarding: RevisionedHouseholdMutationSchema.extend({
+    sections: z.array(OnboardingCommitOutcomeSchema).max(2).default([]),
+    profiles: z.array(z.object({
+      profile: z.enum(["snacks", "recipes"]),
+      markdown: z.string().max(100_000),
+    }).strict()).max(2).default([]),
+    evidence: z.array(EvidenceSchema).max(500).default([]),
+    items: z.array(JournalItemSchema).max(100).default([]),
+    reports: z.array(ReportSchema).max(2).default([]),
+    expected_item_revisions: z.record(ItemIdSchema, GitObjectIdSchema).default({}),
+  }).strict().superRefine((value, context) => {
+    if (value.sections.length + value.profiles.length + value.evidence.length + value.items.length + value.reports.length === 0) {
+      context.addIssue({ code: "custom", message: "At least one onboarding outcome or journal change is required" });
+    }
+    if (new Set(value.sections.map(({ section }) => section)).size !== value.sections.length) {
+      context.addIssue({ code: "custom", path: ["sections"], message: "Each onboarding section may appear once" });
+    }
+    if (new Set(value.profiles.map(({ profile }) => profile)).size !== value.profiles.length) {
+      context.addIssue({ code: "custom", path: ["profiles"], message: "Each onboarding profile may appear once" });
+    }
+  }),
   hfj_create_collection: RevisionedHouseholdMutationSchema.extend({
     title: z.string().trim().min(1).max(300),
     items: z.array(CollectionItemSchema).min(1).max(200),
@@ -132,6 +157,7 @@ export const MutatingToolNames = new Set<ToolName>([
   "hfj_update_onboarding",
   "hfj_revoke_family_invite", "hfj_update_member", "hfj_remove_member",
   "hfj_update_profile", "hfj_append_evidence", "hfj_commit_change_set",
+  "hfj_commit_onboarding",
   "hfj_create_collection", "hfj_create_collection_share", "hfj_revoke_collection_share",
   "hfj_import_collection_items", "hfj_export_household",
 ]);

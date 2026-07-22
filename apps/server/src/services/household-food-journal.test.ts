@@ -4,6 +4,7 @@ import {
   GitObjectIdSchema,
   HouseholdIdSchema,
   ItemIdSchema,
+  JournalItemSchema,
   OnboardingStatusSchema,
   UserIdSchema,
   type GitObjectId,
@@ -49,6 +50,19 @@ describe("HouseholdFoodJournalService", () => {
       new NoopTelemetry(),
       new URL("https://journal.example.test"),
     );
+  });
+
+  it("returns an empty onboarding context before a household exists", async () => {
+    expect(await service.call("hfj_get_context", {}, owner)).toMatchObject({
+      ok: true,
+      data: {
+        households: [],
+        default_household_id: null,
+        onboarding: null,
+        onboarding_snapshot: null,
+      },
+      repository_head: null,
+    });
   });
 
   async function call(name: ToolName, input: unknown, principal: Principal = owner): Promise<{ data: Record<string, JsonValue>; head: string }> {
@@ -432,6 +446,158 @@ describe("HouseholdFoodJournalService", () => {
     const other = await call("hfj_create_household", { name: "Other", idempotency_key: "onboarding-create-0202" });
     const substituted = await service.call("hfj_get_context", { household_id: other.data.household_id }, member);
     expect(substituted).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
+  });
+
+  it("reads one onboarding snapshot and atomically commits the confirmed draft", async () => {
+    const created = await call("hfj_create_household", { name: "One approval", idempotency_key: "onboarding-batch-create-0201" });
+    const householdId = HouseholdIdSchema.parse(created.data.household_id);
+    const initialContext = await call("hfj_get_context", { household_id: householdId });
+    expect(initialContext.data.onboarding_snapshot).toEqual({
+      profiles: {
+        snacks: { markdown: "", revision: null },
+        recipes: { markdown: "", revision: null },
+      },
+      items: [],
+      items_truncated: false,
+    });
+
+    const input = {
+      household_id: householdId,
+      expected_head: created.head,
+      idempotency_key: "onboarding-batch-commit-0201",
+      sections: [
+        { section: "snacks" as const, outcome: "complete" as const, expected_revision: 0 },
+        { section: "recipes" as const, outcome: "skip" as const, reason: "not_now" as const, expected_revision: 0 },
+      ],
+      profiles: [{ profile: "snacks" as const, markdown: "# Snack sources" }],
+      evidence: [],
+      items: [],
+      reports: [{ report_type: "recurring_snacks" as const, markdown: "# No recurring snacks", assertions: [], schema_version: 1 }],
+      expected_item_revisions: {},
+    };
+    const committed = await call("hfj_commit_onboarding", input);
+    expect(committed.data.onboarding).toMatchObject({
+      snacks: { status: "complete" },
+      recipes: { status: "skipped", revision: 1, reason: "not_now" },
+    });
+    expect(repository.commitCount(householdId)).toBe(1);
+    expect(await call("hfj_commit_onboarding", input)).toEqual(committed);
+    expect(repository.commitCount(householdId)).toBe(1);
+    expect(await service.call("hfj_commit_onboarding", {
+      ...input,
+      profiles: [{ profile: "snacks", markdown: "# Changed replay" }],
+    }, owner)).toMatchObject({ ok: false, error: { code: "REVISION_CONFLICT" } });
+    expect(await service.call("hfj_commit_onboarding", {
+      household_id: householdId,
+      expected_head: committed.head,
+      idempotency_key: "onboarding-invalid-complete-0201",
+      sections: [{ section: "recipes", outcome: "complete", expected_revision: 1 }],
+      profiles: [{ profile: "recipes", markdown: "# Recipe sources" }],
+    }, owner)).toMatchObject({ ok: false, error: { code: "VALIDATION_FAILED" } });
+    expect(await service.call("hfj_commit_onboarding", {
+      household_id: householdId,
+      expected_head: committed.head,
+      idempotency_key: "onboarding-invalid-skip-0201",
+      sections: [{ section: "snacks", outcome: "skip", reason: "not_now", expected_revision: 0 }],
+    }, owner)).toMatchObject({ ok: false, error: { code: "VALIDATION_FAILED" } });
+
+    const refreshed = await call("hfj_get_context", { household_id: householdId });
+    expect(refreshed.data.onboarding_snapshot).toMatchObject({
+      profiles: { snacks: { markdown: "# Snack sources", revision: committed.head } },
+      items_truncated: false,
+    });
+  });
+
+  it("commits skip-only onboarding without creating an empty Git commit", async () => {
+    const created = await call("hfj_create_household", { name: "Skip setup", idempotency_key: "onboarding-skip-create-0201" });
+    const householdId = HouseholdIdSchema.parse(created.data.household_id);
+    expect(await service.call("hfj_commit_onboarding", {
+      household_id: householdId,
+      expected_head: created.head,
+      idempotency_key: "onboarding-no-change-0201",
+      sections: [{ section: "snacks", outcome: "complete", expected_revision: 0 }],
+    }, owner)).toMatchObject({ ok: false, error: { code: "VALIDATION_FAILED" } });
+    const input = {
+      household_id: householdId,
+      expected_head: created.head,
+      idempotency_key: "onboarding-skip-final-0201",
+      sections: [
+        { section: "snacks" as const, outcome: "skip" as const, reason: "no_sources" as const, expected_revision: 0 },
+        { section: "recipes" as const, outcome: "skip" as const, reason: "user_declined" as const, expected_revision: 0 },
+      ],
+    };
+    const committed = await call("hfj_commit_onboarding", input);
+    expect(committed.head).toBe(created.head);
+    expect(repository.commitCount(householdId)).toBe(0);
+    expect(committed.data.onboarding).toMatchObject({
+      snacks: { status: "skipped", revision: 1, reason: "no_sources" },
+      recipes: { status: "skipped", revision: 1, reason: "user_declined" },
+    });
+    expect(await call("hfj_commit_onboarding", input)).toEqual(committed);
+    expect(repository.commitCount(householdId)).toBe(0);
+    expect(await service.call("hfj_commit_onboarding", {
+      ...input,
+      sections: [{ section: "snacks", outcome: "skip", reason: "not_now", expected_revision: 0 }],
+    }, owner)).toMatchObject({ ok: false, error: { code: "REVISION_CONFLICT" } });
+    expect(await service.call("hfj_commit_onboarding", {
+      ...input,
+      idempotency_key: "onboarding-skip-stale-0201",
+      expected_head: "f".repeat(40),
+    }, owner)).toMatchObject({ ok: false, error: { code: "REVISION_CONFLICT" } });
+
+    const unchangedSkip = await call("hfj_commit_onboarding", {
+      household_id: householdId,
+      expected_head: created.head,
+      idempotency_key: "onboarding-skip-unchanged-0201",
+      sections: [{ section: "snacks", outcome: "skip", reason: "no_sources", expected_revision: 1 }],
+    });
+    expect(unchangedSkip.data.onboarding).toMatchObject({ snacks: { status: "skipped", revision: 1 } });
+    expect(repository.commitCount(householdId)).toBe(0);
+  });
+
+  it("bounds the onboarding item index and rejects a mixed-head snapshot", async () => {
+    const created = await call("hfj_create_household", { name: "Bounded snapshot", idempotency_key: "onboarding-snapshot-create-0201" });
+    const householdId = HouseholdIdSchema.parse(created.data.household_id);
+    const projection = await store.projection(householdId);
+    for (let index = 0; index < 201; index += 1) {
+      const id = ItemIdSchema.parse(`itm_${index.toString().padStart(16, "0")}`);
+      projection.items.set(id, {
+        revision: GitObjectIdSchema.parse(created.head),
+        item: JournalItemSchema.parse({
+          id,
+          kind: "snack",
+          display_name: `Snack ${index}`,
+          brand: null,
+          product_line: null,
+          flavor: null,
+          formulation: null,
+          format: null,
+          category: "snack",
+          produce_variety: null,
+          known_size_variants: [],
+          image_page_url: null,
+          image_url: null,
+          evidence_ids: ["evd_0000000000000999"],
+          created_at: "2026-07-15T12:00:00.000Z",
+          updated_at: "2026-07-15T12:00:00.000Z",
+          schema_version: 1,
+          body_markdown: "",
+        }),
+      });
+    }
+    const context = await call("hfj_get_context", { household_id: householdId });
+    const snapshot = z.object({ items: z.array(z.json()), items_truncated: z.boolean() }).passthrough().parse(context.data.onboarding_snapshot);
+    expect(snapshot.items).toHaveLength(200);
+    expect(snapshot.items_truncated).toBe(true);
+
+    const membership = await store.getMembership(householdId, owner.userId);
+    if (membership === null) throw new Error("missing owner membership");
+    membership.projectionHead = GitObjectIdSchema.parse("f".repeat(40));
+    await store.upsertMembership(membership);
+    expect(await service.call("hfj_get_context", { household_id: householdId }, owner)).toMatchObject({
+      ok: false,
+      error: { code: "PROJECTION_DRIFT" },
+    });
   });
 
   it("replays a committed request after projection failure without a second Git commit", async () => {

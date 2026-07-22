@@ -4,6 +4,7 @@ import {
   type OnboardingAction,
   type OnboardingRecord,
   type OnboardingSection,
+  type OnboardingSkipOutcome,
   type UserId,
 } from "@hfj/contracts";
 import { AppError } from "../core/errors.js";
@@ -34,6 +35,27 @@ export function transitionOnboarding(
   }
   if (current?.status === "skipped") throw invalidTransition();
   return record(input, "skipped", input.transition.reason);
+}
+
+export function nextOnboardingSkip(
+  current: OnboardingRecord | undefined,
+  input: {
+    readonly userId: UserId;
+    readonly householdId: HouseholdId;
+    readonly skip: OnboardingSkipOutcome;
+    readonly occurredAt: string;
+  },
+): OnboardingRecord | null {
+  if (current?.status === "skipped" && current.skip_reason === input.skip.reason
+    && (current.revision === input.skip.expected_revision || current.revision === input.skip.expected_revision + 1)) return null;
+  return transitionOnboarding(current, {
+    userId: input.userId,
+    householdId: input.householdId,
+    section: input.skip.section,
+    transition: { action: "skip", reason: input.skip.reason },
+    expectedRevision: input.skip.expected_revision,
+    occurredAt: input.occurredAt,
+  });
 }
 
 function record(

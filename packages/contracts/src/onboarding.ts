@@ -5,6 +5,22 @@ import { HouseholdIdSchema, UserIdSchema } from "./ids.js";
 export const OnboardingSectionSchema = z.enum(["snacks", "recipes"]);
 export const OnboardingSkipReasonSchema = z.enum(["not_now", "no_sources", "user_declined"]);
 
+export const OnboardingCompleteOutcomeSchema = z.object({
+  section: OnboardingSectionSchema,
+  outcome: z.literal("complete"),
+  expected_revision: z.number().int().nonnegative(),
+}).strict();
+export const OnboardingSkipOutcomeSchema = z.object({
+  section: OnboardingSectionSchema,
+  outcome: z.literal("skip"),
+  reason: OnboardingSkipReasonSchema,
+  expected_revision: z.number().int().nonnegative(),
+}).strict();
+export const OnboardingCommitOutcomeSchema = z.discriminatedUnion("outcome", [
+  OnboardingCompleteOutcomeSchema,
+  OnboardingSkipOutcomeSchema,
+]);
+
 export const OnboardingActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start") }).strict(),
   z.object({ action: z.literal("skip"), reason: OnboardingSkipReasonSchema }).strict(),
@@ -48,6 +64,8 @@ export const OnboardingStatusSchema = z.object({
 }).strict();
 
 export type OnboardingAction = z.infer<typeof OnboardingActionSchema>;
+export type OnboardingCommitOutcome = z.infer<typeof OnboardingCommitOutcomeSchema>;
+export type OnboardingSkipOutcome = z.infer<typeof OnboardingSkipOutcomeSchema>;
 export type OnboardingRecord = z.infer<typeof OnboardingRecordSchema>;
 export type OnboardingSection = z.infer<typeof OnboardingSectionSchema>;
 export type OnboardingSectionState = z.infer<typeof OnboardingSectionStateSchema>;

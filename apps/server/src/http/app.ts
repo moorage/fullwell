@@ -3,7 +3,7 @@ import formbody from "@fastify/formbody";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { createHash } from "node:crypto";
-import { ToolInputSchemas, ToolNameSchema, type ToolName } from "@hfj/contracts";
+import { MutatingToolNames, ToolInputSchemas, ToolNameSchema, type ToolName } from "@hfj/contracts";
 import { z } from "zod";
 import type { AuthenticationPort, Clock, ExportArtifactPort, HouseholdRepositoryPort, IdentityProviderPort, MailPort, OperationalStorePort, RandomSource, TokenHasher } from "../core/ports.js";
 import type { Principal } from "../core/types.js";
@@ -271,11 +271,37 @@ function nativeOAuthLoopbackOrigin(request: FastifyRequest): string | null {
 async function authenticate(header: string | undefined, provider: AuthenticationPort) { return await provider.authenticate(header); }
 const ToolDescriptions: Partial<Record<ToolName, string>> = {
   hfj_update_onboarding: "Start, skip, or resume the current user's snack or recipe onboarding section; completion is derived from canonical reports.",
+  hfj_commit_onboarding: "Atomically commit a confirmed snack-and-recipe onboarding draft, including profiles, evidence, items, reports, and skip outcomes.",
 };
-function toolCatalog(): Array<{ name: ToolName; description: string; inputSchema: object }> {
+interface ToolAnnotations {
+  readonly readOnlyHint: boolean;
+  readonly destructiveHint: boolean;
+  readonly idempotentHint: boolean;
+  readonly openWorldHint: boolean;
+}
+const DestructiveToolNames = new Set<ToolName>([
+  "hfj_remove_member",
+  "hfj_revoke_family_invite",
+  "hfj_revoke_collection_share",
+]);
+function annotations(toolName: ToolName): ToolAnnotations {
+  const changesState = MutatingToolNames.has(toolName) || toolName === "hfj_select_household";
+  return {
+    readOnlyHint: !changesState,
+    destructiveHint: DestructiveToolNames.has(toolName),
+    idempotentHint: MutatingToolNames.has(toolName) || toolName === "hfj_select_household",
+    openWorldHint: false,
+  };
+}
+function toolCatalog(): Array<{ name: ToolName; description: string; inputSchema: object; annotations: ToolAnnotations }> {
   return Object.entries(ToolInputSchemas).map(([name, schema]) => {
     const toolName = ToolNameSchema.parse(name);
-    return { name: toolName, description: ToolDescriptions[toolName] ?? name.replaceAll("_", " "), inputSchema: z.toJSONSchema(schema) };
+    return {
+      name: toolName,
+      description: ToolDescriptions[toolName] ?? name.replaceAll("_", " "),
+      inputSchema: z.toJSONSchema(schema),
+      annotations: annotations(toolName),
+    };
   });
 }
 function httpStatus(code: string): number {

@@ -23,6 +23,9 @@
     "asks_which_setup_area_to_configure_before_the_first_onboarding_question",
     "returns_generic_greeting_or_asks_whats_on_your_mind_while_onboarding_is_open",
     "writes_complete_onboarding_without_a_canonical_report",
-    "uses_keyword_matching_to_interpret_an_onboarding_decline"
+    "uses_keyword_matching_to_interpret_an_onboarding_decline",
+    "writes_fullwell_onboarding_before_final_confirmation",
+    "uses_multiple_fullwell_writes_for_a_bounded_guided_draft",
+    "persists_an_unconfirmed_onboarding_draft_outside_the_active_conversation"
   ]
 }

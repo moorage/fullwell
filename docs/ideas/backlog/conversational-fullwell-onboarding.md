@@ -19,10 +19,11 @@ Installing Fullwell currently exposes useful starter prompts but does not guide 
 - The server returns an `onboarding_state` only from household creation; `hfj_get_context` has no resumable section state.
 - Snack and recipe reports already have separate evidence-first skills and canonical Git paths, so onboarding should coordinate rather than duplicate them.
 - The user explicitly requested that `@Fullwell hi` begin asking questions without a setup menu and that natural replies such as `no`, `I do not have recipes`, or `nevermind` advance to the next section.
+- Real Codex onboarding then showed that separately persisting start, skip, profile, evidence, and report steps caused repeated MCP approval prompts. On 2026-07-21 the user approved a read-draft-commit iteration that keeps unconfirmed work ephemeral and reduces the normal Fullwell path to one initial read plus one final confirmed write.
 
 ## Proposed direction
 
-Treat onboarding as a small typed state machine. `hfj_get_context` returns per-user snack and recipe onboarding status for the selected household. One `hfj_update_onboarding` tool accepts a discriminated `start`, `skip`, or `resume` action with optimistic revision and idempotency. Per-user operational state lives in Neon; household-wide completion is derived from the corresponding canonical Git report. The existing management skill begins with snack questions, advances to recipe questions after a natural decline, and delegates actual collection to the existing audit skills. Codex gets a Fullwell-branded starter prompt and a prefilled setup deep link that still requires the user to send the prompt.
+Treat onboarding as a small typed state machine with an approval-efficient orchestration layer. `hfj_get_context` returns per-user section state plus both profiles and a bounded item identity index from one consistent selected-household snapshot. The host keeps the unconfirmed snack-and-recipe draft only in the active conversation, presents one final summary, and calls `hfj_commit_onboarding` once after explicit confirmation. That final tool validates same-request evidence and conclusions together, creates one canonical Git commit when content changes, and compare-and-sets bounded Neon skip outcomes with recovery intent. The legacy `hfj_update_onboarding` transition remains compatible with older clients. Household-wide completion remains derived from canonical reports.
 
 ## Non-goals
 

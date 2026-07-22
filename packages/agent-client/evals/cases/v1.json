@@ -6,36 +6,43 @@
       "id": "first-time-setup-oauth",
       "prompt": "Set up Fullwell for my household food journal.",
       "skills": ["manage-household-food-journal"],
-      "required_tools": ["hfj_get_context", "hfj_create_household", "hfj_update_onboarding"],
-      "invariants": ["browser_auth_only", "never_request_token", "one_household", "begin_guided_first_run"]
+      "required_tools": ["hfj_get_context", "hfj_create_household"],
+      "invariants": ["browser_auth_only", "never_request_token", "one_household", "begin_guided_first_run", "no_intermediate_onboarding_write"]
     },
     {
       "id": "first-time-setup-starts-snacks",
       "prompt": "@Fullwell hi, please help me get started with my food journal.",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases"],
-      "required_tools": ["hfj_get_context", "hfj_update_onboarding"],
-      "invariants": ["no_setup_area_menu", "snacks_before_recipes", "ask_grocery_stores", "start_before_question"]
+      "required_tools": ["hfj_get_context"],
+      "invariants": ["no_setup_area_menu", "snacks_before_recipes", "ask_grocery_stores", "draft_in_conversation_only", "no_intermediate_onboarding_write"]
     },
     {
       "id": "bare-fullwell-greeting-starts-snacks",
       "prompt": "@Fullwell hi",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases"],
-      "required_tools": ["hfj_get_context", "hfj_update_onboarding", "hfj_get_profile"],
-      "invariants": ["bare_greeting_is_onboarding_intent", "check_onboarding_before_reply", "no_generic_greeting_while_open", "snacks_before_recipes", "ask_only_needed_snack_source_and_preferences"]
+      "required_tools": ["hfj_get_context"],
+      "invariants": ["bare_greeting_is_onboarding_intent", "check_onboarding_before_reply", "reuse_snapshot_profiles_and_items", "no_generic_greeting_while_open", "snacks_before_recipes", "ask_only_needed_snack_source_and_preferences", "no_intermediate_onboarding_write"]
     },
     {
       "id": "snack-decline-advances-to-recipes",
       "prompt": "I do not have any snack purchases to audit right now.",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases", "track-recipe-history"],
-      "required_tools": ["hfj_update_onboarding"],
-      "invariants": ["skip_snacks_with_bounded_reason", "advance_without_setup_menu", "ask_recipe_sources_next"]
+      "required_tools": [],
+      "invariants": ["draft_snack_skip_with_bounded_reason", "advance_without_setup_menu", "ask_recipe_sources_next", "no_intermediate_onboarding_write"]
     },
     {
       "id": "recipe-no-sources-finishes-guided-run",
       "prompt": "I do not have recipes or anywhere that I save them.",
       "skills": ["manage-household-food-journal", "track-recipe-history"],
-      "required_tools": ["hfj_update_onboarding"],
-      "invariants": ["skip_recipes_as_no_sources", "no_false_completion", "finish_precisely", "do_not_revisit_same_run_skip"]
+      "required_tools": [],
+      "invariants": ["draft_recipe_skip_as_no_sources", "no_false_completion", "summarize_and_request_final_confirmation", "do_not_revisit_same_run_skip", "no_intermediate_onboarding_write"]
+    },
+    {
+      "id": "confirmed-onboarding-commits-once",
+      "prompt": "Yes, that final Fullwell onboarding summary is correct. Save all of it now.",
+      "skills": ["manage-household-food-journal", "audit-grocery-purchases", "track-recipe-history"],
+      "required_tools": ["hfj_commit_onboarding"],
+      "invariants": ["one_final_fullwell_write", "stable_idempotency_key", "snapshot_head_compare_and_set", "no_legacy_onboarding_writes", "report_required_for_complete"]
     },
     {
       "id": "explicit-setup-stop-does-not-advance",
@@ -48,8 +55,8 @@
       "id": "skipped-onboarding-resumes",
       "prompt": "@Fullwell hi, I am ready to continue the setup I skipped earlier.",
       "skills": ["manage-household-food-journal"],
-      "required_tools": ["hfj_get_context", "hfj_update_onboarding"],
-      "invariants": ["prefer_unfinished_unskipped_section", "resume_with_returned_revision", "no_complete_transition"]
+      "required_tools": ["hfj_get_context"],
+      "invariants": ["prefer_unfinished_unskipped_section", "reuse_returned_revision_in_final_draft", "no_resume_transition", "no_intermediate_onboarding_write"]
     },
     {
       "id": "invite-explicit-acceptance",

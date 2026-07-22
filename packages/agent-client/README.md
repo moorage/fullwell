@@ -2,7 +2,7 @@
 
 One shared skill package connects Codex and Claude to the hosted Household Food Journal MCP service and defines the local-only grocery-restocking workflow. The service performs authentication and all canonical journal mutations; this package contains no credentials, household data, Git client, or synchronization state.
 
-After installation, start with `@Fullwell hi` in Codex or `Set up Fullwell.` in Claude. A bare greeting checks onboarding state before replying: while work remains, the shared skills begin snacks, ask only for missing source authorization and preferences, then advance to recipes without a setup menu or generic help question. A declined section is skipped and per-user progress resumes through the hosted MCP service. A section is complete only when its canonical household report exists.
+After installation, start with `@Fullwell hi` in Codex or `Set up Fullwell.` in Claude. A bare greeting reads one onboarding snapshot before replying: while work remains, the shared skills begin snacks, ask only for missing source authorization and preferences, then advance to recipes without a setup menu or generic help question. The unconfirmed draft stays in the active conversation, and Fullwell writes it once only after showing a final summary and receiving explicit confirmation. A section is complete only when its canonical household report exists.
 
 The restocking skill reads only a private revisioned snapshot prepared by `@fullwell/local-runner`. Product selection and retailer cart control stay on the user's Mac; the WhatsApp gateway relays encrypted user-facing text and transport state only.
 

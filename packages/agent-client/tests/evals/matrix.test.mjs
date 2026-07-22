@@ -16,8 +16,12 @@ test("each eval has a unique identity and runs on both hosts", async () => {
   const bareGreeting = matrix.cases.find((testCase) => testCase.id === "bare-fullwell-greeting-starts-snacks");
   assert.equal(bareGreeting?.prompt, "@Fullwell hi");
   assert.deepEqual(bareGreeting?.skills, ["manage-household-food-journal", "audit-grocery-purchases"]);
-  assert.deepEqual(bareGreeting?.required_tools, ["hfj_get_context", "hfj_update_onboarding", "hfj_get_profile"]);
+  assert.deepEqual(bareGreeting?.required_tools, ["hfj_get_context"]);
   assert.ok(bareGreeting?.invariants.includes("no_generic_greeting_while_open"));
+  assert.ok(bareGreeting?.invariants.includes("no_intermediate_onboarding_write"));
+  const finalConfirmation = matrix.cases.find((testCase) => testCase.id === "confirmed-onboarding-commits-once");
+  assert.deepEqual(finalConfirmation?.required_tools, ["hfj_commit_onboarding"]);
+  assert.ok(finalConfirmation?.invariants.includes("one_final_fullwell_write"));
   for (const testCase of matrix.cases) {
     assert.ok(testCase.prompt.length >= 20 || testCase.id === "bare-fullwell-greeting-starts-snacks");
     assert.ok(testCase.invariants.length >= 1);

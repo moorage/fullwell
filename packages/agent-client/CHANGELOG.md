@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.1.3 - 2026-07-21
+
+- Read onboarding state, profiles, and the bounded item index once, keep the unconfirmed snack-and-recipe draft in the active conversation, and write it with one final `hfj_commit_onboarding` call after explicit confirmation.
+- Avoid intermediate Fullwell mutations for declines and audits during guided first run while retaining the existing standalone audit tools and conflict fallbacks.
+
 ## 1.1.2 - 2026-07-21
 
 - Route a bare `@Fullwell hi` through unresolved onboarding before general help, starting snacks and then recipes with only the missing source, authorization, and preference questions each audit needs.

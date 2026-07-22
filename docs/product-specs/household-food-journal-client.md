@@ -94,7 +94,9 @@ The installed package declares the remote Streamable HTTP MCP endpoint and no be
 
 After authentication, the agent calls `hfj_get_context`. If the user has no household, it asks for a household name and calls `hfj_create_household`. If the user arrived through a pending family invitation or collection import, it resumes that intent instead of creating an unrelated household.
 
-After the household is available, the agent begins guided first run immediately. A Fullwell greeting must read onboarding state before producing a visible reply. While any section remains unresolved, it must not return a generic greeting, ask what is on the user's mind, ask what the user wants to set up, or present a snacks-versus-recipes menu. It starts with grocery stores and asks only for missing source authorization and snack preferences needed for the audit, then asks where the user saves, finds, or discusses recipes and gathers only missing recipe source meaning, authorization, and preferences. A natural refusal, `not now`, `never mind`, or statement that the user has no applicable sources skips only the current section and advances to the next one. An explicit request to stop, cancel, or quit the whole setup ends the conversation without starting the next section.
+After the household is available, the agent begins guided first run immediately. A Fullwell greeting must read onboarding state, both onboarding profiles, and the bounded item identity index once before producing a visible reply. While any section remains unresolved, it must not return a generic greeting, ask what is on the user's mind, ask what the user wants to set up, or present a snacks-versus-recipes menu. It starts with grocery stores and asks only for missing source authorization and snack preferences needed for the audit, then asks where the user saves, finds, or discusses recipes and gathers only missing recipe source meaning, authorization, and preferences.
+
+The agent keeps the unconfirmed setup draft only in the active conversation and makes no intermediate Fullwell mutation. A natural refusal, `not now`, `never mind`, or statement that the user has no applicable sources records a bounded local draft outcome for the current section and advances to the next one. An explicit request to stop, cancel, or quit the whole setup discards the uncommitted draft. After both sections, the agent presents one precise summary and asks for explicit final confirmation; only then does it call `hfj_commit_onboarding` once. Browser or website authorization remains a separate host boundary and may still require host approval. Truncated snapshots, conflicts, and payloads outside the bounded final schema require an explained fallback rather than a false one-read/one-write claim.
 
 The client must never ask the user to paste a token back into the conversation.
 
@@ -349,7 +351,7 @@ The client is coded against these stable tool names. Complete schemas and author
 
 | Tool | Client use |
 |---|---|
-| `hfj_get_context` | Read authenticated user, households, pending intent, roles, current revisions, and per-section onboarding state. |
+| `hfj_get_context` | Read authenticated user, households, pending intent, roles, current revisions, per-section onboarding state, both onboarding profiles, and a bounded item identity index. |
 | `hfj_create_household` | Create a household and its Git repository. |
 | `hfj_select_household` | Set the session's active household. |
 | `hfj_update_onboarding` | Start, skip, or resume the current user's snack or recipe section; never mark it complete. |
@@ -365,6 +367,7 @@ The client is coded against these stable tool names. Complete schemas and author
 | `hfj_get_item` | Read a complete item, evidence references, and revision. |
 | `hfj_append_evidence` | Append immutable purchase, recipe discovery, cooking, or import evidence. |
 | `hfj_commit_change_set` | Commit agent-authored entries, reports, and corrections with expected revisions. |
+| `hfj_commit_onboarding` | Atomically commit one explicitly confirmed guided-first-run draft. |
 | `hfj_create_collection` | Create a private collection snapshot draft. |
 | `hfj_create_collection_share` | Publish a snapshot and return a revocable URL. |
 | `hfj_revoke_collection_share` | Revoke a published link. |

@@ -15,6 +15,8 @@ interface MutationOptions {
   readonly minimumRole: Role | null;
   readonly requiredScope: "journal:write" | "household:manage" | "collection:share" | "journal:export";
   readonly summary: string;
+  readonly recoveryData?: Record<string, JsonValue>;
+  readonly enforceFingerprintOnReplay?: boolean;
   buildChanges(requestId: RequestId, occurredAt: string): Promise<ReadonlyArray<RepositoryChange>>;
   applyProjection(commitId: GitObjectId, requestId: RequestId, occurredAt: string): Promise<Record<string, JsonValue>>;
 }
@@ -36,9 +38,16 @@ export class MutationRunner {
     const startedAt = performance.now();
     requireScope(options.principal, options.requiredScope);
     const existing = await this.store.getMutation(options.principal.userId, options.tool, options.idempotencyKey);
+    if (options.enforceFingerprintOnReplay && typeof existing?.response?._request_fingerprint === "string"
+      && existing.response._request_fingerprint !== options.requestFingerprint) {
+      this.telemetry.event("mutation.conflict", { tool: options.tool, request_id: existing.requestId, error_code: "REVISION_CONFLICT" });
+      throw new AppError("REVISION_CONFLICT", "The idempotency key was already used for a different request");
+    }
     if (existing?.state === "completed" && existing.response !== null && existing.commitId !== null) {
       this.telemetry.event("mutation.replayed", { tool: options.tool, request_id: existing.requestId });
-      return { data: existing.response, head: existing.commitId, requestId: existing.requestId };
+      const data = { ...existing.response };
+      if (options.enforceFingerprintOnReplay) delete data._request_fingerprint;
+      return { data, head: existing.commitId, requestId: existing.requestId };
     }
     if (typeof existing?.response?._request_fingerprint === "string" && existing.response._request_fingerprint !== options.requestFingerprint) {
       this.telemetry.event("mutation.conflict", { tool: options.tool, request_id: existing.requestId, error_code: "REVISION_CONFLICT" });
@@ -58,7 +67,7 @@ export class MutationRunner {
         householdId: options.householdId,
         state: "received",
         commitId: null,
-        response: { _request_fingerprint: options.requestFingerprint },
+        response: { _request_fingerprint: options.requestFingerprint, ...options.recoveryData },
         failure: null,
         createdAt: now,
         updatedAt: now,
@@ -92,13 +101,16 @@ export class MutationRunner {
         await this.store.transitionMutation(requestId, "git_committed", { commitId });
         try {
           const response = await options.applyProjection(commitId, requestId, now);
+          const storedResponse = options.enforceFingerprintOnReplay
+            ? { ...response, _request_fingerprint: options.requestFingerprint }
+            : response;
           await this.store.updateHouseholdHead(options.householdId, commitId);
           for (const member of await this.store.listHouseholdMemberships(options.householdId)) {
             member.projectionHead = commitId;
             await this.store.upsertMembership(member);
           }
-          await this.store.transitionMutation(requestId, "projections_applied", { response });
-          await this.store.transitionMutation(requestId, "completed", { response });
+          await this.store.transitionMutation(requestId, "projections_applied", { response: storedResponse });
+          await this.store.transitionMutation(requestId, "completed", { response: storedResponse });
           this.telemetry.event("mutation.completed", { tool: options.tool, request_id: requestId, duration_ms: Math.round(performance.now() - startedAt) });
           return { status: "completed", data: response, head: commitId };
         } catch (error) {

@@ -1540,6 +1540,16 @@
             },
             {
               "type": "dir",
+              "name": "runtime",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "onboarding-draft.mjs"
+                }
+              ]
+            },
+            {
+              "type": "dir",
               "name": "scripts",
               "children": [
                 {
@@ -1635,6 +1645,10 @@
                     {
                       "type": "file",
                       "name": "host-lifecycle.test.mjs"
+                    },
+                    {
+                      "type": "file",
+                      "name": "onboarding-draft.test.mjs"
                     },
                     {
                       "type": "file",

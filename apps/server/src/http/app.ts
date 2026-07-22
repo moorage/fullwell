@@ -22,7 +22,11 @@ const ToolCallSchema = z.object({
   jsonrpc: z.literal("2.0"),
   id: z.union([z.string(), z.number()]),
   method: z.literal("tools/call"),
-  params: z.object({ name: ToolNameSchema, arguments: z.unknown() }).strict(),
+  params: z.object({
+    name: ToolNameSchema,
+    arguments: z.unknown(),
+    _meta: z.record(z.string().min(1).max(200), z.json()).optional(),
+  }).strict(),
 }).strict();
 
 const McpRequestSchema = z.union([

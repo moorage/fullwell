@@ -74,9 +74,33 @@ describe("Fastify application", () => {
     expect(envelope.ok).toBe(true);
     expect(envelope.data.role).toBe("owner");
 
-    const context = await app.inject({ method: "POST", url: "/api/tools/hfj_get_context", headers: { authorization: "Bearer test-owner-token" }, payload: {} });
+    const context = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      headers: { authorization: "Bearer test-owner-token" },
+      payload: {
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: { name: "hfj_get_context", arguments: {}, _meta: { progressToken: 3 } },
+      },
+    });
     expect(context.statusCode).toBe(200);
-    expect(context.json().data.households).toHaveLength(1);
+    expect(context.json().result.structuredContent.data.households).toHaveLength(1);
+
+    const malformedMetadata = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      headers: { authorization: "Bearer test-owner-token" },
+      payload: {
+        jsonrpc: "2.0",
+        id: 4,
+        method: "tools/call",
+        params: { name: "hfj_get_context", arguments: {}, _meta: "progress" },
+      },
+    });
+    expect(malformedMetadata.statusCode).toBe(400);
+    expect(malformedMetadata.json().error.code).toBe("VALIDATION_FAILED");
     await app.close();
   });
 

@@ -230,7 +230,7 @@ Authorization-server metadata must advertise the dynamic registration endpoint a
 
 For the macOS local runner, the consent page's Content Security Policy may add only the exact validated `http://127.0.0.1:<ephemeral-port>` origin for a bounded `/oauth/callback` redirect. This exception is route-specific; all other pages retain the normal form destinations, and OAuth validation still requires an exact dynamically registered redirect URI before issuing a code.
 
-Authorization-code and refresh-token requests may repeat the RFC resource indicator. Validate it against the MCP audience before consuming or rotating a credential. After a successful initialize response, accept the no-ID `notifications/initialized` lifecycle notification and return an empty successful notification response before serving tool discovery.
+Authorization-code and refresh-token requests may repeat the RFC resource indicator. Validate it against the MCP audience before consuming or rotating a credential. After a successful initialize response, accept the no-ID `notifications/initialized` lifecycle notification and return an empty successful notification response before serving tool discovery. Tool calls accept the MCP-standard `params._meta` object as bounded JSON metadata while continuing to validate the tool name, arguments, and all other request fields strictly.
 
 Initial scopes:
 

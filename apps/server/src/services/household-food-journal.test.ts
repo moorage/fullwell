@@ -5,6 +5,8 @@ import {
   HouseholdIdSchema,
   ItemIdSchema,
   JournalItemSchema,
+  ONBOARDING_COMMIT_MAX_EVIDENCE,
+  ONBOARDING_COMMIT_MAX_ITEMS,
   OnboardingStatusSchema,
   UserIdSchema,
   type GitObjectId,
@@ -513,6 +515,40 @@ describe("HouseholdFoodJournalService", () => {
     });
   });
 
+  it("atomically commits and replays 10,000 onboarding evidence records and items", async () => {
+    const created = await call("hfj_create_household", { name: "Large onboarding", idempotency_key: "onboarding-large-create-0201" });
+    const householdId = HouseholdIdSchema.parse(created.data.household_id);
+    const evidence = Array.from({ length: ONBOARDING_COMMIT_MAX_EVIDENCE }, (_, index) => largeOnboardingEvidence(index));
+    const items = Array.from({ length: ONBOARDING_COMMIT_MAX_ITEMS }, (_, index) => largeOnboardingItem(index));
+    const input = {
+      household_id: householdId,
+      expected_head: created.head,
+      idempotency_key: "onboarding-large-commit-0201",
+      evidence,
+      items,
+    };
+    const requestBytes = Buffer.byteLength(JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "hfj_commit_onboarding", arguments: input },
+    }));
+    expect(requestBytes).toBeLessThanOrEqual(16 * 1_048_576);
+
+    const startedAt = performance.now();
+    const committed = await call("hfj_commit_onboarding", input);
+    expect(performance.now() - startedAt).toBeLessThan(20_000);
+    expect(committed.data.evidence_ids).toHaveLength(ONBOARDING_COMMIT_MAX_EVIDENCE);
+    expect(committed.data.item_ids).toHaveLength(ONBOARDING_COMMIT_MAX_ITEMS);
+    expect(Buffer.byteLength(JSON.stringify(committed.data))).toBeLessThan(1_500_000);
+    expect(repository.commitCount(householdId)).toBe(1);
+    expect((await store.projection(householdId)).evidence.size).toBe(ONBOARDING_COMMIT_MAX_EVIDENCE);
+    expect((await store.projection(householdId)).items.size).toBe(ONBOARDING_COMMIT_MAX_ITEMS);
+
+    expect(await call("hfj_commit_onboarding", input)).toEqual(committed);
+    expect(repository.commitCount(householdId)).toBe(1);
+  }, 60_000);
+
   it("commits skip-only onboarding without creating an empty Git commit", async () => {
     const created = await call("hfj_create_household", { name: "Skip setup", idempotency_key: "onboarding-skip-create-0201" });
     const householdId = HouseholdIdSchema.parse(created.data.household_id);
@@ -665,6 +701,47 @@ describe("HouseholdFoodJournalService", () => {
     expect(await store.listHouseholds()).toHaveLength(1);
   });
 });
+
+function largeOnboardingEvidence(index: number) {
+  return {
+    id: `evd_${index.toString(16).padStart(16, "0")}`,
+    kind: "user_confirmation",
+    observed_at: "2026-07-22T12:00:00.000Z",
+    evidence_date: null,
+    date_precision: "unknown",
+    source_type: "conversation",
+    source_label: "Owner",
+    stable_locator: `confirmation-${index}`,
+    summary: "Confirmed",
+    actor_id: owner.actorId,
+    limitations: [],
+    schema_version: 1,
+  };
+}
+
+function largeOnboardingItem(index: number) {
+  const suffix = index.toString(16).padStart(16, "0");
+  return {
+    id: `itm_${suffix}`,
+    kind: "snack",
+    display_name: `Snack ${index}`,
+    brand: null,
+    product_line: null,
+    flavor: null,
+    formulation: null,
+    format: null,
+    category: "snack",
+    produce_variety: null,
+    known_size_variants: [],
+    image_page_url: null,
+    image_url: null,
+    evidence_ids: [`evd_${suffix}`],
+    created_at: "2026-07-22T12:00:00.000Z",
+    updated_at: "2026-07-22T12:00:00.000Z",
+    schema_version: 1,
+    body_markdown: "",
+  };
+}
 
 class FailingProvisionRepository extends MemoryHouseholdRepository {
   override async provision(_householdId: HouseholdId, _name: string, _actorId: string, _occurredAt: string): Promise<GitObjectId> {

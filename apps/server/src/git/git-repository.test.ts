@@ -4,9 +4,19 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import { ActorIdSchema, HouseholdIdSchema, RequestIdSchema } from "@hfj/contracts";
-import { GitHouseholdRepository } from "./git-repository.js";
+import { assertRepositoryCapacity, GitHouseholdRepository, MAX_RECONCILABLE_REPOSITORY_FILES } from "./git-repository.js";
 
 describe("GitHouseholdRepository", () => {
+  it("bounds the prospective tree and rejects duplicate mutation paths", () => {
+    const currentPaths = Array.from({ length: MAX_RECONCILABLE_REPOSITORY_FILES - 1 }, (_, index) => `snacks/items/item-${index}.md`);
+    expect(() => assertRepositoryCapacity(currentPaths, [], "audit/2026/req_0123456789abcdef.json")).not.toThrow();
+    expect(() => assertRepositoryCapacity([...currentPaths, "profiles/snacks.md"], [], "audit/2026/req_0123456789abcdef.json")).toThrow("repository capacity");
+    expect(() => assertRepositoryCapacity([], [
+      { path: "profiles/snacks.md", content: "first", appendOnly: false },
+      { path: "profiles/snacks.md", content: "second", appendOnly: false },
+    ], "audit/2026/req_0123456789abcdef.json")).toThrow("only once");
+  });
+
   it("provisions, commits, verifies, and exports a household repository", async () => {
     const root = await mkdtemp(join(tmpdir(), "hfj-git-test-"));
     try {
@@ -50,6 +60,39 @@ describe("GitHouseholdRepository", () => {
       await expect(signingRepository.provision(missingId, "Signed", actorId, "2026-07-15T12:06:00.000Z")).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
     } finally { await rm(root, { recursive: true, force: true }); }
   }, 30_000);
+
+  it("commits 20,000 onboarding paths without process argument expansion", async () => {
+    const root = await mkdtemp(join(tmpdir(), "hfj-git-bulk-test-"));
+    try {
+      const repository = new GitHouseholdRepository({ repositoryRoot: join(root, "repositories"), worktreeRoot: join(root, "worktrees"), requireSigning: false });
+      const householdId = HouseholdIdSchema.parse("hsh_2123456789abcdef");
+      const actorId = ActorIdSchema.parse("act_2123456789abcdef");
+      const head = await repository.provision(householdId, "Bulk Kitchen", actorId, "2026-07-22T12:00:00.000Z");
+      const evidence = Array.from({ length: 10_000 }, (_, index) => ({
+        path: `snacks/evidence/2026/evd_${index.toString(16).padStart(16, "0")}.json`,
+        content: "{}\n",
+        appendOnly: true,
+      }));
+      const items = Array.from({ length: 10_000 }, (_, index) => ({
+        path: `snacks/items/itm_${index.toString(16).padStart(16, "0")}.md`,
+        content: "---\nschema_version: 1\n---\n",
+        appendOnly: false,
+      }));
+      const committed = await repository.commit(householdId, head, [...evidence, ...items], {
+        requestId: RequestIdSchema.parse("req_2123456789abcdef"),
+        householdId,
+        actorId,
+        tool: "hfj_commit_onboarding",
+        client: "test",
+        summary: "onboarding: commit bulk fixture",
+        occurredAt: "2026-07-22T12:01:00.000Z",
+      });
+      expect(committed).not.toBe(head);
+      expect(await repository.read(householdId, items.at(-1)?.path ?? "missing")).toContain("schema_version");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 120_000);
 
   it("signs and verifies every commit with the configured SSH identity", async () => {
     const root = await mkdtemp(join(tmpdir(), "hfj-git-signing-test-"));

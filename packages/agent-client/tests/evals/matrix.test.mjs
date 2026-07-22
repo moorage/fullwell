@@ -49,6 +49,13 @@ test("each eval has a unique identity and runs on both hosts", async () => {
   assert.deepEqual(finalConfirmation?.required_tools, ["hfj_commit_onboarding"]);
   assert.ok(finalConfirmation?.invariants.includes("one_final_fullwell_write"));
   assert.ok(finalConfirmation?.invariants.includes("delete_checkpoint_only_after_success"));
+  const largeConfirmation = matrix.cases.find((testCase) => testCase.id === "large-confirmed-onboarding-commits-once");
+  assert.deepEqual(largeConfirmation?.required_tools, ["hfj_commit_onboarding"]);
+  assert.ok(largeConfirmation?.invariants.includes("accept_10000_items"));
+  assert.ok(largeConfirmation?.invariants.includes("accept_10000_evidence"));
+  assert.ok(largeConfirmation?.invariants.includes("enforce_16_mib_request_limit"));
+  assert.ok(largeConfirmation?.invariants.includes("never_split_within_limit_draft"));
+  assert.ok(expected.forbidden_behaviors.includes("splits_a_within_limit_onboarding_draft_into_multiple_writes"));
   const localResume = matrix.cases.find((testCase) => testCase.id === "local-onboarding-draft-resumes");
   assert.deepEqual(localResume?.required_tools, ["hfj_get_context"]);
   assert.ok(localResume?.invariants.includes("exact_user_household_head_revision_binding"));

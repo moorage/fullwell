@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.1.6 - 2026-07-22
+
+- Commit confirmed guided onboarding drafts with up to 10,000 evidence records and 10,000 items in one request of at most 16 MiB; never split a within-limit draft into intermediate Fullwell writes.
+
 ## 1.1.5 - 2026-07-21
 
 - Require the authorized browser audit to open every qualifying grocery order detail, expand complete item lists, and report hidden-item limitations instead of trusting order-history summaries.

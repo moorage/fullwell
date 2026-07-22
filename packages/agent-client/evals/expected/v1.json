@@ -32,6 +32,7 @@
     "merges_a_stale_malformed_or_identity_mismatched_onboarding_draft",
     "overwrites_a_newer_local_onboarding_draft_revision",
     "deletes_the_local_checkpoint_after_a_failed_or_uncertain_fullwell_write",
+    "splits_a_within_limit_onboarding_draft_into_multiple_writes",
     "treats_order_listing_summary_as_complete_purchase_evidence"
   ]
 }

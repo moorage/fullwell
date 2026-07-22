@@ -14,7 +14,7 @@ import {
   UnconfiguredMailProvider,
 } from "../adapters/providers.js";
 import { HouseholdFoodJournalService } from "../services/household-food-journal.js";
-import { authenticationCategory, buildApp, type AppDependencies } from "./app.js";
+import { authenticationCategory, buildApp, MCP_BODY_LIMIT_BYTES, type AppDependencies } from "./app.js";
 import { WebViewModelService } from "./web-view-model.js";
 import { MemoryExportArtifactStore } from "../exports/artifact-store.js";
 import { ServiceObservability } from "../telemetry/observability.js";
@@ -117,6 +117,24 @@ describe("Fastify application", () => {
     });
     expect(malformedMetadata.statusCode).toBe(400);
     expect(malformedMetadata.json().error.code).toBe("VALIDATION_FAILED");
+    await app.close();
+  });
+
+  it("accepts large MCP envelopes without widening other HTTP routes", async () => {
+    const { app } = await fixture();
+    const headers = { authorization: "Bearer test-owner-token", "content-type": "application/json" };
+    const request = (paddingBytes: number) => JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "hfj_get_context", arguments: {}, _meta: { padding: "x".repeat(paddingBytes) } },
+    });
+    const aboveGlobalDefault = await app.inject({ method: "POST", url: "/mcp", headers, payload: request(1_100_000) });
+    expect(aboveGlobalDefault.statusCode).toBe(200);
+    const aboveMcpLimit = await app.inject({ method: "POST", url: "/mcp", headers, payload: request(MCP_BODY_LIMIT_BYTES) });
+    expect(aboveMcpLimit.statusCode).toBe(413);
+    const directTool = await app.inject({ method: "POST", url: "/api/tools/hfj_get_context", headers, payload: JSON.stringify({ padding: "x".repeat(1_100_000) }) });
+    expect(directTool.statusCode).toBe(413);
     await app.close();
   });
 

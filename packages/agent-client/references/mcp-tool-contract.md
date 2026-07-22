@@ -33,7 +33,7 @@ The only canonical household read and mutation boundary is the remote `household
 | `hfj_get_item` | Read a complete item, evidence summaries, blob revision, and HEAD. | Read only. |
 | `hfj_append_evidence` | Append one to 100 immutable evidence records. | `expected_head`, `idempotency_key`; migration ID when applicable. |
 | `hfj_commit_change_set` | Commit up to 50 agent-authored item, correction, report, or index changes. | `expected_head`, per-item blob revisions, evidence IDs, `idempotency_key`. |
-| `hfj_commit_onboarding` | Atomically save a confirmed snack-and-recipe draft, including canonical content and bounded skip outcomes. | Explicit final confirmation, snapshot `expected_head`, section and item revisions, `idempotency_key`. |
+| `hfj_commit_onboarding` | Atomically save a confirmed snack-and-recipe draft with up to 10,000 evidence records and 10,000 items in a complete MCP request of at most 16 MiB. | Explicit final confirmation, snapshot `expected_head`, section and item revisions, `idempotency_key`. |
 | `hfj_create_collection` | Create a reviewed private collection and resolved snapshot. | Explicit items/fields, `expected_head`, `idempotency_key`. |
 | `hfj_create_collection_share` | Publish an immutable snapshot for 1, 7, 30, or 90 days. | `idempotency_key`; default 30 days. |
 | `hfj_revoke_collection_share` | Immediately revoke a share. | Explicit confirmation, `idempotency_key`. |

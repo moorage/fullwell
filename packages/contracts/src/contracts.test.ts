@@ -6,6 +6,8 @@ import {
   HouseholdSnapshotManifestSchema,
   OnboardingRecordSchema,
   OnboardingSectionStateSchema,
+  ONBOARDING_COMMIT_MAX_EVIDENCE,
+  ONBOARDING_COMMIT_MAX_ITEMS,
   RunnerClaimRequestSchema,
   RunnerCompletionSchema,
   ToolInputSchemas,
@@ -118,6 +120,24 @@ describe("contract boundaries", () => {
         { profile: "snacks", markdown: "second" },
       ],
     })).toThrow();
+    expect(() => parseToolInput("hfj_commit_onboarding", {
+      ...base,
+      items: [onboardingItem(0), onboardingItem(0)],
+    })).toThrow();
+  });
+
+  it("accepts 10,000 onboarding evidence and items but rejects 10,001", () => {
+    const evidence = Array.from({ length: ONBOARDING_COMMIT_MAX_EVIDENCE }, (_, index) => onboardingEvidence(index));
+    const items = Array.from({ length: ONBOARDING_COMMIT_MAX_ITEMS }, (_, index) => onboardingItem(index));
+    const base = {
+      household_id: "hsh_0123456789abcdef",
+      expected_head: "a".repeat(40),
+      idempotency_key: "onboarding-large-final-1",
+    };
+    const parsed = parseToolInput("hfj_commit_onboarding", { ...base, evidence, items });
+    expect(parsed).toMatchObject({ evidence: { length: ONBOARDING_COMMIT_MAX_EVIDENCE }, items: { length: ONBOARDING_COMMIT_MAX_ITEMS } });
+    expect(() => parseToolInput("hfj_commit_onboarding", { ...base, evidence: [...evidence, onboardingEvidence(ONBOARDING_COMMIT_MAX_EVIDENCE)] })).toThrow();
+    expect(() => parseToolInput("hfj_commit_onboarding", { ...base, items: [...items, onboardingItem(ONBOARDING_COMMIT_MAX_ITEMS)] })).toThrow();
   });
 
   it("rejects invalid runner leases and implicit terminal success", () => {
@@ -160,3 +180,43 @@ describe("contract boundaries", () => {
     }).success).toBe(false);
   });
 });
+
+function onboardingEvidence(index: number) {
+  return {
+    id: `evd_${index.toString(16).padStart(16, "0")}`,
+    kind: "user_confirmation",
+    observed_at: "2026-07-22T12:00:00.000Z",
+    evidence_date: null,
+    date_precision: "unknown",
+    source_type: "conversation",
+    source_label: "Owner",
+    stable_locator: `confirmation-${index}`,
+    summary: "Confirmed",
+    actor_id: "act_0123456789abcdef",
+    limitations: [],
+    schema_version: 1,
+  };
+}
+
+function onboardingItem(index: number) {
+  return {
+    id: `itm_${index.toString(16).padStart(16, "0")}`,
+    kind: "snack",
+    display_name: `Snack ${index}`,
+    brand: null,
+    product_line: null,
+    flavor: null,
+    formulation: null,
+    format: null,
+    category: "snack",
+    produce_variety: null,
+    known_size_variants: [],
+    image_page_url: null,
+    image_url: null,
+    evidence_ids: [`evd_${index.toString(16).padStart(16, "0")}`],
+    created_at: "2026-07-22T12:00:00.000Z",
+    updated_at: "2026-07-22T12:00:00.000Z",
+    schema_version: 1,
+    body_markdown: "",
+  };
+}

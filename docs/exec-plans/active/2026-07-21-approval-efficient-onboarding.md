@@ -4,6 +4,8 @@
 
 Fullwell onboarding currently turns one conversational snack-then-recipe flow into a sequence of separately approved MCP reads and writes. The user should instead approve at most one initial Fullwell read and one final Fullwell write in the normal fresh-household path. `hfj_get_context` returns a bounded, membership-authorized onboarding snapshot containing the current user ID, section states, snack and recipe profiles, repository HEAD, and a bounded existing-item index. Codex or Claude checkpoints answers and collected evidence in a local, identity-sharded draft until it can show a final summary. One `hfj_commit_onboarding` tool then validates and persists the complete evidence, item, report, profile, and skip result as one idempotent household mutation and one signed Git commit.
 
+The final write must also fit real grocery histories. The original 100-item and 500-evidence limits were conservative schema guards chosen alongside the one-megabyte HTTP default before a live audit produced 196 items and 804 evidence records. They are not domain or storage constraints. The confirmed onboarding contract now needs count limits of 10,000 items and 10,000 evidence records while retaining a separate route-specific byte limit, authorization, revision checks, idempotency, and one-commit semantics.
+
 The change is a direct usability iteration on `docs/ideas/backlog/conversational-fullwell-onboarding.md`, promoted when the user reported repeated MCP approvals during real onboarding on 2026-07-21 and explicitly approved the read-draft-commit implementation. It remains high-priority because approval fatigue interrupts the first action that makes Fullwell useful. Browser, Chrome, site sign-in, CAPTCHA, and other source-specific consent remain separate and are never implied by the initial Fullwell read.
 
 ## Progress
@@ -23,6 +25,9 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 - [x] 2026-07-22T06:50Z: Made grocery order listings discovery-only in the shared browser audit, required every qualifying order detail and complete-item expansion, added a cross-host incomplete-summary eval, prepared package `1.1.5`, and passed skill validation, the 33-case eval matrix, package validation, isolated host lifecycles, dry-run packing, and full repository verification.
 - [x] 2026-07-22T17:13Z: Milestone 4 complete - exposed the stable authenticated user ID, bundled the identity/snapshot-bound local checkpoint runtime, updated shared Codex/Claude orchestration and privacy guidance, expanded to 35 eval cases, and passed eight package/lifecycle tests, 29 browser tests with seven intentional skips, dry-run package inclusion, and full repository verification.
 - [x] 2026-07-22T17:44Z: Milestone 5 complete - pushed commit `917c7bc`, deployed the stable-user-ID server image with a retained rollback, published checksum-matched `@fullwell/fullwell@1.1.5`, upgraded both current hosts, and passed deployed, downloaded-package, and fresh-session local checkpoint resume/cleanup smokes with zero Fullwell mutations.
+- [x] 2026-07-22T19:55Z: Reframed the live 196-item/804-evidence failure with UX, security, architecture, reliability, and eval lenses; traced the effective limit to onboarding schema caps plus the global one-megabyte parser rather than a domain constraint.
+- [x] 2026-07-22T19:55Z: Passed the Milestone 6 feature-critic gate after adding route-specific parser scope, duplicate-item rejection, pre-commit repository-capacity checks, argument-vector-safe Git staging, exact/over-limit tests, response-size observation, and an explicit no-live-bulk-write rule.
+- [x] 2026-07-22T20:06Z: Milestone 6 complete - raised only onboarding to 10,000 items and 10,000 evidence records, limited `POST /mcp` to 16 MiB while retaining the one-megabyte default elsewhere, added pre-Git capacity and argument-safe staging, prepared shared package `1.1.6`, and passed contract, server, security, load, eval, package, browser, and full repository gates.
 
 ## Surprises & Discoveries
 
@@ -35,6 +40,8 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 - 2026-07-22: The authorized context exposed only the user's display name. Safe local sharding requires the stable authenticated Fullwell user ID, so the read response must add that non-secret identifier before a draft can be resumed.
 - 2026-07-22: Conversation-only state did not survive compaction or a closed chat during long browser audits. A bounded local checkpoint solves that failure without adding another canonical Fullwell write, provided stale snapshots and concurrent local writers fail closed.
 - 2026-07-22: The live Codex smoke showed that ad hoc shell construction of the helper's stdin JSON is error-prone. The packaged lifecycle and runtime tests cover the boundary, but future client ergonomics should provide a host-native wrapper so an agent never needs to recover a hidden identifier by inspecting the draft root; the successful release smoke ultimately loaded and deleted only the context-bound shard.
+- 2026-07-22: A real grocery audit produced 196 items and 804 evidence records, proving the original 100/500 caps were below normal user data. The actual coupled constraints are the one-megabyte global HTTP parser, the 16 MiB local checkpoint, Git's 10,000-file reconciliation guard, and argument-vector growth when staging thousands of paths.
+- 2026-07-22: The compact 10,000-item/10,000-evidence service fixture commits and exactly replays in about 0.6 seconds in the full deterministic suite. A real isolated Git repository commits 20,000 onboarding paths in under nine seconds without process argument expansion, so no live household bulk write was needed for acceptance evidence.
 
 ## Decision Log
 
@@ -48,6 +55,7 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 - 2026-07-21: Treat one Fullwell read and one Fullwell write as the target, not an absolute promise across every household. Truncated item indexes, stale HEADs, payload limits, authorization changes, or explicit conflict resolution fail closed and may require another user-approved read or retry.
 - 2026-07-21: Represent only changed section outcomes in a unique bounded array. Already-complete sections and an unchanged prior skip are omitted; completing a previously skipped section needs the canonical report but no synthetic `resume` write.
 - 2026-07-21: A final skip-only request with no canonical file changes completes as one Neon operational mutation against the current HEAD. It never creates an empty Git commit or stores per-user skip state in the shared household repository.
+- 2026-07-22: Raise only `hfj_commit_onboarding` to 10,000 evidence and 10,000 items; keep ordinary append/change-set batch sizes unchanged. Give `/mcp` a 16 MiB route-specific body limit matching the local checkpoint while retaining the one-megabyte default everywhere else. Raise the full-repository reconciliation guard only enough to contain one maximum fresh onboarding commit plus system files, and stage the isolated mutation worktree without enumerating every path in the process argument vector.
 
 ## Context and Orientation
 
@@ -59,7 +67,7 @@ The shared host behavior lives in `packages/agent-client/skills/manage-household
 
 Assumptions and constraints:
 
-- The normal acceptance path begins with an existing editable household whose item index is not truncated and whose combined onboarding payload fits the server's current one-megabyte HTTP body limit.
+- The normal acceptance path begins with an existing editable household whose item index is not truncated and whose combined onboarding payload fits the `/mcp` route's 16 MiB body limit. The 10,000-record count limits do not override per-field schemas or this independent byte bound.
 - The initial read does not authorize browsing. Each source and browser remains explicitly user-authorized.
 - Draft answers and bounded evidence are local and resumable until final user confirmation. A stopped or abandoned conversation performs no Fullwell write; a matching, current checkpoint can resume after host context loss.
 - Git remains authoritative for evidence, items, profiles, and reports. Neon remains authoritative for per-user skipped state and mutation recovery metadata.
@@ -92,12 +100,15 @@ The problem is not merely the number of tool calls. It is that Fullwell persists
 
 - Fewer approvals versus persistent cross-session progress.
 - One final payload versus the one-megabyte request boundary and large purchase histories.
+- Ten-thousand-record count support versus bounded parser memory, Git process arguments, repository reconciliation, and the 1 GiB staging host.
 - Atomic canonical Git content versus per-user operational skip state.
 - Bounded context snapshots versus complete semantic duplicate review.
 
 ### Synthesis for decomposition
 
 Prove the combined contract and validation first. Then integrate recovery and one-commit persistence. Only after the server boundary passes race/replay tests should the shared skills stop making intermediate mutations. Roll out the server before publishing the client, retain old tools through the compatibility window, and verify the exact current Codex host call sequence against staging.
+
+For the 10,000-record correction, the UX lens requires one final approval to cover a real audit rather than forcing artificial partial saves. The security lens requires a route-specific byte ceiling instead of globally accepting large bodies. The reliability lens requires exact-limit and over-limit tests plus a Git staging path that does not depend on operating-system argument limits. The architecture lens keeps the ordinary mutation tools small and changes only the onboarding aggregate. The eval lens requires both hosts to treat a within-limit large draft as one final write, not as permission to split or pre-write it.
 
 ## Milestones
 
@@ -250,6 +261,57 @@ Verification:
 - `STAGING_BASE_URL=https://fullwell.souschefstudio.com npm run test:deploy-smoke -- staging`
 - `STAGING_BASE_URL=https://fullwell.souschefstudio.com npm run test:mcp-smoke -- staging`
 
+### Milestone 6 - Real-history onboarding capacity
+
+Files:
+
+- `packages/contracts/src/tools.ts`
+- `packages/contracts/src/contracts.test.ts`
+- `apps/server/src/http/app.ts`
+- `apps/server/src/http/app.test.ts`
+- `apps/server/src/services/household-food-journal.test.ts`
+- `apps/server/src/git/git-repository.ts`
+- `apps/server/src/git/git-repository.test.ts`
+- `packages/agent-client/skills/manage-household-food-journal/SKILL.md`
+- `packages/agent-client/evals/cases/v1.json`
+- `packages/agent-client/evals/expected/v1.json`
+- `packages/agent-client/tests/evals/matrix.test.mjs`
+- `docs/product-specs/household-food-journal-client.md`
+- `docs/product-specs/household-food-journal-server.md`
+- `docs/RELIABILITY.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `CHANGELOG.md`
+- `packages/agent-client/CHANGELOG.md`
+
+Tasks:
+
+1. Replace the onboarding-only item/evidence caps with named 10,000-record contract limits and reject 10,001 deterministically. Preserve ordinary evidence and change-set batch limits.
+2. Raise only the MCP POST body parser to 16 MiB, matching the existing local checkpoint ceiling; retain the one-megabyte default for every other route and preserve generic, non-enumerating 413 behavior.
+3. Reject duplicate item IDs at the contract boundary. Before writing, count the current tree plus distinct new paths and fail before Git when the resulting household would exceed the full-repository reconciliation ceiling. Let one maximum fresh onboarding mutation create more than 20,000 canonical paths without exceeding that ceiling or the operating system's argument-vector limit. Keep path validation, append-only evidence, signed commits, and rollback unchanged.
+4. Add exact-limit, over-limit, above-one-megabyte HTTP, atomic service, replay, pre-commit repository-capacity, and bounded Git tests. The large success fixture must serialize below 16 MiB, produce one commit, and record the response size and elapsed time without logging content.
+5. Teach both hosts that a confirmed draft within the 10,000/10,000 and 16 MiB bounds uses one `hfj_commit_onboarding` call; an over-count or over-byte draft remains local and reports the precise blocking bound without intermediate writes.
+6. Update normative specs, reliability guidance, changelogs, implementation evidence, and the package version; run narrow gates before full verification and release.
+
+Feature-critic constraints:
+
+- The 16 MiB override applies only to `POST /mcp`; the global and direct HTTP tool defaults remain one megabyte so this change does not widen unrelated browser, OAuth, webhook, or tool routes.
+- Count limits and byte limits are independent. Compact 10,000/10,000 fixtures must succeed, but maximum-length fields may hit 16 MiB first and must fail before service dispatch.
+- A repository-capacity failure happens before the signed commit. A successful commit must never leave a tree that the reconciliation worker refuses to read.
+- Duplicate item or evidence paths fail before Git, and staging uses the isolated worktree rather than passing 20,000 paths through `argv`.
+- Do not drive a synthetic maximum-size write against the user's live household. Deployment smoke may exercise parser/tool discovery; deterministic and isolated Git tests own bulk-mutation evidence.
+
+Verification:
+
+- `npm run test --workspace @hfj/contracts`
+- `npm run test --workspace @hfj/server -- http/app.test.ts services/household-food-journal.test.ts git/git-repository.test.ts`
+- `npm run test:evals --workspace @fullwell/fullwell`
+- `npm run test:packaging --workspace @fullwell/fullwell`
+- `npm run test:load`
+- `npm run test:security`
+- `npm run verify`
+- `npm run verify:docs`
+- `npm run verify:execplan`
+
 ## Interfaces and Dependencies
 
 The public input is conceptually:
@@ -290,6 +352,7 @@ The exact schema uses unique section and profile lists so unchanged state is omi
 - A fresh editable household's `@Fullwell hi` path uses one `hfj_get_context` read, asks snack then recipe questions, and makes no Fullwell mutation before final confirmation.
 - The client verifies payload bounds, shows a bounded summary of intended profile, evidence, report, and skip changes, and obtains explicit confirmation before the write.
 - One `hfj_commit_onboarding` call persists the ordinary completed run and returns final derived section status without a follow-up read.
+- One `hfj_commit_onboarding` call accepts as many as 10,000 items and 10,000 evidence records when the complete MCP envelope is at most 16 MiB; 10,001 records or an oversized body fails before mutation.
 - A natural snack or recipe decline stays local during the conversation and is persisted as a bounded per-user skip only in the final call; an explicit whole-flow stop performs no write.
 - A closed conversation resumes only a local draft matching the current authenticated user, household, repository HEAD, and both onboarding revisions; stale, malformed, expired, mismatched, and concurrently superseded drafts fail closed.
 - Browser/source authorization remains explicit and separate from Fullwell tool approval.
@@ -303,7 +366,9 @@ The exact schema uses unique section and profile lists so unchanged state is omi
 
 The live implementation now has one lock-consistent `hfj_get_context` read, no intermediate Fullwell mutation, a user/household/snapshot-bound local checkpoint, one explicit final summary/confirmation, and one `hfj_commit_onboarding` write. Public `@fullwell/fullwell@1.1.5` carries the same helper and behavior for Codex and Claude. Skip-only confirmation leaves Git unchanged; canonical changes create one commit; exact replay does not create another commit; changed replay conflicts; post-Git skip failure is recovered from bounded metadata.
 
-Local evidence passes 279 deterministic tests with 11 database-gated skips, the 11 PostgreSQL integration tests separately through Apple Container, 29 browser tests with seven intentional project skips, 35 cross-host eval cases, eight package/lifecycle tests, migrations up/down/up, security/load/contract gates, the full repository verification, and 96.47% statement/line, 94.85% function, and 90.03% branch coverage. The combined request remains bounded by 500 evidence records, 100 items, two reports, two profiles, two section outcomes, and the one-megabyte HTTP body limit. A 200-item snapshot truncation, stale state, ambiguity, or oversized draft may require additional approved reads or bounded writes.
+Local evidence for the published `1.1.5` baseline passes 279 deterministic tests with 11 database-gated skips, the 11 PostgreSQL integration tests separately through Apple Container, 29 browser tests with seven intentional project skips, 35 cross-host eval cases, eight package/lifecycle tests, migrations up/down/up, security/load/contract gates, the full repository verification, and 96.47% statement/line, 94.85% function, and 90.03% branch coverage. The prepared `1.1.6` correction independently bounds one onboarding request at 10,000 evidence records, 10,000 unique items, two reports, two profiles, two section outcomes, and a route-specific 16 MiB MCP body limit while retaining the one-megabyte default elsewhere. A 200-item snapshot truncation, stale state, ambiguity, or oversized draft may require additional approved reads; a draft within the final count and byte bounds must not be split into intermediate writes.
+
+The `1.1.6` correction passes 284 deterministic tests with 11 expected database-gated skips, the focused contract/server/security/load suites, 29 browser tests with seven intentional project skips, 36 cross-host eval cases, and eight package/lifecycle tests. Its compact maximum-count service fixture commits and replays exactly once in about 0.6 seconds, and an isolated real Git repository stages and commits 20,000 paths in under nine seconds. The release remains prepared locally; this milestone does not claim an npm publication, Git push, or staging deployment.
 
 Staging now runs `hfj-staging:onboarding-drafts-20260722-1-runtime` with Linux/amd64 OCI index digest `sha256:b88f85a3c3108708498e46275181d7b75ec68f5254db86b39213c30c9abf25b0` from checksum-matched archive SHA-256 `569952d091e96e3dba0503a534580f1d497280be539f7d2eefe5297c93bc7ae3`. Public live/readiness, deployment, and OAuth/MCP discovery smokes pass at schema `0007`; `hfj-staging:onboarding-20260721-1-runtime` and the pre-release environment backup remain available for rollback.
 

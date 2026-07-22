@@ -12,7 +12,7 @@ import {
   UnconfiguredAppleIdentityProvider,
   UnconfiguredMailProvider,
 } from "../../apps/server/src/adapters/providers.js";
-import { buildApp } from "../../apps/server/src/http/app.js";
+import { buildApp, MCP_BODY_LIMIT_BYTES } from "../../apps/server/src/http/app.js";
 import { HouseholdFoodJournalService } from "../../apps/server/src/services/household-food-journal.js";
 import { ServiceObservability } from "../../apps/server/src/telemetry/observability.js";
 import { parseWebRenderContext } from "../../apps/web/src/context.js";
@@ -104,7 +104,7 @@ describe("security boundaries", () => {
       method: "POST",
       url: "/mcp",
       headers: { ...authorization, "content-type": "application/json" },
-      payload: JSON.stringify({ marker: oversizedMarker, padding: "x".repeat(1_000_000) }),
+      payload: JSON.stringify({ marker: oversizedMarker, padding: "x".repeat(MCP_BODY_LIMIT_BYTES) }),
     });
     const malformedMarker = "malformed-private-marker";
     const malformed = await app.inject({

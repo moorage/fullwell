@@ -45,6 +45,13 @@
       "invariants": ["one_final_fullwell_write", "stable_idempotency_key", "snapshot_head_compare_and_set", "no_legacy_onboarding_writes", "report_required_for_complete", "delete_checkpoint_only_after_success"]
     },
     {
+      "id": "large-confirmed-onboarding-commits-once",
+      "prompt": "My confirmed onboarding draft has 10,000 items and 10,000 evidence records and its complete MCP request is under 16 MiB. Save it.",
+      "skills": ["manage-household-food-journal", "audit-grocery-purchases", "track-recipe-history"],
+      "required_tools": ["hfj_commit_onboarding"],
+      "invariants": ["accept_10000_items", "accept_10000_evidence", "enforce_16_mib_request_limit", "one_final_fullwell_write", "never_split_within_limit_draft", "delete_checkpoint_only_after_success"]
+    },
+    {
       "id": "explicit-setup-stop-does-not-advance",
       "prompt": "Stop the Fullwell setup entirely; do not ask me the next part.",
       "skills": ["manage-household-food-journal"],

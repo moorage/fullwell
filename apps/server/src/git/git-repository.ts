@@ -10,6 +10,8 @@ import { isRestockingSnapshotPath } from "../core/restocking-snapshot.js";
 import { stableJson, validateRepositoryPath } from "../adapters/memory.js";
 import { assertExportSize } from "../exports/policy.js";
 
+export const MAX_RECONCILABLE_REPOSITORY_FILES = 50_000;
+
 interface GitRepositoryOptions {
   readonly repositoryRoot: string;
   readonly worktreeRoot: string;
@@ -62,7 +64,7 @@ export class GitHouseholdRepository implements HouseholdRepositoryPort {
     const repository = this.repositoryPath(householdId);
     const head = await this.head(householdId);
     const paths = (await git(["--git-dir", repository, "ls-tree", "-r", "--name-only", "refs/heads/main"])).trim().split("\n").filter(Boolean);
-    if (paths.length > 10_000) throw new AppError("PROJECTION_DRIFT", "Household repository contains too many files to reconcile");
+    if (paths.length > MAX_RECONCILABLE_REPOSITORY_FILES) throw new AppError("PROJECTION_DRIFT", "Household repository contains too many files to reconcile");
     const files = [];
     for (const path of paths) {
       validateRepositoryPath(path);
@@ -94,13 +96,15 @@ export class GitHouseholdRepository implements HouseholdRepositoryPort {
       await git(["clone", "--quiet", this.repositoryPath(householdId), worktree]);
       const current = GitObjectIdSchema.parse((await git(["-C", worktree, "rev-parse", "HEAD"])).trim());
       if (current !== expectedHead) throw new AppError("REVISION_CONFLICT", "The household changed while this request was being prepared");
+      const auditPath = `audit/${metadata.occurredAt.slice(0, 4)}/${metadata.requestId}.json`;
+      const currentPaths = (await git(["-C", worktree, "ls-files", "-z"])).split("\0").filter(Boolean);
+      assertRepositoryCapacity(currentPaths, changes, auditPath);
       for (const change of changes) {
         if (change.appendOnly && await exists(join(worktree, change.path))) {
           throw new AppError("REVISION_CONFLICT", `Append-only document already exists: ${change.path}`);
         }
         await this.write(worktree, change.path, change.content);
       }
-      const auditPath = `audit/${metadata.occurredAt.slice(0, 4)}/${metadata.requestId}.json`;
       await this.write(worktree, auditPath, stableJson({
         actor_id: metadata.actorId,
         affected_paths: changes.map((change) => change.path),
@@ -110,8 +114,7 @@ export class GitHouseholdRepository implements HouseholdRepositoryPort {
         request_id: metadata.requestId,
         schema_version: 1,
       }));
-      const paths = [...changes.map((change) => change.path), auditPath];
-      await git(["-C", worktree, "add", "--", ...paths]);
+      await git(["-C", worktree, "add", "--all"]);
       const message = `${metadata.summary}\n\nActor-ID: ${metadata.actorId}\nHousehold-ID: ${metadata.householdId}\nRequest-ID: ${metadata.requestId}\nTool: ${metadata.tool}\nClient: ${metadata.client}\nSchema-Version: 1`;
       await git(["-C", worktree, ...this.commitArgs(message, metadata.occurredAt)]);
       const committed = GitObjectIdSchema.parse((await git(["-C", worktree, "rev-parse", "HEAD"])).trim());
@@ -219,7 +222,7 @@ export function validateExportTree(tree: string): void {
 
 function restockingPathsFromTree(tree: string): string[] {
   const entries = tree.split("\0").filter(Boolean);
-  if (entries.length > 10_000) throw new AppError("PROJECTION_DRIFT", "Household repository contains too many files");
+  if (entries.length > MAX_RECONCILABLE_REPOSITORY_FILES) throw new AppError("PROJECTION_DRIFT", "Household repository contains too many files");
   const paths: string[] = [];
   for (const entry of entries) {
     const match = /^(\d{6})\t([^\t]+)\t(.+)$/.exec(entry);
@@ -233,6 +236,24 @@ function restockingPathsFromTree(tree: string): string[] {
     paths.push(path);
   }
   return paths.sort((left, right) => left.localeCompare(right));
+}
+
+export function assertRepositoryCapacity(
+  currentPaths: ReadonlyArray<string>,
+  changes: ReadonlyArray<RepositoryChange>,
+  auditPath: string,
+): void {
+  const changePaths = changes.map(({ path }) => path);
+  if (new Set(changePaths).size !== changePaths.length) throw new AppError("VALIDATION_FAILED", "A repository path may change only once per mutation");
+  for (const path of currentPaths) validateRepositoryPath(path);
+  const nextPaths = new Set(currentPaths);
+  for (const path of [...changePaths, auditPath]) {
+    validateRepositoryPath(path);
+    nextPaths.add(path);
+  }
+  if (nextPaths.size > MAX_RECONCILABLE_REPOSITORY_FILES) {
+    throw new AppError("VALIDATION_FAILED", "The mutation would exceed the household repository capacity");
+  }
 }
 
 class GitProcessError extends Error {

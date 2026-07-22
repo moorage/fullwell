@@ -48,6 +48,7 @@ const ContentParserErrorSchema = z.object({
   ]),
 }).passthrough();
 const BASE_CONTENT_SECURITY_POLICY = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self' https://appleid.apple.com https://wa.me https://api.whatsapp.com";
+export const MCP_BODY_LIMIT_BYTES = 16 * 1_048_576;
 
 export interface AppDependencies {
   readonly service: HouseholdFoodJournalService;
@@ -192,7 +193,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     throw new AppError("VALIDATION_FAILED", "MCP requests must use POST");
   });
 
-  app.post("/mcp", { config: { rateLimit: { max: 120, timeWindow: 60_000, groupId: "mcp" } } }, async (request, reply) => {
+  app.post("/mcp", { bodyLimit: MCP_BODY_LIMIT_BYTES, config: { rateLimit: { max: 120, timeWindow: 60_000, groupId: "mcp" } } }, async (request, reply) => {
     const principal = await authenticate(request.headers.authorization, dependencies.authentication);
     const rpc = McpRequestSchema.parse(request.body);
     if (rpc.method === "initialize") return reply.send({ jsonrpc: "2.0", id: rpc.id, result: { protocolVersion: "2025-06-18", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "household-food-journal", version: "0.1.0" } } });

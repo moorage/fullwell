@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Raise the confirmed onboarding aggregate to 10,000 evidence records and 10,000 items inside a route-specific 16 MiB MCP envelope, with exact-limit validation, prospective repository-capacity checks, and argument-vector-safe Git staging.
 - Persist resumable Fullwell onboarding checkpoints under the Codex home, sharded by stable Fullwell user and household IDs, bound to the current server snapshot, and excluded from canonical state until the one confirmed final write.
 - Require Fullwell grocery audits to open every qualifying order detail and expand all item lists before reporting purchase coverage or recurrence.
 - Explain the practical snack-restocking and family-recipe benefits before Fullwell asks onboarding source questions, including when resuming a section.

@@ -32,6 +32,9 @@ const RevisionedHouseholdMutationSchema = HouseholdMutationSchema.extend({
   expected_head: GitObjectIdSchema,
 });
 
+export const ONBOARDING_COMMIT_MAX_EVIDENCE = 10_000;
+export const ONBOARDING_COMMIT_MAX_ITEMS = 10_000;
+
 export const ToolInputSchemas = {
   hfj_get_context: z.object({ household_id: HouseholdIdSchema.optional() }).strict(),
   hfj_create_household: z.object({
@@ -99,8 +102,8 @@ export const ToolInputSchemas = {
       profile: z.enum(["snacks", "recipes"]),
       markdown: z.string().max(100_000),
     }).strict()).max(2).default([]),
-    evidence: z.array(EvidenceSchema).max(500).default([]),
-    items: z.array(JournalItemSchema).max(100).default([]),
+    evidence: z.array(EvidenceSchema).max(ONBOARDING_COMMIT_MAX_EVIDENCE).default([]),
+    items: z.array(JournalItemSchema).max(ONBOARDING_COMMIT_MAX_ITEMS).default([]),
     reports: z.array(ReportSchema).max(2).default([]),
     expected_item_revisions: z.record(ItemIdSchema, GitObjectIdSchema).default({}),
   }).strict().superRefine((value, context) => {
@@ -112,6 +115,9 @@ export const ToolInputSchemas = {
     }
     if (new Set(value.profiles.map(({ profile }) => profile)).size !== value.profiles.length) {
       context.addIssue({ code: "custom", path: ["profiles"], message: "Each onboarding profile may appear once" });
+    }
+    if (new Set(value.items.map(({ id }) => id)).size !== value.items.length) {
+      context.addIssue({ code: "custom", path: ["items"], message: "Each onboarding item may appear once" });
     }
   }),
   hfj_create_collection: RevisionedHouseholdMutationSchema.extend({

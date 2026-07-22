@@ -125,7 +125,7 @@ export class HouseholdFoodJournalService {
     });
     return {
       data: {
-        user: { display_name: principal.displayName },
+        user: { id: principal.userId, display_name: principal.displayName },
         households: memberships.map(({ household, membership }) => ({ id: household.id, name: household.name, role: membership.role, repository_head: household.repositoryHead })),
         default_household_id: selected,
         pending_intent: null,

@@ -56,6 +56,7 @@ describe("HouseholdFoodJournalService", () => {
     expect(await service.call("hfj_get_context", {}, owner)).toMatchObject({
       ok: true,
       data: {
+        user: { id: owner.userId, display_name: owner.displayName },
         households: [],
         default_household_id: null,
         onboarding: null,
@@ -104,6 +105,10 @@ describe("HouseholdFoodJournalService", () => {
     }, member);
     head = accepted.head;
     expect((await call("hfj_list_members", { household_id: householdId })).data.members).toHaveLength(2);
+    expect((await call("hfj_get_context", { household_id: householdId }, member)).data.user).toEqual({
+      id: member.userId,
+      display_name: member.displayName,
+    });
 
     const demoted = await call("hfj_update_member", {
       household_id: householdId,

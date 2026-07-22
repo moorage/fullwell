@@ -2,8 +2,10 @@
 
 ## Unreleased
 
+- Persist resumable Fullwell onboarding checkpoints under the Codex home, sharded by stable Fullwell user and household IDs, bound to the current server snapshot, and excluded from canonical state until the one confirmed final write.
+- Require Fullwell grocery audits to open every qualifying order detail and expand all item lists before reporting purchase coverage or recurrence.
 - Explain the practical snack-restocking and family-recipe benefits before Fullwell asks onboarding source questions, including when resuming a section.
-- Reduced normal Fullwell onboarding to one bounded context read and one atomic final write after explicit confirmation, with conversation-local drafting, skip-only finalization, replay binding, crash recovery, and truthful MCP tool annotations.
+- Reduced normal Fullwell onboarding to one bounded context read and one atomic final write after explicit confirmation, with locally checkpointed drafting, skip-only finalization, replay binding, crash recovery, and truthful MCP tool annotations.
 - Excluded local Beads database and cache state from the generated repository map.
 - Accept bounded MCP request metadata from current Codex hosts so `hfj_get_context` can start Fullwell onboarding without weakening tool-input validation.
 - Accept Codex/RMCP's scope-bearing OAuth refresh requests while preserving the original grant boundary, preventing Fullwell MCP startup failures after access-token expiry.

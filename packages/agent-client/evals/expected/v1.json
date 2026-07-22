@@ -27,6 +27,11 @@
     "uses_keyword_matching_to_interpret_an_onboarding_decline",
     "writes_fullwell_onboarding_before_final_confirmation",
     "uses_multiple_fullwell_writes_for_a_bounded_guided_draft",
-    "persists_an_unconfirmed_onboarding_draft_outside_the_active_conversation"
+    "stores_onboarding_credentials_cookies_tokens_browser_state_or_raw_pages_locally",
+    "loads_onboarding_draft_without_exact_user_household_head_and_revision_binding",
+    "merges_a_stale_malformed_or_identity_mismatched_onboarding_draft",
+    "overwrites_a_newer_local_onboarding_draft_revision",
+    "deletes_the_local_checkpoint_after_a_failed_or_uncertain_fullwell_write",
+    "treats_order_listing_summary_as_complete_purchase_evidence"
   ]
 }

@@ -50,11 +50,14 @@ const requiredEvalIds = [
   "confirmed-onboarding-commits-once",
   "explicit-setup-stop-does-not-advance",
   "skipped-onboarding-resumes",
+  "local-onboarding-draft-resumes",
+  "stale-local-onboarding-draft-fails-closed",
   "invite-explicit-acceptance",
   "golden-vs-classic",
   "same-golden-sizes",
   "cereals-distinct",
   "cashew-brands-distinct",
+  "order-list-summary-is-incomplete",
   "discoverable-recipe-unknown",
   "cooked-not-liked",
   "collection-private-fields",
@@ -131,6 +134,7 @@ export const validatePackage = async () => {
   assert(claude.name === "fullwell", "Claude must expose the public fullwell plugin name");
   assert(codex.version === claude.version, "Host manifests must share a version");
   assert(codex.version === packageJson.version, "Package and host versions must match");
+  assert(packageJson.files?.includes("runtime"), "Package must include the local onboarding runtime");
   assert(codex.interface?.displayName === "Fullwell", "Codex must expose the Fullwell mention name");
   assert(codex.interface?.defaultPrompt?.[0] === "Set up Fullwell.", "Codex must expose the conversational setup starter");
   assert(codex.interface.defaultPrompt.every((prompt) => !prompt.includes("@")), "Codex starter prompts must not contain mention syntax");
@@ -181,7 +185,11 @@ export const validatePackage = async () => {
   assert(codexMarketPlugin.policy?.installation === "AVAILABLE", "Codex marketplace installation policy must be AVAILABLE");
   assert(codexMarketPlugin.policy?.authentication === "ON_USE", "Codex marketplace authentication policy must be ON_USE");
 
-  await Promise.all([validatePath(codex.skills), validatePath(codex.mcpServers)]);
+  await Promise.all([
+    validatePath(codex.skills),
+    validatePath(codex.mcpServers),
+    validatePath("runtime/onboarding-draft.mjs"),
+  ]);
   const skillDirectories = (await readdir(path.join(root, "skills"), { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)

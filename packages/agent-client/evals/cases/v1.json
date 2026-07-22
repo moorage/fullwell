@@ -14,7 +14,7 @@
       "prompt": "@Fullwell hi, please help me get started with my food journal.",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases"],
       "required_tools": ["hfj_get_context"],
-      "invariants": ["no_setup_area_menu", "snacks_before_recipes", "explain_snack_benefit_before_question", "include_concrete_restock_example", "ask_grocery_stores", "draft_in_conversation_only", "no_intermediate_onboarding_write"]
+      "invariants": ["no_setup_area_menu", "snacks_before_recipes", "explain_snack_benefit_before_question", "include_concrete_restock_example", "ask_grocery_stores", "checkpoint_bound_to_fullwell_identity", "no_intermediate_onboarding_write"]
     },
     {
       "id": "bare-fullwell-greeting-starts-snacks",
@@ -42,14 +42,14 @@
       "prompt": "Yes, that final Fullwell onboarding summary is correct. Save all of it now.",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases", "track-recipe-history"],
       "required_tools": ["hfj_commit_onboarding"],
-      "invariants": ["one_final_fullwell_write", "stable_idempotency_key", "snapshot_head_compare_and_set", "no_legacy_onboarding_writes", "report_required_for_complete"]
+      "invariants": ["one_final_fullwell_write", "stable_idempotency_key", "snapshot_head_compare_and_set", "no_legacy_onboarding_writes", "report_required_for_complete", "delete_checkpoint_only_after_success"]
     },
     {
       "id": "explicit-setup-stop-does-not-advance",
       "prompt": "Stop the Fullwell setup entirely; do not ask me the next part.",
       "skills": ["manage-household-food-journal"],
       "required_tools": ["hfj_get_context"],
-      "invariants": ["end_whole_flow", "do_not_start_or_skip_next_section", "current_section_remains_resumable"]
+      "invariants": ["end_whole_flow", "do_not_start_or_skip_next_section", "delete_exact_checkpoint_revision", "no_fullwell_write"]
     },
     {
       "id": "skipped-onboarding-resumes",
@@ -57,6 +57,20 @@
       "skills": ["manage-household-food-journal"],
       "required_tools": ["hfj_get_context"],
       "invariants": ["prefer_unfinished_unskipped_section", "reuse_returned_revision_in_final_draft", "explain_section_benefit_when_resuming", "avoid_unexplained_setup_labels", "no_resume_transition", "no_intermediate_onboarding_write"]
+    },
+    {
+      "id": "local-onboarding-draft-resumes",
+      "prompt": "I closed Codex halfway through the grocery-order audit. Continue my Fullwell setup without starting those orders over.",
+      "skills": ["manage-household-food-journal", "audit-grocery-purchases"],
+      "required_tools": ["hfj_get_context"],
+      "invariants": ["load_checkpoint_after_context", "exact_user_household_head_revision_binding", "resume_completed_order_cursor", "do_not_reask_confirmed_sources", "no_intermediate_onboarding_write"]
+    },
+    {
+      "id": "stale-local-onboarding-draft-fails-closed",
+      "prompt": "My local Fullwell onboarding draft came from another account or an older household revision. Resume it anyway.",
+      "skills": ["manage-household-food-journal"],
+      "required_tools": ["hfj_get_context"],
+      "invariants": ["never_scan_sibling_identity_shards", "never_merge_stale_or_mismatched_draft", "discard_exact_unusable_revision", "restart_from_current_snapshot"]
     },
     {
       "id": "invite-explicit-acceptance",
@@ -92,6 +106,13 @@
       "skills": ["audit-grocery-purchases"],
       "required_tools": ["hfj_search_items"],
       "invariants": ["brands_remain_distinct"]
+    },
+    {
+      "id": "order-list-summary-is-incomplete",
+      "prompt": "The grocery order-history cards show only a few thumbnails. Finish the snack audit from those summaries.",
+      "skills": ["audit-grocery-purchases"],
+      "required_tools": [],
+      "invariants": ["order_listing_is_discovery_only", "open_every_qualifying_order_detail", "expand_complete_item_list", "hidden_items_block_complete_audit"]
     },
     {
       "id": "discoverable-recipe-unknown",

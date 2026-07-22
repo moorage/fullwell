@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.1.5 - 2026-07-21
+
+- Require the authorized browser audit to open every qualifying grocery order detail, expand complete item lists, and report hidden-item limitations instead of trusting order-history summaries.
+- Checkpoint unconfirmed onboarding under the Codex home by stable Fullwell user and household IDs, with exact snapshot binding, atomic private local writes, safe resume, conflict detection, prohibited browser/auth data, and cleanup after confirmed finalization or cancellation.
+
 ## 1.1.4 - 2026-07-21
 
 - Explain how snack purchase history powers familiar-product restocking and how recipe history helps recall family favorites before asking onboarding source questions, including when resuming a section.

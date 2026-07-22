@@ -1,10 +1,12 @@
 # Fullwell Agent Client
 
-One shared skill package connects Codex and Claude to the hosted Household Food Journal MCP service and defines the local-only grocery-restocking workflow. The service performs authentication and all canonical journal mutations; this package contains no credentials, household data, Git client, or synchronization state.
+One shared skill package connects Codex and Claude to the hosted Household Food Journal MCP service and defines local-only onboarding checkpoints and grocery restocking. The service performs authentication and all canonical journal mutations; the published package contains no credentials or household data and includes no Git client or journal synchronization state.
 
-After installation, start with `@Fullwell hi` in Codex or `Set up Fullwell.` in Claude. A bare greeting reads one onboarding snapshot before replying: while work remains, the shared skills begin snacks, ask only for missing source authorization and preferences, then advance to recipes without a setup menu or generic help question. The unconfirmed draft stays in the active conversation, and Fullwell writes it once only after showing a final summary and receiving explicit confirmation. A section is complete only when its canonical household report exists.
+After installation, start with `@Fullwell hi` in Codex or `Set up Fullwell.` in Claude. A bare greeting reads one onboarding snapshot before replying: while work remains, the shared skills begin snacks, ask only for missing source authorization and preferences, then advance to recipes without a setup menu or generic help question. The unconfirmed draft is checkpointed under `~/.codex/fullwell/drafts`, isolated by the stable Fullwell user and household IDs and bound to the current snapshot, so long audits can resume after a closed conversation. It excludes credentials and browser state and is deleted after confirmed finalization or explicit cancellation. Fullwell writes canonical state once only after showing a final summary and receiving explicit confirmation. A section is complete only when its canonical household report exists.
 
 The restocking skill reads only a private revisioned snapshot prepared by `@fullwell/local-runner`. Product selection and retailer cart control stay on the user's Mac; the WhatsApp gateway relays encrypted user-facing text and transport state only.
+
+Removing the plugin does not delete an unfinished checkpoint. Delete `~/.codex/fullwell/drafts` to remove every local Fullwell onboarding draft for the current operating-system account without changing server household data.
 
 ## Development
 

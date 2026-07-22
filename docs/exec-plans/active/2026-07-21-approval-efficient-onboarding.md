@@ -2,7 +2,7 @@
 
 ## Purpose / Big Picture
 
-Fullwell onboarding currently turns one conversational snack-then-recipe flow into a sequence of separately approved MCP reads and writes. The user should instead approve at most one initial Fullwell read and one final Fullwell write in the normal fresh-household path. `hfj_get_context` will return a bounded, membership-authorized onboarding snapshot containing the current section states, snack and recipe profiles, repository HEAD, and a bounded existing-item index. Codex or Claude will keep answers and collected evidence only in the active conversation until it can show a final summary. One new `hfj_commit_onboarding` tool will then validate and persist the complete evidence, item, report, profile, and skip result as one idempotent household mutation and one signed Git commit.
+Fullwell onboarding currently turns one conversational snack-then-recipe flow into a sequence of separately approved MCP reads and writes. The user should instead approve at most one initial Fullwell read and one final Fullwell write in the normal fresh-household path. `hfj_get_context` returns a bounded, membership-authorized onboarding snapshot containing the current user ID, section states, snack and recipe profiles, repository HEAD, and a bounded existing-item index. Codex or Claude checkpoints answers and collected evidence in a local, identity-sharded draft until it can show a final summary. One `hfj_commit_onboarding` tool then validates and persists the complete evidence, item, report, profile, and skip result as one idempotent household mutation and one signed Git commit.
 
 The change is a direct usability iteration on `docs/ideas/backlog/conversational-fullwell-onboarding.md`, promoted when the user reported repeated MCP approvals during real onboarding on 2026-07-21 and explicitly approved the read-draft-commit implementation. It remains high-priority because approval fatigue interrupts the first action that makes Fullwell useful. Browser, Chrome, site sign-in, CAPTCHA, and other source-specific consent remain separate and are never implied by the initial Fullwell read.
 
@@ -20,7 +20,9 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 - [x] 2026-07-22T05:58Z: From the separate `fullwell-tester` folder, current Codex on `gpt-5.6-sol` made exactly one Fullwell call (`hfj_get_context`), no Fullwell mutation, and asked the snack question without the generic "what's on your mind" reply; the transcript filter retained only tool identity and boolean response checks.
 - [x] 2026-07-22T06:12Z: Replaced unexplained snack/recipe setup labels with benefit-first guidance and concrete restocking/recipe-recall examples, updated the client specification and eval invariants, prepared package `1.1.4`, and passed package validation plus isolated Codex and Claude lifecycles.
 - [x] 2026-07-22T06:34Z: Published immutable `@fullwell/fullwell@1.1.4`, matched the prepared registry checksums, passed downloaded Codex/Claude lifecycle tests, updated both current hosts to enabled version `1.1.4`, and verified the benefit-first snack copy in a sanitized separate-folder current-Codex smoke with no Fullwell mutation.
-- [ ] Milestone 4 - synchronize documentation, verify, publish, deploy, and live-test.
+- [x] 2026-07-22T06:50Z: Made grocery order listings discovery-only in the shared browser audit, required every qualifying order detail and complete-item expansion, added a cross-host incomplete-summary eval, prepared package `1.1.5`, and passed skill validation, the 33-case eval matrix, package validation, isolated host lifecycles, dry-run packing, and full repository verification.
+- [x] 2026-07-22T17:13Z: Milestone 4 complete - exposed the stable authenticated user ID, bundled the identity/snapshot-bound local checkpoint runtime, updated shared Codex/Claude orchestration and privacy guidance, expanded to 35 eval cases, and passed eight package/lifecycle tests, 29 browser tests with seven intentional skips, dry-run package inclusion, and full repository verification.
+- [ ] Milestone 5 - synchronize documentation, verify, publish, deploy, and live-test.
 
 ## Surprises & Discoveries
 
@@ -30,10 +32,14 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 - 2026-07-21: A complete existing-item corpus is not safe to embed in `hfj_get_context`. The snapshot must expose only bounded identity summaries and signal truncation; ambiguous existing-item conflicts may require an additional read rather than silently merging.
 - 2026-07-22: The initial implementation exposed the generic mutation runner's historical completed-replay behavior, which did not compare a changed payload after success. The new final onboarding tool now retains and checks its request fingerprint on completed replay without changing legacy tool behavior.
 - 2026-07-22: Adding the combined boundary initially reduced repository branch coverage from 90.07% to 89.58%. Contract and service edge tests for empty/duplicate input, no-household snapshots, invalid completion/skip, stale HEAD, changed replay, and unchanged skips restored the enforced gate to 90.03%.
+- 2026-07-22: The authorized context exposed only the user's display name. Safe local sharding requires the stable authenticated Fullwell user ID, so the read response must add that non-secret identifier before a draft can be resumed.
+- 2026-07-22: Conversation-only state did not survive compaction or a closed chat during long browser audits. A bounded local checkpoint solves that failure without adding another canonical Fullwell write, provided stale snapshots and concurrent local writers fail closed.
 
 ## Decision Log
 
-- 2026-07-21: Keep the draft in active host conversation state, not a workspace file, plugin cache, browser profile, or new client-side database. This avoids a second synchronization engine and accidental Git inclusion; interruption before final confirmation leaves canonical state unchanged.
+- 2026-07-22: Supersede the conversation-only draft decision. Store a versioned JSON checkpoint under `~/.codex/fullwell/drafts/<user-id>/<household-id>/onboarding.json`, or the active Codex home equivalent, with `0700` directories and `0600` atomic files. The user explicitly accepts that another person with access to the same operating-system account can read it; the required boundary is preventing accidental Fullwell user or household mixing, not encryption at rest.
+- 2026-07-22: Bind every checkpoint to the authenticated Fullwell user ID, household ID, repository HEAD, both onboarding revisions, and a local draft revision. Never scan another identity shard, merge a stale checkpoint, or store credentials, cookies, browser state, access tokens, refresh tokens, or raw page captures.
+- 2026-07-22: Delete the matching checkpoint after a confirmed commit or explicit whole-flow cancellation. Expired, malformed, mismatched, or concurrent-write-conflicted checkpoints fail closed and leave canonical Fullwell state unchanged.
 - 2026-07-21: Extend `hfj_get_context` instead of adding another initial-read tool. One selected-household response can safely carry profiles and a bounded item index after the existing membership check.
 - 2026-07-21: Add one purpose-specific `hfj_commit_onboarding` tool rather than broadening `hfj_commit_change_set`. The new contract can require section outcomes, bound the combined payload, and coordinate per-user operational skip state without changing ordinary journal updates.
 - 2026-07-21: A `complete` section outcome is accepted only when the same request writes the matching canonical report or the report already exists. The agent still cannot persist an independent completion flag.
@@ -48,13 +54,13 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 `apps/server/src/services/household-food-journal.ts` implements `hfj_get_context`, profile/item reads, evidence append, change-set commits, and per-user onboarding transitions. `apps/server/src/services/mutation-runner.ts` owns the signed Git commit and durable mutation-state lifecycle. `apps/server/src/core/ports.ts`, `apps/server/src/core/types.ts`, `apps/server/src/adapters/memory.ts`, `apps/server/src/persistence/neon-operational-store.ts`, and `apps/server/src/workers/reconciliation-worker.ts` own operational state, projections, and recovery.
 
-The shared host behavior lives in `packages/agent-client/skills/manage-household-food-journal/SKILL.md`, `packages/agent-client/skills/audit-grocery-purchases/SKILL.md`, and `packages/agent-client/skills/track-recipe-history/SKILL.md`. `packages/agent-client/evals/cases/v1.json`, `packages/agent-client/evals/expected/v1.json`, and `packages/agent-client/tests/evals/matrix.test.mjs` make tool order and forbidden behavior deterministic across Codex and Claude.
+The shared host behavior lives in `packages/agent-client/skills/manage-household-food-journal/SKILL.md`, `packages/agent-client/skills/audit-grocery-purchases/SKILL.md`, and `packages/agent-client/skills/track-recipe-history/SKILL.md`. `packages/agent-client/runtime/onboarding-draft.mjs` owns the local checkpoint boundary and is bundled for both hosts. `packages/agent-client/evals/cases/v1.json`, `packages/agent-client/evals/expected/v1.json`, and `packages/agent-client/tests/evals/matrix.test.mjs` make tool order and forbidden behavior deterministic across Codex and Claude.
 
 Assumptions and constraints:
 
 - The normal acceptance path begins with an existing editable household whose item index is not truncated and whose combined onboarding payload fits the server's current one-megabyte HTTP body limit.
 - The initial read does not authorize browsing. Each source and browser remains explicitly user-authorized.
-- Draft answers and raw evidence are ephemeral until the final user confirmation. A stopped or abandoned conversation performs no Fullwell write and may need to restart after host context loss.
+- Draft answers and bounded evidence are local and resumable until final user confirmation. A stopped or abandoned conversation performs no Fullwell write; a matching, current checkpoint can resume after host context loss.
 - Git remains authoritative for evidence, items, profiles, and reports. Neon remains authoritative for per-user skipped state and mutation recovery metadata.
 - Programs validate evidence relationships, revisions, report arithmetic, and allowed paths but do not classify foods, resolve semantic identity, or author report prose.
 - One successful finalization creates one signed Git commit when canonical files change. A skip-only finalization uses one operational transaction against the current HEAD and never creates an empty Git commit or a private per-user Git document.
@@ -76,7 +82,7 @@ The problem is not merely the number of tool calls. It is that Fullwell persists
 ### Roundtable highlights
 
 - UX: read once, ask uninterrupted questions, preview the intended changes, then request one clearly labeled final write.
-- Security/privacy: never interpret the initial read as permission to inspect browser sources; avoid plaintext local draft files and disclose that an interrupted ephemeral draft is not resumable.
+- Security/privacy (superseded by the 2026-07-22 user decision): never interpret the initial read as permission to inspect browser sources. The selected local checkpoint deliberately favors resumability and identity separation over encryption from another person using the same operating-system account.
 - Architecture: submit new evidence and the conclusions citing it in the same typed request, validate against a combined existing-plus-new evidence map, and commit all canonical changes once.
 - Reliability: bind the final request to the snapshot HEAD, item revisions, onboarding revisions, and an idempotency key; persist bounded skip recovery intent before the Git boundary.
 - ML/evals: forbid `hfj_update_onboarding`, profile writes, evidence appends, and change-set writes before final confirmation in the normal onboarding eval.
@@ -169,7 +175,7 @@ Files:
 Tasks:
 
 1. Make one `hfj_get_context` snapshot the only normal Fullwell read before finalization. Reuse its profiles and item summaries without calling profile/search/item tools unless the snapshot explicitly reports a truncation or ambiguity.
-2. Keep source answers, evidence, semantic decisions, profile edits, reports, and bounded skip reasons in active conversation state. Do not write a workspace draft, opt the draft into host memory, or claim cross-session persistence.
+2. Keep source answers, evidence, semantic decisions, profile edits, reports, and bounded skip reasons in the identity-sharded local checkpoint. Do not write a workspace draft, opt the draft into host memory, or treat the checkpoint as canonical household state.
 3. Before asking for confirmation, ensure the draft is within the advertised evidence/item/report/profile and request-size bounds. Ask the user to review a concise final summary and explicitly confirm the write, then call `hfj_commit_onboarding` exactly once. Do not call `hfj_update_onboarding`, `hfj_update_profile`, `hfj_append_evidence`, or `hfj_commit_change_set` during the normal draft.
 4. Preserve snack-before-recipe order, natural section decline, explicit whole-flow stop, browser/source authorization, semantic food rules, and no false completion.
 5. Add cross-host evals for two-call success, mixed complete/skip, skip-only finalization, explicit stop with zero writes, stale final commit, truncated inventory, oversized draft, and no intermediate mutation.
@@ -181,7 +187,36 @@ Verification:
 - `npm run test:packaging`
 - `npm run build --workspace @fullwell/fullwell`
 
-### Milestone 4 - Documentation, rollout, and live evidence
+### Milestone 4 - Identity-sharded local checkpoint
+
+Files:
+
+- `apps/server/src/services/household-food-journal.ts`
+- `apps/server/src/services/household-food-journal.test.ts`
+- `packages/agent-client/runtime/onboarding-draft.mjs`
+- `packages/agent-client/tests/packaging/onboarding-draft.test.mjs`
+- `packages/agent-client/skills/manage-household-food-journal/SKILL.md`
+- `packages/agent-client/skills/audit-grocery-purchases/SKILL.md`
+- `packages/agent-client/skills/track-recipe-history/SKILL.md`
+- `packages/agent-client/references/mcp-tool-contract.md`
+- `packages/agent-client/references/privacy-and-sharing.md`
+- `packages/agent-client/evals/`
+
+Tasks:
+
+1. Add the stable authenticated Fullwell user ID to `hfj_get_context.user` and verify that each principal receives only its own ID after the existing authorization boundary.
+2. Bundle a dependency-free Node checkpoint helper with a strict versioned JSON boundary, safe opaque-ID path derivation, a bounded payload, 30-day expiry, atomic same-directory rename, `0700` directories, `0600` files, exact snapshot matching, and optimistic local draft revisions.
+3. Load only the exact current user/household shard after `hfj_get_context`. Ignore malformed, expired, identity-mismatched, HEAD-mismatched, or onboarding-revision-mismatched data; never search sibling shards or merge stale content.
+4. Save after meaningful audit progress without making a Fullwell mutation. Delete after a successful `hfj_commit_onboarding` response or explicit whole-flow cancellation, but retain it after uncertain, failed, or conflicted remote writes so recovery remains possible.
+5. Add deterministic helper tests and cross-host eval assertions for resume, isolation, stale/corrupt failure, concurrent local writers, cleanup, package inclusion, and prohibited credential/browser-state persistence.
+
+Verification:
+
+- `npm run test --workspace @hfj/server -- services/household-food-journal.test.ts`
+- `npm run test:packaging --workspace @fullwell/fullwell`
+- `npm run test:evals --workspace @fullwell/fullwell`
+
+### Milestone 5 - Documentation, rollout, and live evidence
 
 Files:
 
@@ -197,7 +232,7 @@ Files:
 
 Tasks:
 
-1. Document ephemeral drafts, bounded snapshots, one final write, payload/conflict fallbacks, annotations, authority, recovery, and compatibility.
+1. Document local identity-sharded drafts, bounded snapshots, one final write, payload/conflict fallbacks, annotations, authority, recovery, and compatibility.
 2. Run doc-drift review and refresh generated knowledge only when the tracked tree or quality ledger requires it.
 3. Capture the changed conversation flow with `npm run capture:screencast -- --output artifacts/screencasts/approval-efficient-onboarding.mp4`; if the host capture dependency remains unavailable, record the exact blocker and retain redacted host transcript evidence.
 4. Run the complete local gate set, commit with the required `AI-Model` trailer, push, publish the immutable client package, and deploy an amd64 server image with the previous runtime as rollback.
@@ -236,7 +271,7 @@ interface CommitOnboardingInput {
 }
 ```
 
-The exact schema uses unique section and profile lists so unchanged state is omitted while every persisted outcome remains explicit. `hfj_get_context` returns one consistent HEAD, profile markdown/revisions, section revisions, and bounded item identity summaries needed to construct this request. If a section was already skipped and is declined again, the client omits it unless another canonical/profile change must be committed; a same-request canonical report makes it complete without an operational resume transition.
+The exact schema uses unique section and profile lists so unchanged state is omitted while every persisted outcome remains explicit. `hfj_get_context` returns the stable authenticated user ID, one consistent HEAD, profile markdown/revisions, section revisions, and bounded item identity summaries needed to bind the local checkpoint and construct this request. If a section was already skipped and is declined again, the client omits it unless another canonical/profile change must be committed; a same-request canonical report makes it complete without an operational resume transition.
 
 ## Idempotence and Recovery
 
@@ -246,6 +281,7 @@ The exact schema uses unique section and profile lists so unchanged state is omi
 - The mutation record retains only the request fingerprint and bounded skip recovery intent, never raw source evidence or profile/report prose beyond what is canonical in Git.
 - If Git succeeds but projections or skip compare-and-set fail, the request enters `reconciliation_required`. Exact retry or the reconciliation worker rebuilds Git projections and reapplies the bounded skip intent before completion.
 - If the host loses the response after completion, exact retry returns the recorded response without another commit or onboarding transition.
+- Local checkpoint writes compare a monotonically increasing draft revision and atomically replace a private file. Failed or uncertain remote writes retain the exact checkpoint and idempotency key; confirmed success and explicit cancellation delete only the matching current revision.
 - The prior server and client remain compatible because existing tools are retained. Rollback disables the new client first, restores the previous server image second, and leaves any successfully committed canonical content valid.
 
 ## Acceptance / Verification
@@ -254,6 +290,7 @@ The exact schema uses unique section and profile lists so unchanged state is omi
 - The client verifies payload bounds, shows a bounded summary of intended profile, evidence, report, and skip changes, and obtains explicit confirmation before the write.
 - One `hfj_commit_onboarding` call persists the ordinary completed run and returns final derived section status without a follow-up read.
 - A natural snack or recipe decline stays local during the conversation and is persisted as a bounded per-user skip only in the final call; an explicit whole-flow stop performs no write.
+- A closed conversation resumes only a local draft matching the current authenticated user, household, repository HEAD, and both onboarding revisions; stale, malformed, expired, mismatched, and concurrently superseded drafts fail closed.
 - Browser/source authorization remains explicit and separate from Fullwell tool approval.
 - New evidence may support same-request item and report conclusions, but missing, duplicate, or arithmetically inconsistent evidence fails validation.
 - Stale HEAD/item/onboarding revisions, changed idempotency payloads, viewers, cross-household substitution, truncated duplicate context, oversized payloads, and crash-after-commit recovery fail closed without duplicate Git commits or false completion.
@@ -263,7 +300,7 @@ The exact schema uses unique section and profile lists so unchanged state is omi
 
 ## Outcomes & Retrospective
 
-Local implementation is complete. The normal existing-household path now has one lock-consistent `hfj_get_context` read, no intermediate Fullwell mutation, an active-conversation-only draft, one explicit final summary/confirmation, and one `hfj_commit_onboarding` write. Package `1.1.3` carries the same behavior for Codex and Claude. Skip-only confirmation leaves Git unchanged; canonical changes create one commit; exact replay does not create another commit; changed replay conflicts; post-Git skip failure is recovered from bounded metadata.
+Local implementation now has one lock-consistent `hfj_get_context` read, no intermediate Fullwell mutation, a user/household/snapshot-bound local checkpoint, one explicit final summary/confirmation, and one `hfj_commit_onboarding` write. The prepared `1.1.5` package carries the same helper and behavior for Codex and Claude. Skip-only confirmation leaves Git unchanged; canonical changes create one commit; exact replay does not create another commit; changed replay conflicts; post-Git skip failure is recovered from bounded metadata. The new server response and client package are not yet deployed or published.
 
 Local evidence passes 279 deterministic tests with 11 database-gated skips, the 11 PostgreSQL integration tests separately through Apple Container, 29 browser tests with seven intentional project skips, 32 cross-host eval cases, isolated Codex and Claude lifecycle tests, migrations up/down/up, security/load/contract gates, the full repository verification, and 96.47% statement/line, 94.85% function, and 90.03% branch coverage. The combined request remains bounded by 500 evidence records, 100 items, two reports, two profiles, two section outcomes, and the one-megabyte HTTP body limit. A 200-item snapshot truncation, stale state, ambiguity, or oversized draft may require additional approved reads or bounded writes.
 
@@ -271,4 +308,4 @@ Staging now runs `hfj-staging:onboarding-20260721-1-runtime` with Linux/amd64 OC
 
 Public immutable package `@fullwell/fullwell@1.1.4` was published at `2026-07-22T06:33:33.795Z`. Registry SHA-1 `50939ccf504af8537195cbf51f338fd0bff92a5a` and SHA-512 `sha512-NJ0B/YE7yzqw+pcKugsE3mdOZ+s88B1qJmSFcBMvFas5pMPfbivFjxswwV4jWGBNf3oIUhm5CI9VuLLl6Iky6g==` match the prepared artifact; `latest` resolves to `1.1.4`, the downloaded package passes both isolated host lifecycles, and current Codex and Claude both report enabled `fullwell@fullwell` version `1.1.4`.
 
-The separate-folder current Codex smoke proves one successful `hfj_get_context`, zero Fullwell writes, benefit-first snack guidance with the "Restock cashews" example and past-order matching, snack-first prompting, and no generic "what's on your mind" reply. A real final-confirmation write was intentionally not driven automatically because it would change the user's household based on invented onboarding answers. That final live user-directed write transcript remains before Milestone 4 can close. The required screencast was attempted and failed because the macOS FFmpeg build does not provide `x11grab`; no MP4 is claimed.
+The separate-folder current Codex smoke proves one successful `hfj_get_context`, zero Fullwell writes, benefit-first snack guidance with the "Restock cashews" example and past-order matching, snack-first prompting, and no generic "what's on your mind" reply. A real final-confirmation write was intentionally not driven automatically because it would change the user's household based on invented onboarding answers. The new local-checkpoint path still needs a current-host smoke after server deployment and package publication before Milestone 5 can close. The required screencast was attempted and failed because the macOS FFmpeg build does not provide `x11grab`; no MP4 is claimed.

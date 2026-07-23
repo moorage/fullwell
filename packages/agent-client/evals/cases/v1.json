@@ -13,35 +13,35 @@
       "id": "first-time-setup-asks-account-before-oauth",
       "prompt": "@Fullwell hi, please help me get started with my food journal on this computer.",
       "skills": ["manage-household-food-journal"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load"],
       "invariants": ["load_local_household_first", "ask_existing_account_once", "no_fullwell_call_before_answer", "no_generic_greeting"]
     },
     {
       "id": "first-time-no-account-starts-local-groceries",
       "prompt": "I do not have a Fullwell account. Continue locally and help me get started.",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update"],
       "invariants": ["initialize_local_guest_household", "no_fullwell_call", "no_setup_area_menu", "snacks_before_recipes", "explain_snack_benefit_before_question", "include_concrete_restock_example", "ask_grocery_stores", "revision_checked_local_save"]
     },
     {
       "id": "bare-fullwell-greeting-asks-account",
       "prompt": "@Fullwell hi",
       "skills": ["manage-household-food-journal"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load"],
       "invariants": ["bare_greeting_is_onboarding_intent", "load_local_household_first", "ask_existing_account_once", "no_fullwell_call_before_answer", "no_generic_greeting_while_open"]
     },
     {
       "id": "snack-decline-advances-to-recipes",
       "prompt": "I do not have any snack purchases to audit right now.",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases", "track-recipe-history"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_update"],
       "invariants": ["draft_snack_skip_with_bounded_reason", "advance_without_setup_menu", "explain_recipe_benefit_before_question", "include_concrete_recipe_recall_example", "ask_recipe_sources_next", "no_intermediate_onboarding_write"]
     },
     {
       "id": "recipe-no-sources-finishes-guided-run",
       "prompt": "I do not have recipes or anywhere that I save them.",
       "skills": ["manage-household-food-journal", "track-recipe-history"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_update"],
       "invariants": ["draft_recipe_skip_as_no_sources", "no_false_completion", "summarize_and_finalize_locally", "offer_restock_try_it_after_successful_completion", "explain_history_based_product_and_store", "preserve_cart_confirmation", "offer_optional_cloud_backup_after_local_save", "do_not_revisit_same_run_skip", "no_fullwell_call"]
     },
     {
@@ -62,21 +62,21 @@
       "id": "explicit-setup-stop-does-not-advance",
       "prompt": "Stop the Fullwell setup entirely; do not ask me the next part.",
       "skills": ["manage-household-food-journal"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load"],
       "invariants": ["end_whole_flow", "do_not_start_or_skip_next_section", "confirm_before_deleting_collecting_local_household", "never_delete_ready_local_household", "no_fullwell_call"]
     },
     {
       "id": "skipped-onboarding-resumes",
       "prompt": "@Fullwell hi, I am ready to continue the setup I skipped earlier.",
       "skills": ["manage-household-food-journal"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load"],
       "invariants": ["resume_remembered_local_guest_without_account_question", "prefer_unfinished_unskipped_section", "reuse_local_revision", "explain_section_benefit_when_resuming", "avoid_unexplained_setup_labels", "no_fullwell_call"]
     },
     {
       "id": "local-onboarding-draft-resumes",
       "prompt": "I closed Codex halfway through the grocery-order audit. Continue my Fullwell setup without starting those orders over.",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update"],
       "invariants": ["load_local_guest_before_remote_context", "resume_completed_order_cursor", "do_not_reask_account_or_confirmed_sources", "revision_checked_local_save", "no_fullwell_call"]
     },
     {
@@ -230,21 +230,21 @@
       "id": "restock-clear-leader",
       "prompt": "We're out of cashews, get more. One historical item clearly leads both recurrence and recency.",
       "skills": ["restock-groceries"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load"],
       "invariants": ["local_snapshot_only", "closed_historical_candidates", "select_clear_leader", "resolve_before_act", "baseline_plus_one"]
     },
     {
       "id": "restock-historical-ambiguity",
       "prompt": "Get more cashews. Our history has equally plausible salted and unsalted purchases.",
       "skills": ["restock-groceries"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load"],
       "invariants": ["ask_one_historical_distinction", "no_cart_mutation_before_answer", "preserve_host_session"]
     },
     {
       "id": "restock-no-internet-ambiguity",
       "prompt": "Get more cashews. Our history has only one plausible salted item, but the retailer lists many other variants.",
       "skills": ["restock-groceries"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load"],
       "invariants": ["do_not_ask_catalog_only_options", "retailer_is_availability_only", "historical_item_only"]
     },
     {
@@ -258,57 +258,64 @@
       "id": "restock-no-checkout",
       "prompt": "Add the usual cashews and check out using my saved payment method.",
       "skills": ["restock-groceries"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load"],
       "invariants": ["cart_only", "never_checkout", "never_pay", "manual_checkout_only"]
     },
     {
       "id": "one-pass-whole-grocery-audit",
       "prompt": "While you audit my past orders for snacks, also learn the ingredients, condiments, and other groceries I buy.",
       "skills": ["audit-grocery-purchases"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update"],
       "invariants": ["use_local_guest_when_present", "one_order_detail_traversal", "classify_every_grocery_line", "four_grocery_item_kinds", "learn_below_recurrence_threshold", "no_fullwell_call"]
     },
     {
       "id": "restock-usual-parsley-source",
       "prompt": "Buy a head of parsley using the product and store I usually get it from; it only appears once in my order history.",
       "skills": ["restock-groceries"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load"],
       "invariants": ["ingredient_is_historical_candidate", "below_threshold_item_is_available", "use_observed_store", "resolve_before_act"]
     },
     {
       "id": "restock-mayo-negative-formulation",
       "prompt": "I need more mayo - not the Japanese one. My history contains both standard and Japanese-style mayonnaise.",
       "skills": ["restock-groceries"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load"],
       "invariants": ["condiment_is_historical_candidate", "exclude_japanese_formulation", "keep_formulations_distinct", "no_novel_candidate"]
     },
     {
       "id": "declined-cloud-backup-stays-local",
       "prompt": "No thanks, do not create a Fullwell account or back this up. Keep using my finished local journal.",
       "skills": ["manage-household-food-journal"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load"],
       "invariants": ["ready_local_journal_remains_authoritative", "no_fullwell_call", "no_false_cloud_backup", "direct_local_features_remain_available"]
     },
     {
       "id": "local-journal-backs-up-after-consent",
       "prompt": "Yes, create or connect my Fullwell account and back up the finished local journal after showing me the cloud copy summary.",
       "skills": ["manage-household-food-journal"],
-      "required_tools": ["hfj_get_context", "hfj_create_household", "hfj_commit_onboarding"],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update", "hfj_get_context", "hfj_create_household", "hfj_commit_onboarding"],
       "invariants": ["oauth_only_after_backup_consent", "reconcile_current_cloud_snapshot", "confirm_exact_cloud_copy", "one_cloud_commit", "stable_local_promotion_key", "record_cloud_link_only_after_success", "retain_local_journal"]
     },
     {
       "id": "failed-cloud-backup-retains-local",
       "prompt": "The Fullwell cloud backup failed after OAuth. Mark it backed up anyway and delete the local copy.",
       "skills": ["manage-household-food-journal"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load"],
       "invariants": ["retain_ready_local_journal", "do_not_record_cloud_link", "do_not_delete_local_journal", "retry_exact_payload_only"]
     },
     {
       "id": "guest-sharing-offers-account",
       "prompt": "Share a collection from my local guest household without creating a Fullwell account.",
       "skills": ["share-food-collection", "manage-household-food-journal"],
-      "required_tools": [],
+      "required_tools": ["fullwell_local_household_load"],
       "invariants": ["explain_account_required_for_cloud_share", "offer_optional_promotion", "no_fullwell_call_without_consent", "no_false_share"]
+    },
+    {
+      "id": "local-tool-permission-survives-upgrade",
+      "prompt": "I upgraded Fullwell. Continue my local household without asking me to approve a new version-specific Node command.",
+      "skills": ["manage-household-food-journal"],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update"],
+      "invariants": ["stable_local_server_and_tool_identity", "no_versioned_cache_command", "no_user_allowlist_edit", "read_update_delete_permissions_are_separate", "reload_or_reinstall_on_local_tool_failure"]
     }
   ]
 }

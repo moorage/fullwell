@@ -1,4 +1,11 @@
 {
+  "fullwell-local": {
+    "command": "node",
+    "args": ["./runtime/local-household-mcp.mjs"],
+    "cwd": ".",
+    "env_vars": ["CODEX_HOME"],
+    "startup_timeout_sec": 5
+  },
   "household-food-journal": {
     "type": "http",
     "url": "https://fullwell.souschefstudio.com/mcp"

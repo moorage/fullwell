@@ -10,6 +10,11 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 ## Progress
 
+- [x] Milestone 9 - replace version-specific local helper commands with a stable host-native local tool boundary.
+- [x] 2026-07-23T02:27Z: Created and claimed Bead `fullwell-gs8.14`; traced the repeated approval to the immutable plugin cache path changing on every release and confirmed that Codex npm plugin installs intentionally do not run lifecycle scripts.
+- [x] 2026-07-23T02:27Z: Completed the Milestone 9 failure-oriented critique. The implementation must use stable server/tool identities rather than a mutable self-installed executable, keep load/update/delete approval semantics separate, remain dependency-free and offline, preserve the existing bounded runtime, fail closed when the local server is unavailable, and prove both host lifecycle compatibility.
+- [x] 2026-07-23T02:40Z: Milestone 9 complete locally - prepared package `1.1.9` with the plugin-provided `fullwell-local` stdio server, stable read/update/delete tool identities, truthful approval annotations, fail-closed skill routing, and isolated Codex and Claude discovery coverage.
+- [x] 2026-07-23T02:40Z: Passed 20 package/lifecycle tests, the 45-case cross-host eval matrix, package validation, 29 WebKit checks with seven intentional skips, and full repository verification with 289 deterministic application tests and 11 expected database skips. The 20-entry dry pack has SHA-1 `a9f9474924de809d4df879ee81ff11260ca423b2` and SHA-512 `sha512-iS8nSYRT8c4520KM6XwyHMxG7Fz2HB18ghTsaQexkl2I8otY9IEeFRoUuzkPuMgDRsYsWQOWvnE9HXywXGGHBg==`; no commit, publication, host upgrade, or server deployment is claimed.
 - [x] Milestone 8 - make new-user onboarding local-first before OAuth, preserve direct local utility, and promote to cloud only after an explicit backup choice.
 - [x] 2026-07-22T23:58Z: Milestone 8 complete locally - added the private revisioned guest-household runtime, routed fresh and resumed conversations without pre-consent MCP calls, preserved direct local grocery/recipe use, made cloud backup an explicit non-destructive promotion, prepared package `1.1.8`, and synchronized install, architecture, security, reliability, product, changelog, and privacy guidance.
 - [x] 2026-07-22T23:58Z: Passed seven local-runtime tests, the 44-case cross-host eval matrix, all 15 packaging/lifecycle tests, package build, 289 deterministic application tests with 11 expected database skips, and 29 WebKit checks with seven intentional skips. The final dry pack contains 19 entries with SHA-1 `f88bc7c0623a51956e9c5db2cea186a2d4dfeb0c`; no commit, publication, host upgrade, or server deployment is claimed.
@@ -46,6 +51,7 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 ## Surprises & Discoveries
 
+- 2026-07-23: A marketplace package cannot safely create `~/.codex/fullwell/bin/local-household-v1` during installation because Codex downloads npm plugin packages without running lifecycle scripts. A plugin-provided local MCP server gives the same upgrade-stable permission boundary through a stable server and tool identity without letting the package modify the user's command allowlist or install mutable executable code outside its cache.
 - 2026-07-22: The current local checkpoint cannot serve an unauthenticated person because its path and validity are bound to a Fullwell user ID, household ID, hosted repository HEAD, and hosted onboarding revisions. A guest path needs its own durable local identity and revision boundary rather than fake server identifiers.
 - 2026-07-22: Delaying only the final write is insufficient. If the first `hfj_get_context` call remains mandatory, MCP OAuth still precedes all product value. The shared skill must ask the account question before calling any hosted tool.
 - 2026-07-22: Local onboarding data must be readable by ordinary direct grocery and recipe requests; otherwise declining cloud backup creates a dead-end artifact rather than a usable local product.
@@ -64,6 +70,7 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 ## Decision Log
 
+- 2026-07-23: Replace direct execution of the versioned `runtime/local-household.mjs` cache path with three tools on a dependency-free plugin-provided `fullwell-local` MCP server: read-only load, non-destructive revisioned update, and destructive collecting-only deletion. Stable MCP identities, rather than a broad `node` rule or a self-modifying allowlist, carry one-time host permission across package upgrades.
 - 2026-07-22: Make the default new-user authority a single local guest household under the active Codex home. Do not synthesize Fullwell user or household IDs and do not call the hosted MCP service until the user says they already have an account or explicitly chooses cloud backup.
 - 2026-07-22: Treat cloud enablement as an explicit promotion, not background sync. Persist locally first, authenticate only after consent, reconcile against the selected hosted household, use the existing idempotent onboarding commit, and retain the local journal unless the user separately deletes it.
 - 2026-07-22: Keep WhatsApp, collection sharing, invitations, and multiplayer account-gated. Direct local grocery restocking and recipe recall must work without an account.
@@ -454,6 +461,56 @@ Verification:
 - `npm run verify:docs`
 - `npm run verify:execplan`
 
+### Milestone 9 - Stable local runtime permission boundary
+
+Files:
+
+- `packages/agent-client/.mcp.json`
+- `packages/agent-client/runtime/local-household-mcp.mjs`
+- `packages/agent-client/runtime/local-household.mjs`
+- `packages/agent-client/tests/packaging/local-household-mcp.test.mjs`
+- `packages/agent-client/tests/packaging/host-lifecycle.test.mjs`
+- `packages/agent-client/tests/evals/matrix.test.mjs`
+- `packages/agent-client/skills/manage-household-food-journal/SKILL.md`
+- `packages/agent-client/scripts/validate-package.mjs`
+- `packages/agent-client/package.json`
+- `packages/agent-client/.codex-plugin/plugin.json`
+- `packages/agent-client/.claude-plugin/plugin.json`
+- `.agents/plugins/marketplace.json`
+- `.claude-plugin/marketplace.json`
+- `docs/product-specs/household-food-journal-client.md`
+- `docs/ARCHITECTURE.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `CHANGELOG.md`
+- `packages/agent-client/CHANGELOG.md`
+
+Tasks:
+
+1. Add a dependency-free stdio MCP server named `fullwell-local` beside the existing hosted server. Expose stable read-only load, non-destructive revisioned update, and destructive collecting-only deletion tools that delegate to the existing bounded local-household runtime and never use the network.
+2. Route every guest load and mutation through those stable tool identities. Do not execute the immutable cache path directly, edit user rules, add a broad `node` allow rule, or install executable code outside the plugin cache.
+3. Keep approval semantics truthful: load is read-only, initialize/save/finalize/cloud-link updates are non-destructive writes, and cancellation deletion remains destructive. Explain that a host may ask once before allowing local journal updates and that a persistent approval applies only to the named local tool.
+4. Preserve the existing journal path, schema, revision checks, atomic private writes, limits, forbidden-data validation, and account-free behavior. A local-server startup or protocol error must fail closed with a reload/reinstall instruction and must not fall back silently to the versioned shell command or hosted MCP service.
+5. Bump the immutable agent package and both host catalogs together. Add protocol, malformed-request, size, error-redaction, tool-annotation, packaging, lifecycle, and cross-host eval coverage.
+
+Feature-critic constraints:
+
+- The local server and tools keep stable names across patch and minor package versions; changing their security contract requires a new identity and fresh approval.
+- The local server accepts only newline-delimited JSON-RPC over stdio, bounds every inbound line before parsing, emits no journal data to stderr or logs, and returns domain failures as explicit tool errors.
+- Read and write operations cannot share a destructive annotation. Deletion must remain a separate tool so ordinary onboarding permission cannot authorize removal.
+- The server delegates semantic storage validation to `local-household.mjs`; it must not duplicate or weaken the forbidden-data, revision, path, or size boundary.
+- The remote `household-food-journal` server remains on-use and is never contacted by local tool startup or guest operations.
+- Codex and Claude must both install and discover the same local MCP declaration from an isolated package copy.
+
+Verification:
+
+- `npm run test:packaging --workspace @fullwell/fullwell`
+- `npm run test:evals --workspace @fullwell/fullwell`
+- `npm run build --workspace @fullwell/fullwell`
+- `npm run test:e2e`
+- `npm run verify`
+- `npm run verify:docs`
+- `npm run verify:execplan`
+
 ## Interfaces and Dependencies
 
 The public input is conceptually:
@@ -510,6 +567,8 @@ The exact schema uses unique section and profile lists so unchanged state is omi
 - Screencast command: `npm run capture:screencast -- --output artifacts/screencasts/approval-efficient-onboarding.mp4`.
 
 ## Outcomes & Retrospective
+
+Prepared `@fullwell/fullwell@1.1.9` replaces direct execution of a versioned plugin-cache script with the plugin-provided `fullwell-local` MCP server. Its stable read-only load, non-destructive update, and collecting-only destructive deletion identities let a host retain narrowly scoped permission across compatible package upgrades while keeping cancellation separate. The server is dependency-free, offline, bounded, redacts unexpected failures, delegates journal validation to the existing runtime, and is discovered from isolated Codex and Claude installs. This package remains local and unpublished.
 
 The local implementation now provides one account-free guest household under the active Codex home, asks about an existing account before any hosted call, resumes remembered guest state without re-asking, and supports grocery/recipe onboarding plus direct local use without OAuth. After local finalization it offers optional cloud backup for WhatsApp, sharing, and family access. Promotion is explicit, semantically reconciled, idempotent, and non-destructive: failure retains the local authority, success records the exact promoted revision, and later local edits make the marker stale instead of implying a backup that did not occur. Public package `@fullwell/fullwell@1.1.8` contains the same runtime and shared Codex/Claude instructions.
 

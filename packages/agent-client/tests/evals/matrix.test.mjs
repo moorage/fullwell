@@ -13,6 +13,8 @@ test("each eval has a unique identity and runs on both hosts", async () => {
   const groceryAuditSkill = await readFile(path.join(root, "skills/audit-grocery-purchases/SKILL.md"), "utf8");
   const draftRuntime = await readFile(path.join(root, "runtime/onboarding-draft.mjs"), "utf8");
   const localRuntime = await readFile(path.join(root, "runtime/local-household.mjs"), "utf8");
+  const localMcpRuntime = await readFile(path.join(root, "runtime/local-household-mcp.mjs"), "utf8");
+  const mcpConfig = JSON.parse(await readFile(path.join(root, ".mcp.json"), "utf8"));
   const ids = matrix.cases.map((testCase) => testCase.id);
   assert.equal(new Set(ids).size, ids.length);
   assert.deepEqual(matrix.hosts.sort(), expected.grader.hosts.sort());
@@ -20,12 +22,12 @@ test("each eval has a unique identity and runs on both hosts", async () => {
   const bareGreeting = matrix.cases.find((testCase) => testCase.id === "bare-fullwell-greeting-asks-account");
   assert.equal(bareGreeting?.prompt, "@Fullwell hi");
   assert.deepEqual(bareGreeting?.skills, ["manage-household-food-journal"]);
-  assert.deepEqual(bareGreeting?.required_tools, []);
+  assert.deepEqual(bareGreeting?.required_tools, ["fullwell_local_household_load"]);
   assert.ok(bareGreeting?.invariants.includes("no_generic_greeting_while_open"));
   assert.ok(bareGreeting?.invariants.includes("ask_existing_account_once"));
   assert.ok(bareGreeting?.invariants.includes("no_fullwell_call_before_answer"));
   const noAccount = matrix.cases.find((testCase) => testCase.id === "first-time-no-account-starts-local-groceries");
-  assert.deepEqual(noAccount?.required_tools, []);
+  assert.deepEqual(noAccount?.required_tools, ["fullwell_local_household_load", "fullwell_local_household_update"]);
   assert.ok(noAccount?.invariants.includes("initialize_local_guest_household"));
   assert.ok(noAccount?.invariants.includes("explain_snack_benefit_before_question"));
   assert.ok(noAccount?.invariants.includes("include_concrete_restock_example"));
@@ -86,7 +88,7 @@ test("each eval has a unique identity and runs on both hosts", async () => {
   assert.ok(largeConfirmation?.invariants.includes("never_split_within_limit_draft"));
   assert.ok(expected.forbidden_behaviors.includes("splits_a_within_limit_onboarding_draft_into_multiple_writes"));
   const localResume = matrix.cases.find((testCase) => testCase.id === "local-onboarding-draft-resumes");
-  assert.deepEqual(localResume?.required_tools, []);
+  assert.deepEqual(localResume?.required_tools, ["fullwell_local_household_load", "fullwell_local_household_update"]);
   assert.ok(localResume?.invariants.includes("load_local_guest_before_remote_context"));
   const staleDraft = matrix.cases.find((testCase) => testCase.id === "stale-local-onboarding-draft-fails-closed");
   assert.ok(staleDraft?.invariants.includes("never_merge_stale_or_mismatched_draft"));
@@ -101,13 +103,30 @@ test("each eval has a unique identity and runs on both hosts", async () => {
   assert.ok(managingSkill.includes("You only need an account for cloud backup, WhatsApp, sharing, or family access"));
   assert.ok(localRuntime.includes("expected_revision"));
   assert.ok(localRuntime.includes("PROHIBITED_LOCAL_DATA"));
+  assert.equal(mcpConfig["fullwell-local"].args[0], "./runtime/local-household-mcp.mjs");
+  assert.ok(localMcpRuntime.includes("fullwell_local_household_load"));
+  assert.ok(localMcpRuntime.includes("fullwell_local_household_update"));
+  assert.ok(localMcpRuntime.includes("fullwell_local_household_delete_collecting"));
   const declinedBackup = matrix.cases.find((testCase) => testCase.id === "declined-cloud-backup-stays-local");
-  assert.deepEqual(declinedBackup?.required_tools, []);
+  assert.deepEqual(declinedBackup?.required_tools, ["fullwell_local_household_load"]);
   const acceptedBackup = matrix.cases.find((testCase) => testCase.id === "local-journal-backs-up-after-consent");
-  assert.deepEqual(acceptedBackup?.required_tools, ["hfj_get_context", "hfj_create_household", "hfj_commit_onboarding"]);
+  assert.deepEqual(acceptedBackup?.required_tools, [
+    "fullwell_local_household_load",
+    "fullwell_local_household_update",
+    "hfj_get_context",
+    "hfj_create_household",
+    "hfj_commit_onboarding",
+  ]);
   assert.ok(acceptedBackup?.invariants.includes("record_cloud_link_only_after_success"));
   assert.ok(expected.forbidden_behaviors.includes("calls_fullwell_before_the_user_chooses_an_existing_account_or_cloud_backup"));
   assert.ok(expected.forbidden_behaviors.includes("marks_cloud_backup_after_a_failed_or_uncertain_hosted_write"));
+  const stableLocalPermission = matrix.cases.find((testCase) => testCase.id === "local-tool-permission-survives-upgrade");
+  assert.deepEqual(stableLocalPermission?.required_tools, ["fullwell_local_household_load", "fullwell_local_household_update"]);
+  assert.ok(stableLocalPermission?.invariants.includes("no_versioned_cache_command"));
+  assert.ok(managingSkill.includes("Never execute the versioned `runtime/local-household.mjs` cache path directly"));
+  assert.ok(managingSkill.includes("persistent choice applies to this named local tool across Fullwell upgrades"));
+  assert.ok(expected.forbidden_behaviors.includes("runs_a_version_specific_local_household_command"));
+  assert.ok(expected.forbidden_behaviors.includes("edits_the_users_command_allowlist"));
   for (const testCase of matrix.cases) {
     assert.ok(testCase.prompt.length >= 20 || testCase.id === "bare-fullwell-greeting-asks-account");
     assert.ok(testCase.invariants.length >= 1);

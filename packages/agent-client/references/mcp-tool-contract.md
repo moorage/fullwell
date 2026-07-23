@@ -1,6 +1,6 @@
 # MCP Tool Contract
 
-The only canonical household read and mutation boundary is the remote `household-food-journal` MCP server. The bundled local onboarding helper may store one unconfirmed, resumable checkpoint, but it never becomes household state. Never clone a repository, call Git, ask for repository credentials, or write canonical household files locally.
+Cloud household reads and mutations use the remote `household-food-journal` MCP server. An account-free guest household uses the plugin-provided `fullwell-local` MCP server and is authoritative only on the current computer until optional cloud promotion. The bundled authenticated onboarding helper may store one unconfirmed resumable checkpoint, but that checkpoint never becomes household state. Never clone a repository, call Git, ask for repository credentials, or write cloud household files locally.
 
 ## Universal rules
 
@@ -14,6 +14,18 @@ The only canonical household read and mutation boundary is the remote `household
 8. Read guided first-run state and its bounded snapshot from `hfj_get_context`. Bind the local checkpoint to the returned `user.id`, household ID, repository HEAD, and onboarding revisions, then use `hfj_commit_onboarding` once after explicit final confirmation.
 
 ## Stable tools
+
+Local tool names and their approval meanings stay stable across compatible Fullwell upgrades:
+
+| Tool | Purpose | Mutation requirements |
+|---|---|---|
+| `fullwell_local_household_load` | Read the bounded guest household under the active Codex home without contacting Fullwell's cloud service. | Read only and closed-world. |
+| `fullwell_local_household_update` | Initialize, revision-check and save, finalize, or record confirmed cloud linkage for the guest household. | Exact operation-specific fields and current local revision; non-destructive local write. |
+| `fullwell_local_household_delete_collecting` | Delete only an unfinished guest household after the user cancels the whole flow. | Explicit confirmation and exact current local revision; destructive. |
+
+Do not run the versioned `runtime/local-household.mjs` cache path, edit a user's command rules, or substitute a hosted call when `fullwell-local` is unavailable. Ask the user to reload or reinstall the plugin instead.
+
+Remote cloud tools remain stable separately:
 
 | Tool | Purpose | Mutation requirements |
 |---|---|---|

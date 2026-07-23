@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.1.9 - 2026-07-22
+
+- Replace version-specific local-household shell commands with stable `fullwell-local` read, update, and collecting-only deletion tools so one host permission can survive package upgrades without a broad Node allow rule.
+- Keep local loads read-only, ordinary revisioned updates non-destructive, cancellation deletion separately destructive, and fail closed with reload guidance when the local tool server is unavailable.
+
 ## 1.1.8 - 2026-07-22
 
 - Ask whether a fresh user already has an account before any Fullwell call; otherwise create a private revisioned local guest household, complete grocery and recipe onboarding without OAuth, and offer optional cloud backup only for WhatsApp, sharing, or family access.

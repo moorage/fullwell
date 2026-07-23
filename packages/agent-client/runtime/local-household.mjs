@@ -217,7 +217,8 @@ function parseRequest(input) {
   fail("VALIDATION_FAILED", `unsupported operation: ${input.operation}`);
 }
 
-function codexHome() {
+/** Resolves the single Codex-home authority used by local Fullwell state. */
+export function activeCodexHome() {
   const configured = process.env.CODEX_HOME?.trim();
   return path.resolve(configured || path.join(homedir(), ".codex"));
 }
@@ -510,7 +511,7 @@ export async function runRequest(root, input, now = new Date()) {
 
 async function main() {
   try {
-    const result = await runRequest(codexHome(), await readRequest());
+    const result = await runRequest(activeCodexHome(), await readRequest());
     process.stdout.write(`${JSON.stringify({ ok: true, ...result })}\n`);
   } catch (error) {
     const code = error instanceof LocalHouseholdError ? error.code : "LOCAL_HOUSEHOLD_FAILED";

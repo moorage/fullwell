@@ -10,28 +10,31 @@ Fullwell has two explicit authority modes:
 - A **local guest household** works without a Fullwell account and is the default for a new installation. It supports grocery-history collection, recipe collection, direct restocking, and recipe recall on this computer.
 - A **cloud household** uses the hosted MCP service and is required for cloud backup, WhatsApp, collection sharing, invitations, and multiplayer access.
 
-Use the bundled [local household helper](../../runtime/local-household.mjs) for guest data and [local onboarding draft helper](../../runtime/onboarding-draft.mjs) for unconfirmed work tied to an authenticated cloud household. Pass helper JSON only through standard input; never put draft contents in command arguments. Follow [the MCP contract](../../references/mcp-tool-contract.md) and [privacy rules](../../references/privacy-and-sharing.md).
+Use the plugin-provided `fullwell-local` tools for guest data and the bundled [local onboarding draft helper](../../runtime/onboarding-draft.mjs) for unconfirmed work tied to an authenticated cloud household. Never execute the versioned `runtime/local-household.mjs` cache path directly. Pass draft-helper JSON only through standard input; never put draft contents in command arguments. Follow [the MCP contract](../../references/mcp-tool-contract.md) and [privacy rules](../../references/privacy-and-sharing.md).
 
 ## Choose authority before authentication
 
 Treat every greeting addressed to Fullwell, including a bare `@Fullwell hi`, as a request to start or resume this flow. Never call a Fullwell MCP tool merely to discover whether the person has an account.
 
-1. Run `../../runtime/local-household.mjs` with Node and exactly `{ "operation": "load" }` on standard input. Never put journal contents in command arguments.
+1. Call `fullwell_local_household_load` with no arguments. It is a local read-only tool and never contacts the Fullwell cloud service.
 2. If it returns a local household, resume it without asking the account question again. A `collecting` household resumes its first unresolved grocery or recipe section. A `ready` household can answer direct local requests; offer cloud backup only at the end of a setup run, when its recorded backup is stale, or when the user requests an account-gated feature.
 3. If it returns `missing`, ask exactly one routing question before any hosted call: "Do you already have a Fullwell account?"
 4. If the user says yes, use the cloud path. Calling `hfj_get_context` starts OAuth when needed; tell the user to finish in the service browser window and never request a token.
-5. If the user says no, or says they want to continue without an account, initialize the local household with `{ "operation": "initialize" }` and begin grocery-history onboarding immediately. Do not call `hfj_get_context`, create a cloud household, or mention an authentication blocker.
+5. If the user says no, or says they want to continue without an account, call `fullwell_local_household_update` with `{ "operation": "initialize" }` and begin grocery-history onboarding immediately. The host may ask once for permission to update Fullwell's private local journal; explain that a persistent choice applies to this named local tool across Fullwell upgrades, not to arbitrary Node commands. Do not call `hfj_get_context`, create a cloud household, or mention an authentication blocker.
 6. Interpret the answer conversationally. Do not use keyword matching. If the answer is genuinely unclear, clarify only whether to connect an existing account or continue locally.
 
 ## Local guest household
 
-The helper stores one private document under the active Codex home at `fullwell/local/household.json`. This is durable local journal data, not a cloud backup. Pass one JSON request on standard input and carry the returned monotonically increasing `revision` into every mutation:
+The local tools store one private document under the active Codex home at `fullwell/local/household.json`. This is durable local journal data, not a cloud backup. Carry the returned monotonically increasing `revision` into every mutation:
 
-- `initialize` and `load` take only `operation`.
-- `save` adds `expected_revision` and the complete `journal` object.
-- `finalize` adds `expected_revision` and makes collected data ready for direct local use.
-- `record_cloud_backup` adds `expected_revision`, the successful hosted `user_id`, `household_id`, and `repository_head`.
-- `delete_collecting` adds `expected_revision` and may remove only an unfinished guest household.
+- `fullwell_local_household_load` takes no arguments.
+- `fullwell_local_household_update` with `initialize` takes only `operation`.
+- `fullwell_local_household_update` with `save` adds `expected_revision` and the complete `journal` object.
+- `fullwell_local_household_update` with `finalize` adds `expected_revision` and makes collected data ready for direct local use.
+- `fullwell_local_household_update` with `record_cloud_backup` adds `expected_revision`, the successful hosted `user_id`, `household_id`, and `repository_head`.
+- `fullwell_local_household_delete_collecting` takes `expected_revision` and may remove only an unfinished guest household.
+
+If the `fullwell-local` server or any of these tools is unavailable, stop local setup and ask the user to reload or reinstall the Fullwell plugin. Do not fall back to a version-specific shell command, edit the user's Codex rules, or call the hosted service without account or cloud-backup consent.
 
 The journal contains only bounded source scope, completed-source cursors, typed grocery or recipe evidence, agent-authored semantic decisions, profiles, items, reports, section outcomes, and finalization metadata. It must never contain credentials, passwords, authorization headers, access or refresh tokens, cookies, browser state, screenshots, raw HTML, raw page captures, or one-time codes.
 
@@ -40,9 +43,9 @@ Use this local guided flow:
 1. Handle groceries first, then recipes. Reuse the current journal after each load; do not ask for confirmed sources or preferences again.
 2. Introduce groceries in friendly benefit language before the first question: "Fullwell can learn the snacks, ingredients, condiments, and other groceries you buy. Later, you can say, 'Restock cashews,' 'Buy a head of parsley,' or 'I need more mayo - not the Japanese one,' and I can use your past orders to identify the product and store you usually use before helping add it to your cart after you confirm. I just need to know which grocery sites to look on." Ask the first missing question about grocery stores, then only the browser authorization and preference or exclusion details needed for the audit. Use the grocery-audit skill in local guided mode.
 3. After groceries complete or are locally skipped, introduce recipes before the first recipe question: "Fullwell can remember the recipes you save, cook, and like. Later, you can ask, 'What was that pasta we loved?' or 'What should we make again?' and I can answer from your actual recipe history instead of guessing. I just need to know where you save or discuss recipes." Ask where the user saves, finds, or discusses recipes, then only necessary scope, meaning, authorization, and preference questions. Use the recipe-history skill in local guided mode.
-4. After every user answer, completed order detail, collected recipe occurrence, section skip, or other meaningful progress, use `save` with the entire bounded journal and exact last revision. On `LOCAL_HOUSEHOLD_CONFLICT`, reload and never overwrite another conversation's progress.
+4. After every user answer, completed order detail, collected recipe occurrence, section skip, or other meaningful progress, call `fullwell_local_household_update` with `save`, the entire bounded journal, and the exact last revision. On `LOCAL_HOUSEHOLD_CONFLICT`, reload and never overwrite another conversation's progress.
 5. If the user naturally declines a section, store exactly one local outcome: `no_sources` when no applicable source exists, `not_now` when they defer or say never mind, or `user_declined` for another refusal. Advance to the next section without asking what to set up next. Do not treat a local skip as cloud onboarding state.
-6. If the user explicitly stops, cancels, or quits the whole unfinished setup, explain that cancellation removes the unfinished local journal and use `delete_collecting` only after they confirm deletion. Never delete a `ready` local household through this flow.
+6. If the user explicitly stops, cancels, or quits the whole unfinished setup, explain that cancellation removes the unfinished local journal and call `fullwell_local_household_delete_collecting` only after they confirm deletion. Never delete a `ready` local household through this flow.
 7. Keep at most 10,000 evidence records and 10,000 items and a complete local document no larger than 16 MiB. Name the exact blocking limit rather than dropping data or claiming completion.
 8. After collection, show a concise summary of sources, evidence counts, item counts by grocery area, recipe counts, reports, and skipped sections. Use `finalize` so the journal is locally usable before discussing an account. Tell the user it is saved locally.
 9. Only after `finalize` succeeds, and only when the journal contains at least one evidence-backed grocery item, ask: "Want to try Fullwell now? Tell me something you're out of - for example, 'We're out of cashews; restock them.' I'll use your shopping history to identify the usual product and store, then ask before adding it to your cart." Omit this invitation when no restockable grocery was learned rather than implying Fullwell can identify one.

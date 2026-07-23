@@ -78,6 +78,12 @@ test("Codex CLI installs, reinstalls, and removes the shared package from an iso
     const installed = JSON.parse((await run("codex", ["plugin", "list", "--json"], env)).stdout);
     assert.equal(installed.installed[0]?.pluginId, `${codexPluginName}@${codexMarketplaceName}`);
     assert.equal(installed.installed[0]?.enabled, true);
+    const mcpServers = JSON.parse((await run("codex", ["mcp", "list", "--json"], env)).stdout);
+    const localMcp = mcpServers.find((server) => server.name === "fullwell-local");
+    assert.equal(localMcp?.transport.command, "node");
+    assert.deepEqual(localMcp?.transport.args, ["./runtime/local-household-mcp.mjs"]);
+    assert.match(localMcp?.transport.cwd, /plugins[/\\]cache[/\\]fullwell[/\\]fullwell[/\\][^/\\]+[/\\]\.$/);
+    assert.ok(mcpServers.some((server) => server.name === "household-food-journal"));
     await run("codex", ["plugin", "remove", `${codexPluginName}@${codexMarketplaceName}`, "--json"], env);
     assert.deepEqual(JSON.parse((await run("codex", ["plugin", "list", "--json"], env)).stdout).installed, []);
     await run("codex", ["plugin", "add", `${codexPluginName}@${codexMarketplaceName}`, "--json"], env);
@@ -117,6 +123,9 @@ test("Claude Code installs, disables, enables, updates, and uninstalls the share
     assert.equal(available.available[0]?.pluginId, `${claudePluginName}@${claudeMarketplaceName}`);
     await run("claude", ["plugin", "install", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"], env);
     assert.equal(installedPlugins((await run("claude", ["plugin", "list", "--json"], env)).stdout)[0]?.enabled, true);
+    const mcpServers = (await run("claude", ["mcp", "list"], env)).stdout;
+    assert.match(mcpServers, /fullwell-local/);
+    assert.match(mcpServers, /household-food-journal/);
     await run("claude", ["plugin", "disable", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"], env);
     assert.equal(installedPlugins((await run("claude", ["plugin", "list", "--json"], env)).stdout)[0]?.enabled, false);
     await run("claude", ["plugin", "enable", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"], env);

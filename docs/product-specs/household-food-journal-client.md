@@ -20,7 +20,7 @@ The client must make these jobs feel conversational:
 - share that collection using one link through email, text, or any operating-system share target;
 - let a recipient preview the collection, select only the items they want, create or choose a household, install the client for Codex or Claude, and import those selections.
 
-The client is a local-first agent layer. It contains skills, manifests, MCP configuration, installation metadata, a dependency-free local guest-household runtime, tests, and evals. It must not contain credentials, bundled household data, a programmatic report generator, or a background synchronization engine. Cloud households remain server-authoritative; one explicit local guest household may be authoritative on the current computer until the user chooses cloud promotion.
+The client is a local-first agent layer. It contains skills, manifests, MCP configuration, installation metadata, a dependency-free local guest-household runtime and stdio adapter, tests, and evals. It must not contain credentials, bundled household data, a programmatic report generator, or a background synchronization engine. Cloud households remain server-authoritative; one explicit local guest household may be authoritative on the current computer until the user chooses cloud promotion.
 
 ## 2. Product decisions
 
@@ -87,7 +87,7 @@ The public installation page must present two primary choices:
 
 Each choice must show one current, copyable install command or first-party installation action. Do not show both platforms' implementation details at once. Include a fallback manual path behind `Having trouble?`.
 
-The installed package declares the remote Streamable HTTP MCP endpoint and no bearer token, but the fresh first-run skill does not call it. It first loads the local guest-household path. If no guest household exists, it asks `Do you already have a Fullwell account?` before any protected tool use.
+The installed package declares one dependency-free local stdio MCP server and the remote Streamable HTTP MCP endpoint with no bearer token. The fresh first-run skill calls only the read-only `fullwell_local_household_load` tool. If no guest household exists, it asks `Do you already have a Fullwell account?` before any protected cloud tool use.
 
 If the answer is yes, the first protected tool starts MCP OAuth. The service authorization page offers:
 
@@ -97,7 +97,7 @@ If the answer is yes, the first protected tool starts MCP OAuth. The service aut
 
 After authentication, the agent calls `hfj_get_context`. If the user has no household, it asks for a household name and calls `hfj_create_household`. If the user arrived through a pending family invitation or collection import, it resumes that intent instead of creating an unrelated household.
 
-If the answer is no, the agent initializes one guest household under `~/.codex/fullwell/local/household.json`, or the configured Codex home equivalent, and starts grocery-history onboarding without a Fullwell MCP call. A remembered local guest household resumes without asking the account question again. The document has a generated local identity, collecting/ready state, monotonically increasing revision, stable cloud-promotion idempotency key, atomic replacement, `0700` directories, and `0600` file mode. It is local journal authority, not a cloud backup, and another person with access to the same operating-system account may read it.
+If the answer is no, the agent initializes one guest household under `~/.codex/fullwell/local/household.json`, or the configured Codex home equivalent, through `fullwell_local_household_update` and starts grocery-history onboarding without a Fullwell cloud call. The host may ask once before allowing that named local write tool; a persisted tool approval remains scoped to its stable server/tool identity across compatible Fullwell upgrades and never grants arbitrary Node execution. A remembered local guest household resumes without asking the account question again. The document has a generated local identity, collecting/ready state, monotonically increasing revision, stable cloud-promotion idempotency key, atomic replacement, `0700` directories, and `0600` file mode. It is local journal authority, not a cloud backup, and another person with access to the same operating-system account may read it.
 
 After either authority is available, the agent begins guided first run immediately. A cloud path reads onboarding state, both profiles, and the bounded item identity index once; a guest path reuses the local journal. While any section remains unresolved, it must not return a generic greeting, ask what is on the user's mind, ask what the user wants to set up, or present a groceries-versus-recipes menu. Before the first question for each section, including a resumed section, it briefly explains the practical benefit in friendly language rather than referring to unexplained "snack setup" or "recipe setup." The internal `snacks` section is presented as one grocery-history pass that learns snacks, ingredients, condiments, and other groceries. Its examples include "Restock cashews," "Buy a head of parsley," and "I need more mayo - not the Japanese one," using past orders to identify both the familiar product and usual store with cart confirmation still required. Recipes explain that remembering what the family saves, cooks, and likes supports later questions such as "What was that pasta we loved?" or "What should we make again?" It then asks only for missing grocery source authorization and preferences needed for the audit, followed by missing recipe source meaning, authorization, and preferences.
 
@@ -109,7 +109,7 @@ After both guest sections, the agent summarizes and finalizes the journal locall
 
 The guest completion response also asks whether to create or connect a Fullwell account for cloud backup. It explains that an account is needed for WhatsApp, sharing, and family access, not for direct local grocery or recipe use. A decline makes no hosted call. An affirmative answer starts OAuth, creates or selects a cloud household, reconciles local semantic identities against current cloud state, shows an exact copy/merge summary, and uses one `hfj_commit_onboarding` call after confirmation. Promotion uses the stable local idempotency key, records cloud linkage only after success, and retains the local journal. Failed or uncertain promotion leaves local authority unchanged.
 
-The final local document and hosted MCP request each accept up to 10,000 evidence records and 10,000 items within 16 MiB. A within-limit payload must not be split. Browser or website authorization remains a separate host boundary and may still require host approval.
+The final local document and hosted MCP request each accept up to 10,000 evidence records and 10,000 items within 16 MiB. A within-limit payload must not be split. `fullwell_local_household_load` remains read-only, ordinary local changes use the non-destructive `fullwell_local_household_update`, and confirmed whole-flow cancellation alone uses the separately destructive `fullwell_local_household_delete_collecting`. If the local server is unavailable, the client stops and asks for a plugin reload or reinstall; it never falls back to a version-specific shell command, edits the user's rules, or calls the hosted service without consent. Browser or website authorization remains a separate host boundary and may still require host approval.
 
 The client must never ask the user to paste a token back into the conversation.
 
@@ -307,6 +307,9 @@ packages/agent-client/
 |-- .claude-plugin/
 |   `-- plugin.json
 |-- .mcp.json
+|-- runtime/
+|   |-- local-household.mjs
+|   `-- local-household-mcp.mjs
 |-- skills/
 |   |-- manage-household-food-journal/
 |   |   `-- SKILL.md
@@ -330,11 +333,11 @@ packages/agent-client/
 `-- CHANGELOG.md
 ```
 
-The two host manifests and marketplace catalogs are packaging adapters. They must resolve to the same `skills/` directory and the same remote MCP URL. Do not fork the skill instructions by host.
+The two host manifests and marketplace catalogs are packaging adapters. They must resolve to the same `skills/` directory, local MCP declaration, and remote MCP URL. Do not fork the skill instructions by host.
 
 Each `SKILL.md` must have only `name` and `description` in YAML frontmatter so the shared files satisfy both hosts. Keep each skill under 500 lines and link directly to relevant reference files rather than duplicating large contracts.
 
-The MCP config contains only the public HTTPS URL and transport declaration. It must not embed client secrets, bearer tokens, Apple credentials, or household identifiers.
+The MCP config contains only the stable dependency-free `fullwell-local` stdio declaration and the public HTTPS cloud URL. The local server uses a plugin-relative entrypoint, inherits only the optional `CODEX_HOME`, performs no network access, and exposes separate read, update, and delete approval semantics. The config must not embed client secrets, bearer tokens, Apple credentials, household identifiers, absolute user paths, or command allow rules.
 
 ## 7. Skill responsibilities
 
@@ -368,6 +371,9 @@ The client is coded against these stable tool names. Complete schemas and author
 
 | Tool | Client use |
 |---|---|
+| `fullwell_local_household_load` | Read the bounded guest household without cloud access. |
+| `fullwell_local_household_update` | Initialize, revision-check and save, finalize, or record confirmed cloud linkage without destructive deletion. |
+| `fullwell_local_household_delete_collecting` | Delete only an unfinished guest household after explicit cancellation confirmation. |
 | `hfj_get_context` | Read authenticated user, households, pending intent, roles, current revisions, per-section onboarding state, both onboarding profiles, and a bounded item identity index. |
 | `hfj_create_household` | Create a household and its Git repository. |
 | `hfj_select_household` | Set the session's active household. |

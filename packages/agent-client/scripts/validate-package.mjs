@@ -41,6 +41,12 @@ export const requiredTools = [
   "hfj_update_profile"
 ];
 
+export const requiredLocalTools = [
+  "fullwell_local_household_delete_collecting",
+  "fullwell_local_household_load",
+  "fullwell_local_household_update"
+];
+
 const requiredEvalIds = [
   "existing-account-setup-oauth",
   "first-time-setup-asks-account-before-oauth",
@@ -79,7 +85,8 @@ const requiredEvalIds = [
   "declined-cloud-backup-stays-local",
   "local-journal-backs-up-after-consent",
   "failed-cloud-backup-retains-local",
-  "guest-sharing-offers-account"
+  "guest-sharing-offers-account",
+  "local-tool-permission-survives-upgrade"
 ];
 
 const readJson = async (relativePath) =>
@@ -148,7 +155,15 @@ export const validatePackage = async () => {
   assert(codex.interface.defaultPrompt.every((prompt) => !prompt.includes("@")), "Codex starter prompts must not contain mention syntax");
   assert(codex.skills === "./skills/" && claude.skills === "./skills/", "Hosts must use shared skills");
   assert(codex.mcpServers === "./.mcp.json" && claude.mcpServers === "./.mcp.json", "Hosts must use shared MCP config");
-  assert(Object.keys(mcp).length === 1, "MCP config must declare exactly one service");
+  assert(Object.keys(mcp).sort().join(",") === "fullwell-local,household-food-journal", "MCP config must declare only the local and hosted Fullwell services");
+
+  const localEndpoint = mcp["fullwell-local"];
+  assert(localEndpoint?.command === "node", "Local Fullwell MCP must use the packaged Node runtime");
+  assert(localEndpoint.args?.join(",") === "./runtime/local-household-mcp.mjs", "Local Fullwell MCP must use the stable packaged server entrypoint");
+  assert(localEndpoint.cwd === ".", "Local Fullwell MCP must resolve from the plugin root");
+  assert(localEndpoint.env_vars?.join(",") === "CODEX_HOME", "Local Fullwell MCP may inherit only CODEX_HOME");
+  assert(localEndpoint.startup_timeout_sec === 5, "Local Fullwell MCP must retain its bounded startup timeout");
+  assert(Object.keys(localEndpoint).sort().join(",") === "args,command,cwd,env_vars,startup_timeout_sec", "Local Fullwell MCP config contains unsupported authority");
 
   const endpoint = mcp["household-food-journal"];
   assert(endpoint?.type === "http", "MCP transport must be HTTP");
@@ -198,6 +213,7 @@ export const validatePackage = async () => {
     validatePath(codex.mcpServers),
     validatePath("runtime/onboarding-draft.mjs"),
     validatePath("runtime/local-household.mjs"),
+    validatePath("runtime/local-household-mcp.mjs"),
   ]);
   const skillDirectories = (await readdir(path.join(root, "skills"), { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
@@ -224,6 +240,10 @@ export const validatePackage = async () => {
     assert(contract.includes(`\`${tool}\``), `MCP reference omits ${tool}`);
     assert(combinedSkills.some((skill) => skill.includes(`\`${tool}\``)), `No skill uses ${tool}`);
   }
+  for (const tool of requiredLocalTools) {
+    assert(contract.includes(`\`${tool}\``), `MCP reference omits ${tool}`);
+    assert(combinedSkills.some((skill) => skill.includes(`\`${tool}\``)), `No skill uses ${tool}`);
+  }
 
   assert(evals.hosts?.sort().join(",") === "claude,codex", "Evals must target Codex and Claude");
   const ids = new Set(evals.cases?.map((testCase) => testCase.id));
@@ -231,7 +251,9 @@ export const validatePackage = async () => {
   for (const testCase of evals.cases) {
     assert(testCase.invariants?.length > 0, `Eval ${testCase.id} has no invariants`);
     for (const skill of testCase.skills) assert(requiredSkills.includes(skill), `Eval ${testCase.id} uses unknown skill`);
-    for (const tool of testCase.required_tools) assert(requiredTools.includes(tool), `Eval ${testCase.id} uses unknown tool`);
+    for (const tool of testCase.required_tools) {
+      assert([...requiredTools, ...requiredLocalTools].includes(tool), `Eval ${testCase.id} uses unknown tool`);
+    }
   }
 
   const packagedFiles = await walk(root);
@@ -247,7 +269,7 @@ export const validatePackage = async () => {
     endpoint: endpoint.url,
     evalCount: evals.cases.length,
     skillCount: requiredSkills.length,
-    toolCount: requiredTools.length
+    toolCount: requiredTools.length + requiredLocalTools.length
   };
 };
 

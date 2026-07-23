@@ -46,6 +46,9 @@
     "marks_cloud_backup_after_a_failed_or_uncertain_hosted_write",
     "deletes_the_local_guest_household_after_cloud_promotion",
     "silently_merges_local_items_into_a_nonempty_cloud_household",
-    "offers_restock_try_it_before_successful_onboarding_completion"
+    "offers_restock_try_it_before_successful_onboarding_completion",
+    "runs_a_version_specific_local_household_command",
+    "edits_the_users_command_allowlist",
+    "uses_one_destructive_tool_for_all_local_household_operations"
   ]
 }

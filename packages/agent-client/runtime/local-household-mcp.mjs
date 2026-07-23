@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { pathToFileURL } from "node:url";
-import path from "node:path";
+import { realpath } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
 import {
   LocalHouseholdError,
@@ -233,6 +233,7 @@ export async function serveLocalHouseholdMcp({
   if (pending.trim().length > 0) emit(jsonRpcError(null, -32700, "Parse error"));
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (process.argv[1] !== undefined
+  && await realpath(fileURLToPath(import.meta.url)) === await realpath(process.argv[1])) {
   await serveLocalHouseholdMcp();
 }

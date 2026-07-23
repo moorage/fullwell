@@ -35,9 +35,9 @@ async function createPluginCopy(marketplaceRoot, pluginName) {
   return pluginRoot;
 }
 
-async function run(command, args, env) {
+async function run(command, args, env, cwd = packageRoot) {
   return await execute(command, args, {
-    cwd: packageRoot,
+    cwd,
     env: { ...process.env, ...env },
     maxBuffer: 2 * 1024 * 1024,
   });
@@ -117,22 +117,23 @@ test("Claude Code installs, disables, enables, updates, and uninstalls the share
     }));
     const configRoot = path.join(temporaryRoot, "home");
     const env = { CLAUDE_CONFIG_DIR: configRoot };
+    const runClaude = async (args) => await run("claude", args, env, temporaryRoot);
 
-    await run("claude", ["plugin", "marketplace", "add", marketplaceRoot, "--scope", "user"], env);
-    const available = JSON.parse((await run("claude", ["plugin", "list", "--available", "--json"], env)).stdout);
+    await runClaude(["plugin", "marketplace", "add", marketplaceRoot, "--scope", "user"]);
+    const available = JSON.parse((await runClaude(["plugin", "list", "--available", "--json"])).stdout);
     assert.equal(available.available[0]?.pluginId, `${claudePluginName}@${claudeMarketplaceName}`);
-    await run("claude", ["plugin", "install", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"], env);
-    assert.equal(installedPlugins((await run("claude", ["plugin", "list", "--json"], env)).stdout)[0]?.enabled, true);
-    const mcpServers = (await run("claude", ["mcp", "list"], env)).stdout;
-    assert.match(mcpServers, /fullwell-local/);
+    await runClaude(["plugin", "install", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"]);
+    assert.equal(installedPlugins((await runClaude(["plugin", "list", "--json"])).stdout)[0]?.enabled, true);
+    const mcpServers = (await runClaude(["mcp", "list"])).stdout;
+    assert.match(mcpServers, /plugin:fullwell:fullwell-local:.*Connected/);
     assert.match(mcpServers, /household-food-journal/);
-    await run("claude", ["plugin", "disable", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"], env);
-    assert.equal(installedPlugins((await run("claude", ["plugin", "list", "--json"], env)).stdout)[0]?.enabled, false);
-    await run("claude", ["plugin", "enable", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"], env);
-    await run("claude", ["plugin", "update", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"], env);
-    await run("claude", ["plugin", "uninstall", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user", "--yes"], env);
-    assert.deepEqual(installedPlugins((await run("claude", ["plugin", "list", "--json"], env)).stdout), []);
-    await run("claude", ["plugin", "marketplace", "remove", claudeMarketplaceName], env);
+    await runClaude(["plugin", "disable", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"]);
+    assert.equal(installedPlugins((await runClaude(["plugin", "list", "--json"])).stdout)[0]?.enabled, false);
+    await runClaude(["plugin", "enable", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"]);
+    await runClaude(["plugin", "update", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"]);
+    await runClaude(["plugin", "uninstall", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user", "--yes"]);
+    assert.deepEqual(installedPlugins((await runClaude(["plugin", "list", "--json"])).stdout), []);
+    await runClaude(["plugin", "marketplace", "remove", claudeMarketplaceName]);
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
   }

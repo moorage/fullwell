@@ -290,6 +290,7 @@ repo-root/
     |-- .claude-plugin/
     |   `-- plugin.json
     |-- .mcp.json
+    |-- codex-mcp.json
     |-- skills/
     |-- references/
     |-- evals/
@@ -307,6 +308,7 @@ packages/agent-client/
 |-- .claude-plugin/
 |   `-- plugin.json
 |-- .mcp.json
+|-- codex-mcp.json
 |-- runtime/
 |   |-- local-household.mjs
 |   `-- local-household-mcp.mjs
@@ -333,11 +335,11 @@ packages/agent-client/
 `-- CHANGELOG.md
 ```
 
-The two host manifests and marketplace catalogs are packaging adapters. They must resolve to the same `skills/` directory, local MCP declaration, and remote MCP URL. Do not fork the skill instructions by host.
+The two host manifests and marketplace catalogs are packaging adapters. They must resolve to the same `skills/` directory, stable local MCP server/tool identities, and remote MCP URL. Codex uses `codex-mcp.json` for its plugin-root working directory; Claude uses `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}` because it ignores that working-directory field. These files may differ only in host path resolution and must start the same packaged server. Do not fork the skill instructions by host.
 
 Each `SKILL.md` must have only `name` and `description` in YAML frontmatter so the shared files satisfy both hosts. Keep each skill under 500 lines and link directly to relevant reference files rather than duplicating large contracts.
 
-The MCP config contains only the stable dependency-free `fullwell-local` stdio declaration and the public HTTPS cloud URL. The local server uses a plugin-relative entrypoint, inherits only the optional `CODEX_HOME`, performs no network access, and exposes separate read, update, and delete approval semantics. The config must not embed client secrets, bearer tokens, Apple credentials, household identifiers, absolute user paths, or command allow rules.
+The MCP config contains only the stable dependency-free `fullwell-local` stdio declaration and the public HTTPS cloud URL. The local server resolves `${CLAUDE_PLUGIN_ROOT}/runtime/local-household-mcp.mjs` to the installed plugin cache in both hosts instead of depending on the session working directory, inherits only the optional `CODEX_HOME`, performs no network access, and exposes separate read, update, and delete approval semantics. The config must not embed client secrets, bearer tokens, Apple credentials, household identifiers, absolute user paths, shell evaluation, or command allow rules.
 
 ## 7. Skill responsibilities
 
@@ -482,10 +484,11 @@ Do not expose stack traces, repository paths, commit-signing details, internal a
 
 - Validate both plugin manifests and both marketplace catalogs.
 - Validate every `SKILL.md` frontmatter and name.
-- Assert both host packages reference the same skill files and MCP URL.
+- Assert both host packages reference the same skill files, stable local server identity, and MCP URL.
 - Assert packaged files contain no token-like secrets or household data.
 - Assert every referenced file is included in each installed plugin cache.
 - Exercise marketplace discovery, installation, update or reinstallation, disable/re-enable where supported, removal, and marketplace cleanup in isolated host configuration directories when the current CLIs are available.
+- Require the isolated Claude lifecycle to report the packaged `fullwell-local` server as connected; discovery without successful MCP initialization is a release failure.
 - Run the current official Codex and Claude plugin validators where available.
 
 ### 12.2 MCP contract tests

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.1.10 - 2026-07-22
+
+- Resolve the packaged local MCP entrypoint through host-specific path adapters so Codex and Claude start the same installed server regardless of their working directory.
+- Require the isolated Claude lifecycle test to prove the local server connects successfully instead of accepting discovery alone.
+- Canonicalize the stdio entrypoint before its main-module check so plugin caches reached through macOS `/tmp` or `/var` aliases still start.
+
 ## 1.1.9 - 2026-07-22
 
 - Replace version-specific local-household shell commands with stable `fullwell-local` read, update, and collecting-only deletion tools so one host permission can survive package upgrades without a broad Node allow rule.

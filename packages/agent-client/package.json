@@ -1,6 +1,6 @@
 {
   "name": "@fullwell/fullwell",
-  "version": "1.1.9",
+  "version": "1.1.10",
   "private": false,
   "description": "Shared Codex and Claude client for Fullwell",
   "type": "module",
@@ -8,6 +8,7 @@
     ".codex-plugin",
     ".claude-plugin",
     ".mcp.json",
+    "codex-mcp.json",
     "skills",
     "references",
     "runtime",

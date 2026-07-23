@@ -133,11 +133,12 @@ const validatePath = async (relativePath) => {
 };
 
 export const validatePackage = async () => {
-  const [packageJson, codex, claude, mcp, codexMarket, claudeMarket, install, evals] =
+  const [packageJson, codex, claude, codexMcp, claudeMcp, codexMarket, claudeMarket, install, evals] =
     await Promise.all([
       readJson("package.json"),
       readJson(".codex-plugin/plugin.json"),
       readJson(".claude-plugin/plugin.json"),
+      readJson("codex-mcp.json"),
       readJson(".mcp.json"),
       readWorkspaceJson(".agents/plugins/marketplace.json"),
       readWorkspaceJson(".claude-plugin/marketplace.json"),
@@ -154,18 +155,28 @@ export const validatePackage = async () => {
   assert(codex.interface?.defaultPrompt?.[0] === "Set up Fullwell.", "Codex must expose the conversational setup starter");
   assert(codex.interface.defaultPrompt.every((prompt) => !prompt.includes("@")), "Codex starter prompts must not contain mention syntax");
   assert(codex.skills === "./skills/" && claude.skills === "./skills/", "Hosts must use shared skills");
-  assert(codex.mcpServers === "./.mcp.json" && claude.mcpServers === "./.mcp.json", "Hosts must use shared MCP config");
-  assert(Object.keys(mcp).sort().join(",") === "fullwell-local,household-food-journal", "MCP config must declare only the local and hosted Fullwell services");
+  assert(codex.mcpServers === "./codex-mcp.json" && claude.mcpServers === "./.mcp.json", "Hosts must use their portable MCP adapters");
+  for (const mcp of [codexMcp, claudeMcp]) {
+    assert(Object.keys(mcp).sort().join(",") === "fullwell-local,household-food-journal", "MCP config must declare only the local and hosted Fullwell services");
+  }
 
-  const localEndpoint = mcp["fullwell-local"];
-  assert(localEndpoint?.command === "node", "Local Fullwell MCP must use the packaged Node runtime");
-  assert(localEndpoint.args?.join(",") === "./runtime/local-household-mcp.mjs", "Local Fullwell MCP must use the stable packaged server entrypoint");
-  assert(localEndpoint.cwd === ".", "Local Fullwell MCP must resolve from the plugin root");
-  assert(localEndpoint.env_vars?.join(",") === "CODEX_HOME", "Local Fullwell MCP may inherit only CODEX_HOME");
-  assert(localEndpoint.startup_timeout_sec === 5, "Local Fullwell MCP must retain its bounded startup timeout");
-  assert(Object.keys(localEndpoint).sort().join(",") === "args,command,cwd,env_vars,startup_timeout_sec", "Local Fullwell MCP config contains unsupported authority");
+  const codexLocalEndpoint = codexMcp["fullwell-local"];
+  assert(codexLocalEndpoint?.command === "node", "Codex local Fullwell MCP must use the packaged Node runtime");
+  assert(codexLocalEndpoint.args?.join(",") === "./runtime/local-household-mcp.mjs", "Codex local Fullwell MCP must use the packaged server entrypoint");
+  assert(codexLocalEndpoint.cwd === ".", "Codex local Fullwell MCP must resolve from the plugin root");
+  assert(codexLocalEndpoint.env_vars?.join(",") === "CODEX_HOME", "Codex local Fullwell MCP may inherit only CODEX_HOME");
+  assert(codexLocalEndpoint.startup_timeout_sec === 5, "Codex local Fullwell MCP must retain its bounded startup timeout");
+  assert(Object.keys(codexLocalEndpoint).sort().join(",") === "args,command,cwd,env_vars,startup_timeout_sec", "Codex local Fullwell MCP config contains unsupported authority");
 
-  const endpoint = mcp["household-food-journal"];
+  const claudeLocalEndpoint = claudeMcp["fullwell-local"];
+  assert(claudeLocalEndpoint?.command === "node", "Claude local Fullwell MCP must use the packaged Node runtime");
+  assert(claudeLocalEndpoint.args?.join(",") === "${CLAUDE_PLUGIN_ROOT}/runtime/local-household-mcp.mjs", "Claude local Fullwell MCP must resolve the installed plugin root");
+  assert(claudeLocalEndpoint.env_vars?.join(",") === "CODEX_HOME", "Claude local Fullwell MCP may inherit only CODEX_HOME");
+  assert(claudeLocalEndpoint.startup_timeout_sec === 5, "Claude local Fullwell MCP must retain its bounded startup timeout");
+  assert(Object.keys(claudeLocalEndpoint).sort().join(",") === "args,command,env_vars,startup_timeout_sec", "Claude local Fullwell MCP config contains unsupported authority");
+
+  const endpoint = codexMcp["household-food-journal"];
+  assert(JSON.stringify(endpoint) === JSON.stringify(claudeMcp["household-food-journal"]), "Host MCP adapters must share one hosted endpoint");
   assert(endpoint?.type === "http", "MCP transport must be HTTP");
   assert(endpoint?.url === install.mcp_url, "Install metadata and MCP config URL differ");
   const endpointUrl = new URL(endpoint.url);
@@ -211,6 +222,7 @@ export const validatePackage = async () => {
   await Promise.all([
     validatePath(codex.skills),
     validatePath(codex.mcpServers),
+    validatePath(claude.mcpServers),
     validatePath("runtime/onboarding-draft.mjs"),
     validatePath("runtime/local-household.mjs"),
     validatePath("runtime/local-household-mcp.mjs"),

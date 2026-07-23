@@ -10,6 +10,10 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 ## Progress
 
+- [x] Milestone 10 - correct cross-host plugin-root resolution and require a healthy local MCP connection.
+- [x] 2026-07-23T02:54Z: Live host smoke after installing public `1.1.9` proved Codex connected to both Fullwell servers but Claude only discovered `fullwell-local` and failed to start it. Created and claimed Bead `fullwell-gs8.15`; the published package remains immutable and the correction will ship as `1.1.10`.
+- [x] 2026-07-23T03:04Z: Milestone 10 complete locally - prepared `1.1.10` with equivalent Codex and Claude path adapters, real-path-safe stdio startup, a Claude `Connected` lifecycle assertion, and synchronized package, architecture, product, changelog, and reliability evidence.
+- [x] 2026-07-23T03:04Z: Passed all 20 package/lifecycle tests, the 45-case cross-host eval matrix, official Claude manifest validation, 29 WebKit checks with seven intentional skips, and full repository verification with 289 deterministic application tests and 11 expected database skips. The 21-entry dry pack has SHA-1 `58b0bd7fed9d69412461e6cd7323d2d5324628b0` and SHA-512 `sha512-WIquteSMO0Mun9i7J/twve3Fxd34XhrI0I58yWgJ8wiIyDnYaF3M+5FbSMzjE+jx7H4FTdInHqDV+9Nmo48ORQ==`; publication and current-host upgrade are not yet claimed.
 - [x] Milestone 9 - replace version-specific local helper commands with a stable host-native local tool boundary.
 - [x] 2026-07-23T02:27Z: Created and claimed Bead `fullwell-gs8.14`; traced the repeated approval to the immutable plugin cache path changing on every release and confirmed that Codex npm plugin installs intentionally do not run lifecycle scripts.
 - [x] 2026-07-23T02:27Z: Completed the Milestone 9 failure-oriented critique. The implementation must use stable server/tool identities rather than a mutable self-installed executable, keep load/update/delete approval semantics separate, remain dependency-free and offline, preserve the existing bounded runtime, fail closed when the local server is unavailable, and prove both host lifecycle compatibility.
@@ -52,6 +56,8 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 ## Surprises & Discoveries
 
+- 2026-07-23: Claude ignores the shared MCP declaration's relative `cwd`, so discovery-only lifecycle assertions allowed `node ./runtime/local-household-mcp.mjs` to pass packaging while failing live connection health. Claude's documented `${CLAUDE_PLUGIN_ROOT}` substitution is the portable MCP path boundary; lifecycle acceptance must assert `Connected`, not merely the server name.
+- 2026-07-23: Codex does not expand `${CLAUDE_PLUGIN_ROOT}` in an MCP argument, so one physical MCP config cannot express both current hosts' path semantics without a shell. Two minimal host transport adapters preserve the same server and tool identities without adding shell evaluation. The strengthened lifecycle also exposed that macOS canonicalizes temporary `/var` and `/tmp` paths through `/private`, requiring the server's main-module guard to compare real paths.
 - 2026-07-23: A marketplace package cannot safely create `~/.codex/fullwell/bin/local-household-v1` during installation because Codex downloads npm plugin packages without running lifecycle scripts. A plugin-provided local MCP server gives the same upgrade-stable permission boundary through a stable server and tool identity without letting the package modify the user's command allowlist or install mutable executable code outside its cache.
 - 2026-07-22: The current local checkpoint cannot serve an unauthenticated person because its path and validity are bound to a Fullwell user ID, household ID, hosted repository HEAD, and hosted onboarding revisions. A guest path needs its own durable local identity and revision boundary rather than fake server identifiers.
 - 2026-07-22: Delaying only the final write is insufficient. If the first `hfj_get_context` call remains mandatory, MCP OAuth still precedes all product value. The shared skill must ask the account question before calling any hosted tool.
@@ -71,6 +77,8 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 ## Decision Log
 
+- 2026-07-23: Resolve the local MCP script through `${CLAUDE_PLUGIN_ROOT}` in the shared manifest and remove dependence on process working directory. Keep the stable server/tool identities unchanged, require both hosts to expand the installed package path, and make Claude lifecycle verification prove the server connects.
+- 2026-07-23: Supersede the single-manifest path decision after current Codex proved it does not expand Claude's placeholder. Use `codex-mcp.json` with plugin-root `cwd` for Codex and `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}` for Claude; validate that only path resolution differs, and canonicalize the executable script path before deciding whether to run the stdio main loop.
 - 2026-07-23: Replace direct execution of the versioned `runtime/local-household.mjs` cache path with three tools on a dependency-free plugin-provided `fullwell-local` MCP server: read-only load, non-destructive revisioned update, and destructive collecting-only deletion. Stable MCP identities, rather than a broad `node` rule or a self-modifying allowlist, carry one-time host permission across package upgrades.
 - 2026-07-22: Make the default new-user authority a single local guest household under the active Codex home. Do not synthesize Fullwell user or household IDs and do not call the hosted MCP service until the user says they already have an account or explicitly chooses cloud backup.
 - 2026-07-22: Treat cloud enablement as an explicit promotion, not background sync. Persist locally first, authenticate only after consent, reconcile against the selected hosted household, use the existing idempotent onboarding commit, and retain the local journal unless the user separately deletes it.
@@ -467,6 +475,8 @@ Verification:
 Files:
 
 - `packages/agent-client/.mcp.json`
+- `packages/agent-client/codex-mcp.json`
+- `packages/agent-client/runtime/local-household-mcp.mjs`
 - `packages/agent-client/runtime/local-household-mcp.mjs`
 - `packages/agent-client/runtime/local-household.mjs`
 - `packages/agent-client/tests/packaging/local-household-mcp.test.mjs`
@@ -508,6 +518,39 @@ Verification:
 - `npm run test:evals --workspace @fullwell/fullwell`
 - `npm run build --workspace @fullwell/fullwell`
 - `npm run test:e2e`
+- `npm run verify`
+- `npm run verify:docs`
+- `npm run verify:execplan`
+
+### Milestone 10 - Cross-host plugin-root correction
+
+Files:
+
+- `packages/agent-client/.mcp.json`
+- `packages/agent-client/scripts/validate-package.mjs`
+- `packages/agent-client/tests/packaging/host-lifecycle.test.mjs`
+- `packages/agent-client/package.json`
+- `packages/agent-client/.codex-plugin/plugin.json`
+- `packages/agent-client/.claude-plugin/plugin.json`
+- `.agents/plugins/marketplace.json`
+- `.claude-plugin/marketplace.json`
+- `docs/product-specs/household-food-journal-client.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `CHANGELOG.md`
+- `packages/agent-client/CHANGELOG.md`
+
+Tasks:
+
+1. Keep Codex on a plugin-root working-directory adapter and give Claude `${CLAUDE_PLUGIN_ROOT}/runtime/local-household-mcp.mjs`; validate that both adapters retain the same server identity, remote endpoint, inherited environment, timeout, and packaged runtime.
+2. Preserve the existing `fullwell-local` server and three tool identities so retained narrow approvals remain compatible. Do not add shell evaluation, an absolute user path, another launcher, or broader inherited environment.
+3. Strengthen isolated lifecycle evidence: Codex must expose the installed-cache working directory, Claude must report the plugin-provided local server as connected rather than merely list its name, and the server main-module guard must survive macOS real-path canonicalization.
+4. Publish the immutable `1.1.10` correction, verify registry checksums and clean downloaded lifecycles, update both current host installations, and record that no application-server deployment is required.
+
+Verification:
+
+- `npm run test:packaging --workspace @fullwell/fullwell`
+- `npm run test:evals --workspace @fullwell/fullwell`
+- `npm run build --workspace @fullwell/fullwell`
 - `npm run verify`
 - `npm run verify:docs`
 - `npm run verify:execplan`
@@ -568,6 +611,8 @@ The exact schema uses unique section and profile lists so unchanged state is omi
 - Screencast command: `npm run capture:screencast -- --output artifacts/screencasts/approval-efficient-onboarding.mp4`.
 
 ## Outcomes & Retrospective
+
+Prepared `@fullwell/fullwell@1.1.10` corrects the live Claude startup failure without changing the stable `fullwell-local` server or tool identities. Codex retains its plugin-root working-directory adapter; Claude resolves the same server through `${CLAUDE_PLUGIN_ROOT}`; and the stdio main-module guard compares canonical filesystem paths so macOS `/tmp` and `/var` aliases do not cause a silent exit. The lifecycle gate now proves Claude reports `Connected`. The checksum-matched 21-entry artifact remains local pending publication.
 
 Public `@fullwell/fullwell@1.1.9` replaces direct execution of a versioned plugin-cache script with the plugin-provided `fullwell-local` MCP server. Its stable read-only load, non-destructive update, and collecting-only destructive deletion identities let a host retain narrowly scoped permission across compatible package upgrades while keeping cancellation separate. The server is dependency-free, offline, bounded, redacts unexpected failures, delegates journal validation to the existing runtime, and is discovered from isolated Codex and Claude installs. Implementation commit `cbc16c9` is on `origin/main`; npm `latest` resolves to the checksum-matched 20-entry artifact, and the downloaded package passes both isolated host lifecycles. No server deployment was necessary because the application runtime did not change.
 

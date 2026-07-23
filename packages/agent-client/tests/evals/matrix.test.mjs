@@ -14,7 +14,8 @@ test("each eval has a unique identity and runs on both hosts", async () => {
   const draftRuntime = await readFile(path.join(root, "runtime/onboarding-draft.mjs"), "utf8");
   const localRuntime = await readFile(path.join(root, "runtime/local-household.mjs"), "utf8");
   const localMcpRuntime = await readFile(path.join(root, "runtime/local-household-mcp.mjs"), "utf8");
-  const mcpConfig = JSON.parse(await readFile(path.join(root, ".mcp.json"), "utf8"));
+  const claudeMcpConfig = JSON.parse(await readFile(path.join(root, ".mcp.json"), "utf8"));
+  const codexMcpConfig = JSON.parse(await readFile(path.join(root, "codex-mcp.json"), "utf8"));
   const ids = matrix.cases.map((testCase) => testCase.id);
   assert.equal(new Set(ids).size, ids.length);
   assert.deepEqual(matrix.hosts.sort(), expected.grader.hosts.sort());
@@ -103,7 +104,9 @@ test("each eval has a unique identity and runs on both hosts", async () => {
   assert.ok(managingSkill.includes("You only need an account for cloud backup, WhatsApp, sharing, or family access"));
   assert.ok(localRuntime.includes("expected_revision"));
   assert.ok(localRuntime.includes("PROHIBITED_LOCAL_DATA"));
-  assert.equal(mcpConfig["fullwell-local"].args[0], "./runtime/local-household-mcp.mjs");
+  assert.equal(claudeMcpConfig["fullwell-local"].args[0], "${CLAUDE_PLUGIN_ROOT}/runtime/local-household-mcp.mjs");
+  assert.equal(codexMcpConfig["fullwell-local"].args[0], "./runtime/local-household-mcp.mjs");
+  assert.deepEqual(claudeMcpConfig["household-food-journal"], codexMcpConfig["household-food-journal"]);
   assert.ok(localMcpRuntime.includes("fullwell_local_household_load"));
   assert.ok(localMcpRuntime.includes("fullwell_local_household_update"));
   assert.ok(localMcpRuntime.includes("fullwell_local_household_delete_collecting"));

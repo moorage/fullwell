@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Correct Fullwell's host-specific plugin-root MCP paths and macOS real-path handling so Claude connects to the stable local journal server, and make host lifecycle verification require a healthy connection.
 - Replace version-specific local-household shell commands with stable plugin-provided local tool identities, separating read-only load, ordinary revisioned updates, and destructive cancellation so one narrow permission survives agent-package upgrades.
 - Make Fullwell local-first for new installations: ask whether the user already has an account before any hosted call, support durable grocery and recipe use without OAuth, and offer retry-safe cloud backup only after local collection for WhatsApp, sharing, or family access.
 - End successful grocery onboarding with a concrete out-of-stock restocking invitation that uses learned product/store history and retains explicit cart confirmation.

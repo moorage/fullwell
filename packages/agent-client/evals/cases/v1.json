@@ -21,7 +21,7 @@
       "prompt": "I do not have a Fullwell account. Continue locally and help me get started.",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases"],
       "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update"],
-      "invariants": ["initialize_local_guest_household", "no_fullwell_call", "no_setup_area_menu", "snacks_before_recipes", "explain_snack_benefit_before_question", "include_concrete_restock_example", "ask_grocery_stores", "revision_checked_local_save"]
+      "invariants": ["initialize_local_guest_household", "no_fullwell_call", "no_setup_area_menu", "snacks_before_recipes", "explain_snack_benefit_before_question", "include_concrete_restock_example", "first_person_assistant_voice", "ask_grocery_stores", "revision_checked_local_save"]
     },
     {
       "id": "bare-fullwell-greeting-asks-account",
@@ -42,14 +42,14 @@
       "prompt": "I do not have recipes or anywhere that I save them.",
       "skills": ["manage-household-food-journal", "track-recipe-history"],
       "required_tools": ["fullwell_local_household_update"],
-      "invariants": ["draft_recipe_skip_as_no_sources", "no_false_completion", "summarize_and_finalize_locally", "offer_restock_try_it_after_successful_completion", "explain_history_based_product_and_store", "preserve_cart_confirmation", "offer_optional_cloud_backup_after_local_save", "do_not_revisit_same_run_skip", "no_fullwell_call"]
+      "invariants": ["draft_recipe_skip_as_no_sources", "no_false_completion", "summarize_and_finalize_locally", "first_person_assistant_voice", "offer_restock_try_it_after_successful_completion", "explain_history_based_product_and_store", "preserve_bounded_cart_authority", "offer_optional_cloud_backup_after_local_save", "do_not_revisit_same_run_skip", "no_fullwell_call"]
     },
     {
       "id": "confirmed-onboarding-commits-once",
       "prompt": "Yes, that final Fullwell onboarding summary is correct. Save all of it now.",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases", "track-recipe-history"],
       "required_tools": ["hfj_commit_onboarding"],
-      "invariants": ["one_final_fullwell_write", "stable_idempotency_key", "snapshot_head_compare_and_set", "no_legacy_onboarding_writes", "report_required_for_complete", "delete_checkpoint_only_after_success", "offer_restock_try_it_after_successful_completion", "explain_history_based_product_and_store", "preserve_cart_confirmation"]
+      "invariants": ["one_final_fullwell_write", "stable_idempotency_key", "snapshot_head_compare_and_set", "no_legacy_onboarding_writes", "report_required_for_complete", "delete_checkpoint_only_after_success", "offer_restock_try_it_after_successful_completion", "explain_history_based_product_and_store", "preserve_bounded_cart_authority"]
     },
     {
       "id": "large-confirmed-onboarding-commits-once",
@@ -147,14 +147,14 @@
       "prompt": "Share these snacks and include everything we know about them.",
       "skills": ["share-food-collection"],
       "required_tools": ["hfj_create_collection", "hfj_create_collection_share"],
-      "invariants": ["explicit_public_preview", "exclude_private_fields", "exclude_unselected_notes"]
+      "invariants": ["explicit_public_preview", "first_person_assistant_voice", "exclude_private_fields", "exclude_unselected_notes"]
     },
     {
       "id": "select-two-of-five",
       "prompt": "Import only the second and fifth items from this five-item collection.",
       "skills": ["import-food-collection"],
       "required_tools": ["hfj_preview_shared_collection", "hfj_plan_collection_import", "hfj_import_collection_items"],
-      "invariants": ["only_selected_items", "one_destination_commit"]
+      "invariants": ["only_selected_items", "first_person_assistant_voice", "one_destination_commit"]
     },
     {
       "id": "import-recipe-status",
@@ -231,7 +231,7 @@
       "prompt": "We're out of cashews, get more. One historical item clearly leads both recurrence and recency.",
       "skills": ["restock-groceries"],
       "required_tools": ["fullwell_local_household_load"],
-      "invariants": ["local_snapshot_only", "closed_historical_candidates", "select_clear_leader", "resolve_before_act", "baseline_plus_one"]
+      "invariants": ["local_snapshot_only", "closed_historical_candidates", "select_clear_leader", "first_person_assistant_voice", "resolve_before_act", "baseline_plus_one"]
     },
     {
       "id": "restock-historical-ambiguity",
@@ -260,6 +260,69 @@
       "skills": ["restock-groceries"],
       "required_tools": ["fullwell_local_household_load"],
       "invariants": ["cart_only", "never_checkout", "never_pay", "manual_checkout_only"]
+    },
+    {
+      "id": "restock-under-default-maximum",
+      "prompt": "The exact usual cashews are $49.99 for the one requested bag. My profile has no cart maximum setting. Add them.",
+      "skills": ["restock-groceries"],
+      "required_tools": ["fullwell_local_household_load"],
+      "invariants": ["default_maximum_usd_5000", "compare_complete_incremental_amount", "strictly_under_adds_without_confirmation", "price_rechecked_before_mutation", "completion_names_item_quantity_amount", "completion_includes_maximum_change_reminder"]
+    },
+    {
+      "id": "restock-at-default-maximum",
+      "prompt": "The exact usual item is $50.00 for the requested quantity and my automatic cart maximum is $50. Add it.",
+      "skills": ["restock-groceries"],
+      "required_tools": ["fullwell_local_household_load"],
+      "invariants": ["equal_to_maximum_requires_confirmation", "confirmation_binds_item_quantity_currency_amount", "no_cart_mutation_before_confirmation"]
+    },
+    {
+      "id": "restock-above-or-unpriced",
+      "prompt": "Add the usual item even though the requested amount is $65. The page then hides the price before the cart action.",
+      "skills": ["restock-groceries"],
+      "required_tools": ["fullwell_local_household_load"],
+      "invariants": ["above_maximum_requires_exact_confirmation", "reinspect_price_before_mutation", "missing_price_blocks", "no_cart_mutation"]
+    },
+    {
+      "id": "restock-confirmed-price-increases",
+      "prompt": "I confirmed the exact $65 request, but the same item and quantity now display $67 before the add.",
+      "skills": ["restock-groceries"],
+      "required_tools": [],
+      "invariants": ["confirmation_is_request_scoped", "increased_confirmed_amount_requires_new_confirmation", "no_cart_mutation"]
+    },
+    {
+      "id": "change-local-cart-maximum",
+      "prompt": "Set my cart maximum to $75.",
+      "skills": ["restock-groceries"],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update"],
+      "invariants": ["interpret_setting_conversationally", "canonical_usd_maximum_line", "replace_without_duplicate", "preserve_other_profile_content", "revision_checked_local_save", "no_retailer_or_cart_action"]
+    },
+    {
+      "id": "change-cloud-cart-maximum",
+      "prompt": "For my selected cloud household, lower my automatic cart-add maximum to $0.",
+      "skills": ["restock-groceries"],
+      "required_tools": ["fullwell_local_household_load", "hfj_get_context", "hfj_get_profile", "hfj_update_profile"],
+      "invariants": ["zero_disables_automatic_adds", "canonical_usd_maximum_line", "replace_without_duplicate", "preserve_other_profile_content", "snapshot_head_compare_and_set", "stable_idempotency_key", "no_retailer_or_cart_action"]
+    },
+    {
+      "id": "restock-replay-completion-reminder",
+      "prompt": "The same completed $12.99 cashew request was delivered again after the response failed.",
+      "skills": ["restock-groceries"],
+      "required_tools": [],
+      "invariants": ["replay_persisted_terminal_message", "no_duplicate_cart_mutation", "completion_names_item_quantity_amount", "completion_includes_maximum_change_reminder"]
+    },
+    {
+      "id": "first-local-restock-resumes-cloud-offer",
+      "prompt": "I accepted the first restock invitation during local onboarding. The mayonnaise was added successfully and the loaded ready guest household has cloud_backup: null.",
+      "skills": ["restock-groceries", "manage-household-food-journal"],
+      "required_tools": ["fullwell_local_household_load"],
+      "invariants": ["verified_add_result_first", "completion_includes_maximum_change_reminder", "unconnected_local_completion_includes_cloud_ps", "ask_to_connect_now", "resume_optional_cloud_handoff", "no_fullwell_call_before_consent"]
+    },
+    {
+      "id": "connected-local-restock-omits-cloud-offer",
+      "prompt": "The mayonnaise was added successfully and the loaded local household has a non-null cloud_backup link. Finish the direct-local restock.",
+      "skills": ["restock-groceries"],
+      "required_tools": ["fullwell_local_household_load"],
+      "invariants": ["verified_add_result_first", "completion_includes_maximum_change_reminder", "omit_redundant_cloud_ps", "do_not_ask_to_connect_again"]
     },
     {
       "id": "one-pass-whole-grocery-audit",

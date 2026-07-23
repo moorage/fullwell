@@ -6,7 +6,7 @@ After installation, start with `@Fullwell hi` in Codex or `Set up Fullwell.` in 
 
 Authenticated onboarding still checkpoints unconfirmed work under `~/.codex/fullwell/drafts`, isolated by the stable Fullwell user and household IDs and bound to the current snapshot. One confirmed hosted commit persists it. Promoting a guest journal retains the local copy and records cloud linkage only after a successful hosted response.
 
-The restocking skill reads only a private revisioned snapshot prepared by `@fullwell/local-runner`. Product selection and retailer cart control stay on the user's Mac; the WhatsApp gateway relays encrypted user-facing text and transport state only.
+The restocking skill reads only a private revisioned snapshot prepared by `@fullwell/local-runner`. Product selection and retailer cart control stay on the user's Mac; the WhatsApp gateway relays encrypted user-facing text and transport state only. Complete USD requests strictly below the profile's automatic cart-add maximum use bounded automatic authority, while equal or greater amounts require request-scoped confirmation. Direct conversations can change the maximum without granting the linked runner profile-write access. After a verified direct-local add, an unconnected guest resumes the optional Fullwell cloud offer; connected and linked WhatsApp use omits it.
 
 Removing the plugin does not delete an unfinished checkpoint or guest household. Delete `~/.codex/fullwell/drafts` to remove authenticated onboarding drafts. Delete `~/.codex/fullwell/local` only when you intentionally want to remove the local guest journal; neither action changes server household data.
 

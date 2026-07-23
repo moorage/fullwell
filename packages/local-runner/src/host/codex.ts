@@ -20,6 +20,10 @@ const CodexOutputSchema = z.object({
   retailer_locator: z.string().nullable(),
   baseline_quantity: z.number().int().nullable(),
   target_quantity: z.number().int().nullable(),
+  currency: z.string().nullable(),
+  incremental_amount_minor: z.number().int().nullable(),
+  automatic_add_maximum_minor: z.number().int().nullable(),
+  authorization_mode: z.enum(["automatic_under_maximum", "user_confirmed"]).nullable(),
   message: z.string().nullable(),
   host_session_id: z.string().nullable(),
 }).strict();
@@ -98,6 +102,10 @@ function codexOutput(value: unknown, hostSessionId: string | null) {
       retailer_locator: parsed.retailer_locator,
       baseline_quantity: parsed.baseline_quantity,
       target_quantity: parsed.target_quantity,
+      currency: parsed.currency,
+      incremental_amount_minor: parsed.incremental_amount_minor,
+      automatic_add_maximum_minor: parsed.automatic_add_maximum_minor,
+      authorization_mode: parsed.authorization_mode,
       host_session_id: hostSessionId,
     });
   }

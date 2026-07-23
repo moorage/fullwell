@@ -7,7 +7,7 @@
 - Impact: `high`
 - Confidence: `medium`
 - Effort: `large`
-- Last reviewed: `2026-07-20`
+- Last reviewed: `2026-07-23`
 
 ## Why this matters
 
@@ -29,6 +29,7 @@ The feature is trusted replenishment, not general product recommendation. It sho
 - [Claude Code print mode](https://code.claude.com/docs/en/cli-usage) provides a supported non-interactive `claude -p` entry point, and [Claude Code with Chrome](https://code.claude.com/docs/en/chrome) exposes the signed-in browser to CLI sessions through the Claude in Chrome extension. A local runner can therefore invoke Claude Code in the household checkout without routing journal or browser data through Fullwell's server.
 - [Claude Code Desktop local scheduled tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks) can run in a selected local folder while the machine is awake and the Desktop app is open. Anthropic cloud routines can be API-triggered, but run on Anthropic infrastructure and cannot operate the household's local browser, so they do not satisfy this workflow.
 - [Claude Cowork scheduled tasks](https://support.claude.com/en/articles/13854387-schedule-recurring-tasks-in-claude-cowork) and [Dispatch](https://support.claude.com/en/articles/13947068-assign-tasks-from-anywhere-in-claude-cowork) can use local files and computer use when Claude Desktop is awake and open. Anthropic does not document a public API that can inject a Fullwell WhatsApp webhook into a local Cowork task, so Cowork is not the primary gateway target unless that surface changes.
+- The user requested a default USD 50 automatic cart-add maximum, a conversational way to change it, and a short maximum-change reminder after each verified addition. The current grocery profile already reaches both direct agent sessions and the read-only runner snapshot, so the preference does not require a new server or runner write authority.
 
 ## Expert panel
 
@@ -78,6 +79,9 @@ Create one shared local restocking workflow for prompts such as `We're out of ca
 13. Add to cart but never check out, subscribe, accept a paid membership, replace another cart item, or change an unrelated quantity.
 14. Re-read the cart and return the selected product, store, quantity, and final state through the same local-runner connection. A retry must recognize an already-completed request and cart state instead of duplicating the addition.
 15. Relay WhatsApp responses only before 2026-10-01 while Meta classifies them as free service messages inside the open 24-hour window. Never send a paid template or out-of-window response. At or after the cutoff, acknowledge valid provider webhooks without enqueueing cart work and keep WhatsApp disabled until the user explicitly accepts a paid-message policy.
+16. Default the grocery profile's automatic cart-add maximum to `USD 50.00`. Compare the complete incremental item amount for the requested quantity, not merely unit price. Add automatically only when that amount is strictly below the maximum; require exact item, quantity, and amount confirmation at or above it or when price or currency is unavailable.
+17. Let the user change the maximum by asking Fullwell in a direct Codex or Claude conversation. Persist one canonical grocery-profile setting through the existing local or hosted profile authority. Keep the linked runner read-only and let it consume the updated profile on its next authoritative snapshot.
+18. After a verified addition or idempotent recovery, report the exact item, quantity, and amount plus a brief parenthetical explaining that the maximum can be changed by saying `Set my cart maximum to $75`.
 
 The server addition is a generic message gateway, not a restock-candidate MCP tool. It owns provider webhook verification, sender-to-account/device routing, replay protection, bounded encrypted queueing, delivery acknowledgements, and free-window enforcement. It must not receive filesystem paths, journal contents, retailer credentials, browser state, candidate products, or cart contents except the minimal user-facing response text returned for relay.
 
@@ -98,6 +102,7 @@ Claude Code is the primary Claude execution target because its non-interactive C
 - providing a personal Apple-ID Messages bot, an AppleScript relay on an always-on Mac, SMS, RCS, or Apple Messages for Business
 - adding speech recognition; dictation remains a Codex, Claude, or operating-system input capability
 - exposing a general-purpose remote Codex/Claude prompt, shell, broad filesystem access, unrelated MCP tools, or browser origins outside the approved retailer
+- granting the linked WhatsApp runner profile-write authority or accepting an unbounded automatic-add maximum
 
 ## Priority and sequencing
 
@@ -116,6 +121,7 @@ Before implementation, Milestone 0 must prove direct WhatsApp Cloud API webhook 
 - Does the local journal need stable retailer product locators, or are exact historical line-item titles sufficient and safer?
 - How should the agent distinguish a retailer sign-in block, item unavailability, cart conflict, browser-control failure, and an expired free WhatsApp reply window?
 - What exact North America service-message rate will Meta publish for 2026-10-01, and does the user ever want a separately budgeted paid-channel plan after the automatic free-channel shutdown?
+- Should a future release add an authenticated WhatsApp settings mutation, or should canonical preference changes remain in direct Fullwell conversations?
 
 ## Promotion trigger
 

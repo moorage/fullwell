@@ -56,6 +56,9 @@ describe("agent host adapters", () => {
       expect(invocation.stdin).toContain("Browser Use skill through node_repl");
       expect(invocation.stdin).toContain("snack, ingredient, condiment, and other-grocery items");
       expect(invocation.stdin).toContain("not the Japanese one");
+      expect(invocation.stdin).toContain("USD 50.00");
+      expect(invocation.stdin).toContain("strictly below the maximum");
+      expect(invocation.stdin).toContain("incremental_amount_minor");
       const schemaIndex = invocation.args.indexOf("--output-schema") + 1;
       const schemaPath = invocation.args[schemaIndex];
       if (schemaPath === undefined) throw new Error("Missing schema path");
@@ -73,6 +76,10 @@ describe("agent host adapters", () => {
         retailer_locator: null,
         baseline_quantity: null,
         target_quantity: null,
+        currency: null,
+        incremental_amount_minor: null,
+        automatic_add_maximum_minor: null,
+        authorization_mode: null,
         message: "Salted or unsalted?",
         host_session_id: null,
       }));
@@ -122,6 +129,8 @@ describe("agent host adapters", () => {
         kind: { enum: ["completed", "needs_input", "blocked", "cancelled"] },
         message: { type: "string" },
       } });
+      expect(invocation.stdin).toContain("current incremental amount has not increased");
+      expect(invocation.stdin).toContain("P.S. You can change your automatic cart-add maximum");
       const outputIndex = invocation.args.indexOf("--output-last-message") + 1;
       const outputPath = invocation.args[outputIndex];
       if (outputPath === undefined) throw new Error("Missing output path");
@@ -132,6 +141,10 @@ describe("agent host adapters", () => {
         retailer_locator: null,
         baseline_quantity: null,
         target_quantity: null,
+        currency: null,
+        incremental_amount_minor: null,
+        automatic_add_maximum_minor: null,
+        authorization_mode: null,
         message: "Already at target.",
         host_session_id: null,
       }));
@@ -143,7 +156,9 @@ describe("agent host adapters", () => {
       ready: {
         kind: "ready_to_act", selected_item_reference: "snacks/items/cashews.md",
         retailer_origin: "https://retailer.example.test/", retailer_locator: "/cashews",
-        baseline_quantity: 1, target_quantity: 2, host_session_id: "codex-existing",
+        baseline_quantity: 1, target_quantity: 2, currency: "USD",
+        incremental_amount_minor: 1_299, automatic_add_maximum_minor: 5_000,
+        authorization_mode: "automatic_under_maximum", host_session_id: "codex-existing",
       },
     })).resolves.toMatchObject({ kind: "completed", host_session_id: "codex-existing" });
 
@@ -157,7 +172,9 @@ describe("agent host adapters", () => {
       ready: {
         kind: "ready_to_act", selected_item_reference: "snacks/items/cashews.md",
         retailer_origin: "https://retailer.example.test/", retailer_locator: "/cashews",
-        baseline_quantity: 1, target_quantity: 2, host_session_id: "claude-existing",
+        baseline_quantity: 1, target_quantity: 2, currency: "USD",
+        incremental_amount_minor: 1_299, automatic_add_maximum_minor: 5_000,
+        authorization_mode: "automatic_under_maximum", host_session_id: "claude-existing",
       },
     })).rejects.toThrow(/unsuccessful/);
 

@@ -16,12 +16,20 @@ Resolution and mutation are separate phases. Resolution may read the snapshot, u
 
 The runner revalidates current membership, active device/link authorization, the no-paid-message cutoff, and the authoritative Git HEAD before mutation. If HEAD changed, resolve again from the refreshed snapshot.
 
-An unqualified request authorizes `target = baseline + 1`. Record the request, exact historical item reference, retailer locator, baseline, target, and host session locally before acting. On a retry or uncertain result, re-inspect quantity:
+The snacks profile owns one canonical `- Automatic cart-add maximum: USD N.NN` line. A missing line means `USD 50.00`; zero disables automatic additions; version 1 accepts explicit USD settings through `USD 10,000.00`. A direct assistant conversation may replace or add this line through the existing revision-checked local or cloud profile mutation while preserving all other profile prose. The linked runner can only read the setting from a current snapshot and cannot change it.
+
+An unqualified request sets `target = baseline + 1`. Inspect the exact historical item, requested quantity, currency, and full incremental item amount including displayed item discounts. Add automatically only when that complete USD amount is strictly below the current maximum. Exactly equal or greater amounts require confirmation bound to the active request's exact item, quantity, currency, and displayed amount. Missing, malformed, or non-USD automatic pricing fails closed. Taxes, delivery, tips, memberships, subscriptions, and checkout fees are outside cart-add authority.
+
+Record the request, exact historical item reference, retailer locator, baseline, target, currency, incremental amount, effective maximum, authorization mode, host session, and bounded terminal message locally. Immediately before acting, re-inspect quantity and price. Automatic authority remains valid only below the recorded maximum; confirmed authority remains valid only if item, quantity, and currency are unchanged and the price has not increased. On a retry or uncertain result:
 
 - target already present: verify and complete without adding;
-- baseline still present: change once to target and verify;
+- baseline still present and price authority remains valid: change once to target and verify;
 - any other quantity: block and ask the user to inspect;
 - CAPTCHA, MFA, sign-in, permission, cross-origin navigation, or unverifiable result: block.
+
+Every verified addition or idempotent recovery names the exact item, quantity added, and current incremental amount, then includes `(P.S. You can change your automatic cart-add maximum by saying, "Set my cart maximum to $75.")`. Questions and non-success states omit the reminder.
+
+A direct local restock retains the `cloud_backup` value from its initial local-household load. When that value is `null`, a verified success follows the maximum reminder with `(P.S. You can use WhatsApp, collaborate, and share with others by connecting to Fullwell cloud.)` and asks `Would you like to connect now?` This preserves the optional-cloud handoff when a user accepts the first onboarding restock invitation before reaching the next onboarding question. A non-null cloud link, a cloud household, and every linked WhatsApp request omit the cloud reminder. Connection state comes only from loaded authority, never conversational inference.
 
 Cart authority never includes checkout, payment, tips, fees, subscriptions, memberships, substitutions, changing another line, or exposing retailer credentials. A user completes any checkout manually outside this workflow.
 

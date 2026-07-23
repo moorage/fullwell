@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { ActionReceiptStore } from "./action-receipts.js";
 
 const receipt = HostActionReceiptSchema.parse({
+  schema_version: 2,
   request_id: "req_0000000000000901",
   envelope_id: "msg_0000000000000901",
   selected_item_reference: "snacks/items/cashews.md",
@@ -13,8 +14,13 @@ const receipt = HostActionReceiptSchema.parse({
   retailer_locator: "/products/cashews",
   baseline_quantity: 0,
   target_quantity: 1,
+  currency: "USD",
+  incremental_amount_minor: 1_299,
+  automatic_add_maximum_minor: 5_000,
+  authorization_mode: "automatic_under_maximum",
   host_session_id: "session-one",
   state: "ready_to_act",
+  terminal_message: null,
   updated_at: "2026-07-20T16:00:00.000Z",
 });
 

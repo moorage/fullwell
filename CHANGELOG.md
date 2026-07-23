@@ -2,10 +2,12 @@
 
 ## Unreleased
 
+- Preserve the optional cloud-connection handoff when an unconnected guest accepts the first onboarding restock invitation before reaching the cloud question.
+- Add a configurable automatic cart-add maximum with a strict `USD 50.00` default, conversational profile updates, price-bound confirmation at or above the maximum, versioned idempotency receipts, and exact post-add reminders.
 - Correct Fullwell's host-specific plugin-root MCP paths and macOS real-path handling so Claude connects to the stable local journal server, and make host lifecycle verification require a healthy connection.
 - Replace version-specific local-household shell commands with stable plugin-provided local tool identities, separating read-only load, ordinary revisioned updates, and destructive cancellation so one narrow permission survives agent-package upgrades.
 - Make Fullwell local-first for new installations: ask whether the user already has an account before any hosted call, support durable grocery and recipe use without OAuth, and offer retry-safe cloud backup only after local collection for WhatsApp, sharing, or family access.
-- End successful grocery onboarding with a concrete out-of-stock restocking invitation that uses learned product/store history and retains explicit cart confirmation.
+- End successful grocery onboarding with a concrete out-of-stock restocking invitation that uses learned product/store history and explains the bounded automatic-add and confirmation policy.
 - Learn snacks, ingredients, condiments, and other groceries during the same order-history pass, preserve low-frequency items and product formulations, and expose every grocery area to source-aware restocking.
 - Raise the confirmed onboarding aggregate to 10,000 evidence records and 10,000 items inside a route-specific 16 MiB MCP envelope, with exact-limit validation, prospective repository-capacity checks, and argument-vector-safe Git staging.
 - Refresh the transitive `fast-uri` production dependency to patched releases after the release audit detected GHSA-v2hh-gcrm-f6hx.

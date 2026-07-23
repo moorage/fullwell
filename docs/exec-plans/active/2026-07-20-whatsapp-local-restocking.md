@@ -12,6 +12,8 @@ This plan promotes `docs/ideas/backlog/evidence-backed-grocery-restocking.md`. I
 
 ## Progress
 
+- [x] 2026-07-23: Corrected the first-restock onboarding handoff so an unconnected direct-local guest receives the cloud-capabilities P.S. and an explicit connection question after verified success, while connected and linked WhatsApp use omit the redundant prompt.
+- [x] 2026-07-23: Implemented the user-requested configurable automatic cart-add maximum: default `USD 50.00`, strict under-maximum automatic action, explicit confirmation at or above the maximum, natural-language profile updates, price-aware idempotent receipts, exact terminal replay, and a post-add reminder. Focused contracts, runner, 52-case cross-host eval, 20-case packaging, typecheck, lint, 29-pass WebKit E2E, full verify, docs, and ExecPlan gates pass.
 - [x] 2026-07-22: Expanded the fixed server and macOS-runner snapshot allowlists plus host policy from snack-only items to separate snack, ingredient, condiment, and other-grocery items, retaining current and legacy purchase evidence for source-aware parsley and mayonnaise requests.
 - [x] 2026-07-20T17:50Z: Captured the feature in the idea backlog, completed the expert-roundtable framing, and recorded the closed-world product-selection and no-checkout boundaries.
 - [x] 2026-07-20T17:50Z: Verified from current primary documentation that Meta Cloud API can be integrated directly without a BSP, that user-initiated service replies are free inside the 24-hour window, that Claude Code exposes non-interactive and Chrome surfaces, and that Codex desktop exposes local scheduled tasks and Computer Use.
@@ -88,9 +90,17 @@ This plan promotes `docs/ideas/backlog/evidence-backed-grocery-restocking.md`. I
 - 2026-07-21: Do not use the interactive CLI's account-level plugin startup as the runner. It was used only to inspect the exact-origin prompt; the durable approval lives in the isolated Browser Use policy, and the separate Codex login now uses macOS Keychain with no compatibility symlink.
 - 2026-07-21: Chrome accepted native-runner consent with `303` but remained on the authorization page because CSP applies `form-action` across the POST redirect chain. The existing self/Apple/WhatsApp policy omitted the ephemeral loopback callback, so the fix adds only the validated exact `127.0.0.1` origin to the consent page rather than widening every response.
 - 2026-07-21: A host result completed while service replies were intentionally gated and remained stranded in `response_ready`; an authenticated claim now retries that encrypted result before returning work. The first live retry reached Meta but failed with Graph code `131037`: the platform-provided identity cannot send while the owning business/display-name review remains pending, despite the phone object reporting `AVAILABLE_WITHOUT_REVIEW`.
+- 2026-07-23: Sandboxed WebKit aborted in AppKit registration before test code on macOS 26.5.1, including after a forced runtime refresh. The same 36-test matrix passed outside the filesystem sandbox with GUI-session access: 29 passed and seven project-declared skips.
+- 2026-07-23: The required configurable-maximum screencast attempt reproduced the repository helper's known macOS incompatibility: Homebrew FFmpeg has no `x11grab` input for display `:99.0`, exited with code 234, and produced no MP4.
 
 ## Decision Log
 
+- 2026-07-23: Store one canonical automatic cart-add maximum in the existing `snacks` grocery profile. A missing setting means `USD 50.00`; `USD 0.00` disables automatic additions; version 1 accepts explicit USD values through `USD 10,000.00`. Direct Codex or Claude conversations update the local guest journal or hosted profile through existing typed mutations. The linked runner remains read-only and consumes the setting from its authoritative snapshot.
+- 2026-07-23: Compare the requested incremental item amount for the quantity being added, including retailer-displayed item discounts, rather than unit price or the cart's complete line total. Taxes, delivery, tips, subscriptions, memberships, and checkout fees are outside cart-add authority. An amount exactly equal to the maximum requires confirmation.
+- 2026-07-23: A priced action receipt records ISO currency, incremental minor-unit amount, effective maximum, and whether authority came from the under-maximum rule or exact user confirmation. Legacy unpriced receipts fail closed instead of being replayed after upgrade.
+- 2026-07-23: Re-inspect price with quantity immediately before mutation. Automatic authority remains valid only while the current USD incremental amount stays below the recorded maximum; exact confirmation remains valid only while the amount does not increase. Missing price, non-USD currency, a higher confirmed amount, or an amount at or above the automatic maximum returns a follow-up without changing the cart.
+- 2026-07-23: Every verified add or idempotent recovery reports the exact item, quantity, and amount and ends with `(P.S. You can change your automatic cart-add maximum by saying, "Set my cart maximum to $75.")`.
+- 2026-07-23: Direct-local restocking retains the initial `cloud_backup` authority. When it is null, verified success follows the maximum reminder with `(P.S. You can use WhatsApp, collaborate, and share with others by connecting to Fullwell cloud.)` and asks `Would you like to connect now?`; a non-null link, cloud household, or linked runner omits it.
 - 2026-07-20: Use Meta WhatsApp Cloud API directly. Do not use Twilio, a BSP, an unofficial WhatsApp Web bridge, or another messaging middleware provider.
 - 2026-07-20: Permit only inbound user messages and free service replies inside the current 24-hour customer-service window. Do not register, submit, store, or send marketing, authentication, utility, or other paid templates.
 - 2026-07-20: Keep messaging semantics local. The gateway may authenticate, link, rate-limit, deduplicate, lease, expire, and relay messages, but it may not classify intent, read the journal to answer, invoke an agent, choose a product, or touch a cart.
@@ -161,6 +171,22 @@ Must-fix findings folded into this plan:
 Should-fix findings included in the milestones are raw-body signature verification before parsing, recent-auth one-time identity linking, per-link/global backpressure, bounded text-only input, encrypted retention and deletion proof, local cache permissions, account-revocation races, and explicit disclosure that local Codex/Claude work consumes the user's existing plan or API allowance even when WhatsApp delivery is free.
 
 Monitor findings for the release matrix are Meta policy/pricing changes, retailer terms and UI changes, macOS/Chrome permission drift, Codex desktop's supported event-driven Computer Use surface, Claude Code Chrome behavior under `launchd`, and any future supported Cowork inbound API. Any one of these can narrow the supported-host or retailer matrix without weakening the safety boundaries.
+
+### Configurable Automatic-Add Extension Framing
+
+The 2026-07-23 extension review used a UX expert for conversational control and reminder fatigue, a security researcher for payment-adjacent authority, a staff architect for preference ownership, a reliability engineer for price and retry races, and an applied-ML/evals expert for prompt and behavior coverage.
+
+The panel reframed the request as bounded cart-mutation authority, not a spending or checkout budget. UX recommended one strict default with no confirmation below it and one concise post-add reminder. Security required price, quantity, and currency to be visible before mutation and kept checkout forbidden. Architecture selected the existing grocery profile because it is already authoritative locally, Git-authoritative in cloud households, and included in the runner snapshot. Reliability required the price decision and authorization mode in the receipt so a retry cannot inherit stale authority. Evals required under, exact, over, changed-price, missing-price, settings-update, legacy-receipt, and reminder cases.
+
+The main tension is low friction versus price uncertainty. The plan resolves it by comparing the full incremental item amount, using a strict `<` boundary, and failing to a confirmation question whenever the current amount cannot be proven. A second tension is conversational settings over WhatsApp versus the runner's read-only boundary; version 1 keeps canonical settings mutations in direct Fullwell conversations and does not grant the runner a new write scope.
+
+The pre-implementation feature critique identified five must-fix details and folded them into Milestone 8:
+
+- Confirmation authority binds one resolved item, requested quantity, displayed incremental amount, currency, and active request. It cannot authorize a different product, a larger quantity, a later request, or an increased price.
+- New receipts persist a bounded terminal message so duplicate delivery and crash recovery can repeat the exact verified result and reminder without another mutation. Legacy terminal receipts may replay their old terminal state, while legacy non-terminal receipts block without acting.
+- The reminder appears only after a verified addition or idempotent recovery, never on ambiguity, confirmation, blocked, or cancelled responses, and the completed message remains within the existing 480-character contract.
+- Automatic authority is USD-only in version 1. Missing or non-USD prices block safely; retailer-displayed item discounts count toward the incremental amount, while taxes, delivery, tips, memberships, subscriptions, and checkout fees remain outside cart-add authority.
+- Setting updates preserve unrelated profile prose, replace rather than duplicate the canonical setting, accept zero as automatic-add disablement, and reject negative, malformed, non-USD, or greater-than-`USD 10,000.00` values with a bounded explanation.
 
 ## Context and Orientation
 
@@ -705,6 +731,63 @@ Exit criteria:
 - rollback, token/key rotation, device/link revocation, offline expiry, and uninstall are proven;
 - the release matrix records exact versions and unsupported Cowork behavior honestly.
 
+### Milestone 8 - Configurable Automatic Cart-Add Maximum
+
+Files:
+
+- `packages/contracts/src/messaging.ts`
+- `packages/contracts/src/contracts.test.ts`
+- `packages/local-runner/src/host/prompt.ts`
+- `packages/local-runner/src/host/types.ts`
+- `packages/local-runner/src/runner.ts`
+- `packages/local-runner/src/runner.test.ts`
+- `packages/local-runner/src/host/adapters.test.ts`
+- `packages/local-runner/src/state/action-receipts.test.ts`
+- `packages/local-runner/README.md`
+- `packages/local-runner/CHANGELOG.md`
+- `packages/agent-client/skills/manage-household-food-journal/SKILL.md`
+- `packages/agent-client/skills/restock-groceries/SKILL.md`
+- `packages/agent-client/references/restocking-and-cart-safety.md`
+- `packages/agent-client/evals/cases/v1.json`
+- `packages/agent-client/evals/expected/v1.json`
+- `packages/agent-client/tests/evals/matrix.test.mjs`
+- `docs/ARCHITECTURE.md`
+- `docs/SECURITY.md`
+- `docs/RELIABILITY.md`
+- `docs/product-specs/household-food-journal-client.md`
+- `docs/IMPLEMENTATION_LOG.md`
+
+Tasks:
+
+1. Extend the typed ready-to-act and receipt contracts with currency, incremental minor-unit amount, effective automatic maximum, authorization mode, and a bounded persisted terminal message. Parse legacy unpriced receipts; replay legacy terminal state without mutation, but block legacy non-terminal receipts after upgrade.
+2. Update the trusted resolve/action prompts to read one canonical grocery-profile maximum, default to `USD 50.00`, compare the full requested increment, require confirmation at or above the maximum, and re-check price before mutation.
+3. Update direct Fullwell restocking so natural requests can change the canonical local or hosted grocery-profile maximum without keyword matching. Preserve all other profile content and bound USD settings from zero through 10,000 dollars.
+4. Bind explicit confirmation to the resolved item, requested quantity, displayed amount, currency, and active request. Require every successful add and idempotent recovery to report exact item, quantity, and current amount plus the parenthetical maximum-change reminder; persist that bounded message for exact replay.
+5. Add contract, runner, host-prompt, receipt-compatibility, profile-preservation, and cross-host eval coverage for below, exact, above, missing, non-USD, increased-price, changed-maximum, zero-disablement, invalid setting, legacy non-terminal, duplicate-setting, and reminder behavior.
+6. Update product, architecture, security, reliability, README, changelog, and implementation-log guidance. Attempt a redacted fake-retailer workflow capture through the repository screencast helper; if the known macOS capture limitation recurs, record it rather than weakening the gate.
+
+Verification:
+
+- `npm run test:evals --workspace @fullwell/fullwell`
+- `npm run test:packaging --workspace @fullwell/fullwell`
+- `npm run test --workspace @fullwell/local-runner`
+- `npm run test --workspace @hfj/contracts`
+- `npm run typecheck`
+- `npm run test:e2e`
+- `npm run capture:screencast -- --output artifacts/screencasts/configurable-cart-maximum.mp4`
+- `npm run verify`
+- `npm run verify:docs`
+- `npm run verify:execplan`
+
+Exit criteria:
+
+- a USD incremental amount below the configured maximum proceeds without a separate confirmation;
+- an amount equal to or above the maximum produces a bounded exact confirmation and no mutation; missing or non-USD pricing blocks safely; a changed price is re-evaluated and an increased confirmed amount requires a new confirmation;
+- a direct user request updates one canonical profile setting and the linked runner observes it through the next authoritative snapshot without gaining write authority;
+- every verified addition or recovery includes exact item, quantity, amount, and the maximum-change parenthetical;
+- legacy unpriced receipts, duplicate delivery, host failure, stale HEAD, and changed cart quantity remain fail-closed and idempotent;
+- checkout, payment, subscription, fees, novel substitution, and unrelated cart edits remain impossible.
+
 ## Acceptance / Verification
 
 The feature is accepted only when all of the following are true:
@@ -713,6 +796,9 @@ The feature is accepted only when all of the following are true:
 - The gateway verifies and routes the message but performs no journal search, agent call, product/store choice, retailer request, or cart action.
 - The local runner refreshes only when authoritative server HEAD changes; the snapshot contains only the fixed restocking path allowlist; and the agent reads its Markdown and cited evidence JSON locally.
 - With one historically supported product, the agent adds exactly one unit to the historically supported store cart without a follow-up.
+- A requested USD increment below the current automatic-add maximum is added without another confirmation; exactly equal or greater produces an exact confirmation and no mutation; missing or non-USD pricing blocks safely; a changed price is re-evaluated and an increased confirmed amount requires a new confirmation.
+- The user can say `Set my cart maximum to $75` in a direct Fullwell conversation, the canonical grocery profile changes once, and subsequent direct or linked requests use the new value.
+- Every verified addition or idempotent recovery includes the exact item, quantity, amount, and the parenthetical maximum-change reminder.
 - With salted and unsalted historical candidates, the agent asks `Salted or unsalted?`; if only salted was purchased, it does not ask about unsalted merely because the retailer sells it.
 - A recency/recurrence conflict, distinct brand/formulation/format, or historically ambiguous store yields a bounded historical follow-up rather than a silent guess.
 - A retry after Meta redelivery, lease expiry, host crash, or response failure never raises the cart above the persisted target quantity.

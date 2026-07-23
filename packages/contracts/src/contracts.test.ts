@@ -3,6 +3,7 @@ import {
   CollectionSnapshotSchema,
   EvidenceSchema,
   HostActionReceiptSchema,
+  HostReadyToActSchema,
   HouseholdSnapshotManifestSchema,
   OnboardingRecordSchema,
   OnboardingSectionStateSchema,
@@ -170,6 +171,7 @@ describe("contract boundaries", () => {
 
   it("keeps local cart receipts explicit and monotonic", () => {
     const receipt = {
+      schema_version: 2,
       request_id: "req_0123456789abcdef",
       envelope_id: "msg_0123456789abcdef",
       selected_item_reference: "snacks/items/cashews.md",
@@ -177,12 +179,68 @@ describe("contract boundaries", () => {
       retailer_locator: "products/cashews",
       baseline_quantity: 2,
       target_quantity: 2,
+      currency: "USD",
+      incremental_amount_minor: 4_999,
+      automatic_add_maximum_minor: 5_000,
+      authorization_mode: "automatic_under_maximum",
       host_session_id: null,
       state: "ready_to_act",
+      terminal_message: null,
       updated_at: "2026-07-20T12:00:00.000Z",
     };
     expect(HostActionReceiptSchema.safeParse(receipt).success).toBe(false);
     expect(HostActionReceiptSchema.safeParse({ ...receipt, target_quantity: 3 }).success).toBe(true);
+    expect(HostActionReceiptSchema.safeParse({ ...receipt, target_quantity: 3, incremental_amount_minor: 5_000 }).success).toBe(false);
+    expect(HostActionReceiptSchema.safeParse({ ...receipt, target_quantity: 3, currency: "CAD" }).success).toBe(false);
+    expect(HostActionReceiptSchema.safeParse({
+      ...receipt,
+      target_quantity: 3,
+      state: "completed",
+      terminal_message: "I added one bag for $49.99.",
+    }).success).toBe(true);
+    expect(HostActionReceiptSchema.safeParse({ ...receipt, target_quantity: 3, state: "completed" }).success).toBe(false);
+  });
+
+  it("binds automatic cart authority to a strict USD maximum", () => {
+    const ready = {
+      kind: "ready_to_act",
+      selected_item_reference: "snacks/items/cashews.md",
+      retailer_origin: "https://grocer.example/",
+      retailer_locator: "products/cashews",
+      baseline_quantity: 0,
+      target_quantity: 1,
+      currency: "USD",
+      incremental_amount_minor: 4_999,
+      automatic_add_maximum_minor: 5_000,
+      authorization_mode: "automatic_under_maximum",
+      host_session_id: null,
+    };
+    expect(HostReadyToActSchema.safeParse(ready).success).toBe(true);
+    expect(HostReadyToActSchema.safeParse({ ...ready, incremental_amount_minor: 5_000 }).success).toBe(false);
+    expect(HostReadyToActSchema.safeParse({ ...ready, automatic_add_maximum_minor: 0 }).success).toBe(false);
+    expect(HostReadyToActSchema.safeParse({ ...ready, currency: "CAD" }).success).toBe(false);
+    expect(HostReadyToActSchema.safeParse({
+      ...ready,
+      currency: "CAD",
+      incremental_amount_minor: 5_000,
+      authorization_mode: "user_confirmed",
+    }).success).toBe(true);
+    expect(HostReadyToActSchema.safeParse({ ...ready, automatic_add_maximum_minor: 1_000_001 }).success).toBe(false);
+  });
+
+  it("parses legacy receipts without granting them priced authority", () => {
+    expect(HostActionReceiptSchema.safeParse({
+      request_id: "req_0123456789abcdef",
+      envelope_id: "msg_0123456789abcdef",
+      selected_item_reference: "snacks/items/cashews.md",
+      retailer_origin: "https://grocer.example/",
+      retailer_locator: "products/cashews",
+      baseline_quantity: 0,
+      target_quantity: 1,
+      host_session_id: null,
+      state: "action_uncertain",
+      updated_at: "2026-07-20T12:00:00.000Z",
+    }).success).toBe(true);
   });
 
   it("requires hashed, user-only snapshot manifests", () => {

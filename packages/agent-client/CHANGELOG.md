@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.1.11 - 2026-07-23
+
+- Resume the optional Fullwell cloud handoff after a guest's first successful direct-local restock by adding the cloud-capabilities P.S. and asking whether to connect; omit the reminder for linked WhatsApp and already-connected households.
+- Add complete USD restocking requests automatically only when they are strictly below a configurable `USD 50.00` default maximum; let direct conversations change the canonical profile setting, require exact confirmation at or above it, and report every verified add with item, quantity, amount, and a maximum-change reminder.
+- Make every user-facing skill speak as the user's Fullwell assistant in a natural first-person voice, including explicit first-person onboarding and completion examples, while reserving the Fullwell name for real account, cloud, website, plugin, and brand distinctions.
 
 ## 1.1.10 - 2026-07-22
 

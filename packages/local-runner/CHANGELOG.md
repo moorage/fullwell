@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add a strict, profile-configured automatic cart-add maximum with a `USD 50.00` default, request-scoped price confirmation at or above the maximum, pre-action price reinspection, versioned priced receipts, fail-closed legacy recovery, and exact completion-message replay.
 - Accept snack, ingredient, condiment, and other-grocery item areas plus current and legacy purchase evidence in the fixed restocking snapshot.
 - Add the macOS local runner with OAuth PKCE, Keychain credentials, a secret-free LaunchAgent, a validated restocking-only snapshot cache, Codex and Claude Code host adapters, pre-action authorization, and idempotent local action receipts.
 - Add fail-closed revocation, stale-HEAD recovery, host timeout and process-group cancellation, and unconditional local-data purge during disconnect.

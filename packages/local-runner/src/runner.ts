@@ -1,8 +1,9 @@
 import {
-  HostActionReceiptSchema,
+  PricedHostActionReceiptSchema,
   type GitObjectId,
   type HostActionReceipt,
   type HostWorkflowState,
+  type PricedHostActionReceipt,
 } from "@hfj/contracts";
 import type { RunnerConfig } from "./config.js";
 import { GatewayRequestError, type GatewayPort } from "./gateway-client.js";
@@ -65,7 +66,8 @@ export class LocalRunner {
         return resolution.kind;
       }
       requireApprovedOrigin(resolution.retailer_origin, this.config.retailer_origin);
-      const receipt = HostActionReceiptSchema.parse({
+      const receipt = PricedHostActionReceiptSchema.parse({
+        schema_version: 2,
         request_id: claim.envelope.request_id,
         envelope_id: claim.envelope.envelope_id,
         selected_item_reference: resolution.selected_item_reference,
@@ -73,8 +75,13 @@ export class LocalRunner {
         retailer_locator: resolution.retailer_locator,
         baseline_quantity: resolution.baseline_quantity,
         target_quantity: resolution.target_quantity,
+        currency: resolution.currency,
+        incremental_amount_minor: resolution.incremental_amount_minor,
+        automatic_add_maximum_minor: resolution.automatic_add_maximum_minor,
+        authorization_mode: resolution.authorization_mode,
         host_session_id: resolution.host_session_id,
         state: "ready_to_act",
+        terminal_message: null,
         updated_at: this.now().toISOString(),
       });
       await this.receipts.write(receipt);
@@ -93,6 +100,15 @@ export class LocalRunner {
       return terminal.kind;
     }
     if (receipt.state !== "ready_to_act" && receipt.state !== "acting" && receipt.state !== "action_uncertain") return null;
+    if (!isPricedReceipt(receipt)) {
+      const terminal: HostTerminal = {
+        kind: "blocked",
+        message: "I stopped this older cart request because its price authorization was not recorded. Please ask me to restock it again.",
+        host_session_id: receipt.host_session_id,
+      };
+      await this.gateway.complete(envelope.envelope_id, this.config.device_id, envelope.lease_id, terminal);
+      return terminal.kind;
+    }
     const current = await this.snapshots.current(envelope.household_id);
     if (current === null) throw new Error("An uncertain cart action has no retained snapshot for recovery");
     const ready = readyFromReceipt(receipt);
@@ -100,7 +116,7 @@ export class LocalRunner {
   }
 
   private async performAction(
-    receipt: HostActionReceipt,
+    receipt: PricedHostActionReceipt,
     ready: HostReadyToAct,
     envelope: Extract<Awaited<ReturnType<GatewayPort["claim"]>>, { kind: "work" }>["envelope"],
     snapshotHead: GitObjectId,
@@ -113,7 +129,7 @@ export class LocalRunner {
       if (error instanceof GatewayRequestError && error.code === "REVISION_CONFLICT") await this.receipts.remove(receipt.request_id);
       throw error;
     }
-    await this.receipts.write({ ...receipt, state: "acting", updated_at: this.now().toISOString() });
+    await this.receipts.write({ ...receipt, state: "acting", terminal_message: null, updated_at: this.now().toISOString() });
     let terminal: HostTerminal;
     try {
       terminal = await this.host.act({
@@ -125,11 +141,11 @@ export class LocalRunner {
         signal,
       });
     } catch (error) {
-      await this.receipts.write({ ...receipt, state: "action_uncertain", updated_at: this.now().toISOString() });
+      await this.receipts.write({ ...receipt, state: "action_uncertain", terminal_message: null, updated_at: this.now().toISOString() });
       throw error;
     }
     const state = workflowState(terminal.kind);
-    await this.receipts.write({ ...receipt, host_session_id: terminal.host_session_id, state, updated_at: this.now().toISOString() });
+    await this.receipts.write({ ...receipt, host_session_id: terminal.host_session_id, state, terminal_message: terminal.message, updated_at: this.now().toISOString() });
     await this.gateway.complete(envelope.envelope_id, this.config.device_id, envelope.lease_id, terminal);
     return terminal.kind;
   }
@@ -167,7 +183,7 @@ export class LocalRunner {
   }
 }
 
-function readyFromReceipt(receipt: HostActionReceipt): HostReadyToAct {
+function readyFromReceipt(receipt: PricedHostActionReceipt): HostReadyToAct {
   return HostReadyToActSchema.parse({
     kind: "ready_to_act",
     selected_item_reference: receipt.selected_item_reference,
@@ -175,14 +191,27 @@ function readyFromReceipt(receipt: HostActionReceipt): HostReadyToAct {
     retailer_locator: receipt.retailer_locator,
     baseline_quantity: receipt.baseline_quantity,
     target_quantity: receipt.target_quantity,
+    currency: receipt.currency,
+    incremental_amount_minor: receipt.incremental_amount_minor,
+    automatic_add_maximum_minor: receipt.automatic_add_maximum_minor,
+    authorization_mode: receipt.authorization_mode,
     host_session_id: receipt.host_session_id,
   });
 }
 
 function terminalFromReceipt(receipt: HostActionReceipt): HostTerminal {
-  if (receipt.state === "completed") return { kind: "completed", message: "The requested cart quantity is verified.", host_session_id: receipt.host_session_id };
-  if (receipt.state === "cancelled") return { kind: "cancelled", message: "The restocking request was cancelled.", host_session_id: receipt.host_session_id };
-  return { kind: "blocked", message: "The cart change could not be completed safely.", host_session_id: receipt.host_session_id };
+  if (isPricedReceipt(receipt) && receipt.terminal_message !== null) {
+    if (receipt.state === "completed") return { kind: "completed", message: receipt.terminal_message, host_session_id: receipt.host_session_id };
+    if (receipt.state === "cancelled") return { kind: "cancelled", message: receipt.terminal_message, host_session_id: receipt.host_session_id };
+    return { kind: "blocked", message: receipt.terminal_message, host_session_id: receipt.host_session_id };
+  }
+  if (receipt.state === "completed") return { kind: "completed", message: "I verified the requested cart quantity.", host_session_id: receipt.host_session_id };
+  if (receipt.state === "cancelled") return { kind: "cancelled", message: "I cancelled the restocking request.", host_session_id: receipt.host_session_id };
+  return { kind: "blocked", message: "I could not complete the cart change safely.", host_session_id: receipt.host_session_id };
+}
+
+function isPricedReceipt(receipt: HostActionReceipt): receipt is PricedHostActionReceipt {
+  return "schema_version" in receipt && receipt.schema_version === 2;
 }
 
 function workflowState(kind: HostTerminal["kind"]): HostWorkflowState {

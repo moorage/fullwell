@@ -127,6 +127,8 @@ export const RunnerActionAuthorizationResultSchema = z.object({
   authorized_at: DateTimeSchema,
 }).strict();
 
+export const CartAuthorizationModeSchema = z.enum(["automatic_under_maximum", "user_confirmed"]);
+
 export const HostReadyToActSchema = z.object({
   kind: z.literal("ready_to_act"),
   selected_item_reference: z.string().min(1).max(256),
@@ -134,14 +136,24 @@ export const HostReadyToActSchema = z.object({
   retailer_locator: z.string().min(1).max(512),
   baseline_quantity: z.number().int().min(0).max(999),
   target_quantity: z.number().int().min(1).max(999),
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  incremental_amount_minor: z.number().int().min(0).max(100_000_000),
+  automatic_add_maximum_minor: z.number().int().min(0).max(1_000_000),
+  authorization_mode: CartAuthorizationModeSchema,
   host_session_id: z.string().min(1).max(256).nullable(),
 }).strict().superRefine((value, context) => {
   if (value.target_quantity <= value.baseline_quantity) {
     context.addIssue({ code: "custom", path: ["target_quantity"], message: "Target quantity must exceed the baseline" });
   }
+  if (value.authorization_mode === "automatic_under_maximum" && value.currency !== "USD") {
+    context.addIssue({ code: "custom", path: ["currency"], message: "Automatic cart additions require USD pricing" });
+  }
+  if (value.authorization_mode === "automatic_under_maximum" && value.incremental_amount_minor >= value.automatic_add_maximum_minor) {
+    context.addIssue({ code: "custom", path: ["incremental_amount_minor"], message: "Automatic cart additions must remain strictly below the maximum" });
+  }
 });
 
-export const HostActionReceiptSchema = z.object({
+const HostActionReceiptBaseSchema = z.object({
   request_id: RequestIdSchema,
   envelope_id: MessageEnvelopeIdSchema,
   selected_item_reference: z.string().min(1).max(256),
@@ -152,15 +164,46 @@ export const HostActionReceiptSchema = z.object({
   host_session_id: z.string().min(1).max(256).nullable(),
   state: HostWorkflowStateSchema,
   updated_at: DateTimeSchema,
-}).strict().superRefine((value, context) => {
+});
+
+export const LegacyHostActionReceiptSchema = HostActionReceiptBaseSchema.strict().superRefine((value, context) => {
   if (value.target_quantity <= value.baseline_quantity) {
     context.addIssue({ code: "custom", path: ["target_quantity"], message: "Target quantity must exceed the baseline" });
   }
 });
 
+export const PricedHostActionReceiptSchema = HostActionReceiptBaseSchema.extend({
+  schema_version: z.literal(2),
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  incremental_amount_minor: z.number().int().min(0).max(100_000_000),
+  automatic_add_maximum_minor: z.number().int().min(0).max(1_000_000),
+  authorization_mode: CartAuthorizationModeSchema,
+  terminal_message: z.string().trim().min(1).max(480).nullable(),
+}).strict().superRefine((value, context) => {
+  if (value.target_quantity <= value.baseline_quantity) {
+    context.addIssue({ code: "custom", path: ["target_quantity"], message: "Target quantity must exceed the baseline" });
+  }
+  if (value.authorization_mode === "automatic_under_maximum" && value.currency !== "USD") {
+    context.addIssue({ code: "custom", path: ["currency"], message: "Automatic cart additions require USD pricing" });
+  }
+  if (value.authorization_mode === "automatic_under_maximum" && value.incremental_amount_minor >= value.automatic_add_maximum_minor) {
+    context.addIssue({ code: "custom", path: ["incremental_amount_minor"], message: "Automatic cart additions must remain strictly below the maximum" });
+  }
+  const terminal = value.state === "completed" || value.state === "needs_input" || value.state === "blocked" || value.state === "cancelled";
+  if (terminal !== (value.terminal_message !== null)) {
+    context.addIssue({ code: "custom", path: ["terminal_message"], message: "Terminal receipt states require exactly one terminal message" });
+  }
+});
+
+export const HostActionReceiptSchema = z.union([
+  PricedHostActionReceiptSchema,
+  LegacyHostActionReceiptSchema,
+]);
+
 export type MessagingProvider = z.infer<typeof MessagingProviderSchema>;
 export type MessageEnvelopeState = z.infer<typeof MessageEnvelopeStateSchema>;
 export type HostWorkflowState = z.infer<typeof HostWorkflowStateSchema>;
+export type CartAuthorizationMode = z.infer<typeof CartAuthorizationModeSchema>;
 export type RunnerTerminalState = z.infer<typeof RunnerTerminalStateSchema>;
 export type RunnerClaimRequest = z.infer<typeof RunnerClaimRequestSchema>;
 export type RunnerClaimResponse = z.infer<typeof RunnerClaimResponseSchema>;
@@ -170,3 +213,4 @@ export type HouseholdSnapshotResponse = z.infer<typeof HouseholdSnapshotResponse
 export type RunnerActionAuthorizationRequest = z.infer<typeof RunnerActionAuthorizationRequestSchema>;
 export type HostReadyToAct = z.infer<typeof HostReadyToActSchema>;
 export type HostActionReceipt = z.infer<typeof HostActionReceiptSchema>;
+export type PricedHostActionReceipt = z.infer<typeof PricedHostActionReceiptSchema>;

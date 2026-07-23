@@ -25,6 +25,7 @@ const deviceId = RunnerDeviceIdSchema.parse("dev_0000000000000801");
 const envelopeId = MessageEnvelopeIdSchema.parse("msg_0000000000000801");
 const requestId = RequestIdSchema.parse("req_0000000000000801");
 const leaseId = MessageLeaseIdSchema.parse("lse_0000000000000801");
+const completedMessage = "I added 1 bag of salted cashews for $12.99. (P.S. You can change your automatic cart-add maximum by saying, \"Set my cart maximum to $75.\")";
 const work: RunnerClaimResponse = {
   kind: "work",
   envelope: {
@@ -97,16 +98,20 @@ describe("LocalRunner", () => {
         retailer_locator: "/products/cashews",
         baseline_quantity: 1,
         target_quantity: 2,
+        currency: "USD",
+        incremental_amount_minor: 1_299,
+        automatic_add_maximum_minor: 5_000,
+        authorization_mode: "automatic_under_maximum",
         host_session_id: "host-session",
       }));
-      const act = vi.fn<AgentHostPort["act"]>(async () => ({ kind: "completed", message: "Added one bag of salted cashews.", host_session_id: "host-session" }));
+      const act = vi.fn<AgentHostPort["act"]>(async () => ({ kind: "completed", message: completedMessage, host_session_id: "host-session" }));
       const host: AgentHostPort = { resolve, act };
       const receipts = new ActionReceiptStore(join(root, "receipts"));
       const runner = new LocalRunner(runnerConfig(root), gatewayValue.value, new SnapshotCache(root), receipts, host, () => new Date("2026-07-20T16:01:00.000Z"));
       await expect(runner.drainOnce()).resolves.toBe("completed");
       expect(gatewayValue.authorizeAction).toHaveBeenCalledWith(householdId, deviceId, "a".repeat(40));
       expect(gatewayValue.completed[0]?.[3]).toMatchObject({ kind: "completed" });
-      expect((await receipts.read(requestId))?.state).toBe("completed");
+      expect(await receipts.read(requestId)).toMatchObject({ state: "completed", terminal_message: completedMessage });
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -118,7 +123,7 @@ describe("LocalRunner", () => {
       const gatewayValue = gateway([work, work]);
       const act = vi.fn<AgentHostPort["act"]>()
         .mockRejectedValueOnce(new Error("browser disconnected"))
-        .mockResolvedValueOnce({ kind: "completed", message: "The target quantity was already present.", host_session_id: "host-session" });
+        .mockResolvedValueOnce({ kind: "completed", message: completedMessage, host_session_id: "host-session" });
       const resolve = vi.fn<AgentHostPort["resolve"]>(async () => ({
         kind: "ready_to_act",
         selected_item_reference: "snacks/items/cashews.md",
@@ -126,6 +131,10 @@ describe("LocalRunner", () => {
         retailer_locator: "/products/cashews",
         baseline_quantity: 0,
         target_quantity: 1,
+        currency: "USD",
+        incremental_amount_minor: 1_299,
+        automatic_add_maximum_minor: 5_000,
+        authorization_mode: "automatic_under_maximum",
         host_session_id: "host-session",
       }));
       const host: AgentHostPort = { resolve, act };
@@ -152,9 +161,11 @@ describe("LocalRunner", () => {
       const resolve = vi.fn<AgentHostPort["resolve"]>(async () => ({
         kind: "ready_to_act", selected_item_reference: "snacks/items/cashews.md",
         retailer_origin: "https://retailer.example.test/", retailer_locator: "/products/cashews",
-        baseline_quantity: 0, target_quantity: 1, host_session_id: "host-session",
+        baseline_quantity: 0, target_quantity: 1, currency: "USD",
+        incremental_amount_minor: 1_299, automatic_add_maximum_minor: 5_000,
+        authorization_mode: "automatic_under_maximum", host_session_id: "host-session",
       }));
-      const act = vi.fn<AgentHostPort["act"]>(async () => ({ kind: "completed", message: "Added one bag.", host_session_id: "host-session" }));
+      const act = vi.fn<AgentHostPort["act"]>(async () => ({ kind: "completed", message: completedMessage, host_session_id: "host-session" }));
       const receipts = new ActionReceiptStore(join(root, "receipts"));
       const runner = new LocalRunner(runnerConfig(root), gatewayValue.value, new SnapshotCache(root), receipts, { resolve, act });
       await expect(runner.drainOnce()).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
@@ -196,6 +207,86 @@ describe("LocalRunner", () => {
       } finally {
         await rm(root, { recursive: true, force: true });
       }
+    }
+  });
+
+  it("replays the exact priced completion and reminder without another cart action", async () => {
+    const root = await mkdtemp(join(tmpdir(), "fullwell-runner-priced-terminal-"));
+    try {
+      const gatewayValue = gateway([work]);
+      const receipts = new ActionReceiptStore(join(root, "receipts"));
+      await receipts.write(HostActionReceiptSchema.parse({
+        schema_version: 2,
+        request_id: requestId,
+        envelope_id: envelopeId,
+        selected_item_reference: "snacks/items/cashews.md",
+        retailer_origin: "https://retailer.example.test/",
+        retailer_locator: "/products/cashews",
+        baseline_quantity: 0,
+        target_quantity: 1,
+        currency: "USD",
+        incremental_amount_minor: 1_299,
+        automatic_add_maximum_minor: 5_000,
+        authorization_mode: "automatic_under_maximum",
+        host_session_id: "host-session",
+        state: "completed",
+        terminal_message: completedMessage,
+        updated_at: "2026-07-20T16:01:00.000Z",
+      }));
+      const resolve = vi.fn<AgentHostPort["resolve"]>();
+      const act = vi.fn<AgentHostPort["act"]>();
+      const runner = new LocalRunner(
+        runnerConfig(root),
+        gatewayValue.value,
+        new SnapshotCache(root),
+        receipts,
+        { resolve, act },
+      );
+      await expect(runner.drainOnce()).resolves.toBe("completed");
+      expect(resolve).not.toHaveBeenCalled();
+      expect(act).not.toHaveBeenCalled();
+      expect(gatewayValue.completed[0]?.[3]).toEqual({
+        kind: "completed",
+        message: completedMessage,
+        host_session_id: "host-session",
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("blocks an unfinished legacy receipt without resolving or mutating the cart", async () => {
+    const root = await mkdtemp(join(tmpdir(), "fullwell-runner-legacy-receipt-"));
+    try {
+      const gatewayValue = gateway([work]);
+      const receipts = new ActionReceiptStore(join(root, "receipts"));
+      await receipts.write(HostActionReceiptSchema.parse({
+        request_id: requestId,
+        envelope_id: envelopeId,
+        selected_item_reference: "snacks/items/cashews.md",
+        retailer_origin: "https://retailer.example.test/",
+        retailer_locator: "/products/cashews",
+        baseline_quantity: 0,
+        target_quantity: 1,
+        host_session_id: "host-session",
+        state: "action_uncertain",
+        updated_at: "2026-07-20T16:01:00.000Z",
+      }));
+      const resolve = vi.fn<AgentHostPort["resolve"]>();
+      const act = vi.fn<AgentHostPort["act"]>();
+      const runner = new LocalRunner(
+        runnerConfig(root),
+        gatewayValue.value,
+        new SnapshotCache(root),
+        receipts,
+        { resolve, act },
+      );
+      await expect(runner.drainOnce()).resolves.toBe("blocked");
+      expect(resolve).not.toHaveBeenCalled();
+      expect(act).not.toHaveBeenCalled();
+      expect(gatewayValue.completed[0]?.[3]).toMatchObject({ kind: "blocked", message: expect.stringContaining("price authorization") });
+    } finally {
+      await rm(root, { recursive: true, force: true });
     }
   });
 
@@ -245,7 +336,9 @@ describe("LocalRunner", () => {
         resolve: vi.fn<AgentHostPort["resolve"]>(async () => ({
           kind: "ready_to_act", selected_item_reference: "snacks/items/cashews.md",
           retailer_origin: "https://attacker.example.test/", retailer_locator: "/cashews",
-          baseline_quantity: 0, target_quantity: 1, host_session_id: null,
+          baseline_quantity: 0, target_quantity: 1, currency: "USD",
+          incremental_amount_minor: 1_299, automatic_add_maximum_minor: 5_000,
+          authorization_mode: "automatic_under_maximum", host_session_id: null,
         })),
         act,
       };

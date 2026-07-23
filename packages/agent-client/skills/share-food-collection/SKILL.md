@@ -5,7 +5,7 @@ description: Build, preview, publish, share, list, or revoke a curated snapshot 
 
 # Share a Food Collection
 
-Follow [the MCP contract](../../references/mcp-tool-contract.md), [privacy rules](../../references/privacy-and-sharing.md), and [semantic rules](../../references/semantic-food-rules.md).
+Follow [voice and identity](../../references/voice-and-identity.md), [the MCP contract](../../references/mcp-tool-contract.md), [privacy rules](../../references/privacy-and-sharing.md), and [semantic rules](../../references/semantic-food-rules.md).
 
 1. Call `fullwell_local_household_load` before any Fullwell cloud call. If a guest household is found, explain that a Fullwell account is needed because sharing publishes a cloud snapshot, offer to back up the local household through the managing skill, and make no hosted MCP call unless the user agrees. After successful promotion, or when no local guest exists and the user says they already have an account, call `hfj_get_context` and use an editable cloud household.
 2. Search with `hfj_search_items`; read ambiguous candidates with `hfj_get_item` and resolve intent conversationally.

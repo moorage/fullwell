@@ -40,7 +40,8 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
         <PageHeader title="Your household food journal, in the agent you already use">
           <p>
             Fullwell helps your family remember recurring groceries, recipe history, and collections
-            without asking anyone to manage files or passwords.
+            without asking anyone to manage files or passwords. Start locally without an account;
+            connect Fullwell later only if you want cloud backup, WhatsApp, sharing, or family access.
           </p>
         </PageHeader>
         <div className="host-chooser" role="group" aria-label="Choose your agent">
@@ -99,12 +100,12 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
             </div>
             {promptCopyFailed ? <span className="share-failure" role="status">Copy failed. Select the setup prompt instead.</span> : null}
             {detail.setupHref === null ? null : <p className="fine-print">The button fills a new conversation. Review the prompt, then press Send.</p>}
-            <p className="trust-line">Sign-in opens in your browser. Never paste a code or access key into chat.</p>
+            <p className="trust-line">No account is required to start. If you connect one later, sign-in opens in your browser; never paste a code or access key into chat.</p>
           </div>
         </section>
         <details className="trouble">
           <summary>Having trouble?</summary>
-          <p>Check that your agent is current, then try the command again. Your household data remains on Fullwell if you reinstall the client.</p>
+          <p>Check that your agent is current, then try the command again. Reinstalling the client does not remove your local journal or cloud household.</p>
           <a href="mailto:support@fullwell.example">Contact support</a>
         </details>
         <a className="text-link text-link--arrow" href="/sign-in">

@@ -23,6 +23,12 @@ Guided first run may store one versioned JSON checkpoint under `~/.codex/fullwel
 
 Bind every load to the current repository HEAD and both onboarding revisions. Never scan another user or household directory, merge stale or malformed content, or overwrite a newer local draft revision. Store only bounded source scope, progress cursors, typed food evidence, semantic decisions, profiles, reports, and finalization metadata. Exclude credentials, passwords, authorization headers, access or refresh tokens, cookies, browser state, screenshots, raw HTML, and raw page captures. Delete the exact checkpoint after a successful final commit or explicit whole-flow cancellation; retain it after an uncertain or failed remote write.
 
+## Local guest household
+
+A person without a Fullwell account may keep one durable guest household under `~/.codex/fullwell/local/household.json`, or the configured Codex home equivalent. The local ID is generated on the device and is not a Fullwell user or household identity. The document is bounded, revision-checked, atomically replaced, and stored in `0700` directories with mode `0600`. It is accessible to another person who can access the same operating-system account and is not encrypted at rest.
+
+The guest household may contain only source scope, progress cursors, typed food evidence, agent-authored semantic decisions, profiles, items, reports, section outcomes, and cloud-backup metadata returned after a successful hosted commit. It must not contain credentials, passwords, authorization headers, access or refresh tokens, cookies, browser state, screenshots, raw HTML, raw page captures, or one-time codes. A local journal is not a cloud backup. Failed, declined, or interrupted promotion leaves it unchanged and usable. Successful promotion records the cloud user, household, repository HEAD, and exact local revision but does not delete the local copy; a later local change makes that backup marker stale.
+
 Sharing returns a link and suggested message. Use an operating-system share sheet when available, otherwise let the user copy the link or open an email/text draft. Never read contacts or transmit a message without the user's confirmation in their chosen application.
 
 ## Import boundary

@@ -7,7 +7,7 @@
 - Impact: `high`
 - Confidence: `high`
 - Effort: `medium`
-- Last reviewed: `2026-07-21`
+- Last reviewed: `2026-07-22`
 
 ## Why this matters
 
@@ -24,10 +24,11 @@ Installing Fullwell currently exposes useful starter prompts but does not guide 
 - The first complete grocery audit produced 196 items and 804 evidence records, exceeding the provisional 100-item/500-evidence finalization caps. Guided finalization must accept up to 10,000 of each inside the separately bounded 16 MiB MCP request instead of forcing extra approval prompts for a normal history.
 - The bundled grocery-audit skill said to inspect each order and expand item lists, but did not explicitly tell the authorized browser workflow that listing cards are incomplete discovery surfaces. Every qualifying order needs a detail-page visit and complete item expansion before the audit can claim coverage.
 - The user asked the same pass to learn ingredients, condiments, and other groceries so later requests such as buying parsley or excluding Japanese-style mayonnaise can use the usual historical product and store. The recurrence threshold must not discard low-frequency identities.
+- The user rejected authentication as the first-run gate because a single-user grocery and recipe journal has useful local value before collaboration. A new installation should ask whether the person already has a Fullwell account, use OAuth only when they answer yes, and otherwise collect into a durable local household before offering optional cloud backup for WhatsApp, sharing, or multiplayer use.
 
 ## Proposed direction
 
-Treat onboarding as a small typed state machine with an approval-efficient orchestration layer. `hfj_get_context` returns the stable authenticated user ID, per-user section state, both profiles, and a bounded item identity index from one consistent selected-household snapshot. Before the first question in each new or resumed section, the host briefly explains what that history enables in everyday terms; it never relies on an unexplained "setup" label. The internal `snacks` section remains a compatibility key, but one order-detail traversal learns separate snack, ingredient, condiment, and other-grocery items, including identities below the recurrence threshold. The host checkpoints the unconfirmed grocery-and-recipe draft under the Codex home with exact user, household, HEAD, onboarding-revision, and local-draft-revision binding, presents one final summary, and calls `hfj_commit_onboarding` once after explicit confirmation. That final tool validates same-request evidence and conclusions together, creates one canonical Git commit when content changes, and compare-and-sets bounded Neon skip outcomes with recovery intent. The legacy `hfj_update_onboarding` transition remains compatible with older clients. Household-wide completion remains derived from canonical reports.
+Treat onboarding as a small typed state machine with an approval-efficient orchestration layer and two explicit authority modes. Before any hosted tool call, a fresh install asks whether the person already has a Fullwell account. Existing account holders use the current OAuth and hosted-household path. Everyone else initializes a bounded, atomic local household under the active Codex home, completes the same grocery-then-recipe audit without a Fullwell MCP call, and can use that local journal for direct restocking and recipe recall. After local collection is safely finalized, the host offers an optional Fullwell account and cloud backup, explaining that it enables WhatsApp, sharing, and family access. A successful promotion authenticates, reconciles against the selected hosted household, commits once through the existing typed onboarding boundary, and records the cloud linkage locally without deleting the local copy. A failed, declined, or interrupted promotion leaves the local journal authoritative and usable.
 
 ## Non-goals
 
@@ -35,7 +36,8 @@ Treat onboarding as a small typed state machine with an approval-efficient orche
 - Add keyword classifiers for decline phrases or food semantics.
 - Add a separate MCP tool for every onboarding transition.
 - Change the stable host plugin, OAuth client, or MCP service identifiers.
-- Make onboarding completion authoritative outside the household Git repository.
+- Add automatic background synchronization between a guest journal and a hosted household.
+- Make WhatsApp, collection sharing, or multiplayer access work without a Fullwell account.
 
 ## Priority and sequencing
 

@@ -1,55 +1,86 @@
 ---
 name: manage-household-food-journal
-description: Handle every Fullwell greeting or setup request, including a bare @Fullwell hi, by checking unresolved grocery-history-then-recipe onboarding before general help; also authenticate, select or migrate a household, manage family access, profiles, and exports.
+description: Handle every Fullwell greeting or setup request through local-first grocery-and-recipe onboarding, optional account connection and cloud backup, hosted household selection, family access, profiles, and exports.
 ---
 
 # Manage Household Food Journal
 
-Use the hosted MCP service for canonical household reads and writes. Use the bundled [local onboarding draft helper](../../runtime/onboarding-draft.mjs) only for the resumable guided-first-run checkpoint. Follow [the MCP contract](../../references/mcp-tool-contract.md) and [privacy rules](../../references/privacy-and-sharing.md).
+Fullwell has two explicit authority modes:
 
-## Start or resume
+- A **local guest household** works without a Fullwell account and is the default for a new installation. It supports grocery-history collection, recipe collection, direct restocking, and recipe recall on this computer.
+- A **cloud household** uses the hosted MCP service and is required for cloud backup, WhatsApp, collection sharing, invitations, and multiplayer access.
 
-1. Call `hfj_get_context` before replying to any Fullwell greeting or setup request.
-2. If authentication is required, tell the user to finish in the service browser window. Never request a token.
-3. Resume a pending family invitation or collection import before ordinary setup.
-4. If there is no pending intent and no household, ask for a short household name and call `hfj_create_household` with an idempotency key.
-5. If multiple households exist, present readable names and roles, ask which to use, and call `hfj_select_household`.
-6. After creating or selecting a household, refresh with `hfj_get_context` and begin guided first run. Do not interrupt it with an invitation offer.
+Use the bundled [local household helper](../../runtime/local-household.mjs) for guest data and [local onboarding draft helper](../../runtime/onboarding-draft.mjs) for unconfirmed work tied to an authenticated cloud household. Pass helper JSON only through standard input; never put draft contents in command arguments. Follow [the MCP contract](../../references/mcp-tool-contract.md) and [privacy rules](../../references/privacy-and-sharing.md).
 
-## Guided first run
+## Choose authority before authentication
 
-Treat every greeting addressed to Fullwell, including a bare `@Fullwell hi`, as a request to start or resume guided first run. If `hfj_get_context` reports any `not_started`, `in_progress`, or `skipped` section, continue the flow without another Fullwell call. Do not return a generic greeting, list capabilities, ask what is on the user's mind, ask what they want to set up, or present snacks-versus-recipes choices while onboarding work remains. General help is appropriate only when both sections are `complete`.
+Treat every greeting addressed to Fullwell, including a bare `@Fullwell hi`, as a request to start or resume this flow. Never call a Fullwell MCP tool merely to discover whether the person has an account.
 
-Checkpoint the evolving draft with `../../runtime/onboarding-draft.mjs`, resolved from this skill's directory. Run it with Node and pass exactly one JSON request on standard input; never put draft contents in command arguments. The helper writes only under the active Codex home at `fullwell/drafts/<user-id>/<household-id>/onboarding.json`. This local checkpoint is resumable working state, not canonical Fullwell data. Do not save another copy in the workspace, host memory, browser profile, or an ad hoc file. Until final confirmation, do not call `hfj_update_onboarding`, `hfj_get_profile`, `hfj_search_items`, `hfj_get_item`, `hfj_append_evidence`, `hfj_update_profile`, or `hfj_commit_change_set` in the normal guided path.
+1. Run `../../runtime/local-household.mjs` with Node and exactly `{ "operation": "load" }` on standard input. Never put journal contents in command arguments.
+2. If it returns a local household, resume it without asking the account question again. A `collecting` household resumes its first unresolved grocery or recipe section. A `ready` household can answer direct local requests; offer cloud backup only at the end of a setup run, when its recorded backup is stale, or when the user requests an account-gated feature.
+3. If it returns `missing`, ask exactly one routing question before any hosted call: "Do you already have a Fullwell account?"
+4. If the user says yes, use the cloud path. Calling `hfj_get_context` starts OAuth when needed; tell the user to finish in the service browser window and never request a token.
+5. If the user says no, or says they want to continue without an account, initialize the local household with `{ "operation": "initialize" }` and begin grocery-history onboarding immediately. Do not call `hfj_get_context`, create a cloud household, or mention an authentication blocker.
+6. Interpret the answer conversationally. Do not use keyword matching. If the answer is genuinely unclear, clarify only whether to connect an existing account or continue locally.
 
-The helper protocol is strict. `load` takes `operation`, `user_id`, `household_id`, `expected_head`, and `onboarding_revisions: { snacks, recipes }`. `save` adds `expected_draft_revision` and the complete `draft` object. `delete` takes `operation`, `user_id`, `household_id`, and `expected_draft_revision`; use `null` only to remove a file the helper has already rejected as malformed. Read the helper's JSON response and carry its returned `draft_revision` into the next save or delete.
+## Local guest household
 
-1. Use `user.id`, the selected `household_id`, repository HEAD, `onboarding`, both profiles, the bounded item identity index, and `items_truncated` from the single `hfj_get_context` response. Before asking a question, send the helper a `load` request with the exact user ID, household ID, HEAD, and snack/recipe revisions. Resume only a `found` draft. On `missing`, start at local draft revision zero. On an expired, identity-, HEAD-, or revision-mismatched result, delete that exact returned draft revision and start fresh; never merge it. If a malformed draft fails validation, delete it with `expected_draft_revision: null` and start fresh. Handle `snacks` first, then `recipes`; omit sections already `complete`.
-2. Revisit a previously skipped section only when no unskipped section remains and the user has started a later setup conversation. Its returned revision remains the final compare-and-set revision; do not write a resume transition.
-3. Start the internal `snacks` section from the snapshot's snack profile, but describe it to the user as learning their grocery history. Before the first question, briefly explain the practical benefit in friendly, plain language, even when resuming: "Fullwell can learn the snacks, ingredients, condiments, and other groceries your family buys. Later, you can say, 'Restock cashews,' 'Buy a head of parsley,' or 'I need more mayo - not the Japanese one,' and I can use your past orders to identify the product and store you usually use before helping add it to your cart after you confirm. I just need to know which grocery sites to look on." Do not use an unexplained label such as "snack setup." Say the benefit once per section in this conversation, then reuse confirmed stores and preferences without re-asking. Ask the first missing question about grocery stores the user orders from; after sources are named, ask only for browser authorization and preference or exclusion details needed to interpret the audit. Use the grocery-audit skill in guided draft mode. Unless the user asks to change them, use a trailing 12-month window and recurrence threshold of two distinct orders.
-4. After the snack draft is complete or locally marked skipped, start recipes from the snapshot's recipe profile. Before the first recipe question, briefly explain the practical benefit in friendly, plain language, even when resuming: "Fullwell can remember the recipes your family saves, cooks, and likes. Later, you can ask, 'What was that pasta we loved?' or 'What should we make again?' and I can answer from your actual recipe history instead of guessing. I just need to know where you save or discuss recipes." Do not use an unexplained label such as "recipe setup." Say the benefit once per section in this conversation, then reuse confirmed sources and preferences without re-asking. Ask where the user saves, finds, or discusses recipes, then only the source-scope, meaning, authorization, and preference questions needed for collection. Use the recipe-history skill in guided draft mode.
-5. After every user answer, completed order detail, collected recipe occurrence, section skip, or other meaningful progress, send the helper a `save` request containing the exact snapshot binding, the last returned local draft revision, and the complete bounded working draft. Retain source scope, completed-source cursors, typed evidence, semantic decisions, profile edits, reports, expected item revisions, section outcomes, and the stable final idempotency key. Keep only the information needed to resume; never store credentials, cookies, tokens, browser state, screenshots, raw HTML, or raw page captures. If `DRAFT_CONFLICT` occurs, reload and do not overwrite another conversation's progress.
-6. If the user naturally declines the current section, record a draft `skip` outcome with its snapshot revision and exactly one reason: `no_sources` when there are no applicable sources, `not_now` when they defer or say never mind, or `user_declined` for another refusal. Save the checkpoint, advance to the next section without asking permission, and do not revisit a section skipped in this guided run.
-7. Interpret meaning conversationally; never imitate keyword matching. If the user explicitly stops, cancels, or quits the whole setup, delete the exact current local draft revision and end without a Fullwell write.
-8. Before any write, validate that the draft contains at most 10,000 evidence records and 10,000 items, that the complete MCP request is at most 16 MiB, and that it does not depend on an omitted item when `items_truncated` is true. If exact current items are required, explain why and use the narrow legacy read tools before presenting the confirmation. A draft within both count limits and the byte limit must use the one final onboarding write; never split it or make intermediate writes. If it exceeds either bound, keep the checkpoint and name the exact blocking count or byte limit instead of claiming completion.
-9. Present one concise final summary covering source/profile changes, evidence counts, item counts by grocery area, reports, and skipped sections. Ask for explicit confirmation to save it. If the user declines or edits the summary, keep drafting and checkpoint the change without a Fullwell write.
-10. After confirmation, call `hfj_commit_onboarding` exactly once with the snapshot HEAD, the checkpointed stable idempotency key, unique section outcomes, changed profiles, evidence, items, canonical reports, and expected item revisions. Omit unchanged profiles and already-complete sections. A `complete` outcome is valid only when the matching canonical report is included or already exists. Delete the exact local draft revision only after the tool reports success.
-11. On an uncertain result, retain the checkpoint and retry the exact final request with the same idempotency key. On `REVISION_CONFLICT`, reread context, reconstruct the draft against current state, show the changed summary, and confirm again. Never delete the checkpoint or report completion from local state alone after a failed, uncertain, or conflicted write.
+The helper stores one private document under the active Codex home at `fullwell/local/household.json`. This is durable local journal data, not a cloud backup. Pass one JSON request on standard input and carry the returned monotonically increasing `revision` into every mutation:
 
-After guided first run, or when the user asks specifically about family access, offer to invite another person. Ask for editor or viewer, read the current HEAD, call `hfj_create_family_invite`, and return the one-time URL without exposing it elsewhere.
+- `initialize` and `load` take only `operation`.
+- `save` adds `expected_revision` and the complete `journal` object.
+- `finalize` adds `expected_revision` and makes collected data ready for direct local use.
+- `record_cloud_backup` adds `expected_revision`, the successful hosted `user_id`, `household_id`, and `repository_head`.
+- `delete_collecting` adds `expected_revision` and may remove only an unfinished guest household.
 
-## Join a family
+The journal contains only bounded source scope, completed-source cursors, typed grocery or recipe evidence, agent-authored semantic decisions, profiles, items, reports, section outcomes, and finalization metadata. It must never contain credentials, passwords, authorization headers, access or refresh tokens, cookies, browser state, screenshots, raw HTML, raw page captures, or one-time codes.
 
-Show the safe invitation preview: household name, inviter display name, requested role, and expiration. Authenticate as a distinct person, require an explicit `Join household`, then call `hfj_accept_family_invite` with `accept: true` and a stable idempotency key. Never accept because a link was opened. Refresh with `hfj_get_context` after success.
+Use this local guided flow:
 
-## Membership
+1. Handle groceries first, then recipes. Reuse the current journal after each load; do not ask for confirmed sources or preferences again.
+2. Introduce groceries in friendly benefit language before the first question: "Fullwell can learn the snacks, ingredients, condiments, and other groceries you buy. Later, you can say, 'Restock cashews,' 'Buy a head of parsley,' or 'I need more mayo - not the Japanese one,' and I can use your past orders to identify the product and store you usually use before helping add it to your cart after you confirm. I just need to know which grocery sites to look on." Ask the first missing question about grocery stores, then only the browser authorization and preference or exclusion details needed for the audit. Use the grocery-audit skill in local guided mode.
+3. After groceries complete or are locally skipped, introduce recipes before the first recipe question: "Fullwell can remember the recipes you save, cook, and like. Later, you can ask, 'What was that pasta we loved?' or 'What should we make again?' and I can answer from your actual recipe history instead of guessing. I just need to know where you save or discuss recipes." Ask where the user saves, finds, or discusses recipes, then only necessary scope, meaning, authorization, and preference questions. Use the recipe-history skill in local guided mode.
+4. After every user answer, completed order detail, collected recipe occurrence, section skip, or other meaningful progress, use `save` with the entire bounded journal and exact last revision. On `LOCAL_HOUSEHOLD_CONFLICT`, reload and never overwrite another conversation's progress.
+5. If the user naturally declines a section, store exactly one local outcome: `no_sources` when no applicable source exists, `not_now` when they defer or say never mind, or `user_declined` for another refusal. Advance to the next section without asking what to set up next. Do not treat a local skip as cloud onboarding state.
+6. If the user explicitly stops, cancels, or quits the whole unfinished setup, explain that cancellation removes the unfinished local journal and use `delete_collecting` only after they confirm deletion. Never delete a `ready` local household through this flow.
+7. Keep at most 10,000 evidence records and 10,000 items and a complete local document no larger than 16 MiB. Name the exact blocking limit rather than dropping data or claiming completion.
+8. After collection, show a concise summary of sources, evidence counts, item counts by grocery area, recipe counts, reports, and skipped sections. Use `finalize` so the journal is locally usable before discussing an account. Tell the user it is saved locally.
+9. Only after `finalize` succeeds, and only when the journal contains at least one evidence-backed grocery item, ask: "Want to try Fullwell now? Tell me something you're out of - for example, 'We're out of cashews; restock them.' I'll use your shopping history to identify the usual product and store, then ask before adding it to your cart." Omit this invitation when no restockable grocery was learned rather than implying Fullwell can identify one.
+10. Then ask: "Would you like to create or connect a Fullwell account to back this up? You only need an account for cloud backup, WhatsApp, sharing, or family access." A decline ends successfully with no Fullwell call. Do not describe the local file as cloud-backed.
 
-Use `hfj_list_members` before proposing changes. Owners may revoke an unused invitation with `hfj_revoke_family_invite`, change roles with `hfj_update_member`, and remove members with `hfj_remove_member`. Explain role effects and require explicit confirmation for revocation or removal. Never remove or demote the final owner. If the server denies a request, explain the role boundary and offer valid alternatives only.
+## Optional cloud backup of a local household
 
-## Profiles, migration, and export
+Start this only after an affirmative backup/connect answer or an explicit request for WhatsApp, sharing, invitations, or family access.
 
-Outside guided first run, use `hfj_get_profile` and `hfj_update_profile` for user-confirmed household settings. For an existing local workspace, follow the migration boundary in the privacy reference, append bounded evidence batches with one stable migration ID, commit typed changes, compare counts, and spot-check. Do not alter the local workspace.
+1. Retain the exact ready local journal and its `promotion_idempotency_key`. Call `hfj_get_context`; if authentication is required, let the hosted OAuth flow open and never ask the user to paste a token.
+2. Resume a pending invitation or collection import before creating an unrelated household. If no household exists, offer a concise household name and call `hfj_create_household`. If multiple editable households exist, ask which receives the backup and call `hfj_select_household`.
+3. Refresh `hfj_get_context` for one current selected-household snapshot. Reconcile each local item against the bounded hosted identity index. If the index is truncated or a candidate is ambiguous, use the narrow search/read tools. Deterministic title or URL equality may identify candidates but must never make a semantic merge decision.
+4. For a non-empty hosted household, present every create, update, separate-item, or merge choice. Require explicit user decisions for semantic candidates and use current hosted item revisions. Never silently overwrite cloud data.
+5. Rebuild local section outcomes against the current hosted onboarding revisions. Omit already-complete sections and unchanged profiles. Use the local `promotion_idempotency_key` for the exact retryable payload.
+6. Show one exact cloud-copy summary and ask for confirmation. Then call `hfj_commit_onboarding` once with current HEAD, reconciled items, evidence, profiles, reports, section outcomes, expected item revisions, and the stable idempotency key.
+7. Only after a successful response, call local `record_cloud_backup` with the exact current local revision and returned Fullwell user, household, and repository HEAD. Keep the local journal. Future local changes make the backup marker stale until another confirmed backup succeeds.
+8. On a failed or uncertain hosted result, retain the local journal and exact promotion payload. Retry with the same key only when the payload is unchanged. On `REVISION_CONFLICT`, reread, reconcile, summarize, and confirm again. Never report cloud backup from local state alone.
 
-Use `hfj_export_household` for a readable ZIP or verifiable Git bundle. Explain that the download URL expires. Do not imply that uninstalling this client deletes server data.
+## Existing cloud account path
 
-Handle conflicts by rereading current state and reconstructing the intended change. Finish with a precise completed, partial, blocked, or cancelled state.
+After an affirmative existing-account answer, call `hfj_get_context` and stay within the hosted path:
+
+1. Resume a pending family invitation or collection import before ordinary setup.
+2. If no household exists, ask for a short household name and call `hfj_create_household` with an idempotency key.
+3. If multiple households exist, present readable names and roles, ask which to use, and call `hfj_select_household`.
+4. Refresh `hfj_get_context`, then load the exact authenticated checkpoint from `fullwell/drafts/<user-id>/<household-id>/onboarding.json` with repository HEAD and both onboarding revisions.
+5. Run groceries then recipes using the same benefit-first questions. Save the full authenticated draft after meaningful progress. Natural declines stay in the draft; explicit cancellation deletes only its exact revision.
+6. Present one final summary and require confirmation. Call `hfj_commit_onboarding` once with the snapshot HEAD, stable idempotency key, profiles, evidence, items, reports, expected item revisions, and unique section outcomes.
+7. Only after the commit succeeds, delete the checkpoint and, when at least one evidence-backed grocery item is available, ask: "Want to try Fullwell now? Tell me something you're out of - for example, 'We're out of cashews; restock them.' I'll use your shopping history to identify the usual product and store, then ask before adding it to your cart." Retain the checkpoint and omit the invitation after a failed or uncertain result. Omit it after a successful no-grocery completion rather than implying Fullwell learned a restockable item.
+
+Never call `hfj_update_onboarding`, `hfj_get_profile`, `hfj_append_evidence`, `hfj_update_profile`, or `hfj_commit_change_set` as intermediate writes during either guided first-run path.
+
+## Account-gated capabilities
+
+For WhatsApp, collection sharing, invitations, multiplayer membership, server exports, or cloud backup, a guest must first choose the optional cloud promotion above. Explain the concrete reason for the account instead of presenting authentication as a general prerequisite.
+
+After cloud onboarding, family invitations require an editor/viewer choice and `hfj_create_family_invite`. A recipient must see the safe preview and explicitly agree before `hfj_accept_family_invite`. Owners may use `hfj_revoke_family_invite`, while membership review and changes use `hfj_list_members`, `hfj_update_member`, and `hfj_remove_member` with confirmation and final-owner protection.
+
+Outside guided first run, cloud profile reads and edits use `hfj_get_profile` and `hfj_update_profile`; cloud evidence and ordinary journal changes use `hfj_append_evidence` and `hfj_commit_change_set`. Keep the local guest authority unchanged until a separate confirmed promotion succeeds. Use `hfj_export_household` only for a cloud household and explain that its download URL expires.
+
+Handle conflicts by rereading the applicable local or hosted authority and reconstructing the intended change. Finish with a precise local, cloud-backed, partial, blocked, or cancelled state.

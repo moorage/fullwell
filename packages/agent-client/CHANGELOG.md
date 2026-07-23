@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.1.8 - 2026-07-22
+
+- Ask whether a fresh user already has an account before any Fullwell call; otherwise create a private revisioned local guest household, complete grocery and recipe onboarding without OAuth, and offer optional cloud backup only for WhatsApp, sharing, or family access.
+- Keep local journals usable for direct restocking and recipe recall, retain them after promotion, and record cloud linkage only after a confirmed hosted commit succeeds.
+- After successful onboarding learns at least one grocery item, invite the user to try an out-of-stock restocking request and explain that Fullwell will use the usual product and store before asking to add it to the cart.
+
 ## 1.1.7 - 2026-07-22
 
 - Learn snacks, ingredients, condiments, and other groceries in one onboarding pass; retain below-threshold items and honor evidence-backed exclusions such as standard rather than Japanese-style mayonnaise during restocking.

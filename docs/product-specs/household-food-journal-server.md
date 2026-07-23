@@ -23,13 +23,15 @@ Build a hosted Household Food Journal service that provides:
 
 Google Drive is out of scope. End users never interact with Git, SSH, repository hosting, personal access tokens, or server credentials.
 
+The installed agent may provide a single-user local guest journal before account creation. That guest document is outside this service's authority and contains no server identity, OAuth state, or Git checkout. The hosted service becomes involved only when the user chooses an existing account or explicitly promotes local data for cloud backup, WhatsApp, sharing, or family access. Once promoted, all cloud mutations still pass through this specification's authenticated contracts and sole Git writer.
+
 ## 2. Product decisions
 
 These decisions are normative for version 1.
 
 1. The service runs Git and is the only Git writer.
 2. Each household has a separate repository and a separate authorization boundary.
-3. Git is authoritative for household content and its audit history.
+3. Git is authoritative for cloud household content and its audit history. A pre-account local guest journal is a separate client authority and is never presented as cloud-backed.
 4. Neon PostgreSQL stores operational state needed for authentication, OAuth, sessions, idempotency, locks, token revocation, invitations, and query projections. It is not the authoritative copy of household journal content.
 5. Agents, guided by installed skills, make semantic decisions and author Markdown reports. The server does not classify food, merge food identities, decide recipe equivalence, infer statuses, or write report prose.
 6. The server validates structure, authorization, evidence references, arithmetic assertions, allowed transitions, and Git consistency.

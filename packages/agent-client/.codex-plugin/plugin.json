@@ -1,6 +1,6 @@
 {
   "name": "fullwell",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "Keep an evidence-backed family food journal with Codex.",
   "homepage": "https://fullwell.souschefstudio.com/install",
   "license": "UNLICENSED",
@@ -10,7 +10,7 @@
   "interface": {
     "displayName": "Fullwell",
     "shortDescription": "Audit groceries, remember recipes, and share collections.",
-    "longDescription": "Maintain a private, evidence-backed household food journal and share only intentional collection snapshots.",
+    "longDescription": "Start locally without an account, maintain a private evidence-backed food journal, and connect Fullwell only when you want cloud backup, WhatsApp, sharing, or family access.",
     "developerName": "Fullwell",
     "category": "Lifestyle",
     "capabilities": ["Read", "Write"],

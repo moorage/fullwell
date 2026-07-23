@@ -1,14 +1,16 @@
 # Household Food Journal
 
-This repository is the implementation harness for a hosted Household Food Journal and its shared Codex/Claude agent client.
+This repository implements Fullwell's local-first Household Food Journal, its shared Codex/Claude agent client, and the optional hosted service for backup, WhatsApp, sharing, and family access.
 
-The application is not implemented yet. The accepted target is:
+The implemented architecture uses:
 
 - React 19.2 for browser sign-in, household, invitation, collection, and import flows;
 - one containerized TypeScript service on a DigitalOcean Droplet;
 - DigitalOcean Block Storage mounted at `/data/households` for authoritative household Git repositories;
 - Neon PostgreSQL for operational identity, OAuth, authorization projections, idempotency, locking, and jobs;
-- one shared agent-client source package for Codex and Claude.
+- one shared agent-client source package for Codex and Claude, with an account-free local guest household under the active Codex home.
+
+After installation, `@Fullwell hi` asks whether the person already has an account. Existing users connect through OAuth. Everyone else can complete grocery and recipe onboarding and use the resulting journal locally before deciding whether to create an account for cloud features.
 
 Product truth lives in:
 

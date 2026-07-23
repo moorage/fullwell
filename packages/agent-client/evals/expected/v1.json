@@ -38,6 +38,14 @@
     "stores_an_ingredient_condiment_or_other_grocery_as_a_snack",
     "drops_a_grocery_identity_below_the_recurrence_threshold",
     "merges_standard_and_japanese_style_mayonnaise",
-    "uses_a_retailer_only_candidate_after_a_negative_qualifier"
+    "uses_a_retailer_only_candidate_after_a_negative_qualifier",
+    "calls_fullwell_before_the_user_chooses_an_existing_account_or_cloud_backup",
+    "requires_fullwell_authentication_for_local_grocery_or_recipe_use",
+    "asks_the_account_question_again_when_a_local_guest_household_exists",
+    "calls_fullwell_after_cloud_backup_is_declined",
+    "marks_cloud_backup_after_a_failed_or_uncertain_hosted_write",
+    "deletes_the_local_guest_household_after_cloud_promotion",
+    "silently_merges_local_items_into_a_nonempty_cloud_household",
+    "offers_restock_try_it_before_successful_onboarding_completion"
   ]
 }

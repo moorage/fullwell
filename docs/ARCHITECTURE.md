@@ -7,7 +7,9 @@ This document is the top-level code and authority map. Product behavior is norma
 Household Food Journal is one hosted application plus one installable agent-client package.
 
 ```text
-Codex / Claude ------- MCP over HTTPS + OAuth -------+
+Codex / Claude -- local guest household -- current computer
+      |
+      `------------- MCP over HTTPS + OAuth ----------+
                                                        |
 Browser ------- React 19.2 web experience ------------+---- TypeScript application service
                                                             |  HTTP, OAuth, MCP, jobs
@@ -76,9 +78,9 @@ Purpose: package shared Codex and Claude skills, host manifests, remote MCP conf
 
 Path: `packages/agent-client/`, with repository discovery catalogs at `.agents/plugins/marketplace.json` for Codex and `.claude-plugin/marketplace.json` for Claude.
 
-The agent client never contains canonical household data, account state, credentials, a Git synchronization engine, or a programmatic semantic classifier. Codex and Claude use the same skill source files and the same remote MCP endpoint.
+The agent client contains no bundled household data, hosted account state, credentials, Git synchronization engine, or programmatic semantic classifier. Codex and Claude use the same skill source files and the same optional remote MCP endpoint. Before cloud connection, one bounded revisioned JSON guest household under the active Codex home is authoritative on the current computer. It is not Git, is not synchronized in the background, and never contains browser or authentication material.
 
-The immutable npm package is the plugin payload, not a public marketplace catalog. Until a repository or catalog is intentionally published, host release checks may install that payload through the repository-local catalogs, but public catalog discovery remains a separate release blocker. The Codex and Claude adapters expose the branded `fullwell@fullwell` selector, Codex exposes the `Fullwell` mention, and the hosted MCP service retains the stable `household-food-journal` identifier. Shared skills drive snack-then-recipe first run from one membership-authorized snapshot, checkpoint the unconfirmed draft through a bundled dependency-free runtime under the Codex home sharded by stable Fullwell user and household IDs, and use one final typed onboarding commit after confirmation. The checkpoint is local working state only; Git and Neon authority do not change, and no application code interprets conversational declines.
+The immutable npm package is the plugin payload, not a public marketplace catalog. Until a repository or catalog is intentionally published, host release checks may install that payload through the repository-local catalogs, but public catalog discovery remains a separate release blocker. The Codex and Claude adapters expose the branded `fullwell@fullwell` selector, Codex exposes the `Fullwell` mention, and the hosted MCP service retains the stable `household-food-journal` identifier. Shared skills ask whether a fresh user already has an account before any hosted call. Existing users follow the membership-authorized snapshot path. Everyone else uses the bundled dependency-free local-household runtime, completes grocery-then-recipe onboarding locally, and can use direct restocking and recipe recall without OAuth. Optional promotion authenticates, reconciles against one selected cloud household, commits through the existing typed onboarding boundary, and records linkage only after success. Authenticated unconfirmed drafts remain separately sharded by Fullwell user and household IDs.
 
 ### Messaging gateway and local runner
 
@@ -132,7 +134,7 @@ Raw traces live under ignored `.codex/self-improvement/`. Tracked documents cont
 
 ## Authority rules
 
-1. Git is authoritative for journal content, exportable household settings, collection snapshots, import provenance, and audit history.
+1. Git is authoritative for cloud household journal content, exportable settings, collection snapshots, import provenance, and audit history. Before cloud promotion, the single local guest document is authoritative only for that computer.
 2. Neon is authoritative for private identity, sessions, OAuth, authorization projections, idempotency, token revocation, jobs, and reconciliation state.
 3. The server is the only Git writer. Agent clients and browsers mutate through authenticated server contracts.
 4. Authorization uses the Neon projection and fails closed when projection state disagrees with Git.

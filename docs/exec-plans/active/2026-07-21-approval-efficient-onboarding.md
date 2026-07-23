@@ -2,7 +2,7 @@
 
 ## Purpose / Big Picture
 
-Fullwell onboarding currently turns one conversational snack-then-recipe flow into a sequence of separately approved MCP reads and writes. The user should instead approve at most one initial Fullwell read and one final Fullwell write in the normal fresh-household path. `hfj_get_context` returns a bounded, membership-authorized onboarding snapshot containing the current user ID, section states, snack and recipe profiles, repository HEAD, and a bounded existing-item index. Codex or Claude checkpoints answers and collected evidence in a local, identity-sharded draft until it can show a final summary. One `hfj_commit_onboarding` tool then validates and persists the complete evidence, item, report, profile, and skip result as one idempotent household mutation and one signed Git commit.
+Fullwell onboarding must provide value before requiring an account. A fresh installation first asks whether the person already has a Fullwell account. Existing account holders use the current OAuth and hosted-household path. Everyone else completes grocery-history and recipe onboarding against a durable local guest household without any Fullwell MCP call, can use that local data for direct restocking and recipe recall, and is offered optional cloud backup only after collection. Creating an account remains required for WhatsApp, collection sharing, and multiplayer access. The existing hosted path still uses one membership-authorized snapshot, a local checkpoint, and one final `hfj_commit_onboarding` write.
 
 The final write must also fit real grocery histories. The original 100-item and 500-evidence limits were conservative schema guards chosen alongside the one-megabyte HTTP default before a live audit produced 196 items and 804 evidence records. They are not domain or storage constraints. The confirmed onboarding contract now needs count limits of 10,000 items and 10,000 evidence records while retaining a separate route-specific byte limit, authorization, revision checks, idempotency, and one-commit semantics.
 
@@ -10,6 +10,14 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 ## Progress
 
+- [x] Milestone 8 - make new-user onboarding local-first before OAuth, preserve direct local utility, and promote to cloud only after an explicit backup choice.
+- [x] 2026-07-22T23:58Z: Milestone 8 complete locally - added the private revisioned guest-household runtime, routed fresh and resumed conversations without pre-consent MCP calls, preserved direct local grocery/recipe use, made cloud backup an explicit non-destructive promotion, prepared package `1.1.8`, and synchronized install, architecture, security, reliability, product, changelog, and privacy guidance.
+- [x] 2026-07-22T23:58Z: Passed seven local-runtime tests, the 44-case cross-host eval matrix, all 15 packaging/lifecycle tests, package build, 289 deterministic application tests with 11 expected database skips, and 29 WebKit checks with seven intentional skips. The final dry pack contains 19 entries with SHA-1 `f88bc7c0623a51956e9c5db2cea186a2d4dfeb0c`; no commit, publication, host upgrade, or server deployment is claimed.
+- [x] 2026-07-22T23:58Z: Attempted `artifacts/screencasts/local-first-fullwell-onboarding.mp4`; Homebrew FFmpeg 8.0.1 rejected the helper's Linux-only `x11grab` input with code 234, so no MP4 was produced.
+- [x] 2026-07-23T00:05Z: Added Bead `fullwell-gs8.12` and a success-gated completion handoff that invites one concrete out-of-stock restocking request after local finalization or hosted commit, names learned product/store history, preserves cart confirmation, and stays absent after unsuccessful or no-grocery runs.
+- [x] 2026-07-23T00:07Z: Passed the 44-case cross-host eval matrix, all 15 package/lifecycle tests, package validation, documentation and ExecPlan gates, and the complete repository verification with 289 application tests and 11 expected database skips. The first full run reported an unrelated post-test local-runner `EPIPE`; its isolated two-test rerun and the complete verification rerun passed without code changes.
+- [x] 2026-07-22T23:12Z: Passed the Milestone 8 failure-oriented feature-critic gate after requiring remembered guest routing, zero remote discovery calls, durable direct local utility, semantic reconciliation for non-empty hosted households, non-destructive failed promotion, exact-retry binding, forbidden local-data checks, and rollback-readable local state.
+- [x] 2026-07-22T23:06Z: Created and claimed Bead `fullwell-gs8.11`; reframed the primary install journey around local value before account creation and decomposed the guest runtime, shared skill routing, cloud promotion, eval, packaging, and documentation work.
 - [x] 2026-07-22T22:34Z: Pushed commit `681952e`, deployed checksum-matched Linux/amd64 image `hfj-staging:whole-grocery-20260722-1-runtime` with the prior image retained for rollback, published immutable `@fullwell/fullwell@1.1.7`, upgraded both current hosts, and passed public deployment, MCP, registry-integrity, and clean-install lifecycle checks.
 - [x] 2026-07-22T21:24Z: Milestone 7 complete locally - mixed grocery kinds, canonical paths, one-pass low-frequency learning, broader runner snapshot/prompt, user messaging, dashboard counts, package `1.1.7`, 39 cross-host eval cases, 300 deterministic tests with 11 expected database skips, and 29 WebKit checks with seven intentional project skips pass.
 - [x] 2026-07-22T21:10Z: Framed the grocery-history expansion with UX, semantic-data, privacy, reliability, and eval perspectives; claimed Bead `fullwell-gs8.7` and decomposed one-pass collection, first-class grocery kinds, restocking availability, and compatibility work.
@@ -37,6 +45,9 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 ## Surprises & Discoveries
 
+- 2026-07-22: The current local checkpoint cannot serve an unauthenticated person because its path and validity are bound to a Fullwell user ID, household ID, hosted repository HEAD, and hosted onboarding revisions. A guest path needs its own durable local identity and revision boundary rather than fake server identifiers.
+- 2026-07-22: Delaying only the final write is insufficient. If the first `hfj_get_context` call remains mandatory, MCP OAuth still precedes all product value. The shared skill must ask the account question before calling any hosted tool.
+- 2026-07-22: Local onboarding data must be readable by ordinary direct grocery and recipe requests; otherwise declining cloud backup creates a dead-end artifact rather than a usable local product.
 - 2026-07-21: Codex tool approval is host-owned. A plugin cannot grant itself a temporary onboarding approval lease, so Fullwell must reduce its own call count and truthfully annotate tool effects rather than trying to suppress host safety policy.
 - 2026-07-21: The current audit path intentionally commits evidence before conclusions, which creates at least two Git writes per section. A one-write onboarding path must validate newly submitted evidence and conclusions together without weakening the evidence-first semantic rule.
 - 2026-07-21: Per-user skip state is Neon operational data, while completed state is derived from canonical Git reports. A mixed complete/skip finalization therefore crosses the existing Git and Neon recovery boundary and must retain bounded recovery intent in the mutation record.
@@ -52,6 +63,9 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 ## Decision Log
 
+- 2026-07-22: Make the default new-user authority a single local guest household under the active Codex home. Do not synthesize Fullwell user or household IDs and do not call the hosted MCP service until the user says they already have an account or explicitly chooses cloud backup.
+- 2026-07-22: Treat cloud enablement as an explicit promotion, not background sync. Persist locally first, authenticate only after consent, reconcile against the selected hosted household, use the existing idempotent onboarding commit, and retain the local journal unless the user separately deletes it.
+- 2026-07-22: Keep WhatsApp, collection sharing, invitations, and multiplayer account-gated. Direct local grocery restocking and recipe recall must work without an account.
 - 2026-07-22: Keep `snacks` as the internal onboarding section, profile, completion-report type, and legacy path for backward compatibility, but describe the section to people as grocery-history onboarding for snacks, ingredients, condiments, and other groceries.
 - 2026-07-22: Add first-class `ingredient`, `condiment`, and `other_grocery` journal item kinds beside `snack` and `recipe`. Store them under `ingredients/items/`, `condiments/items/`, and `groceries/items/`; write new purchase evidence under `groceries/evidence/` while continuing to read legacy `snacks/evidence/`.
 - 2026-07-22: One authorized order-detail traversal must classify every in-scope grocery line into an evidence-backed item. The recurrence threshold controls report inclusion, not whether a low-frequency item such as parsley is learned. Semantic classification remains agent-authored rather than keyword code.
@@ -74,7 +88,7 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 `apps/server/src/services/household-food-journal.ts` implements `hfj_get_context`, profile/item reads, evidence append, change-set commits, and per-user onboarding transitions. `apps/server/src/services/mutation-runner.ts` owns the signed Git commit and durable mutation-state lifecycle. `apps/server/src/core/ports.ts`, `apps/server/src/core/types.ts`, `apps/server/src/adapters/memory.ts`, `apps/server/src/persistence/neon-operational-store.ts`, and `apps/server/src/workers/reconciliation-worker.ts` own operational state, projections, and recovery.
 
-The shared host behavior lives in `packages/agent-client/skills/manage-household-food-journal/SKILL.md`, `packages/agent-client/skills/audit-grocery-purchases/SKILL.md`, and `packages/agent-client/skills/track-recipe-history/SKILL.md`. `packages/agent-client/runtime/onboarding-draft.mjs` owns the local checkpoint boundary and is bundled for both hosts. `packages/agent-client/evals/cases/v1.json`, `packages/agent-client/evals/expected/v1.json`, and `packages/agent-client/tests/evals/matrix.test.mjs` make tool order and forbidden behavior deterministic across Codex and Claude.
+The shared host behavior lives in `packages/agent-client/skills/manage-household-food-journal/SKILL.md`, `packages/agent-client/skills/audit-grocery-purchases/SKILL.md`, and `packages/agent-client/skills/track-recipe-history/SKILL.md`. `packages/agent-client/runtime/onboarding-draft.mjs` owns the authenticated checkpoint boundary, while `packages/agent-client/runtime/local-household.mjs` owns the account-free guest authority and optional cloud-link marker; both are bundled for both hosts. `packages/agent-client/evals/cases/v1.json`, `packages/agent-client/evals/expected/v1.json`, and `packages/agent-client/tests/evals/matrix.test.mjs` make tool order and forbidden behavior deterministic across Codex and Claude.
 
 Assumptions and constraints:
 
@@ -118,6 +132,8 @@ The problem is not merely the number of tool calls. It is that Fullwell persists
 ### Synthesis for decomposition
 
 Prove the combined contract and validation first. Then integrate recovery and one-commit persistence. Only after the server boundary passes race/replay tests should the shared skills stop making intermediate mutations. Roll out the server before publishing the client, retain old tools through the compatibility window, and verify the exact current Codex host call sequence against staging.
+
+For the local-first iteration, the UX lens requires useful grocery and recipe behavior before sign-in and a single plain-language account question before any hosted call. The privacy lens requires that local state exclude credentials, cookies, browser state, screenshots, raw HTML, and raw page captures. The architecture lens treats guest storage as a separate local authority realm rather than weakening the hosted server's sole-writer rule. The reliability lens requires revision-checked atomic writes, resumability, and non-destructive retry after failed cloud promotion. The eval lens must prove both hosts make zero Fullwell calls on the guest path and begin OAuth only after an affirmative account or backup choice.
 
 For the 10,000-record correction, the UX lens requires one final approval to cover a real audit rather than forcing artificial partial saves. The security lens requires a route-specific byte ceiling instead of globally accepting large bodies. The reliability lens requires exact-limit and over-limit tests plus a Git staging path that does not depend on operating-system argument limits. The architecture lens keeps the ordinary mutation tools small and changes only the onboarding aggregate. The eval lens requires both hosts to treat a within-limit large draft as one final write, not as permission to split or pre-write it.
 
@@ -380,6 +396,63 @@ Verification:
 - `npm run verify:docs`
 - `npm run verify:execplan`
 
+### Milestone 8 - Local-first guest onboarding and optional cloud promotion
+
+Files:
+
+- `packages/agent-client/runtime/local-household.mjs`
+- `packages/agent-client/tests/packaging/local-household.test.mjs`
+- `packages/agent-client/skills/manage-household-food-journal/SKILL.md`
+- `packages/agent-client/skills/audit-grocery-purchases/SKILL.md`
+- `packages/agent-client/skills/track-recipe-history/SKILL.md`
+- `packages/agent-client/skills/restock-groceries/SKILL.md`
+- `packages/agent-client/skills/share-food-collection/SKILL.md`
+- `packages/agent-client/evals/cases/v1.json`
+- `packages/agent-client/evals/expected/v1.json`
+- `packages/agent-client/tests/evals/matrix.test.mjs`
+- `packages/agent-client/scripts/validate-package.mjs`
+- `packages/agent-client/package.json`
+- `packages/agent-client/.codex-plugin/plugin.json`
+- `packages/agent-client/.claude-plugin/plugin.json`
+- `.agents/plugins/marketplace.json`
+- `.claude-plugin/marketplace.json`
+- `apps/web/src/routes/install.tsx`
+- `docs/product-specs/household-food-journal-client.md`
+- `docs/ARCHITECTURE.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `CHANGELOG.md`
+- `packages/agent-client/CHANGELOG.md`
+
+Tasks:
+
+1. Add a dependency-free local guest-household runtime under the active Codex home with a generated local identity, bounded JSON journal, monotonic revision, atomic `0600` writes inside `0700` directories, a lock, explicit collecting/ready state, and optional cloud-backup metadata. Reject credentials, cookies, tokens, browser state, screenshots, raw HTML, raw pages, unsafe paths, oversized documents, stale writes, and malformed state.
+2. Route a fresh greeting through one account question before any hosted call. An affirmative existing-account answer starts the existing OAuth/context/household path. A negative answer initializes or resumes the local guest household and starts grocery-history questions immediately. A remembered guest household resumes without asking the account question again.
+3. Reuse the same grocery and recipe semantic workflow in local mode, checkpoint after meaningful progress, finalize locally before offering cloud backup, and make later direct restocking and recipe recall read the finalized local journal without MCP. Natural section declines still advance; whole-flow cancellation removes only an unfinalized guest journal after explicit confirmation.
+4. After local finalization, offer optional Fullwell account creation in benefit terms: cloud backup, WhatsApp, sharing, and family access. Only an affirmative answer may call `hfj_get_context`. Create or select a hosted household, reconcile local identities against the hosted snapshot, show the exact cloud copy/merge summary, call `hfj_commit_onboarding` once after confirmation, and record the returned user, household, HEAD, and local revision. Never delete or mark backed up after a failed or uncertain call.
+5. Keep remote MCP configuration available but on-use. Account-gated requests from a guest, including WhatsApp and collection sharing, offer promotion instead of failing generically. Update install copy, shared specifications, architecture, changelogs, package version, Codex and Claude manifests/catalogs, and the implementation log.
+6. Add deterministic runtime coverage and cross-host evals for first install/no account, existing account, guest resume, zero pre-consent Fullwell calls, local direct utility, declined backup, successful promotion, failed promotion retention, non-empty-hosted-household reconciliation, and prohibited local data.
+7. After successful local finalization or hosted onboarding commit, invite a concrete out-of-stock restocking request when grocery evidence exists. Explain history-based product/store selection and retain explicit cart confirmation; never show the invitation after failed, cancelled, unfinished, or no-grocery completion.
+
+Feature-critic constraints:
+
+- Missing local state is the only condition that asks the account question automatically. A remembered guest journal resumes locally; an explicit later request to connect or back up may start OAuth.
+- The remote MCP service must not be called to discover whether an account exists. The user's answer is the routing decision.
+- A local file is not a cloud backup and must not be described as one. Failed or declined promotion leaves the local journal authoritative and useful.
+- Promotion into an existing hosted household requires semantic duplicate review and current hosted revisions; never overwrite or silently merge based on deterministic title matching.
+- Local state stores bounded journal evidence and agent-authored conclusions only. It never stores retailer credentials, cookies, browser session state, screenshots, raw HTML, raw page captures, OAuth tokens, or one-time codes.
+- Cloud linkage is recorded only from a successful hosted response. Exact retry reuses the same promotion payload and idempotency key; changed retry requires a new summary and confirmation.
+- Package rollback leaves local guest data in place and readable by the released helper version. No server schema or deployment change is required because promotion reuses the existing hosted onboarding contract.
+
+Verification:
+
+- `npm run test:evals --workspace @fullwell/fullwell`
+- `npm run test:packaging --workspace @fullwell/fullwell`
+- `npm run build --workspace @fullwell/fullwell`
+- `npm run test:e2e`
+- `npm run verify`
+- `npm run verify:docs`
+- `npm run verify:execplan`
+
 ## Interfaces and Dependencies
 
 The public input is conceptually:
@@ -417,7 +490,12 @@ The exact schema uses unique section and profile lists so unchanged state is omi
 
 ## Acceptance / Verification
 
-- A fresh editable household's `@Fullwell hi` path uses one `hfj_get_context` read, asks snack then recipe questions, and makes no Fullwell mutation before final confirmation.
+- A fresh installation's `@Fullwell hi` path asks whether the person already has an account before any Fullwell call. A negative answer initializes local state and begins grocery then recipe questions without OAuth or MCP; an affirmative answer uses the existing authenticated path.
+- A remembered guest journal resumes locally without asking the account question again, and direct local restocking and recipe recall remain available after the person declines cloud backup.
+- Cloud backup is offered only after local finalization. An accepted promotion authenticates, reconciles against one current hosted household, shows the exact copy/merge summary, and records a cloud link only after one confirmed successful commit; failure or uncertainty leaves the local journal authoritative.
+- WhatsApp, collection sharing, invitations, and family access remain account-gated and explain the promotion path instead of treating local use as invalid.
+- Successful local and hosted grocery onboarding asks the user to try one concrete out-of-stock restocking request, while unsuccessful or no-grocery completion does not imply the capability is ready.
+- A fresh editable hosted household's path uses one `hfj_get_context` read, asks snack then recipe questions, and makes no Fullwell mutation before final confirmation.
 - The client verifies payload bounds, shows a bounded summary of intended profile, evidence, report, and skip changes, and obtains explicit confirmation before the write.
 - One `hfj_commit_onboarding` call persists the ordinary completed run and returns final derived section status without a follow-up read.
 - One `hfj_commit_onboarding` call accepts as many as 10,000 items and 10,000 evidence records when the complete MCP envelope is at most 16 MiB; 10,001 records or an oversized body fails before mutation.
@@ -432,7 +510,9 @@ The exact schema uses unique section and profile lists so unchanged state is omi
 
 ## Outcomes & Retrospective
 
-The live implementation now has one lock-consistent `hfj_get_context` read, no intermediate Fullwell mutation, a user/household/snapshot-bound local checkpoint, one explicit final summary/confirmation, and one `hfj_commit_onboarding` write. Public `@fullwell/fullwell@1.1.7` carries the same helper and 10,000-item/10,000-evidence guidance for Codex and Claude, plus one-pass classification and restocking knowledge for snacks, ingredients, condiments, and other groceries. Skip-only confirmation leaves Git unchanged; canonical changes create one commit; exact replay does not create another commit; changed replay conflicts; post-Git skip failure is recovered from bounded metadata.
+The local implementation now provides one account-free guest household under the active Codex home, asks about an existing account before any hosted call, resumes remembered guest state without re-asking, and supports grocery/recipe onboarding plus direct local use without OAuth. After local finalization it offers optional cloud backup for WhatsApp, sharing, and family access. Promotion is explicit, semantically reconciled, idempotent, and non-destructive: failure retains the local authority, success records the exact promoted revision, and later local edits make the marker stale instead of implying a backup that did not occur. Prepared package `1.1.8` contains the same runtime and shared Codex/Claude instructions; it is not yet committed or published.
+
+The authenticated implementation retains one lock-consistent `hfj_get_context` read, no intermediate Fullwell mutation, a user/household/snapshot-bound local checkpoint, one explicit final summary/confirmation, and one `hfj_commit_onboarding` write. Public `@fullwell/fullwell@1.1.7` carries the existing checkpoint and 10,000-item/10,000-evidence guidance for Codex and Claude, plus one-pass classification and restocking knowledge for snacks, ingredients, condiments, and other groceries. Skip-only confirmation leaves Git unchanged; canonical changes create one commit; exact replay does not create another commit; changed replay conflicts; post-Git skip failure is recovered from bounded metadata.
 
 Local evidence for the published `1.1.5` baseline passes 279 deterministic tests with 11 database-gated skips, the 11 PostgreSQL integration tests separately through Apple Container, 29 browser tests with seven intentional project skips, 35 cross-host eval cases, eight package/lifecycle tests, migrations up/down/up, security/load/contract gates, the full repository verification, and 96.47% statement/line, 94.85% function, and 90.03% branch coverage. The prepared `1.1.6` correction independently bounds one onboarding request at 10,000 evidence records, 10,000 unique items, two reports, two profiles, two section outcomes, and a route-specific 16 MiB MCP body limit while retaining the one-megabyte default elsewhere. A 200-item snapshot truncation, stale state, ambiguity, or oversized draft may require additional approved reads; a draft within the final count and byte bounds must not be split into intermediate writes.
 
@@ -445,3 +525,5 @@ Public immutable package `@fullwell/fullwell@1.1.6` has registry SHA-1 `1bb746d8
 Whole-grocery release commit `681952e` is pushed. Staging runs `hfj-staging:whole-grocery-20260722-1-runtime` with Linux/amd64 OCI index digest `sha256:a18a9bdffeb4869d0e4c499755a1cfa4fe619c0137cf2e5df3895ae73fd5a641` from archive SHA-256 `44524cd4ef00b7d271c2110c598e341f3f8498cea9cdc783d03ab99d91616441`, while the prior capacity image remains available for rollback. Public `@fullwell/fullwell@1.1.7` has registry SHA-1 `8dadf6a576cc47adc8841bc3cb7aaa3f72ddac7b` and SHA-512 `sha512-pacGSP9DQCLJSm4EYIRNxw3zzIFh6VbdTfnDbWpBk1+m3vhdrhaeK2VoXsHkuaYJjdt+cCfvpsWjD60JRfgt8g==`; clean registry lifecycles pass and both current hosts report enabled version `1.1.7`.
 
 Fresh `gpt-5.6-sol` sessions from the separate `fullwell-tester` folder prove the deployed response contains a stable user ID, a bounded checkpoint can be saved with zero Fullwell mutations, another conversation resumes the same marker and deletes the matching revision, and a final exact-shard load reports it missing. The transcript retains only booleans and mutation counts. A real final-confirmation write was intentionally not driven automatically because it would change the user's household based on invented onboarding answers; deterministic and PostgreSQL tests cover that atomic write. The required screencast was attempted and failed because the macOS FFmpeg build does not provide `x11grab`; no MP4 is claimed.
+
+Local-first `1.1.8` acceptance passes seven guest-runtime tests, 44 cross-host eval cases, all 15 package/lifecycle tests, the package build, 289 deterministic application tests with 11 expected database skips, and 29 WebKit checks with seven intentional skips. The prepared 19-entry tarball has SHA-1 `f88bc7c0623a51956e9c5db2cea186a2d4dfeb0c`. The completion handoff now invites an evidence-backed restocking request only after successful local finalization or hosted commit, explains the usual product/store lookup, and retains cart confirmation. The dedicated screencast attempt also failed on the helper's Linux-only `x11grab` input with code 234; browser e2e evidence is retained, but no MP4, release, registry publication, host upgrade, or deployment is claimed for `1.1.8`.

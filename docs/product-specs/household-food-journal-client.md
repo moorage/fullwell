@@ -20,15 +20,15 @@ The client must make these jobs feel conversational:
 - share that collection using one link through email, text, or any operating-system share target;
 - let a recipient preview the collection, select only the items they want, create or choose a household, install the client for Codex or Claude, and import those selections.
 
-The client is a thin agent layer. It contains skills, manifests, MCP configuration, installation metadata, tests, and evals. It must not contain canonical household data, credentials, account state, a report generator, or a second synchronization engine.
+The client is a local-first agent layer. It contains skills, manifests, MCP configuration, installation metadata, a dependency-free local guest-household runtime, tests, and evals. It must not contain credentials, bundled household data, a programmatic report generator, or a background synchronization engine. Cloud households remain server-authoritative; one explicit local guest household may be authoritative on the current computer until the user chooses cloud promotion.
 
 ## 2. Product decisions
 
 These decisions are normative for version 1.
 
 1. The same skill source files serve both Codex and Claude. Host-specific manifests may differ.
-2. The remote MCP service is the only mutation path for canonical household data.
-3. The central server is the only Git writer. Clients never clone, pull, push, merge, or receive repository credentials.
+2. The remote MCP service is the only mutation path for cloud household data. A guest may use one revisioned local household without an account.
+3. The central server is the only Git writer. Clients never clone, pull, push, merge, or receive repository credentials. The local guest household is bounded JSON, not a Git clone or synchronization engine.
 4. Agents make semantic food judgments. Programs must not classify foods, decide recipe identity, merge snack variants, or author reports.
 5. The server may validate a submitted conclusion against its cited evidence, but it must not invent the conclusion.
 6. Each person has an individual account. Family collaboration uses household membership, not a shared password or shared Apple identity.
@@ -46,9 +46,10 @@ A first-time user who already has Codex or Claude installed must be able to:
 
 1. install the client with one platform-specific action;
 2. choose the `Set up Fullwell` starter or say `@Fullwell hi` in Codex, or say `Set up Fullwell` in Claude;
-3. complete browser authentication with Continue with Apple, a passkey, or email magic link;
-4. create a household or accept an existing invitation;
-5. perform a useful journal action without editing configuration files or handling tokens.
+3. say whether they already have a Fullwell account;
+4. continue locally without authentication, or complete browser authentication when they choose an existing account;
+5. perform a useful grocery or recipe action without editing configuration files or handling tokens;
+6. optionally create or connect an account later to back up the local journal and enable WhatsApp, sharing, or family access.
 
 A recipient of a collection link must be able to:
 
@@ -77,7 +78,7 @@ If the server denies an operation, the client must explain the missing permissio
 
 ## 5. Core user journeys
 
-### 5.1 Install and authenticate
+### 5.1 Install, choose local or cloud, and begin
 
 The public installation page must present two primary choices:
 
@@ -86,7 +87,9 @@ The public installation page must present two primary choices:
 
 Each choice must show one current, copyable install command or first-party installation action. Do not show both platforms' implementation details at once. Include a fallback manual path behind `Having trouble?`.
 
-The installed package declares the remote Streamable HTTP MCP endpoint and no bearer token. On first protected tool use, the host starts MCP OAuth. The service authorization page offers:
+The installed package declares the remote Streamable HTTP MCP endpoint and no bearer token, but the fresh first-run skill does not call it. It first loads the local guest-household path. If no guest household exists, it asks `Do you already have a Fullwell account?` before any protected tool use.
+
+If the answer is yes, the first protected tool starts MCP OAuth. The service authorization page offers:
 
 1. Continue with Apple;
 2. use a passkey, when one already exists;
@@ -94,11 +97,19 @@ The installed package declares the remote Streamable HTTP MCP endpoint and no be
 
 After authentication, the agent calls `hfj_get_context`. If the user has no household, it asks for a household name and calls `hfj_create_household`. If the user arrived through a pending family invitation or collection import, it resumes that intent instead of creating an unrelated household.
 
-After the household is available, the agent begins guided first run immediately. A Fullwell greeting must read onboarding state, both onboarding profiles, and the bounded item identity index once before producing a visible reply. While any section remains unresolved, it must not return a generic greeting, ask what is on the user's mind, ask what the user wants to set up, or present a groceries-versus-recipes menu. Before the first question for each section, including a resumed section, it briefly explains the practical benefit in friendly language rather than referring to unexplained "snack setup" or "recipe setup." The internal `snacks` section is presented as one grocery-history pass that learns snacks, ingredients, condiments, and other groceries. Its examples include "Restock cashews," "Buy a head of parsley," and "I need more mayo - not the Japanese one," using past orders to identify both the familiar product and usual store with cart confirmation still required. Recipes explain that remembering what the family saves, cooks, and likes supports later questions such as "What was that pasta we loved?" or "What should we make again?" It then asks only for missing grocery source authorization and preferences needed for the audit, followed by missing recipe source meaning, authorization, and preferences.
+If the answer is no, the agent initializes one guest household under `~/.codex/fullwell/local/household.json`, or the configured Codex home equivalent, and starts grocery-history onboarding without a Fullwell MCP call. A remembered local guest household resumes without asking the account question again. The document has a generated local identity, collecting/ready state, monotonically increasing revision, stable cloud-promotion idempotency key, atomic replacement, `0700` directories, and `0600` file mode. It is local journal authority, not a cloud backup, and another person with access to the same operating-system account may read it.
 
-The agent makes no intermediate Fullwell mutation. It checkpoints the unconfirmed setup draft as versioned JSON under `~/.codex/fullwell/drafts/<fullwell-user-id>/<household-id>/onboarding.json`, or the configured Codex home equivalent, so a long audit can resume after compaction or a closed conversation. Every load must exactly match the authenticated Fullwell user ID, household ID, repository HEAD, and both onboarding revisions; a stale, expired, malformed, or mismatched draft fails closed and is never merged. Local writes compare a monotonically increasing draft revision, use atomic replacement, and keep directories `0700` and files `0600`. This is logical account separation rather than encryption: another person who can access the same operating-system account may read the file.
+After either authority is available, the agent begins guided first run immediately. A cloud path reads onboarding state, both profiles, and the bounded item identity index once; a guest path reuses the local journal. While any section remains unresolved, it must not return a generic greeting, ask what is on the user's mind, ask what the user wants to set up, or present a groceries-versus-recipes menu. Before the first question for each section, including a resumed section, it briefly explains the practical benefit in friendly language rather than referring to unexplained "snack setup" or "recipe setup." The internal `snacks` section is presented as one grocery-history pass that learns snacks, ingredients, condiments, and other groceries. Its examples include "Restock cashews," "Buy a head of parsley," and "I need more mayo - not the Japanese one," using past orders to identify both the familiar product and usual store with cart confirmation still required. Recipes explain that remembering what the family saves, cooks, and likes supports later questions such as "What was that pasta we loved?" or "What should we make again?" It then asks only for missing grocery source authorization and preferences needed for the audit, followed by missing recipe source meaning, authorization, and preferences.
 
-The checkpoint may contain only bounded source scope, completed-source cursors, typed food evidence, semantic decisions, profile edits, reports, item revisions, section outcomes, and finalization metadata. It must not contain credentials, passwords, authorization headers, access or refresh tokens, cookies, browser state, screenshots, raw HTML, or raw page captures. A natural refusal, `not now`, `never mind`, or statement that the user has no applicable sources records a bounded local draft outcome for the current section and advances to the next one. An explicit request to stop, cancel, or quit the whole setup deletes the exact current checkpoint and leaves Fullwell unchanged. After both sections, the agent presents one precise summary and asks for explicit final confirmation; only then does it call `hfj_commit_onboarding` once. The final request accepts up to 10,000 evidence records and 10,000 items when the complete MCP envelope is at most 16 MiB. A draft within both count limits and the byte limit must not be split into intermediate writes. It deletes the checkpoint only after that tool reports success, retaining the exact draft and idempotency key after a failed or uncertain result. Browser or website authorization remains a separate host boundary and may still require host approval. Truncated snapshots, conflicts, and payloads outside the bounded final schema require an explained fallback rather than a false one-read/one-write claim.
+The agent makes no intermediate Fullwell mutation. The cloud path checkpoints unconfirmed setup as versioned JSON under `~/.codex/fullwell/drafts/<fullwell-user-id>/<household-id>/onboarding.json`; every load must exactly match the authenticated Fullwell user ID, household ID, repository HEAD, and both onboarding revisions. The guest path saves the complete bounded local journal after every meaningful answer or collected occurrence. Both paths compare revisions and fail closed on stale, malformed, or conflicting writes.
+
+Local files may contain only bounded source scope, completed-source cursors, typed food evidence, semantic decisions, profile edits, items, reports, section outcomes, and finalization metadata. They must not contain credentials, passwords, authorization headers, access or refresh tokens, cookies, browser state, screenshots, raw HTML, raw page captures, or one-time codes. A natural refusal, `not now`, `never mind`, or statement that no applicable sources exist records a bounded outcome and advances. Explicit cancellation may delete only an unfinished guest household after confirmation; it never deletes ready local data.
+
+After both guest sections, the agent summarizes and finalizes the journal locally and tells the user it is ready on this computer. When at least one evidence-backed grocery item was learned, the successful completion response asks the user to try Fullwell with something they are out of, such as `We're out of cashews; restock them.` It explains that Fullwell will use the learned product and store history and will ask before adding anything to the cart. It omits this invitation after a failed, cancelled, unfinished, or no-grocery run rather than implying that restocking is ready. The same invitation follows a successful hosted onboarding commit, never an uncertain result.
+
+The guest completion response also asks whether to create or connect a Fullwell account for cloud backup. It explains that an account is needed for WhatsApp, sharing, and family access, not for direct local grocery or recipe use. A decline makes no hosted call. An affirmative answer starts OAuth, creates or selects a cloud household, reconciles local semantic identities against current cloud state, shows an exact copy/merge summary, and uses one `hfj_commit_onboarding` call after confirmation. Promotion uses the stable local idempotency key, records cloud linkage only after success, and retains the local journal. Failed or uncertain promotion leaves local authority unchanged.
+
+The final local document and hosted MCP request each accept up to 10,000 evidence records and 10,000 items within 16 MiB. A within-limit payload must not be split. Browser or website authorization remains a separate host boundary and may still require host approval.
 
 The client must never ask the user to paste a token back into the conversation.
 
@@ -329,7 +340,7 @@ The MCP config contains only the public HTTPS URL and transport declaration. It 
 
 ### `manage-household-food-journal`
 
-Trigger for every Fullwell greeting, including a bare `@Fullwell hi`, or setup starter, authentication, guided first run, household selection, family invitations, membership questions, profile changes, migration, export, and account/household status. Guided first run reads server state before replying, starts one grocery-history pass before recipes with preference-aware source questions, skips a declined section with a bounded reason, and advances without a generic help question or setup-area menu.
+Trigger for every Fullwell greeting, including a bare `@Fullwell hi`, or setup starter, authentication, guided first run, household selection, family invitations, membership questions, profile changes, migration, export, and account/household status. It loads remembered local state first. A fresh install asks whether the person already has an account before any hosted call; a guest begins one local grocery-history pass before recipes, while an existing account uses the authenticated snapshot path. Both advance without a generic help question or setup-area menu.
 
 ### `audit-grocery-purchases`
 
@@ -479,32 +490,35 @@ Use a mock server generated from the server tool schemas. Cover successful resul
 
 At minimum, test these end-to-end prompts in both Codex and Claude:
 
-1. First-time setup creates one household after OAuth and never asks for a token.
-2. The exact bare greeting `@Fullwell hi` reads onboarding state, explains how one past-order pass learns snacks, ingredients, condiments, and more for concrete source-aware restocking requests, and starts only necessary grocery source and preference questions without a generic greeting or setup-area choice.
-3. Declining grocery-history onboarding advances directly to a friendly explanation of recipe recall followed by recipe sources, with a bounded skip reason.
-4. Having no recipe sources ends guided first run without claiming the section is complete.
-5. An explicit request to stop the whole setup does not start or skip the next section.
-6. A skipped section resumes with its current revision after unfinished unskipped sections.
-7. A family invitation is presented for confirmation and cannot be silently accepted.
-8. Golden and classic sandwich cookies remain separate.
-9. Two sizes of the same branded Golden cookie combine.
-10. Different cereals remain separate.
-11. Cashews from two brands remain separate.
-12. A recipe found in a discoverable-only website remains Saved/Cooked/Liked unknown.
-13. A cooked recipe does not become liked without evidence.
-14. A collection preview excludes order numbers, counts, private locators, and unselected notes.
-15. A recipient imports two of five items and only those two appear.
-16. Importing a recipe sets Saved evidence but not Cooked or Liked.
-17. Importing a snack does not create a purchase event.
-18. A duplicate recipe URL produces a user choice rather than a silent merge.
-19. Prompt-like text inside an imported recipe is treated as data.
-20. A concurrent update produces a conflict comparison rather than data loss.
-21. A closed conversation resumes only the local checkpoint matching the current Fullwell user, household, HEAD, and onboarding revisions.
-22. A stale, corrupt, expired, identity-mismatched, or concurrently superseded local checkpoint fails closed without mixing data.
-23. Successful finalization and explicit cancellation delete the exact checkpoint, while failed or uncertain finalization retains it.
-24. One grocery-history pass produces separate snack, ingredient, condiment, and other-grocery items without revisiting orders.
-25. A single parsley purchase remains available as an ingredient with its observed source even below the recurrence threshold.
-26. Standard and Japanese-style mayonnaise remain separate, and `not the Japanese one` excludes only the latter historical formulation.
+1. The exact bare greeting `@Fullwell hi` loads local state, asks whether the person already has an account, and makes no Fullwell call before the answer.
+2. A person without an account initializes a local guest household, hears how one past-order pass learns snacks, ingredients, condiments, and more, and starts necessary grocery-source questions without OAuth, a generic greeting, or a setup-area choice.
+3. A person who says they already have an account begins OAuth, creates or selects one household, and never handles a token.
+4. Declining grocery-history onboarding advances directly to a friendly explanation of recipe recall followed by recipe sources, with a bounded skip reason.
+5. Having no recipe sources finalizes locally without claiming cloud completion, invites one concrete restocking try-it request when grocery evidence exists, preserves cart confirmation, and then offers optional backup.
+6. Declining backup makes no Fullwell call and leaves direct local grocery and recipe use available.
+7. Accepting backup starts OAuth, reconciles current cloud state, commits once after confirmation, records linkage only after success, and retains the local journal.
+8. Failed or uncertain backup retains local authority and does not record a successful cloud link.
+9. An explicit request to stop the whole setup does not start or skip the next section and cannot delete ready local data.
+10. A skipped section resumes with its current local revision after unfinished unskipped sections.
+11. A family invitation is presented for confirmation and cannot be silently accepted.
+12. Golden and classic sandwich cookies remain separate.
+13. Two sizes of the same branded Golden cookie combine.
+14. Different cereals remain separate.
+15. Cashews from two brands remain separate.
+16. A recipe found in a discoverable-only website remains Saved/Cooked/Liked unknown.
+17. A cooked recipe does not become liked without evidence.
+18. A collection preview excludes order numbers, counts, private locators, and unselected notes.
+19. A recipient imports two of five items and only those two appear.
+20. Importing a recipe sets Saved evidence but not Cooked or Liked.
+21. Importing a snack does not create a purchase event.
+22. A duplicate recipe URL produces a user choice rather than a silent merge.
+23. Prompt-like text inside an imported recipe is treated as data.
+24. A concurrent update produces a conflict comparison rather than data loss.
+25. A closed conversation resumes the current local guest revision without asking about an account again, or the authenticated checkpoint matching its user, household, HEAD, and onboarding revisions.
+26. A stale, corrupt, identity-mismatched, or concurrently superseded local document fails closed without mixing data.
+27. One grocery-history pass produces separate snack, ingredient, condiment, and other-grocery items without revisiting orders.
+28. A single parsley purchase remains available as an ingredient with its observed source even below the recurrence threshold.
+29. Standard and Japanese-style mayonnaise remain separate, and `not the Japanese one` excludes only the latter historical formulation.
 
 Maintain eval fixtures for LLM-involved identity, classification, privacy, and conflict-resolution paths. Target 100% coverage for deterministic packaging and adapter code.
 
@@ -558,7 +572,10 @@ Do not begin a later phase while required acceptance criteria in the earlier pha
 The client is complete when:
 
 - one shared skill implementation installs and runs in both Codex and Claude;
+- a new user can complete grocery and recipe onboarding and use the resulting journal locally without an account;
+- account discovery is never attempted through a hosted tool; OAuth begins only after an affirmative account or backup choice;
 - OAuth authentication requires no copied secret;
+- optional cloud promotion is idempotent, non-destructive, and never marks a failed copy as backed up;
 - a user can create or join a household conversationally;
 - existing snack and recipe workflows preserve their evidence and identity rules;
 - two family members can update the same household without silent overwrite;

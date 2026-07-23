@@ -42,9 +42,10 @@ export const requiredTools = [
 ];
 
 const requiredEvalIds = [
-  "first-time-setup-oauth",
-  "first-time-setup-starts-snacks",
-  "bare-fullwell-greeting-starts-snacks",
+  "existing-account-setup-oauth",
+  "first-time-setup-asks-account-before-oauth",
+  "first-time-no-account-starts-local-groceries",
+  "bare-fullwell-greeting-asks-account",
   "snack-decline-advances-to-recipes",
   "recipe-no-sources-finishes-guided-run",
   "confirmed-onboarding-commits-once",
@@ -74,7 +75,11 @@ const requiredEvalIds = [
   "restock-no-checkout",
   "one-pass-whole-grocery-audit",
   "restock-usual-parsley-source",
-  "restock-mayo-negative-formulation"
+  "restock-mayo-negative-formulation",
+  "declined-cloud-backup-stays-local",
+  "local-journal-backs-up-after-consent",
+  "failed-cloud-backup-retains-local",
+  "guest-sharing-offers-account"
 ];
 
 const readJson = async (relativePath) =>
@@ -192,6 +197,7 @@ export const validatePackage = async () => {
     validatePath(codex.skills),
     validatePath(codex.mcpServers),
     validatePath("runtime/onboarding-draft.mjs"),
+    validatePath("runtime/local-household.mjs"),
   ]);
   const skillDirectories = (await readdir(path.join(root, "skills"), { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())

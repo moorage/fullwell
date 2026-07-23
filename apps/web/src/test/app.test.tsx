@@ -19,6 +19,8 @@ describe("web experience", () => {
     expect(screen.getByText(/codex plugin add fullwell@fullwell/)).toBeVisible();
     expect(screen.getByRole("link", { name: "Start Fullwell setup" })).toHaveAttribute("href", demoWebContext.install.hosts.codex.setupHref);
     expect(screen.getByText("@Fullwell hi")).toBeVisible();
+    expect(screen.getByText(/Start locally without an account/)).toBeVisible();
+    expect(screen.getByText(/No account is required to start/)).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Use with Claude" }));
     expect(screen.getByText(/claude plugin install fullwell@fullwell/)).toBeVisible();
     expect(screen.queryByText(/codex plugin add fullwell@fullwell/)).not.toBeInTheDocument();

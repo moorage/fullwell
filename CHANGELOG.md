@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Make Fullwell local-first for new installations: ask whether the user already has an account before any hosted call, support durable grocery and recipe use without OAuth, and offer retry-safe cloud backup only after local collection for WhatsApp, sharing, or family access.
+- End successful grocery onboarding with a concrete out-of-stock restocking invitation that uses learned product/store history and retains explicit cart confirmation.
 - Learn snacks, ingredients, condiments, and other groceries during the same order-history pass, preserve low-frequency items and product formulations, and expose every grocery area to source-aware restocking.
 - Raise the confirmed onboarding aggregate to 10,000 evidence records and 10,000 items inside a route-specific 16 MiB MCP envelope, with exact-limit validation, prospective repository-capacity checks, and argument-vector-safe Git staging.
 - Refresh the transitive `fast-uri` production dependency to patched releases after the release audit detected GHSA-v2hh-gcrm-f6hx.

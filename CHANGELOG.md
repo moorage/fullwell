@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Correct Claude local-tool discovery by requiring an object-typed household-update schema, and replace Claude's setup-style handoff with the conversational `Hi Fullwell.` name-first greeting.
+- Upgrade `@fastify/static` to 10.1.2 after the release build detected its new non-canonical-path authorization-bypass advisories.
 - Add branded ChatGPT, Claude, and Apple action marks, public task-specific agent guides, and membership-authorized visual recipe and grocery browsers with accessible progressive loading.
 - Exclude local credentials, runtime state, artifacts, and private key material from the OCI build context.
 - Handle child-stdin pipe closure inside the local runner so timeout and early-exit races reject cleanly instead of emitting an unhandled `EPIPE`.

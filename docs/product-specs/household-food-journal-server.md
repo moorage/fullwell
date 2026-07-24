@@ -1073,6 +1073,7 @@ All public and authenticated web flows must:
 - avoid relying on color alone;
 - preserve selected import items through sign-in and recoverable errors;
 - show destructive confirmations in plain language;
+- present Account actions that require `LEAVE`, `DELETE`, or `REVOKE` as cancellable modal dialogs in hydrated browsers, with Cancel, Escape, backdrop dismissal, and focus restoration; supply the existing server-validated literal only after the user confirms, while retaining an exact typed fallback inside `noscript`;
 - explain family role effects before invitation acceptance;
 - show exactly which fields a collection publishes;
 - clearly distinguish `Join household` from `Import selected`.

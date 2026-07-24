@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Replace visible `LEAVE`, `DELETE`, and `REVOKE` Account confirmation fields with plain-language cancellable dialogs while retaining the server checks and a no-JavaScript typed fallback.
 - Correct Claude local-tool discovery by requiring an object-typed household-update schema, and replace Claude's setup-style handoff with the conversational `Hi Fullwell.` name-first greeting.
 - Upgrade `@fastify/static` to 10.1.2 after the release build detected its new non-canonical-path authorization-bypass advisories.
 - Add branded ChatGPT, Claude, and Apple action marks, public task-specific agent guides, and membership-authorized visual recipe and grocery browsers with accessible progressive loading.

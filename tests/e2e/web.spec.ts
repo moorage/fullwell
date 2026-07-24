@@ -70,10 +70,42 @@ test("renders account exports without overflow and exposes the advanced bundle o
   await page.setContent(`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${styles}</style></head><body>${rendered.appHtml}</body></html>`);
   await expect(page.getByRole("heading", { name: "Household exports" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Download ZIP" })).toHaveCount(demoWebContext.households.length);
+  await expect(page.locator('input[name="confirmation"]')).toHaveCount(
+    testInfo.project.name === "no-js-webkit" ? demoWebContext.households.length + 1 : 0,
+  );
   await page.getByText("Advanced export").dispatchEvent("click");
   await expect(page.getByRole("button", { name: /history bundle/ })).toHaveCount(demoWebContext.households.length);
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
   await page.screenshot({ path: testInfo.outputPath("account-exports.png"), fullPage: true });
+});
+
+test("uses a cancellable dialog for destructive Account actions", async ({ page }, testInfo) => {
+  await page.setExtraHTTPHeaders({ authorization: "Bearer test-owner-token" });
+  const response = await page.goto("/account");
+  expect(response?.status()).toBe(200);
+
+  if (testInfo.project.name === "no-js-webkit") {
+    const deleteSection = page.locator("section.danger-zone");
+    const typedFallback = deleteSection.locator('input[name="confirmation"]');
+    await expect(typedFallback).toBeVisible();
+    expect(await typedFallback.evaluate((input) => input.parentElement?.textContent)).toContain("Type DELETE to continue");
+    return;
+  }
+
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator('input[name="confirmation"]')).toHaveCount(0);
+  const deleteButton = page.getByRole("button", { name: "Delete account" });
+  await deleteButton.click();
+  const dialog = page.getByRole("dialog", { name: "Delete your Fullwell account?" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(deleteButton).toBeFocused();
+
+  await deleteButton.click();
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(deleteButton).toBeFocused();
 });
 
 test("renders WhatsApp setup, confirmation, and linked runner states without provider identifiers", async ({ page }, testInfo) => {

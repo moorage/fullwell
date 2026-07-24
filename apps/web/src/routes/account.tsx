@@ -1,5 +1,6 @@
 import { Bot, DoorOpen, Download, Fingerprint, KeyRound, LogOut, Mail, MessageCircle, Pencil, Trash2, Unplug, Users } from "lucide-react";
 import { AppShell } from "../components/app-shell.js";
+import { ConfirmActionForm } from "../components/confirm-action-form.js";
 import { PasskeyEnrollment } from "../components/passkey-actions.js";
 import { Button, HiddenFormFields, PageHeader } from "../components/ui.js";
 import { useWebContext } from "../context.js";
@@ -82,11 +83,15 @@ export function AccountRoute() {
               <div className="account-row" key={household.id}>
                 <span className="row-icon"><Users aria-hidden="true" /></span>
                 <div><h3><a href={`/households/${household.id}`}>{household.name}</a></h3><p>{household.role}</p></div>
-                <form className="confirmation-form" action={`/account/households/${household.id}/leave`} method="post">
-                  <input type="hidden" name="csrf" value={security.csrfToken} />
-                  <label><span className="sr-only">Type LEAVE to leave {household.name}</span><input name="confirmation" placeholder="Type LEAVE" required /></label>
-                  <Button type="submit" variant="danger"><DoorOpen aria-hidden="true" size={17} /> Leave</Button>
-                </form>
+                <ConfirmActionForm
+                  action={`/account/households/${household.id}/leave`}
+                  buttonLabel="Leave"
+                  confirmation="LEAVE"
+                  csrf={security.csrfToken}
+                  description="You will lose access to this household and its shared journal. You can only return through a new invitation."
+                  icon={<DoorOpen aria-hidden="true" size={17} />}
+                  title={`Leave ${household.name}?`}
+                />
               </div>
             ))}
           </div>
@@ -147,11 +152,15 @@ export function AccountRoute() {
         <section className="account-section danger-zone" aria-labelledby="delete-heading">
           <header><h2 id="delete-heading">Delete account</h2><p>This revokes every session and connected agent.</p></header>
           <p>You must first transfer or delete any household you solely own. Household history keeps a pseudonymous former-member label.</p>
-          <form className="confirmation-form" action="/account/delete" method="post">
-            <input type="hidden" name="csrf" value={security.csrfToken} />
-            <label><span>Type DELETE to confirm</span><input name="confirmation" autoComplete="off" required /></label>
-            <Button type="submit" variant="danger"><Trash2 aria-hidden="true" size={17} /> Delete account</Button>
-          </form>
+          <ConfirmActionForm
+            action="/account/delete"
+            buttonLabel="Delete account"
+            confirmation="DELETE"
+            csrf={security.csrfToken}
+            description="This signs you out everywhere, revokes every connected agent, and cannot be undone. Household history keeps a former-member label."
+            icon={<Trash2 aria-hidden="true" size={17} />}
+            title="Delete your Fullwell account?"
+          />
         </section>
       </section>
     </AppShell>
@@ -170,5 +179,25 @@ function WhatsAppConnection({ status, csrf }: { status: ReturnType<typeof useWeb
     return <div className="account-row"><span className="row-icon"><MessageCircle aria-hidden="true" /></span><div><h3>Confirm WhatsApp</h3><p>The WhatsApp code was received for {status.deviceName}. Confirmation expires {status.confirmationExpiresLabel}.</p></div><form action="/account/messaging/whatsapp/confirm" method="post"><input type="hidden" name="csrf" value={csrf} /><input type="hidden" name="link_id" value={status.linkId} /><Button type="submit">Confirm connection</Button></form></div>;
   }
   const expired = status.kind === "expired";
-  return <div className="account-row"><span className="row-icon"><MessageCircle aria-hidden="true" /></span><div><h3>{expired ? "Link expired" : "Fullwell on WhatsApp"}</h3><p>{expired ? `The confirmation for ${status.deviceName} expired ${status.confirmationExpiresLabel}.` : `${status.deviceName} · ${status.lastSeenLabel === null ? "Runner has not checked in" : `Last runner check-in ${status.lastSeenLabel}`}`}</p></div><form className="confirmation-form" action="/account/messaging/whatsapp/revoke" method="post"><input type="hidden" name="csrf" value={csrf} /><input type="hidden" name="device_id" value={status.deviceId} /><label><span className="sr-only">Type REVOKE to disconnect WhatsApp</span><input name="confirmation" placeholder="Type REVOKE" required /></label><Button type="submit" variant="danger"><Unplug aria-hidden="true" size={17} /> {expired ? "Clear" : "Revoke"}</Button></form></div>;
+  return (
+    <div className="account-row">
+      <span className="row-icon"><MessageCircle aria-hidden="true" /></span>
+      <div>
+        <h3>{expired ? "Link expired" : "Fullwell on WhatsApp"}</h3>
+        <p>{expired ? `The confirmation for ${status.deviceName} expired ${status.confirmationExpiresLabel}.` : `${status.deviceName} · ${status.lastSeenLabel === null ? "Runner has not checked in" : `Last runner check-in ${status.lastSeenLabel}`}`}</p>
+      </div>
+      <ConfirmActionForm
+        action="/account/messaging/whatsapp/revoke"
+        buttonLabel={expired ? "Clear" : "Revoke"}
+        confirmation="REVOKE"
+        csrf={csrf}
+        description={expired
+          ? "This removes the expired connection attempt. Your Fullwell data stays intact."
+          : "The local runner will stop receiving new WhatsApp restocking requests for this household. Your Fullwell data stays intact."}
+        fields={<input type="hidden" name="device_id" value={status.deviceId} />}
+        icon={<Unplug aria-hidden="true" size={17} />}
+        title={expired ? "Clear this expired WhatsApp link?" : "Disconnect WhatsApp?"}
+      />
+    </div>
+  );
 }

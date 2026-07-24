@@ -8,6 +8,7 @@ OUT = ROOT / "docs" / "generated" / "repo-map.json"
 
 NAME_IGNORE = {
     ".beads",
+    ".data",
     ".git",
     ".next",
     ".terraform",

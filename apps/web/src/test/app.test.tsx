@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -388,13 +388,51 @@ describe("web experience", () => {
     expect(addEmail).toHaveAttribute("action", "/account/sign-in-methods/magic_link/start");
     expect(addApple).toHaveAttribute("action", "/account/sign-in-methods/apple/start");
     expect(addEmail?.querySelector('input[name="csrf"]')).toHaveValue(demoWebContext.security.csrfToken);
-    expect(screen.getAllByPlaceholderText("Type LEAVE")).toHaveLength(demoWebContext.households.length);
-    expect(screen.getAllByPlaceholderText("Type LEAVE")[0]).toHaveAttribute("name", "confirmation");
+    expect(screen.queryByPlaceholderText("Type LEAVE")).not.toBeInTheDocument();
+    expect(screen.queryByText("Type DELETE to confirm")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Household exports" })).toBeVisible();
     expect(screen.getAllByRole("button", { name: "Download ZIP" })).toHaveLength(demoWebContext.households.length);
     expect(screen.getAllByRole("button", { name: /history bundle/ })).toHaveLength(demoWebContext.households.length);
     expect(screen.getAllByDisplayValue("readable_zip")[0]?.closest("form")).toHaveAttribute("action", expect.stringMatching(/\/account\/households\/.*\/exports/));
     expect(screen.getByRole("button", { name: "Delete account" }).closest("form")).toHaveAttribute("action", "/account/delete");
+  });
+
+  it("cancels and confirms destructive account actions in a focused dialog", async () => {
+    const user = userEvent.setup();
+    renderApp("/account");
+    const leaveButton = screen.getAllByRole("button", { name: "Leave" })[0];
+    const leaveForm = leaveButton?.closest("form");
+    if (leaveButton === undefined || leaveForm === null) throw new Error("Household leave action was not rendered");
+    const confirmations: string[] = [];
+    leaveForm.addEventListener("submit", (event) => {
+      const value = new FormData(leaveForm).get("confirmation");
+      if (typeof value === "string") confirmations.push(value);
+      event.preventDefault();
+    });
+
+    await user.click(leaveButton);
+    const dialog = screen.getByRole("dialog", { name: `Leave ${demoWebContext.households[0]?.name}?` });
+    expect(dialog).toHaveAttribute("open");
+    expect(within(dialog).getByText(/lose access to this household/)).toBeVisible();
+
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(dialog).not.toHaveAttribute("open");
+    expect(leaveButton).toHaveFocus();
+    expect(confirmations).toEqual([]);
+
+    await user.click(leaveButton);
+    fireEvent(dialog, new Event("cancel", { bubbles: true, cancelable: true }));
+    expect(dialog).not.toHaveAttribute("open");
+    expect(leaveButton).toHaveFocus();
+
+    await user.click(leaveButton);
+    fireEvent.click(dialog);
+    expect(dialog).not.toHaveAttribute("open");
+    expect(leaveButton).toHaveFocus();
+
+    await user.click(leaveButton);
+    await user.click(within(dialog).getByRole("button", { name: "Leave" }));
+    expect(confirmations).toEqual(["LEAVE"]);
   });
 
   it("renders two-sided WhatsApp setup, confirmation, and revocation states", () => {
@@ -430,7 +468,7 @@ describe("web experience", () => {
     if (messagingSection === null) throw new Error("WhatsApp section was not rendered");
     const revoke = within(messagingSection).getByRole("button", { name: "Revoke" }).closest("form");
     expect(revoke).toHaveAttribute("action", "/account/messaging/whatsapp/revoke");
-    expect(revoke?.querySelector('input[name="confirmation"]')).toHaveAttribute("placeholder", "Type REVOKE");
+    expect(revoke?.querySelector('input[name="confirmation"]')).not.toBeInTheDocument();
   });
 
   it("renders enrolled passkeys with CSRF-bound removal and enrollment controls", () => {
@@ -456,9 +494,12 @@ describe("web experience", () => {
     const collectionHtml = renderToString(<App url="/c/summer-table-7Qc9" context={demoWebContext} />);
     const authenticatedContext = { ...demoWebContext, invite: { ...demoWebContext.invite, state: "authenticated" as const } };
     const inviteHtml = renderToString(<App url="/invite/family/join" context={authenticatedContext} />);
+    const accountHtml = renderToString(<App url="/account" context={demoWebContext} />);
     expect(collectionHtml).toContain('action="/c/summer-table-7Qc9/import/plan"');
     expect(collectionHtml).toContain('name="itemIds"');
     expect(inviteHtml).toContain('action="/invite/family/join/accept"');
+    expect(accountHtml).toContain("<noscript>");
+    expect(accountHtml).toMatch(/<noscript><label><span>Type .*LEAVE.* to continue/);
   });
 
   it("returns route HTML and a useful server title", () => {

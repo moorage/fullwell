@@ -6,17 +6,26 @@ import {
   HouseholdIdSchema,
   InvitationIdSchema,
   ItemIdSchema,
+  MealPlanEventIdSchema,
+  MealProposalIdSchema,
 } from "./ids.js";
 import {
+  DateSchema,
   DateTimeSchema,
   IdempotencyKeySchema,
   RoleSchema,
 } from "./common.js";
 import {
   CollectionItemSchema,
+  CloudMealSourceSchema,
+  ConfirmedMealPlanningConstraintsSchema,
   EvidenceSchema,
   JournalItemSchema,
   JournalItemKindSchema,
+  MealCompatibilitySchema,
+  MealSlotSchema,
+  MondayDateSchema,
+  mealDateFallsWithinWeek,
   ReportSchema,
 } from "./domain.js";
 import {
@@ -32,17 +41,69 @@ const HouseholdMutationSchema = z.object({
 const RevisionedHouseholdMutationSchema = HouseholdMutationSchema.extend({
   expected_head: GitObjectIdSchema,
 });
+const hasControlCharacter = (value: string) => [...value].some((character) => {
+  const code = character.codePointAt(0);
+  return code !== undefined && (code <= 31 || code === 127);
+});
+const BoundedNameSchema = z.string()
+  .refine((value) => !hasControlCharacter(value), "Name cannot contain control characters")
+  .transform((value) => value.trim())
+  .pipe(z.string().min(1).max(120));
 
 export const ONBOARDING_COMMIT_MAX_EVIDENCE = 10_000;
 export const ONBOARDING_COMMIT_MAX_ITEMS = 10_000;
 
+export const MealPlanningToolInputSchemas = {
+  hfj_get_meal_plan: z.object({
+    household_id: HouseholdIdSchema,
+    week_start: MondayDateSchema,
+    cursor: z.string().max(300).optional(),
+    limit: z.number().int().min(1).max(500).default(200),
+  }).strict(),
+  hfj_update_meal_planning_constraints: RevisionedHouseholdMutationSchema.extend({
+    constraints: ConfirmedMealPlanningConstraintsSchema,
+  }).strict(),
+  hfj_review_meal_constraints: HouseholdMutationSchema.extend({
+    week_start: MondayDateSchema,
+    constraint_revision: GitObjectIdSchema,
+  }).strict(),
+  hfj_add_meal_proposal: HouseholdMutationSchema.extend({
+    week_start: MondayDateSchema,
+    meal_date: DateSchema,
+    slot: MealSlotSchema,
+    source: CloudMealSourceSchema,
+    servings: z.number().int().min(1).max(100).nullable().default(null),
+    notes: z.string().trim().min(1).max(1000).nullable().default(null),
+    constraint_revision: GitObjectIdSchema,
+    constraint_review_event_id: MealPlanEventIdSchema,
+    compatibility: MealCompatibilitySchema,
+    compatibility_caveat: z.string().trim().min(1).max(1000),
+  }).strict().superRefine((value, context) => {
+    if (!mealDateFallsWithinWeek(value.week_start, value.meal_date)) {
+      context.addIssue({ code: "custom", path: ["meal_date"], message: "The meal date must fall within the proposal week" });
+    }
+  }),
+  hfj_withdraw_meal_proposal: HouseholdMutationSchema.extend({
+    week_start: MondayDateSchema,
+    proposal_id: MealProposalIdSchema,
+    reason: z.string().trim().min(1).max(500).nullable().default(null),
+  }).strict(),
+} as const;
+
 export const ToolInputSchemas = {
   hfj_get_context: z.object({ household_id: HouseholdIdSchema.optional() }).strict(),
+  hfj_update_user_display_name: z.object({
+    display_name: BoundedNameSchema,
+    idempotency_key: IdempotencyKeySchema,
+  }).strict(),
   hfj_create_household: z.object({
-    name: z.string().trim().min(1).max(120),
+    name: BoundedNameSchema,
     idempotency_key: IdempotencyKeySchema,
   }).strict(),
   hfj_select_household: z.object({ household_id: HouseholdIdSchema }).strict(),
+  hfj_update_household_name: RevisionedHouseholdMutationSchema.extend({
+    name: BoundedNameSchema,
+  }).strict(),
   hfj_update_onboarding: HouseholdMutationSchema.extend({
     section: OnboardingSectionSchema,
     transition: OnboardingActionSchema,
@@ -155,22 +216,32 @@ export const ToolInputSchemas = {
     format: z.enum(["readable_zip", "git_bundle"]),
     idempotency_key: IdempotencyKeySchema,
   }).strict(),
+  ...MealPlanningToolInputSchemas,
 } as const;
 
 export type ToolName = keyof typeof ToolInputSchemas;
 export const ToolNameSchema = z.enum(Object.keys(ToolInputSchemas) as [ToolName, ...ToolName[]]);
 export const MutatingToolNames = new Set<ToolName>([
-  "hfj_create_household", "hfj_create_family_invite", "hfj_accept_family_invite",
+  "hfj_update_user_display_name", "hfj_create_household", "hfj_update_household_name",
+  "hfj_create_family_invite", "hfj_accept_family_invite",
   "hfj_update_onboarding",
   "hfj_revoke_family_invite", "hfj_update_member", "hfj_remove_member",
   "hfj_update_profile", "hfj_append_evidence", "hfj_commit_change_set",
   "hfj_commit_onboarding",
   "hfj_create_collection", "hfj_create_collection_share", "hfj_revoke_collection_share",
   "hfj_import_collection_items", "hfj_export_household",
+  "hfj_update_meal_planning_constraints", "hfj_review_meal_constraints",
+  "hfj_add_meal_proposal", "hfj_withdraw_meal_proposal",
 ]);
 
 export function parseToolInput(name: ToolName, input: unknown): unknown {
   return ToolInputSchemas[name].parse(input);
+}
+
+export type MealPlanningToolName = keyof typeof MealPlanningToolInputSchemas;
+
+export function parseMealPlanningToolInput(name: MealPlanningToolName, input: unknown): unknown {
+  return MealPlanningToolInputSchemas[name].parse(input);
 }
 
 export const ToolResultDataSchema = z.object({

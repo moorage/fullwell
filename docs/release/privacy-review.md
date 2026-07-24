@@ -18,6 +18,11 @@
 - Meta/WhatsApp is disclosed as the optional direct messaging processor; no BSP/middleware vendor is present. Prove plaintext exists only at the signed webhook/provider adapter and authenticated local-runner boundaries.
 - Searchable gateway state contains only HMACed provider identifiers and bounded status/timestamps; message and destination bodies are authenticated-encrypted and deleted within seven days.
 - The restocking snapshot contains only the fixed snack, ingredient, condiment, other-grocery, purchase-evidence, profile, report, and format path allowlist; it remains on the Mac and is purged with local receipts/tokens/config on revocation or disconnect. The gateway never receives selected product, store, cart quantity, retailer browser state, or action receipts.
+- Meal-planning constraint labels are explicit, shared only with authorized household members, excluded from public projections, browser URLs/titles, logs, metrics, and local board cards, and never expanded into names or medical narratives.
+- Internet research has separate current-turn approval, and every search that would disclose constraint terms has a per-search decision that is not persisted. Raw queries and pages are not stored.
+- Private recipe-board tests prove fixed local confinement, mode-restricted files, HTTPS image provenance, CSP/escaping, no scripts/forms/trackers, truthful browser-open status, retention confinement, and direct image-host disclosure.
+- Native weekly-task tests prove a bounded content-free prompt, no automatic search/write authority, one host-owned task, honest unavailability, and host-confirmed pause/removal during rollback. Fullwell stores no scheduler state.
+- Connected meal-planning tools, navigation, reads, and writes are always available, while membership, OAuth scope, CSRF, role checks, bounded inputs, and append-only Git history remain mandatory.
 
 ## Local automated evidence
 

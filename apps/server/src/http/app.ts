@@ -13,7 +13,7 @@ import { HouseholdFoodJournalService } from "../services/household-food-journal.
 import { registerBrowserAuthRoutes, type BrowserAuthRouteDependencies } from "../auth/routes.js";
 import { registerAccountRoutes, type AccountRouteDependencies } from "../account/routes.js";
 import { registerOAuthRoutes, type OAuthRouteDependencies } from "../oauth/routes.js";
-import { registerWebExperience, type WebExperience } from "./web.js";
+import { isMealPlanMutationPath, registerWebExperience, sendMealPlanMutationError, type WebExperience } from "./web.js";
 import type { ObservabilityPort } from "../telemetry/observability.js";
 import { registerMessagingRoutes, type MessagingRouteDependencies } from "../messaging/routes.js";
 import { registerRunnerRoutes, type RunnerRouteDependencies } from "../runner/routes.js";
@@ -127,6 +127,9 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
     const rateLimitError = RateLimitErrorSchema.safeParse(error);
     if (rateLimitError.success) {
       dependencies.observability?.error("http.request_failed", new Error("RateLimitExceeded"), { request_id: String(request.id), method: request.method, route, status_code: 429, error_code: "RATE_LIMITED" });
+      if (isMealPlanMutationPath(request.url)) {
+        return sendMealPlanMutationError(reply, request.url, 429, "Too many requests were submitted. Return to the week and try again shortly.");
+      }
       return reply.code(429).send({ error: rateLimitError.data.error });
     }
     const contentParserError = ContentParserErrorSchema.safeParse(error);
@@ -135,10 +138,16 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
         ? 413
         : contentParserError.data.code === "FST_ERR_CTP_INVALID_MEDIA_TYPE" ? 415 : 400;
       dependencies.observability?.error("http.request_failed", new Error("RequestContentRejected"), { request_id: String(request.id), method: request.method, route, status_code: statusCode, error_code: "VALIDATION_FAILED" });
+      if (isMealPlanMutationPath(request.url)) {
+        return sendMealPlanMutationError(reply, request.url, statusCode, "The submitted meal details could not be read. Return to the week and check the form.");
+      }
       return reply.code(statusCode).send({ error: { code: "VALIDATION_FAILED", message: "Request content was rejected" } });
     }
     if (error instanceof z.ZodError) {
       dependencies.observability?.error("http.request_failed", error, { request_id: String(request.id), method: request.method, route, status_code: 400, error_code: "VALIDATION_FAILED" });
+      if (isMealPlanMutationPath(request.url)) {
+        return sendMealPlanMutationError(reply, request.url, 400, "The submitted meal details were not valid. Return to the week and check the form.");
+      }
       return reply.code(400).send({ error: { code: "VALIDATION_FAILED", message: "Request validation failed" } });
     }
     if (error instanceof AppError) {
@@ -148,9 +157,15 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
           : `Bearer resource_metadata="${new URL("/.well-known/oauth-protected-resource", dependencies.publicOrigin)}"`);
       }
       dependencies.observability?.error("http.request_failed", error, { request_id: String(request.id), method: request.method, route, status_code: httpStatus(error.code), error_code: error.code });
+      if (isMealPlanMutationPath(request.url)) {
+        return sendMealPlanMutationError(reply, request.url, httpStatus(error.code), mealPlanMutationErrorMessage(error.code));
+      }
       return reply.code(httpStatus(error.code)).send({ error: { code: error.code, message: error.message } });
     }
     dependencies.observability?.error("http.request_failed", error instanceof Error ? error : new Error("Unknown request failure"), { request_id: String(request.id), method: request.method, route, status_code: 500, error_code: "INTERNAL_ERROR" });
+    if (isMealPlanMutationPath(request.url)) {
+      return sendMealPlanMutationError(reply, request.url, 500, "The meal plan could not be updated. Return to the week and try again.");
+    }
     return reply.code(500).send({ error: { code: "INTERNAL_ERROR", message: "The request could not be completed" } });
   });
   if (dependencies.browserAuth !== undefined) await registerBrowserAuthRoutes(app, dependencies.browserAuth);
@@ -271,8 +286,15 @@ function nativeOAuthLoopbackOrigin(request: FastifyRequest): string | null {
 
 async function authenticate(header: string | undefined, provider: AuthenticationPort) { return await provider.authenticate(header); }
 const ToolDescriptions: Partial<Record<ToolName, string>> = {
+  hfj_update_user_display_name: "Update the current user's cloud display name with an idempotent account-scoped mutation.",
+  hfj_update_household_name: "Rename a household as an owner at an exact repository revision.",
   hfj_update_onboarding: "Start, skip, or resume the current user's snack or recipe onboarding section; completion is derived from canonical reports.",
   hfj_commit_onboarding: "Atomically commit a confirmed snack-and-recipe onboarding draft, including profiles, evidence, items, reports, and skip outcomes.",
+  hfj_get_meal_plan: "Read one bounded Monday-start household meal-plan week, including current constraints, proposals, review events, withdrawals, and recheck status.",
+  hfj_update_meal_planning_constraints: "Replace the shared household allergy and food-sensitivity labels at an exact repository revision after explicit user confirmation.",
+  hfj_review_meal_constraints: "Record that an editor reviewed the current shared meal constraints for one week before planning.",
+  hfj_add_meal_proposal: "Append one attributed meal proposal without replacing other proposals in the same meal slot.",
+  hfj_withdraw_meal_proposal: "Append an attributed withdrawal for a proposal; only its proposer or a household owner may do this.",
 };
 interface ToolAnnotations {
   readonly readOnlyHint: boolean;
@@ -284,6 +306,7 @@ const DestructiveToolNames = new Set<ToolName>([
   "hfj_remove_member",
   "hfj_revoke_family_invite",
   "hfj_revoke_collection_share",
+  "hfj_withdraw_meal_proposal",
 ]);
 function annotations(toolName: ToolName): ToolAnnotations {
   const changesState = MutatingToolNames.has(toolName) || toolName === "hfj_select_household";
@@ -314,6 +337,16 @@ function httpStatus(code: string): number {
   if (code === "RATE_LIMITED") return 429;
   if (code === "PROVIDER_UNAVAILABLE" || code === "CHANNEL_DISABLED") return 503;
   return code === "INTERNAL_ERROR" ? 500 : 400;
+}
+
+function mealPlanMutationErrorMessage(code: string): string {
+  if (code === "AUTH_REQUIRED") return "Sign in before changing this meal plan.";
+  if (code === "FORBIDDEN" || code === "NOT_FOUND") return "This meal plan is unavailable or you do not have permission to change it.";
+  if (code === "REVISION_CONFLICT" || code === "PROJECTION_DRIFT") {
+    return "The meal plan changed before this request completed. Return to the week, review the latest version, and try again.";
+  }
+  if (code === "VALIDATION_FAILED") return "The submitted meal details were not valid. Return to the week and check the form.";
+  return "The meal plan could not be updated. Return to the week and try again.";
 }
 
 function safeRoute(route: string | undefined): string {

@@ -2,14 +2,23 @@
 
 ## Purpose / Big Picture
 
-Fullwell onboarding must provide value before requiring an account. A fresh installation first asks whether the person already has a Fullwell account. Existing account holders use the current OAuth and hosted-household path. Everyone else completes grocery-history and recipe onboarding against a durable local guest household without any Fullwell MCP call, can use that local data for direct restocking and recipe recall, and is offered optional cloud backup only after collection. Creating an account remains required for WhatsApp, collection sharing, and multiplayer access. The existing hosted path still uses one membership-authorized snapshot, a local checkpoint, and one final `hfj_commit_onboarding` write.
+Fullwell onboarding must provide value before requiring an account. A fresh installation first asks the person's preferred name, remembers it locally, and only then asks whether they already have a Fullwell account. Existing account holders use the current OAuth and hosted-household path. Everyone else completes grocery-history and recipe onboarding against a durable local guest household without any Fullwell MCP call, can use that local data for direct restocking and recipe recall, and is offered optional cloud backup only after collection. Creating an account remains required for WhatsApp, collection sharing, and multiplayer access. The existing hosted path still uses one membership-authorized snapshot, a local checkpoint, and one final `hfj_commit_onboarding` write.
 
 The final write must also fit real grocery histories. The original 100-item and 500-evidence limits were conservative schema guards chosen alongside the one-megabyte HTTP default before a live audit produced 196 items and 804 evidence records. They are not domain or storage constraints. The confirmed onboarding contract now needs count limits of 10,000 items and 10,000 evidence records while retaining a separate route-specific byte limit, authorization, revision checks, idempotency, and one-commit semantics.
 
 The change is a direct usability iteration on `docs/ideas/backlog/conversational-fullwell-onboarding.md`, promoted when the user reported repeated MCP approvals during real onboarding on 2026-07-21 and explicitly approved the read-draft-commit implementation. It remains high-priority because approval fatigue interrupts the first action that makes Fullwell useful. Browser, Chrome, site sign-in, CAPTCHA, and other source-specific consent remain separate and are never implied by the initial Fullwell read.
 
+The 2026-07-24 identity iteration makes the person's preferred name the first conversational question and remembers it independently of local-versus-cloud household authority. Cloud connection copies that confirmed name into the account display name. A first household receives a possessive default such as `Maya's Household` or `Chris' Household` only when no household exists and no pending household is being joined. Later chat requests can rename the person or household in the active local or cloud authority, stop the exact local WhatsApp runner without deleting its connection, remove the exact host-native weekly meal reminder, and receive context-sensitive invitation or collection examples after successful setup.
+
 ## Progress
 
+- [x] Milestone 11 - remember name-first identity, synchronize cloud naming, and add conversational local controls and next steps.
+- [x] 2026-07-24T05:55Z: Completed Milestone 11 locally with a separate private revisioned profile, deterministic first-household naming, account-scoped cloud display-name updates, Git-authoritative owner household renames with Neon recovery, a fixed-purpose WhatsApp runner stop, exact weekly-reminder removal guidance, and context-gated invitation and collection examples.
+- [x] 2026-07-24T05:55Z: Passed the 21-test contract boundary, 50 focused server tests, 43 packaging/lifecycle tests, 14 scheduler/eval tests, 328-test full application suite with 11 expected database skips, 39 applicable WebKit checks with 13 intentional project skips, lint, typecheck, production build, seven-migration up/down/up, all 11 PostgreSQL adapter integrations, and full repository/docs/ExecPlan verification.
+- [x] 2026-07-24T05:55Z: Attempted `artifacts/screencasts/name-first-household-controls.mp4`; Homebrew FFmpeg 8.0.1 rejected the helper's Linux-only `x11grab` input with exit code 234, so no MP4 was created and the package/eval/browser evidence remains the acceptance proof.
+- [x] 2026-07-24T16:28Z: Published immutable public `@fullwell/fullwell@1.1.12` as npm `latest`; the registry's 28-file SHA-1 and SHA-512 byte-match the prepared tarball, and a clean registry install passes isolated Codex and Claude lifecycles.
+- [x] 2026-07-24T05:42Z: Passed the Milestone 11 failure-oriented feature-critic gate after requiring write scope for cloud account rename, deterministic default-name output from the local profile boundary, explicit partial-state reporting across local/cloud renames, Git-derived household-title recovery, fixed-target runner control, and context-gated next-step copy.
+- [x] 2026-07-24T05:35Z: Created and claimed Bead `fullwell-1ps`, updated the promoted onboarding brief, and framed the identity/control iteration with UX, privacy, architecture, reliability, and eval perspectives.
 - [x] Milestone 10 - correct cross-host plugin-root resolution and require a healthy local MCP connection.
 - [x] 2026-07-23T02:54Z: Live host smoke after installing public `1.1.9` proved Codex connected to both Fullwell servers but Claude only discovered `fullwell-local` and failed to start it. Created and claimed Bead `fullwell-gs8.15`; the published package remains immutable and the correction will ship as `1.1.10`.
 - [x] 2026-07-23T03:04Z: Milestone 10 complete locally - prepared `1.1.10` with equivalent Codex and Claude path adapters, real-path-safe stdio startup, a Claude `Connected` lifecycle assertion, and synchronized package, architecture, product, changelog, and reliability evidence.
@@ -57,6 +66,9 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 ## Surprises & Discoveries
 
+- 2026-07-24: A preferred name cannot live only in the guest household document because an existing-account user must remember it locally before OAuth without creating a false guest authority. A separate private local profile is the smallest authority-neutral boundary.
+- 2026-07-24: Account display-name updates already exist for browser sessions through `AccountService`, but chat has no cloud tool for them. Household titles are Git-authoritative while their Neon `households.display_name` value is a projection; a safe rename needs a Git mutation plus reconciliation that reprojects `household.md`.
+- 2026-07-24: Stopping the WhatsApp runner and stopping the weekly reminder are unrelated operations. The runner is one fixed macOS LaunchAgent and should stop without revoking or purging connection state; the reminder belongs solely to the Codex or Claude native task named `Fullwell weekly meal planning`.
 - 2026-07-23: Claude ignores the shared MCP declaration's relative `cwd`, so discovery-only lifecycle assertions allowed `node ./runtime/local-household-mcp.mjs` to pass packaging while failing live connection health. Claude's documented `${CLAUDE_PLUGIN_ROOT}` substitution is the portable MCP path boundary; lifecycle acceptance must assert `Connected`, not merely the server name.
 - 2026-07-23: Codex does not expand `${CLAUDE_PLUGIN_ROOT}` in an MCP argument, so one physical MCP config cannot express both current hosts' path semantics without a shell. Two minimal host transport adapters preserve the same server and tool identities without adding shell evaluation. The strengthened lifecycle also exposed that macOS canonicalizes temporary `/var` and `/tmp` paths through `/private`, requiring the server's main-module guard to compare real paths.
 - 2026-07-23: A marketplace package cannot safely create `~/.codex/fullwell/bin/local-household-v1` during installation because Codex downloads npm plugin packages without running lifecycle scripts. A plugin-provided local MCP server gives the same upgrade-stable permission boundary through a stable server and tool identity without letting the package modify the user's command allowlist or install mutable executable code outside its cache.
@@ -78,6 +90,11 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 ## Decision Log
 
+- 2026-07-24: Store the preferred member name in a revisioned private local profile under the active Codex home, separate from the optional guest household. Store the local household title inside its existing bounded journal document so older local runtimes can still read the top-level schema.
+- 2026-07-24: Add purpose-specific `hfj_update_user_display_name` and `hfj_update_household_name` cloud tools. The first is an idempotent `journal:write` operational identity update with no household ID; the second is an owner-only, expected-HEAD Git mutation whose `household.md` title is reprojected into Neon during ordinary completion and reconciliation.
+- 2026-07-24: Derive a first-household default by trimming the confirmed display name, using an apostrophe alone for names ending in `s` or `S`, and otherwise using apostrophe-s. Never apply that default while accepting a pending invitation or when any household already exists.
+- 2026-07-24: Add a fixed-purpose local MCP tool that stops and removes only the Fullwell WhatsApp LaunchAgent definition while retaining Keychain credentials, runner configuration, snapshots, receipts, server device registration, and WhatsApp linkage. Full disconnect remains a separate CLI/account action.
+- 2026-07-24: Interpret an explicit request to stop or remove the weekly meal reminder as removal of the exact host-native task after listing/reconciliation; `pause` remains the non-destructive temporary action.
 - 2026-07-23: Resolve the local MCP script through `${CLAUDE_PLUGIN_ROOT}` in the shared manifest and remove dependence on process working directory. Keep the stable server/tool identities unchanged, require both hosts to expand the installed package path, and make Claude lifecycle verification prove the server connects.
 - 2026-07-23: Supersede the single-manifest path decision after current Codex proved it does not expand Claude's placeholder. Use `codex-mcp.json` with plugin-root `cwd` for Codex and `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}` for Claude; validate that only path resolution differs, and canonicalize the executable script path before deciding whether to run the stdio main loop.
 - 2026-07-23: Replace direct execution of the versioned `runtime/local-household.mjs` cache path with three tools on a dependency-free plugin-provided `fullwell-local` MCP server: read-only load, non-destructive revisioned update, and destructive collecting-only deletion. Stable MCP identities, rather than a broad `node` rule or a self-modifying allowlist, carry one-time host permission across package upgrades.
@@ -107,6 +124,8 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 `apps/server/src/services/household-food-journal.ts` implements `hfj_get_context`, profile/item reads, evidence append, change-set commits, and per-user onboarding transitions. `apps/server/src/services/mutation-runner.ts` owns the signed Git commit and durable mutation-state lifecycle. `apps/server/src/core/ports.ts`, `apps/server/src/core/types.ts`, `apps/server/src/adapters/memory.ts`, `apps/server/src/persistence/neon-operational-store.ts`, and `apps/server/src/workers/reconciliation-worker.ts` own operational state, projections, and recovery.
 
 The shared host behavior lives in `packages/agent-client/skills/manage-household-food-journal/SKILL.md`, `packages/agent-client/skills/audit-grocery-purchases/SKILL.md`, and `packages/agent-client/skills/track-recipe-history/SKILL.md`. `packages/agent-client/runtime/onboarding-draft.mjs` owns the authenticated checkpoint boundary, while `packages/agent-client/runtime/local-household.mjs` owns the account-free guest authority and optional cloud-link marker; both are bundled for both hosts. `packages/agent-client/evals/cases/v1.json`, `packages/agent-client/evals/expected/v1.json`, and `packages/agent-client/tests/evals/matrix.test.mjs` make tool order and forbidden behavior deterministic across Codex and Claude.
+
+`apps/server/src/account/service.ts` already renames a signed-in browser user's display name through the private identity store, but that behavior is not available to MCP chat. `household.md` is the exported household title authority, while `households.display_name` is the operational read projection used by context and browser views. `packages/local-runner/src/launchd.ts` owns the durable runner lifecycle, and `packages/agent-client/references/weekly-meal-planning-automation.md` owns the separate host-native reminder lifecycle.
 
 Assumptions and constraints:
 
@@ -154,6 +173,8 @@ Prove the combined contract and validation first. Then integrate recovery and on
 For the local-first iteration, the UX lens requires useful grocery and recipe behavior before sign-in and a single plain-language account question before any hosted call. The privacy lens requires that local state exclude credentials, cookies, browser state, screenshots, raw HTML, and raw page captures. The architecture lens treats guest storage as a separate local authority realm rather than weakening the hosted server's sole-writer rule. The reliability lens requires revision-checked atomic writes, resumability, and non-destructive retry after failed cloud promotion. The eval lens must prove both hosts make zero Fullwell calls on the guest path and begin OAuth only after an affirmative account or backup choice.
 
 For the 10,000-record correction, the UX lens requires one final approval to cover a real audit rather than forcing artificial partial saves. The security lens requires a route-specific byte ceiling instead of globally accepting large bodies. The reliability lens requires exact-limit and over-limit tests plus a Git staging path that does not depend on operating-system argument limits. The architecture lens keeps the ordinary mutation tools small and changes only the onboarding aggregate. The eval lens requires both hosts to treat a within-limit large draft as one final write, not as permission to split or pre-write it.
+
+For the identity and conversational-control iteration, the UX lens requires the name question to precede account and household questions, while avoiding a generic menu or redundant rename prompt. The privacy lens treats names and household titles as private content that must never enter telemetry, runner output, scheduled prompts, or public collection data. The architecture lens separates person identity from household authority, keeps cloud household titles Git-authoritative, and uses one exact local runner control rather than shell instructions. The reliability lens requires revision checks for both local files, idempotent cloud updates, projection recovery after a household-name commit, and confirmed host results before claiming a runner or reminder stopped. The eval lens requires both hosts to cover fresh, resumed, joined, possessive-name, rename, stop, and conditional next-step paths.
 
 ## Milestones
 
@@ -556,6 +577,89 @@ Verification:
 - `npm run verify:docs`
 - `npm run verify:execplan`
 
+### Milestone 11 - Remembered identity, household naming, and conversational controls
+
+Files:
+
+- `packages/agent-client/runtime/local-profile.mjs`
+- `packages/agent-client/runtime/local-runner-control.mjs`
+- `packages/agent-client/runtime/local-household.mjs`
+- `packages/agent-client/runtime/local-household-mcp.mjs`
+- `packages/agent-client/tests/packaging/local-profile.test.mjs`
+- `packages/agent-client/tests/packaging/local-runner-control.test.mjs`
+- `packages/agent-client/tests/packaging/local-household.test.mjs`
+- `packages/agent-client/tests/packaging/local-household-mcp.test.mjs`
+- `packages/contracts/src/tools.ts`
+- `packages/contracts/src/contracts.test.ts`
+- `apps/server/src/core/ports.ts`
+- `apps/server/src/adapters/memory.ts`
+- `apps/server/src/persistence/neon-operational-store.ts`
+- `apps/server/src/domain/repository-projection.ts`
+- `apps/server/src/domain/repository-projection.test.ts`
+- `apps/server/src/services/household-food-journal.ts`
+- `apps/server/src/services/household-food-journal.test.ts`
+- `apps/server/src/workers/reconciliation-worker.ts`
+- `apps/server/src/workers/reconciliation-worker.test.ts`
+- `apps/server/src/http/app.ts`
+- `apps/server/src/http/app.test.ts`
+- `apps/server/src/main.ts`
+- `packages/agent-client/skills/manage-household-food-journal/SKILL.md`
+- `packages/agent-client/skills/plan-household-meals/SKILL.md`
+- `packages/agent-client/references/mcp-tool-contract.md`
+- `packages/agent-client/references/privacy-and-sharing.md`
+- `packages/agent-client/references/weekly-meal-planning-automation.md`
+- `packages/agent-client/evals/cases/v1.json`
+- `packages/agent-client/evals/expected/v1.json`
+- `packages/agent-client/tests/evals/matrix.test.mjs`
+- `packages/agent-client/scripts/validate-package.mjs`
+- `docs/product-specs/household-food-journal-client.md`
+- `docs/product-specs/household-food-journal-server.md`
+- `docs/ARCHITECTURE.md`
+- `docs/SECURITY.md`
+- `docs/RELIABILITY.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `CHANGELOG.md`
+- `packages/agent-client/CHANGELOG.md`
+
+Tasks:
+
+1. Add a revisioned private local profile containing only the confirmed display name and timestamps. Expose stable local profile load/update tools, require an exact expected revision including zero for first creation, use atomic `0600` replacement under `0700` directories, and never create a guest household merely to remember an existing-account user's name. Return the deterministic possessive first-household default from this boundary so local and cloud creation do not depend on host phrasing.
+2. Make the first conversational question after a missing local profile `What should I call you?`, save the answer locally before asking about an account, and reuse it across resumed local and cloud flows. For local household creation, store a bounded `journal.household.display_name` using the deterministic possessive default. Add a revision-checked purpose-specific local household rename operation without replacing meal-planning state.
+3. Add `hfj_update_user_display_name` as an idempotent account-scoped MCP mutation backed by the private user identity store. Require a valid authenticated principal and `journal:write`, bind exact retries to the same display name, make a retry after identity-write/response loss safe, and keep the name out of telemetry and mutation failure fields.
+4. Add owner-only `hfj_update_household_name` with `expected_head` and an idempotency key. Commit only the rewritten `household.md` plus the standard audit event, update the operational display-name projection on success, parse the title during repository rebuild, and restore projection consistency after a crash between Git and Neon.
+5. During existing-account setup or local cloud promotion, update the cloud display name from the remembered local profile. When there is no household and no pending family invitation to accept, create the first household with the possessive default. Do not rename an existing or joined household automatically.
+6. Add a local MCP tool that stops only the fixed Fullwell WhatsApp LaunchAgent and removes its plist idempotently. Preserve the runner configuration, Keychain credentials, snapshots, receipts, remote device, WhatsApp link, and household data; explain that WhatsApp will remain unavailable until `fullwell-runner install` restarts it. Keep full disconnect/revocation separate.
+7. Route explicit name and household-name changes to the applicable local and cloud mutations. A connected request updates both authorities with independent revision/idempotency guards and reports an exact partial result if either side fails; it never describes two separate mutations as atomic. Route `stop/remove my weekly meal reminder` to removal of the exact host-native `Fullwell weekly meal planning` task after listing and reconciliation; route `pause` to pause. Report runner and reminder success only from a confirmed result.
+8. After successful cloud setup or promotion, mention inviting another person only for an owner when no pending invitation/import is being resumed. When the household has useful items and the current role can publish, mention a collection with one concrete example such as `Make a collection of five recipes we liked and give me a link.` Do not make either suggestion after failure, cancellation, a joined/viewer-only result, or when it would interrupt a pending intent.
+9. Add deterministic local runtime, server mutation/recovery, contract, MCP metadata, package, and cross-host eval coverage. Update the normative specs, architecture/privacy/reliability guidance, changelogs, implementation log, package validation, and user-visible screencast evidence.
+
+Feature-critic constraints:
+
+- A local profile load remains the only action before the first question. The name is saved only after the user answers and is never inferred from an email, operating-system account, Apple relay address, household title, or retailer profile.
+- A missing local profile does not mean a missing household. After learning the name, load existing local household state before deciding whether to initialize, resume, or use cloud authority.
+- Display-name and household-name validation trims outer whitespace, rejects control characters and blank results, and applies the existing 120-character cloud limit. Possessive derivation operates only on the validated display name and never alters internal punctuation or Unicode letters.
+- A cloud user-name update is account-scoped, requires mutation scope, and must not require or mutate a household. A cloud household-name update is owner-only and must not grant a viewer/editor broader authority.
+- Household rename recovery must derive the name from `household.md`; updating only Neon would invert authority, while updating only Git would leave context and browser views stale.
+- Local and cloud rename operations do not share a transaction. Exact results identify which authority changed, retain the failed side for a safe retry, and never roll back one successful rename by overwriting unrelated concurrent state.
+- Runner stop targets only `com.fullwell.local-runner` in the current GUI user domain. It never accepts a label, path, command, PID, or shell fragment from the user and never turns a stop request into disconnect or data purge.
+- The scheduled-task prompt remains identity-free. A conversational reminder removal reads and mutates host-native state only; it never writes the member or household name into Fullwell local/cloud state or task metadata.
+- Invitation and collection copy is a suggestion, not permission to create, publish, or send anything. Collection publication still requires exact item preview, privacy review, and explicit confirmation.
+- Rollback may ignore the separate local profile file and the additive `journal.household` field without corrupting the guest document. After a new cloud household rename commits, server rollback must retain a reader that accepts the unchanged `household.md` format.
+
+Verification:
+
+- `npm run test --workspace @hfj/contracts`
+- `npm run test --workspace @hfj/server -- domain/repository-projection.test.ts services/household-food-journal.test.ts workers/reconciliation-worker.test.ts http/app.test.ts`
+- `npm run test:packaging --workspace @fullwell/fullwell`
+- `npm run test:evals --workspace @fullwell/fullwell`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test:e2e`
+- `npm run verify`
+- `npm run verify:docs`
+- `npm run verify:execplan`
+- `npm run capture:screencast -- --output artifacts/screencasts/name-first-household-controls.mp4`
+
 ## Interfaces and Dependencies
 
 The public input is conceptually:
@@ -593,7 +697,12 @@ The exact schema uses unique section and profile lists so unchanged state is omi
 
 ## Acceptance / Verification
 
-- A fresh installation's `@Fullwell hi` path asks whether the person already has an account before any Fullwell call. A negative answer initializes local state and begins grocery then recipe questions without OAuth or MCP; an affirmative answer uses the existing authenticated path.
+- On a fresh installation, the first user-facing question is `What should I call you?`; the confirmed answer is saved in private revisioned local profile state before the account question and is reused after restart.
+- Connecting an existing account or promoting a local household saves the remembered name as the cloud account display name. With no existing household and no pending household join, the first household is named `Name's Household`, or `Names' Household` when the validated name ends in `s` or `S`; existing and joined household titles remain unchanged.
+- Ordinary chat can update the person's local profile name, the cloud account display name, the local household name, and an owner-authorized cloud household name with exact revision/idempotency behavior and no cross-authority success claim.
+- An explicit chat request can stop the fixed local WhatsApp LaunchAgent while retaining connection data, and can remove the exact host-native weekly meal reminder. Fullwell reports success only after the relevant local control plane confirms the result.
+- After a successful eligible cloud setup, the chat may suggest inviting another household member and making a collection with one concrete request example; it does not auto-invite, auto-publish, send, or show suggestions in inapplicable failure, pending-intent, or viewer-only states.
+- After the name is remembered locally, a fresh installation's `@Fullwell hi` path asks whether the person already has an account before any hosted Fullwell call. A negative answer initializes local household state and begins grocery then recipe questions without OAuth or hosted MCP; an affirmative answer uses the existing authenticated path.
 - A remembered guest journal resumes locally without asking the account question again, and direct local restocking and recipe recall remain available after the person declines cloud backup.
 - Cloud backup is offered only after local finalization. An accepted promotion authenticates, reconciles against one current hosted household, shows the exact copy/merge summary, and records a cloud link only after one confirmed successful commit; failure or uncertainty leaves the local journal authoritative.
 - WhatsApp, collection sharing, invitations, and family access remain account-gated and explain the promotion path instead of treating local use as invalid.
@@ -612,6 +721,8 @@ The exact schema uses unique section and profile lists so unchanged state is omi
 - Screencast command: `npm run capture:screencast -- --output artifacts/screencasts/approval-efficient-onboarding.mp4`.
 
 ## Outcomes & Retrospective
+
+Milestone 11 now makes an explicitly confirmed preferred name the first durable Fullwell state without inventing a guest household for an existing-account user. The same local profile supplies cloud display-name synchronization and a deterministic possessive first-household title, while existing, joined, and pending-intent households remain untouched. Purpose-specific local and cloud rename controls preserve independent revisions and report partial outcomes honestly; cloud household titles remain Git-authoritative and rebuild their Neon projection. Chat can stop only the fixed WhatsApp LaunchAgent, permanently remove the exact host-native weekly reminder, and offer eligible invitation or collection examples without treating copy as mutation authority. Public `@fullwell/fullwell@1.1.12` contains this behavior together with collaborative meal planning, the private recipe board, and optional weekly planning handoff; `latest` and the clean downloaded host lifecycles pass. No separate application deployment or screencast is claimed for the package release.
 
 Public `@fullwell/fullwell@1.1.10` corrects the live Claude startup failure without changing the stable `fullwell-local` server or tool identities. Codex retains its plugin-root working-directory adapter; Claude resolves the same server through `${CLAUDE_PLUGIN_ROOT}`; and the stdio main-module guard compares canonical filesystem paths so macOS `/tmp` and `/var` aliases do not cause a silent exit. Correction commit `ac4e231` is on `origin/main`; npm `latest` resolves to the checksum-matched 21-entry artifact; a clean registry install passes both host lifecycles; and current Codex and Claude are enabled on `1.1.10`, with Claude reporting the installed local server as `Connected`. No application-server deployment was necessary.
 

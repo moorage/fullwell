@@ -71,6 +71,7 @@ describe("rebuildRepositoryState", () => {
       source_item_revision: earlier,
     };
     const files: RepositorySnapshot["files"] = [
+      file("household.md", markdownDocument({ name: "Garden Table", schema_version: 1 }, ""), head),
       file(`audit/2026/${requestId}.json`, stableJson({ actor_id: actorId, request_id: requestId }), head),
       file("audit/2026/req_0000000000000909.json", stableJson({ actor_id: formerActorId, request_id: "req_0000000000000909" }), head),
       file(`members/${actorId}.md`, "---\nrole: owner\nschema_version: 1\n---\n", earlier),
@@ -88,6 +89,7 @@ describe("rebuildRepositoryState", () => {
 
     const rebuilt = rebuildRepositoryState({ head, files }, new Map([[requestId, userId]]));
 
+    expect(rebuilt.householdName).toBe("Garden Table");
     expect(rebuilt.projection.evidence.get(evidence.id)).toMatchObject({ summary: "Keep apples" });
     expect(rebuilt.projection.items.get(item.id)).toMatchObject({ item: { body_markdown: "Crisp" }, revision: earlier });
     expect(rebuilt.projection.profiles.get("household")).toEqual({ markdown: "# Household", revision: earlier });
@@ -147,6 +149,87 @@ describe("rebuildRepositoryState", () => {
     expect(legacy.projection.evidence.get(purchase.id)).toMatchObject({ kind: "purchase" });
   });
 
+  it("rebuilds meal-planning profile, proposals, and append-only events", () => {
+    const review = {
+      id: "mle_0000000000000901",
+      kind: "constraints_reviewed",
+      week_start: "2026-07-20",
+      constraint_revision: earlier,
+      actor: actorId,
+      occurred_at: "2026-07-20T16:00:00.000Z",
+      schema_version: 1,
+    };
+    const proposal = {
+      id: "mlp_0000000000000901",
+      week_start: "2026-07-20",
+      meal_date: "2026-07-20",
+      slot: { kind: "lunch" },
+      proposed_by: actorId,
+      source: { kind: "freeform", title: "Pizza" },
+      servings: 4,
+      notes: null,
+      constraint_revision: earlier,
+      constraint_review_event_id: review.id,
+      compatibility: "appears_compatible",
+      compatibility_caveat: "Verify ingredients before serving.",
+      created_at: "2026-07-20T16:01:00.000Z",
+      schema_version: 1,
+    };
+    const withdrawal = {
+      id: "mle_0000000000000902",
+      kind: "proposal_withdrawn",
+      week_start: "2026-07-20",
+      proposal_id: proposal.id,
+      reason: "Changed plans",
+      actor: actorId,
+      occurred_at: "2026-07-20T16:02:00.000Z",
+      schema_version: 1,
+    };
+    const files = [
+      file("profiles/meal-planning.md", markdownDocument({
+        constraints: {
+          status: "confirmed_none",
+          time_zone: "America/Los_Angeles",
+          reviewed_at: "2026-07-20T15:59:00.000Z",
+        },
+        updated_at: "2026-07-20T15:59:00.000Z",
+        schema_version: 1,
+      }, ""), earlier),
+      file(`meal-plans/weeks/2026-07-20/events/${review.id}.json`, stableJson(review), head),
+      file(`meal-plans/weeks/2026-07-20/proposals/${proposal.id}.json`, stableJson(proposal), head),
+      file(`meal-plans/weeks/2026-07-20/events/${withdrawal.id}.json`, stableJson(withdrawal), head),
+    ];
+
+    const rebuilt = rebuildRepositoryState({ head, files }, new Map());
+
+    expect(rebuilt.projection.mealPlanningProfile).toMatchObject({
+      constraints: { status: "confirmed_none", time_zone: "America/Los_Angeles" },
+      revision: earlier,
+    });
+    expect(rebuilt.projection.mealProposals.get(proposal.id)).toMatchObject({
+      proposal: { source: { title: "Pizza" } },
+      revision: head,
+    });
+    expect(rebuilt.projection.mealPlanEvents.size).toBe(2);
+  });
+
+  it("rejects a meal-plan event that cites a missing proposal", () => {
+    const withdrawal = {
+      id: "mle_0000000000000903",
+      kind: "proposal_withdrawn",
+      week_start: "2026-07-20",
+      proposal_id: "mlp_0000000000000999",
+      reason: null,
+      actor: actorId,
+      occurred_at: "2026-07-20T16:02:00.000Z",
+      schema_version: 1,
+    };
+    expect(() => rebuildRepositoryState({
+      head,
+      files: [file(`meal-plans/weeks/2026-07-20/events/${withdrawal.id}.json`, stableJson(withdrawal), head)],
+    }, new Map())).toThrowError(/cannot be projected/);
+  });
+
   it("rejects a grocery item stored in the wrong canonical area", () => {
     const ingredient = {
       id: "itm_0000000000000911", kind: "ingredient", display_name: "Parsley", brand: null, product_line: null, flavor: null,
@@ -168,6 +251,7 @@ describe("rebuildRepositoryState", () => {
     ["invalid bare frontmatter", file(`members/${actorId}.md`, "---\nrole: owner name\n---\n", head)],
     ["mismatched actor", file(`members/${actorId}.md`, markdownDocument({ actor_id: formerActorId, role: "owner" }, ""), head)],
     ["incomplete former member", file(`members/${actorId}.md`, markdownDocument({ former_member: true }, ""), head)],
+    ["invalid household name", file("household.md", markdownDocument({ name: "", schema_version: 1 }, ""), head)],
     ["missing collection snapshot", file("collections/col_0000000000000901/collection.md", markdownDocument({ id: "col_0000000000000901", current_snapshot_id: "snp_0000000000000901" }, ""), head)],
   ])("fails closed for %s", (_case, invalidFile) => {
     expect(() => rebuildRepositoryState({ head, files: [invalidFile] }, new Map())).toThrowError(/cannot be projected/);

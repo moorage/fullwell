@@ -19,9 +19,13 @@ Local tool names and their approval meanings stay stable across compatible Fullw
 
 | Tool | Purpose | Mutation requirements |
 |---|---|---|
+| `fullwell_local_profile_load` | Read the remembered private member name and deterministic first-household name. | Read only and closed-world. |
+| `fullwell_local_profile_update` | Create or revision-check a private local member name. | Exact local profile revision; never grants household authority. |
 | `fullwell_local_household_load` | Read the bounded guest household under the active Codex home without contacting Fullwell's cloud service. | Read only and closed-world. |
-| `fullwell_local_household_update` | Initialize, revision-check and save, finalize, or record confirmed cloud linkage for the guest household. | Exact operation-specific fields and current local revision; non-destructive local write. |
+| `fullwell_local_household_update` | Initialize or rename the household, revision-check and save, finalize, record cloud linkage, or mutate the bounded meal-planning profile/proposal ledger. | Exact operation-specific fields, current references, and stable idempotency keys; legacy saves cannot rewrite reserved household or meal-planning state. |
 | `fullwell_local_household_delete_collecting` | Delete only an unfinished guest household after the user cancels the whole flow. | Explicit confirmation and exact current local revision; destructive. |
+| `fullwell_local_recipe_board_create` | Create one private static recipe-board snapshot under the fixed local view directory. | Exact idempotency key and bounded cards; creates no journal state and opens no browser. |
+| `fullwell_local_whatsapp_runner_stop` | Stop and remove only the local macOS Fullwell LaunchAgent. | Preserves connection credentials, snapshots, receipts, and journal; idempotent. |
 
 Do not run the versioned `runtime/local-household.mjs` cache path, edit a user's command rules, or substitute a hosted call when `fullwell-local` is unavailable. Ask the user to reload or reinstall the plugin instead.
 
@@ -30,8 +34,10 @@ Remote cloud tools remain stable separately:
 | Tool | Purpose | Mutation requirements |
 |---|---|---|
 | `hfj_get_context` | Read the stable current user ID, display identity, households, roles, scopes, onboarding, both onboarding profiles, and a bounded item identity index. | Read only. |
+| `hfj_update_user_display_name` | Update the current user's cloud display name without requiring household membership. | `idempotency_key`; requires `journal:write`. |
 | `hfj_create_household` | Create a household with the current user as owner. | `idempotency_key`. |
 | `hfj_select_household` | Select a default household for conversation context. | No content mutation. |
+| `hfj_update_household_name` | Rename the authoritative household document and cloud projection. | Owner role, `expected_head`, `idempotency_key`. |
 | `hfj_update_onboarding` | Start, skip, or resume one user's snack or recipe first-run section. | Current section revision and `idempotency_key`; never accepts `complete`. |
 | `hfj_create_family_invite` | Create a one-time editor or viewer invitation. | `expected_head`, `idempotency_key`. |
 | `hfj_accept_family_invite` | Join only after explicit confirmation. | Raw invite token, `accept: true`, `idempotency_key`. |
@@ -41,6 +47,11 @@ Remote cloud tools remain stable separately:
 | `hfj_remove_member` | Remove a member or leave a household. | Explicit confirmation, `expected_head`, `idempotency_key`. |
 | `hfj_get_profile` | Read household, snack, or recipe source settings. | Read only. |
 | `hfj_update_profile` | Save user-confirmed source and audit settings. | Blob revision, evidence when relevant, `idempotency_key`. |
+| `hfj_get_meal_plan` | Read one bounded Monday-start week, shared constraints, proposals, events, and effective recheck state. | Read only with household membership. |
+| `hfj_update_meal_planning_constraints` | Record explicit none or bounded household allergy and sensitivity labels. | Current profile/head reference and `idempotency_key`; exact replay only. |
+| `hfj_review_meal_constraints` | Append the weekly acknowledgement of the current constraint revision. | Current constraint revision and `idempotency_key`; commutative append. |
+| `hfj_add_meal_proposal` | Append one attributable proposal without replacing another proposal in the slot. | Current constraint review, bounded source provenance, and `idempotency_key`; commutative append. |
+| `hfj_withdraw_meal_proposal` | Append an attributed withdrawal without deleting proposal history. | Proposer or owner authority and `idempotency_key`; commutative append. |
 | `hfj_search_items` | Find bounded recipe and snack candidates. | Read only; results do not establish identity. |
 | `hfj_get_item` | Read a complete item, evidence summaries, blob revision, and HEAD. | Read only. |
 | `hfj_append_evidence` | Append one to 100 immutable evidence records. | `expected_head`, `idempotency_key`; migration ID when applicable. |

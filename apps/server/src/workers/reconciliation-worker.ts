@@ -58,6 +58,7 @@ export class ReconciliationWorker {
         if (missingCommittedMutation !== undefined) throw new Error("Recorded mutation commit is absent from Git main");
         const mutationUsers = new Map<RequestId, UserId>(mutations.map((mutation) => [mutation.requestId, mutation.userId]));
         const rebuilt = rebuildRepositoryState(snapshot, mutationUsers);
+        if (rebuilt.householdName === null) throw new Error("Git household name is missing");
         const actorIds = new Set(rebuilt.memberships.map((membership) => membership.actorId));
         const activeMemberships = await this.store.listHouseholdMemberships(householdId);
         if (activeMemberships.some((membership) => !actorIds.has(membership.actorId))) throw new Error("Active database membership is absent from Git");
@@ -68,6 +69,7 @@ export class ReconciliationWorker {
         const household = await this.store.getHousehold(householdId);
         const currentProjection = await this.store.projection(householdId);
         const needsRebuild = household?.repositoryHead !== snapshot.head
+          || household?.name !== rebuilt.householdName
           || activeMemberships.some((membership) => membership.projectionHead !== snapshot.head)
           || rebuilt.memberships.some((membership) => membership.role !== null && activeByActor.get(membership.actorId)?.role !== membership.role)
           || !projectionsEqual(currentProjection, rebuilt.projection)
@@ -76,7 +78,7 @@ export class ReconciliationWorker {
           if (commits.get(mutation.requestId) === null) await this.store.transitionMutation(mutation.requestId, "failed_before_commit", { failure: "AbandonedBeforeCommit" });
         }
         if (!needsRebuild) return { status: "unchanged" as const };
-        await this.store.replaceHouseholdProjection(householdId, snapshot.head, rebuilt.projection, rebuilt.memberships);
+        await this.store.replaceHouseholdProjection(householdId, rebuilt.householdName, snapshot.head, rebuilt.projection, rebuilt.memberships);
         for (const mutation of mutations) {
           const commitId = commits.get(mutation.requestId);
           if (commitId !== null && commitId !== undefined) {
@@ -123,7 +125,10 @@ function projectionsEqual(left: Awaited<ReturnType<OperationalStorePort["project
   return mapsEqual(left.evidence, right.evidence)
     && mapsEqual(left.items, right.items)
     && mapsEqual(left.profiles, right.profiles)
-    && mapsEqual(left.collections, right.collections);
+    && mapsEqual(left.collections, right.collections)
+    && JSON.stringify(left.mealPlanningProfile) === JSON.stringify(right.mealPlanningProfile)
+    && mapsEqual(left.mealProposals, right.mealProposals)
+    && mapsEqual(left.mealPlanEvents, right.mealPlanEvents);
 }
 
 function mapsEqual(left: ReadonlyMap<string, object>, right: ReadonlyMap<string, object>): boolean {

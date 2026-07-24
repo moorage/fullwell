@@ -71,7 +71,7 @@ Recommended baseline:
 - the official stable MCP TypeScript SDK;
 - Neon PostgreSQL for operational metadata and durable job/idempotency state;
 - the system Git executable invoked with argument arrays and `shell: false` behind a typed adapter;
-- React and React DOM 19.2 for sign-in, invitations, collection preview, Web Share, import, account, and installation browser flows;
+- React and React DOM 19.2 for sign-in, invitations, collection preview, Web Share, import, account, connected weekly meal planning, and installation browser flows;
 - JSON Schema or an equivalent runtime validator generated from shared semantic types;
 - Vitest for units and integration tests;
 - Playwright for browser flows;
@@ -152,6 +152,7 @@ Git owns:
 - pseudonymous member IDs and role-change audit events;
 - snack profiles, evidence, items, ledgers, and agent-authored reports;
 - recipe profiles, evidence, entries, cooking history, and agent-authored indexes;
+- the shared meal-planning constraint profile, immutable weekly review events, meal proposals, and withdrawal events;
 - private collection definitions and published collection snapshots;
 - import provenance;
 - immutable audit event files;
@@ -264,9 +265,13 @@ Users may:
 
 Account deletion must revoke sessions and tokens immediately. If other members retain a household, replace the deleted user's exported display identity with a stable pseudonymous former-member label while preserving audit integrity. A sole owner must transfer ownership or explicitly delete/export the household before deleting the account.
 
+The MCP surface exposes the same display-name capability through account-scoped `hfj_update_user_display_name`. It requires `journal:write`, an idempotency key, and an authenticated user, but no household membership or repository commit. Exact replay returns the stored result; reusing a key for another name fails before the account changes.
+
 ## 8. Household collaboration
 
 An authenticated user may create a household from the server-rendered household list. The form submission must authenticate the browser session, verify CSRF, validate the household name and idempotency key, and call the same single-writer `hfj_create_household` use case as MCP. A completed request redirects to the new household; an exact replay returns the same household without another Git commit.
+
+An owner may rename a household through `hfj_update_household_name`. The mutation replaces only `household.md` at an exact repository HEAD, creates one signed commit, and updates the Neon display-name projection. Reconciliation parses the authoritative name from Git and repairs projection drift.
 
 ### 8.1 Roles
 
@@ -328,6 +333,7 @@ profiles/
   household.md
   snacks.md
   recipes.md
+  meal-planning.md
 snacks/
   evidence/<year>/<evidence-id>.json  # legacy read compatibility
   items/<snack-id>.md
@@ -343,6 +349,9 @@ recipes/
   evidence/<year>/<evidence-id>.json
   items/<recipe-id>.md
   reports/recipe-index.md
+meal-plans/
+  weeks/<monday-date>/proposals/<proposal-id>.json
+  weeks/<monday-date>/events/<event-id>.json
 collections/
   <collection-id>/collection.md
   <collection-id>/snapshots/<snapshot-id>.json
@@ -372,12 +381,14 @@ Files under these paths may be created but never modified or deleted by ordinary
 - `imports/`
 - `audit/`
 - `collections/*/snapshots/`
+- `meal-plans/weeks/*/proposals/`
+- `meal-plans/weeks/*/events/`
 
 A correction is a new event that references the superseded event. Repository validation must reject a change set that alters an existing append-only blob.
 
 ### 9.5 Mutable current-state paths
 
-Profiles, item entries, reports, member projections, and private collection definitions may change. Git history preserves their earlier versions. Every update must cite relevant evidence and use an expected blob object ID or expected repository HEAD.
+`household.md`, profiles, item entries, reports, member projections, and private collection definitions may change. Git history preserves their earlier versions. Household names are trimmed text of at most 120 characters and are never used as filesystem paths. Every update must use an expected blob object ID or expected repository HEAD and cite relevant evidence when the domain change requires it.
 
 ## 10. Domain contracts
 
@@ -583,6 +594,12 @@ Input: optional `household_id`.
 
 Output: the stable authenticated Fullwell user ID and display data, editable/readable households with roles, default household, pending invitation/import intent, granted scopes, current repository HEADs, and the selected household's snack and recipe onboarding states. The stable user ID is non-secret and lets installed clients isolate resumable local working drafts without using display names. For a selected household, also return both onboarding profile Markdown documents with revisions and a deterministic item identity index capped at 200 entries with an explicit truncation flag. Resolve the repository HEAD, household projection HEAD, membership projection HEAD, onboarding state, profiles, and item index under the household lock; reject drift rather than returning a mixed snapshot. Reject a supplied household ID unless the caller has a current membership before reading repository state.
 
+#### `hfj_update_user_display_name`
+
+Input: `display_name`, `idempotency_key`.
+
+Output: the saved cloud display name and a null repository HEAD. The mutation is account-scoped, requires `journal:write`, and does not require a household or write Git. It records the request fingerprint before changing the user row so an interrupted exact retry can safely repeat the idempotent assignment.
+
 #### `hfj_create_household`
 
 Input: `name`, `idempotency_key`.
@@ -594,6 +611,12 @@ Output: household ID, owner role, repository HEAD, and onboarding state.
 Input: `household_id`.
 
 Output: selected default household. All later mutation tools still require an explicit household ID.
+
+#### `hfj_update_household_name`
+
+Input: `household_id`, `name`, `expected_head`, `idempotency_key`.
+
+Output: the saved name and new repository HEAD. Only an owner may rename. The normal household mutation pipeline replaces `household.md`, signs one commit, and updates the Neon projection; changed reuse of an idempotency key fails.
 
 #### `hfj_update_onboarding`
 
@@ -691,7 +714,55 @@ Output: commit, new HEAD, per-entity blob revisions, validation results, and pro
 
 Allowed operations are create item, update item, append correction, update report, and update index. The server maps entity kinds to paths; callers never provide arbitrary paths.
 
-### 12.3 Collections and import
+### 12.3 Household meal planning
+
+The meal-planning server is a bounded storage and authorization boundary, not a recipe search engine or food-safety classifier. A meal slot is an unordered set of immutable proposals. Appending a proposal never replaces another proposal in the same date and slot.
+
+Cloud meal-planning tool discovery, calls, browser navigation, and browser mutations are part of every server deployment. The five tools are always present in authenticated MCP discovery, the household Meals navigation is always rendered for an authenticated household context, and the authenticated route and form actions are always registered. Membership, OAuth scope, CSRF, role, validation, and idempotency checks remain authoritative. Local agent planning and private recipe boards remain independent. Application rollback must preserve append-only Git data and use a reader compatible with meal-plan paths and projection fields.
+
+#### `hfj_get_meal_plan`
+
+Input: `household_id`, Monday `week_start`, optional proposal cursor, and limit no greater than 500.
+
+Output: the current shared constraint profile, a bounded proposal page, the complete bounded review and withdrawal event set, active state, and effective compatibility. Events are returned independently of proposal pagination, so the default 200-proposal page cannot hide a current review or withdrawal. A proposal becomes `needs_recheck` when its cited constraint-profile revision or journal-recipe revision is no longer current. It remains in Git and in the historical result. Resolve membership, repository HEAD, projection HEAD, profile, proposals, and events under the household lock and reject drift.
+
+A week contains at most 500 immutable proposals and at most 48 proposals in one date-and-slot combination. It separately reserves capacity for 500 constraint-review events and 500 proposal-withdrawal events, so every accepted proposal can still be withdrawn even when the review quota is full. Writers count authoritative projected records by kind under the household lock before appending. Exact limits remain readable and exactly replayable, the next same-kind append returns a bounded validation failure, and any projection already beyond a limit fails closed as `PROJECTION_DRIFT` before the server or browser paginates it.
+
+#### `hfj_update_meal_planning_constraints`
+
+Input: `household_id`, exact `expected_head`, `idempotency_key`, a confirmed IANA time zone, and either explicit no known allergies/sensitivities or bounded user-supplied labels. Unresolved constraints are not accepted.
+
+Output: the new constraint-profile Git revision. The profile is shared with current household members and must not contain member names or medical narratives. It is excluded from public collection projections.
+
+#### `hfj_review_meal_constraints`
+
+Input: `household_id`, Monday `week_start`, current constraint-profile revision, and `idempotency_key`.
+
+Output: one immutable attributed weekly-review event. Owners and editors may append it. The server rechecks the current profile revision and editor membership under the household lock.
+
+#### `hfj_add_meal_proposal`
+
+Input: `household_id`, week/date/slot, bounded free-form, journal-recipe, or credential-free HTTPS external-recipe source, servings, notes, current constraint revision, matching weekly-review event, evidence-based compatibility status and caveat, and `idempotency_key`.
+
+Output: one deterministic immutable proposal ID. Journal recipes must cite the exact current item revision and structured Liked confirmation evidence for that same recipe. The mutation uses the current locked Git HEAD only after rechecking editor membership, but it accepts exactly one server-generated append-only path. Exact retries return the same proposal and commit; changed reuse of the key conflicts. Independent same-slot additions both survive.
+
+#### `hfj_withdraw_meal_proposal`
+
+Input: `household_id`, Monday `week_start`, proposal ID, optional bounded reason, and `idempotency_key`.
+
+Output: one immutable attributed withdrawal event. The proposing actor may withdraw their proposal; a household owner may withdraw any proposal; another editor may not. The proposal document is never deleted or rewritten.
+
+The server never searches the internet, sends constraint terms to a provider, or fetches recipe/image URLs. Those are separately approved host actions. Telemetry contains only bounded tool/request/timing/error fields and never meal titles, URLs, notes, constraint labels, actor display names, or household names.
+
+#### Connected browser week
+
+`GET /households/:id/meal-plan?week=<monday-date>` is an authenticated membership-authorized projection of one week. The server groups every active proposal by date and slot without choosing a winner or collapsing conflicts, emits all seven dates and the standard meal slots even when empty, and adds any custom slots represented by active proposals. Each proposal identifies its proposer, source class, compatibility caveat, and non-color `needs_recheck` state. The page exposes withdrawal only to the proposing actor or a household owner. Constraint labels and medical narratives are never serialized into the browser view model.
+
+The page works without JavaScript. Review, proposal-add, and withdrawal forms use `POST`, server-owned session authentication and CSRF verification, shared runtime validation, idempotency keys, role checks, and post/redirect/get. The simple browser add form appends a bounded free-form proposal with incomplete compatibility evidence and a conservative caveat; external search and journal-recipe evidence selection remain agent workflows. Redirect status parameters are from a fixed allowlist and never contain meal titles, constraint terms, URLs, notes, or actor names.
+
+An exact form replay returns the original mutation result without another commit. Changed reuse of an idempotency key conflicts. Concurrent additions to the same date and slot both remain visible. Anonymous access redirects to sign-in with the exact local return path; missing, removed, and cross-household membership render the same unavailable state. Authenticated week responses are `Cache-Control: no-store` and `X-Robots-Tag: noindex, nofollow`.
+
+### 12.4 Collections and import
 
 #### `hfj_create_collection`
 
@@ -763,7 +834,12 @@ Output: short-lived authenticated download URL, content hash, source HEAD, and e
 
 | Route | Purpose |
 |---|---|
-| `GET /install` | Platform chooser and current client installation instructions. |
+| `GET /install` | Branded ChatGPT/Claude platform chooser and current client installation instructions. |
+| `GET /guides` | Public advanced-agent guide index. |
+| `GET /guides/whatsapp` | WhatsApp connection instructions and safe chat example. |
+| `GET /guides/household-invitations` | Household invitation instructions and role-aware chat example. |
+| `GET /guides/collections/create` | Collection creation instructions and chat example. |
+| `GET /guides/collections/share` | Collection publishing instructions and confirmation boundary. |
 | `GET /invite/family/:token` | Safe invitation preview and sign-in/accept flow. |
 | `POST /invite/family/:token/accept` | Explicit authenticated acceptance with CSRF protection. |
 | `GET /c/:token` | Public-safe collection preview. |
@@ -771,6 +847,19 @@ Output: short-lived authenticated download URL, content hash, source HEAD, and e
 | `POST /c/:token/import` | Authenticated confirmed import. |
 | `GET /account` | Sign-in methods, passkeys, MCP grants, households, exports, deletion. |
 | `GET /households/:id` | Minimal authenticated household/member/collection management UI. |
+| `GET /households/:id/recipes` | Membership-authorized visual recipe journal with bounded progressive loading. |
+| `GET /households/:id/groceries` | Membership-authorized visual grocery journal with bounded progressive loading. |
+| `GET /households/:id/journal-items?section=<section>&cursor=<cursor>` | Membership-authorized, no-store continuation projection for a recipe or grocery browser. |
+| `GET /households/:id/meal-plan?week=<monday-date>` | Membership-authorized seven-day meal proposal view. |
+| `POST /households/:id/meal-plan/review` | CSRF-protected weekly constraint review. |
+| `POST /households/:id/meal-plan/proposals` | CSRF-protected append-only free-form proposal. |
+| `POST /households/:id/meal-plan/proposals/:proposalId/withdraw` | Authorized append-only proposal withdrawal. |
+
+The public guide routes contain examples only and never receive credentials, access codes, or mutation confirmations. Contextual install, account, members, collection, and household links target the narrowest relevant guide.
+
+The recipe and grocery document routes are server rendered and then progressively enhanced. They use the same deterministic, display-only server projection as the continuation endpoint, return recorded fields without semantic merging, and expose a normal page link when JavaScript or automatic loading is unavailable. Every document and continuation request re-resolves the browser principal, current membership, and Git-synchronized projection; anonymous, removed, cross-household, or stale callers receive no item data. Responses are private, no-store, and noindex. Client continuation parsing is strict, failures remain visible and retryable, duplicate item IDs do not render twice, and the end of the bounded list is announced.
+
+The four meal-plan routes are always registered. Unauthenticated reads use the normal sign-in redirect, and every read or mutation still applies the authorization and CSRF behavior defined above.
 
 Collection pages must be usable at 320 CSS pixels, keyboard accessible, labeled for screen readers, and functional without client-side JavaScript except enhanced share-sheet behavior.
 
@@ -1047,6 +1136,10 @@ Cover:
 9. Expiration handling.
 10. Web Share fallback to copy/email/text drafts.
 11. Account deletion and final-owner protection.
+12. Connected meal-plan authorization, all seven dates, concurrent same-slot proposals, stale-review warnings, exact retry/conflict behavior, ordinary no-JavaScript forms, and 320 CSS-pixel rendering.
+13. Direct public guide routes and contextual links for WhatsApp, household invitations, collection creation, and collection sharing.
+14. Recipe and grocery browsers on desktop, mobile, keyboard, reduced-motion, and no-JavaScript paths, including automatic and explicit continuation, retry, deduplication, image fallback, and end-of-list states.
+15. Anonymous, removed-member, stale-projection, and cross-household visual-journal denial without private item serialization.
 
 ### 22.6 Security tests
 
@@ -1119,6 +1212,9 @@ The server is complete when:
 - collection links work through email/text sharing and can be revoked or expire;
 - recipients can selectively import with correct status semantics and provenance;
 - imported snacks do not become purchases and imported recipes do not become cooked/liked;
+- the public site identifies ChatGPT, Claude, and Apple actions with recognizable decorative marks and visible accessible names;
+- advanced-agent guides have stable task-specific routes, safe examples, and correct contextual links;
+- authorized household members can browse recorded recipes and groceries through bounded, progressively loaded visual projections with a no-JavaScript path;
 - household ZIP and Git bundle exports work and verify;
 - backup and isolated restore drills pass;
 - deterministic tests meet the coverage target and all integration, browser, client-contract, security, and accessibility gates pass;

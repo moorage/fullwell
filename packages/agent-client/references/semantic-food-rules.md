@@ -31,6 +31,10 @@ Append every occurrence, including duplicates and conflicts. Resolve identity in
 
 Record every supported cooking date and preparation change, distinguishing one-time changes from confirmed typical changes. Use an image displayed by the audited recipe site and preserve both page and image provenance.
 
+## Meal proposals
+
+Meal slots contain proposals, not a program-selected winner. Program code may validate dates, bounds, references, exact revisions, explicit Liked confirmation evidence, and append-only identity; it must not rank recipes, decide compatibility, infer a constraint, or overwrite one household member's idea with another's. The agent authors recommendation reasons and compatibility caveats from current evidence.
+
 ## Evidence and reports
 
 Read current state before change. Append evidence before conclusions. Every report row cites exact item and evidence IDs; recurrence and last-date assertions must be deterministically supported. The agent authors the Markdown and explains uncertainty, conflicts, and limitations instead of inventing facts.

@@ -35,8 +35,11 @@ export function HouseholdCollectionsRoute({ householdId }: { householdId: string
           ))}
         </div>
         <section className="agent-callout">
-          <div><Plus aria-hidden="true" size={24} /><div><h2>Create a collection with your agent</h2><p>Ask Codex or Claude to find the intended items, review exactly what will be public, and publish a snapshot.</p></div></div>
-          <ButtonLink href="/install?host=codex" variant="secondary">Agent instructions</ButtonLink>
+          <div><Plus aria-hidden="true" size={24} /><div><h2>Create or share with your agent</h2><p>Ask ChatGPT or Claude to find the intended items, then review exactly what will be public before sharing.</p></div></div>
+          <div className="button-row">
+            <ButtonLink href="/guides/collections/create" variant="secondary">Create guide</ButtonLink>
+            <ButtonLink href="/guides/collections/share" variant="secondary">Sharing guide</ButtonLink>
+          </div>
         </section>
       </section>
     </AppShell>

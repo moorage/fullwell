@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, LockKeyhole } from "lucide-react";
 import { AppShell } from "../components/app-shell.js";
+import { BrandMark } from "../components/brand-mark.js";
 import { CollectionItem } from "../components/collection-item.js";
 import { ShareActions } from "../components/share-actions.js";
 import { Button, ButtonLink, HiddenFormFields, PageHeader, StatusNotice } from "../components/ui.js";
@@ -100,8 +101,8 @@ function ReadyCollection({ token }: { token: string }) {
           <p><strong>Only this published snapshot is visible.</strong> You cannot see the household, purchase history, private notes, or family members. Importing does not add you to the household.</p>
         </div>
         <nav aria-label="Agent installation">
-          <a href="/install?host=codex">Use with Codex</a>
-          <a href="/install?host=claude">Use with Claude</a>
+          <a href="/install?host=codex"><BrandMark brand="chatgpt" /> Use with ChatGPT</a>
+          <a href="/install?host=claude"><BrandMark brand="claude" /> Use with Claude</a>
         </nav>
       </section>
     </AppShell>

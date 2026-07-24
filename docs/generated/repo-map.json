@@ -201,6 +201,10 @@
     },
     {
       "type": "file",
+      "name": ".dockerignore"
+    },
+    {
+      "type": "file",
       "name": ".env.example"
     },
     {
@@ -283,12 +287,1307 @@
                 {
                   "type": "dir",
                   "name": "households",
-                  "children": []
+                  "children": [
+                    {
+                      "type": "dir",
+                      "name": "hsh_5f14bd1876403771b8e2e1a05b64421e.git",
+                      "children": [
+                        {
+                          "type": "file",
+                          "name": "HEAD"
+                        },
+                        {
+                          "type": "file",
+                          "name": "config"
+                        },
+                        {
+                          "type": "file",
+                          "name": "description"
+                        },
+                        {
+                          "type": "dir",
+                          "name": "hooks",
+                          "children": [
+                            {
+                              "type": "file",
+                              "name": "applypatch-msg.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "commit-msg.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "fsmonitor-watchman.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "post-update.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "pre-applypatch.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "pre-commit.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "pre-merge-commit.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "pre-push.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "pre-rebase.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "pre-receive.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "prepare-commit-msg.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "push-to-checkout.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "update.sample"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "dir",
+                          "name": "info",
+                          "children": [
+                            {
+                              "type": "file",
+                              "name": "exclude"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "dir",
+                          "name": "objects",
+                          "children": [
+                            {
+                              "type": "dir",
+                              "name": "02",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "0b113d95cb999477d29d370420b554cf53954b"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "0b",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "5951de8447f1dae8ad2c4ef6b798a361996914"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "0e",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "8f0b3906a2692c3d938f514a35fea4fa8e3c50"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "0f",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "4fa6ed6d0bc4dca87c886bb192f2771ef1bc1c"
+                                },
+                                {
+                                  "type": "file",
+                                  "name": "6c40d8ff768114fae0956f92b77ea6bbc0366a"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "11",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "e3181e0a2c61f53ad60c51ce1d19b2cd7a8e7c"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "14",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "fbdef3adcff9da5d493a9553e2197021c401cf"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "1b",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "bf86d5136dbffb39bb8562cedd9fd80865b95c"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "20",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "db0e3e4d1a85370b2f41b0d0157c8a7ec4e9e9"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "26",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "54f4f6bc319bd7771ea880d62003247178a7c4"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "29",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "6f9775d74423c52e850b32575afaae36f41d87"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "2a",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "8f98771367f0d53a85aedf76bfd4f6dc7b4b7b"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "2d",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "74eacee5b98ac73ad653f39d0dcf3ec3ce2e2c"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "3c",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "c563245214d676b70523b1f49909436c926d6d"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "49",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "98cb23877f38704d57f82efd5df600146f6906"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "4c",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "9f8f3767ba6e5244bcce596659713a10fb355f"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "4e",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "e74a41dc84d3f2ded05e2485e9b2e9526514ab"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "5d",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "e23eff1bd47ce0207d927bd9b326941ede628e"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "61",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "75a8d7477223368cd071655889e14522bd498a"
+                                },
+                                {
+                                  "type": "file",
+                                  "name": "fafabba2e3cc02213c0e133ef6f07da2dcc78d"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "64",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "da0ce9151c1a14928f52cf789328a8b617cbb0"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "65",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "b8b62097feb77d2b63b1b5407e899204c496a8"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "66",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "41ff7b541099b1f03c6aced98347a41ff5ffdf"
+                                },
+                                {
+                                  "type": "file",
+                                  "name": "f2c4b069049e8d58ebdeda802a1bb591c3c249"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "70",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "f587d4a584eb294ee7e99d167e672418c099dd"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "71",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "5eea7e394e37389b6249f472d4f8c6d69b828b"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "80",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "f8f244488115b35c908974794e888434a084e9"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "82",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "f93689771de63ba45103f8e8efdd2a86fe4d6b"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "85",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "e84bfbc2855d8988138e663bec59b9f6b317be"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "8a",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "12d9c2d46f89a663148793a27e6a79780aa260"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "8f",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "36c0b6c619909b749d6b795401a2195065a95b"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "91",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "7a2649a9574b947b3cd00d912fa6e1b9657538"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "93",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "2aad2b13677d9aaf0c64556a168fc255362e3c"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "97",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "3033aaf89954b06e7c818eb56320af1cc2cbcd"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "99",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "fff4ff1eeca4c37ef66fb22b21f232a176a8f5"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "ae",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "290691d289b8f7acb156d412dda44efc89acb7"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "af",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "ba104e828ab5c086ff9dfb9ee63c035c2561c8"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "b6",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "3488a5c820c4baa6834bfcc91abdc5b1b7c341"
+                                },
+                                {
+                                  "type": "file",
+                                  "name": "997f40f93d6e09b24e018dee35d418aa197306"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "bd",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "65a16e778e6c8c225acec1932c0ea9781644d7"
+                                },
+                                {
+                                  "type": "file",
+                                  "name": "a148e3b25c866c6f7a5afad2c39508d7ab5d77"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "c5",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "c3e810ddea8a5e13aa8e479b2e37a3f24dc913"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "c7",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "a7df4d78947b042b42999709116b84f982832f"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "c8",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "874dacab70f7efbc24352e776293e240f1d8bc"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "c9",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "af37554506792887fd4f6baf2b346a8fea067d"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "ce",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "cd07a0479d3fda84854ce6408b772abc16d0ee"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "cf",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "847183096f0f80827b809c498359131b7c7131"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "d0",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "0491fd7e5bb6fa28c517a0bb32b8b506539d4d"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "d4",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "d161bfab2ff7bb94d7ccb029e2aa99c47b9751"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "d6",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "01d0738791b8836fbc2e6a1d349db3b81d9461"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "d7",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "fe4a06295efba8e9e52d89093776fba4106510"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "d9",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "b246d65512da7a4477694de75aaf827932c780"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "e5",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "2e7052c91675003bf13de885facdee993abe6d"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "e7",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "11221af2a62da3992d19daee28a6a424b9e32a"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "ea",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "966ce33df4fca56c4af12a84e7810b7bc8a2c1"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "f3",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "028acc1f82f03bbd827b80da7f766f78d11e07"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "f7",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "e77d9f99b919a5bed953f041dfbf6da8240614"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "fb",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "9c69e26fd67b3ff284a2862bdefbf15908bf73"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "info",
+                              "children": []
+                            },
+                            {
+                              "type": "dir",
+                              "name": "pack",
+                              "children": []
+                            }
+                          ]
+                        },
+                        {
+                          "type": "file",
+                          "name": "packed-refs"
+                        },
+                        {
+                          "type": "dir",
+                          "name": "refs",
+                          "children": [
+                            {
+                              "type": "dir",
+                              "name": "heads",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "main"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "tags",
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "dir",
+                      "name": "hsh_6f4f844208084a40233f0c9bb5e4e193.git",
+                      "children": [
+                        {
+                          "type": "file",
+                          "name": "HEAD"
+                        },
+                        {
+                          "type": "file",
+                          "name": "config"
+                        },
+                        {
+                          "type": "file",
+                          "name": "description"
+                        },
+                        {
+                          "type": "dir",
+                          "name": "hooks",
+                          "children": [
+                            {
+                              "type": "file",
+                              "name": "applypatch-msg.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "commit-msg.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "fsmonitor-watchman.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "post-update.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "pre-applypatch.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "pre-commit.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "pre-merge-commit.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "pre-push.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "pre-rebase.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "pre-receive.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "prepare-commit-msg.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "push-to-checkout.sample"
+                            },
+                            {
+                              "type": "file",
+                              "name": "update.sample"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "dir",
+                          "name": "info",
+                          "children": [
+                            {
+                              "type": "file",
+                              "name": "exclude"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "dir",
+                          "name": "objects",
+                          "children": [
+                            {
+                              "type": "dir",
+                              "name": "02",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "0b113d95cb999477d29d370420b554cf53954b"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "06",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "65bf7e6970e0615a09173c117cb84813565abf"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "0c",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "fff59a1b9b93015205d8db3cfaa0faf602151d"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "11",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "e3181e0a2c61f53ad60c51ce1d19b2cd7a8e7c"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "13",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "b1f97a296357dc03aba31cc1bae137272c7eb1"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "17",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "1d4a9b5e5224227525d87fdbad8940ad8a0556"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "26",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "1f7b849b4aec34aaf4167fea6dd6d2183ee57e"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "42",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "f5f74a5f87faddd3327d087266516f7635d23f"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "47",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "b80871776d91ffb0a77bc4d1bc1973d02de0cc"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "4c",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "7a8c0ef41b49d4bd4c29e146c9f9e28c609b2c"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "5c",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "63499ec57c63a01eb7656939cba042fc4ea054"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "69",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "557d978ed25874a9ae08ba26c1dc306358054f"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "6e",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "5ecd0161fbfdfb04eb551264588c2d03e24fa5"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "85",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "e131d802c0877df048b8d9a899cc99d885dfee"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "86",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "6c43d410fd3988a33464a3b29f3c72d74648de"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "8d",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "a6f71d178ffbfcb8923458e544e2751fd98d33"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "93",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "2aad2b13677d9aaf0c64556a168fc255362e3c"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "99",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "fff4ff1eeca4c37ef66fb22b21f232a176a8f5"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "a8",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "3e3f00a2d256c3d2da22b8b6347a9ca10cdbaf"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "b6",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "3488a5c820c4baa6834bfcc91abdc5b1b7c341"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "c8",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "7393b9e6ba08d75befd80191456abad600ec23"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "c9",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "af37554506792887fd4f6baf2b346a8fea067d"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "ce",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "9f5da528ca0bde2a51477aa120f3b545171cd6"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "d0",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "0491fd7e5bb6fa28c517a0bb32b8b506539d4d"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "d6",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "51660dab6a63f322e2d8dd992fb6b388259727"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "d8",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "f23622ca544c33a85740f8126fd80ca8d039b8"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "fb",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "9c69e26fd67b3ff284a2862bdefbf15908bf73"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "fd",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "ad2db0f74bb79a5a3a42a5b9ccd0f98a50e2e0"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "info",
+                              "children": []
+                            },
+                            {
+                              "type": "dir",
+                              "name": "pack",
+                              "children": []
+                            },
+                            {
+                              "type": "dir",
+                              "name": "tmp_objdir-incoming-dmmqrI",
+                              "children": [
+                                {
+                                  "type": "dir",
+                                  "name": "06",
+                                  "children": [
+                                    {
+                                      "type": "file",
+                                      "name": "6a00061511a1ac22fab9d3898da22d9bf19fa2"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "0d",
+                                  "children": [
+                                    {
+                                      "type": "file",
+                                      "name": "cf01ecf5a1ecdde275359eee53b5b63320e64b"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "3e",
+                                  "children": [
+                                    {
+                                      "type": "file",
+                                      "name": "e19c021072554addacb44af28d94049b92d4df"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "4b",
+                                  "children": [
+                                    {
+                                      "type": "file",
+                                      "name": "e331577fcdf0c3ba288b25078bbbdd49d6d993"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "8d",
+                                  "children": [
+                                    {
+                                      "type": "file",
+                                      "name": "f4595f477204c8930c8c3d07f414244d568df9"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "ad",
+                                  "children": [
+                                    {
+                                      "type": "file",
+                                      "name": "34e39da2c8d525d47d22bee38065e658723bd2"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "bc",
+                                  "children": [
+                                    {
+                                      "type": "file",
+                                      "name": "3a8a96961d5ea1a3f14b212749edc74e416efc"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "e6",
+                                  "children": [
+                                    {
+                                      "type": "file",
+                                      "name": "0f40715acb823e0518f78f539729c33b490c05"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "ea",
+                                  "children": [
+                                    {
+                                      "type": "file",
+                                      "name": "247d59ec18ea8974a35c10b1a07a09488def17"
+                                    },
+                                    {
+                                      "type": "file",
+                                      "name": "eb995aeac1bc53c84b1483b3e1861d51d8d923"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "pack",
+                                  "children": []
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "file",
+                          "name": "packed-refs"
+                        },
+                        {
+                          "type": "dir",
+                          "name": "refs",
+                          "children": [
+                            {
+                              "type": "dir",
+                              "name": "heads",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "main"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "tags",
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
                 },
                 {
                   "type": "dir",
                   "name": "worktrees",
-                  "children": []
+                  "children": [
+                    {
+                      "type": "dir",
+                      "name": "mutation-p19HEZ",
+                      "children": [
+                        {
+                          "type": "file",
+                          "name": "FORMAT_VERSION"
+                        },
+                        {
+                          "type": "dir",
+                          "name": "audit",
+                          "children": [
+                            {
+                              "type": "dir",
+                              "name": "2026",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "req_232e464b26e66589f104bba50e32e7d9.json"
+                                },
+                                {
+                                  "type": "file",
+                                  "name": "req_5fed38469fab1dc509160bbfb0b48960.json"
+                                },
+                                {
+                                  "type": "file",
+                                  "name": "req_b745e339e8e61cb7a51edbd539843d51.json"
+                                },
+                                {
+                                  "type": "file",
+                                  "name": "req_c452f10f4e9a32ba70c16628cd7e858b.json"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "file",
+                          "name": "household.md"
+                        },
+                        {
+                          "type": "dir",
+                          "name": "meal-plans",
+                          "children": [
+                            {
+                              "type": "dir",
+                              "name": "weeks",
+                              "children": [
+                                {
+                                  "type": "dir",
+                                  "name": "2026-07-20",
+                                  "children": [
+                                    {
+                                      "type": "dir",
+                                      "name": "events",
+                                      "children": [
+                                        {
+                                          "type": "file",
+                                          "name": "mle_84c3623420ff947317368a1a98c130ec.json"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "dir",
+                          "name": "members",
+                          "children": [
+                            {
+                              "type": "file",
+                              "name": "act_0000000000000001.md"
+                            },
+                            {
+                              "type": "file",
+                              "name": "act_0000000000000002.md"
+                            },
+                            {
+                              "type": "dir",
+                              "name": "invitations",
+                              "children": [
+                                {
+                                  "type": "file",
+                                  "name": "inv_0c66b6c3740e6ae4ff6361ec5909adbb.md"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "dir",
+                          "name": "profiles",
+                          "children": [
+                            {
+                              "type": "file",
+                              "name": "meal-planning.md"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
                 }
               ]
             },
@@ -766,6 +2065,10 @@
                     },
                     {
                       "type": "file",
+                      "name": "mutation-runner.test.ts"
+                    },
+                    {
+                      "type": "file",
                       "name": "mutation-runner.ts"
                     }
                   ]
@@ -840,6 +2143,10 @@
                     },
                     {
                       "type": "file",
+                      "name": "brand-mark.tsx"
+                    },
+                    {
+                      "type": "file",
                       "name": "collection-item.tsx"
                     },
                     {
@@ -853,6 +2160,10 @@
                     {
                       "type": "file",
                       "name": "ui.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "visual-journal-feed.tsx"
                     }
                   ]
                 },
@@ -890,7 +2201,19 @@
                     },
                     {
                       "type": "file",
+                      "name": "guides.tsx"
+                    },
+                    {
+                      "type": "file",
                       "name": "household-collections.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "household-groceries.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "household-meal-plan.tsx"
                     },
                     {
                       "type": "file",
@@ -899,6 +2222,10 @@
                     {
                       "type": "file",
                       "name": "household-overview.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "household-recipes.tsx"
                     },
                     {
                       "type": "file",
@@ -1106,6 +2433,10 @@
             },
             {
               "type": "file",
+              "name": "meal-planning-visual-board.md"
+            },
+            {
+              "type": "file",
               "name": "screen-state-matrix.md"
             },
             {
@@ -1115,6 +2446,10 @@
             {
               "type": "file",
               "name": "visual-system.md"
+            },
+            {
+              "type": "file",
+              "name": "weekly-meal-planning-automation.md"
             },
             {
               "type": "file",
@@ -1145,6 +2480,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-21-approval-efficient-onboarding.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-24-agent-guides-and-visual-journal-browsing.md"
                 }
               ]
             },
@@ -1163,6 +2502,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-21-conversational-fullwell-onboarding.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-23-collaborative-household-meal-planning.md"
                 }
               ]
             }
@@ -1193,6 +2536,14 @@
                 {
                   "type": "file",
                   "name": ".gitkeep"
+                },
+                {
+                  "type": "file",
+                  "name": "agent-guides-and-visual-journal-browsing.md"
+                },
+                {
+                  "type": "file",
+                  "name": "collaborative-household-meal-planning.md"
                 },
                 {
                   "type": "file",
@@ -1483,6 +2834,10 @@
               "name": "README.md"
             },
             {
+              "type": "file",
+              "name": "codex-mcp.json"
+            },
+            {
               "type": "dir",
               "name": "evals",
               "children": [
@@ -1526,6 +2881,10 @@
                 },
                 {
                   "type": "file",
+                  "name": "meal-planning-and-food-constraints.md"
+                },
+                {
+                  "type": "file",
                   "name": "privacy-and-sharing.md"
                 },
                 {
@@ -1535,6 +2894,14 @@
                 {
                   "type": "file",
                   "name": "semantic-food-rules.md"
+                },
+                {
+                  "type": "file",
+                  "name": "voice-and-identity.md"
+                },
+                {
+                  "type": "file",
+                  "name": "weekly-meal-planning-automation.md"
                 }
               ]
             },
@@ -1542,6 +2909,26 @@
               "type": "dir",
               "name": "runtime",
               "children": [
+                {
+                  "type": "file",
+                  "name": "local-household-mcp.mjs"
+                },
+                {
+                  "type": "file",
+                  "name": "local-household.mjs"
+                },
+                {
+                  "type": "file",
+                  "name": "local-profile.mjs"
+                },
+                {
+                  "type": "file",
+                  "name": "local-recipe-board.mjs"
+                },
+                {
+                  "type": "file",
+                  "name": "local-runner-control.mjs"
+                },
                 {
                   "type": "file",
                   "name": "onboarding-draft.mjs"
@@ -1594,6 +2981,16 @@
                 },
                 {
                   "type": "dir",
+                  "name": "plan-household-meals",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "SKILL.md"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
                   "name": "restock-groceries",
                   "children": [
                     {
@@ -1635,6 +3032,10 @@
                     {
                       "type": "file",
                       "name": "matrix.test.mjs"
+                    },
+                    {
+                      "type": "file",
+                      "name": "native-task-behavior.test.mjs"
                     }
                   ]
                 },
@@ -1645,6 +3046,26 @@
                     {
                       "type": "file",
                       "name": "host-lifecycle.test.mjs"
+                    },
+                    {
+                      "type": "file",
+                      "name": "local-household-mcp.test.mjs"
+                    },
+                    {
+                      "type": "file",
+                      "name": "local-household.test.mjs"
+                    },
+                    {
+                      "type": "file",
+                      "name": "local-profile.test.mjs"
+                    },
+                    {
+                      "type": "file",
+                      "name": "local-recipe-board.test.mjs"
+                    },
+                    {
+                      "type": "file",
+                      "name": "local-runner-control.test.mjs"
                     },
                     {
                       "type": "file",
@@ -2090,6 +3511,14 @@
             {
               "type": "file",
               "name": "fake-retailer.spec.ts"
+            },
+            {
+              "type": "file",
+              "name": "local-recipe-board.spec.ts"
+            },
+            {
+              "type": "file",
+              "name": "meal-planning.spec.ts"
             },
             {
               "type": "file",

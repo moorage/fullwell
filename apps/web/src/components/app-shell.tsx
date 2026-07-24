@@ -4,7 +4,7 @@ import { useWebContext } from "../context.js";
 type AppShellProps = {
   children: ReactNode;
   context?: "public" | "workspace" | "focused";
-  active?: "households" | "collections" | "account";
+  active?: "households" | "collections" | "guides" | "account";
 };
 
 export function AppShell({ children, context = "public", active }: AppShellProps) {
@@ -31,12 +31,18 @@ export function AppShell({ children, context = "public", active }: AppShellProps
             >
               Collections
             </a>
+            <a aria-current={active === "guides" ? "page" : undefined} href="/guides">
+              Guides
+            </a>
             <a aria-current={active === "account" ? "page" : undefined} href="/account">
               Account
             </a>
           </nav>
         ) : context === "public" ? (
-          <a className="masthead__action" href="/sign-in">Sign in</a>
+          <nav className="primary-nav" aria-label="Primary navigation">
+            <a aria-current={active === "guides" ? "page" : undefined} href="/guides">Guides</a>
+            <a className="masthead__action" href="/sign-in">Sign in</a>
+          </nav>
         ) : null}
       </header>
       <main id="main-content" tabIndex={-1}>{children}</main>
@@ -52,8 +58,14 @@ export function AppShell({ children, context = "public", active }: AppShellProps
 }
 
 export function HouseholdNav({ householdId, active }: { householdId: string; active: string }) {
+  const { capabilities } = useWebContext();
   const links = [
     { id: "overview", label: "Overview", href: `/households/${householdId}` },
+    ...(capabilities.mealPlanning
+      ? [{ id: "meal-plan", label: "Meals", href: `/households/${householdId}/meal-plan` }]
+      : []),
+    { id: "recipes", label: "Recipes", href: `/households/${householdId}/recipes` },
+    { id: "groceries", label: "Groceries", href: `/households/${householdId}/groceries` },
     { id: "members", label: "Members", href: `/households/${householdId}/members` },
     { id: "collections", label: "Collections", href: `/households/${householdId}/collections` },
   ];

@@ -6,12 +6,15 @@ import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-test("each eval has a unique identity and runs on both hosts", async () => {
+test("each eval has a unique identity and targets both host matrices", async () => {
   const matrix = JSON.parse(await readFile(path.join(root, "evals/cases/v1.json"), "utf8"));
   const expected = JSON.parse(await readFile(path.join(root, "evals/expected/v1.json"), "utf8"));
   const managingSkill = await readFile(path.join(root, "skills/manage-household-food-journal/SKILL.md"), "utf8");
   const groceryAuditSkill = await readFile(path.join(root, "skills/audit-grocery-purchases/SKILL.md"), "utf8");
   const restockingSkill = await readFile(path.join(root, "skills/restock-groceries/SKILL.md"), "utf8");
+  const mealPlanningSkill = await readFile(path.join(root, "skills/plan-household-meals/SKILL.md"), "utf8");
+  const mealPlanningReference = await readFile(path.join(root, "references/meal-planning-and-food-constraints.md"), "utf8");
+  const automationReference = await readFile(path.join(root, "references/weekly-meal-planning-automation.md"), "utf8");
   const voiceReference = await readFile(path.join(root, "references/voice-and-identity.md"), "utf8");
   const skillNames = await readdir(path.join(root, "skills"));
   const skillContents = await Promise.all(
@@ -36,13 +39,19 @@ test("each eval has a unique identity and runs on both hosts", async () => {
   const bareGreeting = matrix.cases.find((testCase) => testCase.id === "bare-fullwell-greeting-asks-account");
   assert.equal(bareGreeting?.prompt, "@Fullwell hi");
   assert.deepEqual(bareGreeting?.skills, ["manage-household-food-journal"]);
-  assert.deepEqual(bareGreeting?.required_tools, ["fullwell_local_household_load"]);
+  assert.deepEqual(bareGreeting?.required_tools, ["fullwell_local_profile_load"]);
   assert.ok(bareGreeting?.invariants.includes("no_generic_greeting_while_open"));
-  assert.ok(bareGreeting?.invariants.includes("ask_existing_account_once"));
-  assert.ok(bareGreeting?.invariants.includes("no_fullwell_call_before_answer"));
+  assert.ok(bareGreeting?.invariants.includes("ask_preferred_name_first"));
+  assert.ok(bareGreeting?.invariants.includes("no_household_or_fullwell_call_before_name"));
   const noAccount = matrix.cases.find((testCase) => testCase.id === "first-time-no-account-starts-local-groceries");
-  assert.deepEqual(noAccount?.required_tools, ["fullwell_local_household_load", "fullwell_local_household_update"]);
+  assert.deepEqual(noAccount?.required_tools, [
+    "fullwell_local_profile_load",
+    "fullwell_local_profile_update",
+    "fullwell_local_household_load",
+    "fullwell_local_household_update",
+  ]);
   assert.ok(noAccount?.invariants.includes("initialize_local_guest_household"));
+  assert.ok(noAccount?.invariants.includes("default_household_name_chris_possessive"));
   assert.ok(noAccount?.invariants.includes("explain_snack_benefit_before_question"));
   assert.ok(noAccount?.invariants.includes("include_concrete_restock_example"));
   assert.ok(managingSkill.includes("snacks, ingredients, condiments, and other groceries"));
@@ -147,6 +156,9 @@ test("each eval has a unique identity and runs on both hosts", async () => {
   assert.ok(managingSkill.includes("never put draft contents in command arguments"));
   assert.ok(draftRuntime.includes("expected_draft_revision"));
   assert.ok(draftRuntime.includes("PROHIBITED_DRAFT_DATA"));
+  assert.ok(managingSkill.includes("What should I call you?"));
+  assert.ok(managingSkill.indexOf("What should I call you?") < managingSkill.indexOf("Do you already have a Fullwell account?"));
+  assert.ok(managingSkill.includes("fullwell/local/profile.json"));
   assert.ok(managingSkill.includes("Do you already have a Fullwell account?"));
   assert.ok(managingSkill.includes("fullwell/local/household.json"));
   assert.ok(managingSkill.includes("You only need an account for cloud backup, WhatsApp, sharing, or family access"));
@@ -158,19 +170,28 @@ test("each eval has a unique identity and runs on both hosts", async () => {
   assert.ok(localMcpRuntime.includes("fullwell_local_household_load"));
   assert.ok(localMcpRuntime.includes("fullwell_local_household_update"));
   assert.ok(localMcpRuntime.includes("fullwell_local_household_delete_collecting"));
+  assert.ok(localMcpRuntime.includes("fullwell_local_recipe_board_create"));
+  assert.ok(localMcpRuntime.includes("fullwell_local_profile_load"));
+  assert.ok(localMcpRuntime.includes("fullwell_local_profile_update"));
+  assert.ok(localMcpRuntime.includes("fullwell_local_whatsapp_runner_stop"));
   const declinedBackup = matrix.cases.find((testCase) => testCase.id === "declined-cloud-backup-stays-local");
   assert.deepEqual(declinedBackup?.required_tools, ["fullwell_local_household_load"]);
   const acceptedBackup = matrix.cases.find((testCase) => testCase.id === "local-journal-backs-up-after-consent");
   assert.deepEqual(acceptedBackup?.required_tools, [
+    "fullwell_local_profile_load",
     "fullwell_local_household_load",
-    "fullwell_local_household_update",
     "hfj_get_context",
+    "hfj_update_user_display_name",
     "hfj_create_household",
     "hfj_commit_onboarding",
+    "fullwell_local_household_update",
   ]);
   assert.ok(acceptedBackup?.invariants.includes("record_cloud_link_only_after_success"));
   assert.ok(expected.forbidden_behaviors.includes("calls_fullwell_before_the_user_chooses_an_existing_account_or_cloud_backup"));
   assert.ok(expected.forbidden_behaviors.includes("marks_cloud_backup_after_a_failed_or_uncertain_hosted_write"));
+  assert.ok(expected.forbidden_behaviors.includes("asks_account_or_household_questions_before_remembering_the_preferred_name"));
+  assert.ok(expected.forbidden_behaviors.includes("fails_to_save_the_remembered_name_as_the_cloud_display_name_after_connection"));
+  assert.ok(expected.forbidden_behaviors.includes("creates_an_unjoined_first_household_without_the_deterministic_possessive_name"));
   const stableLocalPermission = matrix.cases.find((testCase) => testCase.id === "local-tool-permission-survives-upgrade");
   assert.deepEqual(stableLocalPermission?.required_tools, ["fullwell_local_household_load", "fullwell_local_household_update"]);
   assert.ok(stableLocalPermission?.invariants.includes("no_versioned_cache_command"));
@@ -178,6 +199,77 @@ test("each eval has a unique identity and runs on both hosts", async () => {
   assert.ok(managingSkill.includes("persistent choice applies to this named local tool across Fullwell upgrades"));
   assert.ok(expected.forbidden_behaviors.includes("runs_a_version_specific_local_household_command"));
   assert.ok(expected.forbidden_behaviors.includes("edits_the_users_command_allowlist"));
+  const firstMealPlan = matrix.cases.find((testCase) => testCase.id === "meal-first-time-constraints");
+  assert.deepEqual(firstMealPlan?.required_tools, ["fullwell_local_household_load"]);
+  assert.ok(firstMealPlan?.invariants.includes("no_search_or_proposal_before_answer"));
+  assert.ok(mealPlanningSkill.includes("Before I recommend anything, are there any household allergies or food sensitivities I should account for?"));
+  assert.ok(mealPlanningSkill.includes('ask "Any changes?"'));
+  assert.ok(mealPlanningReference.includes("Never derive a health constraint"));
+  const sameSlot = matrix.cases.find((testCase) => testCase.id === "meal-same-slot-proposals-survive");
+  assert.ok(sameSlot?.invariants.includes("never_overwrite_slot"));
+  assert.ok(mealPlanningSkill.includes("Egg salad and pizza proposed for the same Monday lunch both remain"));
+  const searchDisclosure = matrix.cases.find((testCase) => testCase.id === "meal-web-search-disclosure");
+  assert.ok(searchDisclosure?.invariants.includes("ask_per_search_disclosure_consent"));
+  assert.ok(mealPlanningSkill.includes("Before each external search"));
+  assert.ok(expected.forbidden_behaviors.includes("discloses_constraint_terms_to_search_without_per_search_consent"));
+  const visualBoard = matrix.cases.find((testCase) => testCase.id === "meal-visual-board-handoff");
+  assert.deepEqual(visualBoard?.required_tools, ["fullwell_local_recipe_board_create"]);
+  assert.ok(mealPlanningSkill.includes("Want to see these visually? I can open a private recipe board in your browser - no Fullwell login required. Images load from their source sites."));
+  assert.ok(mealPlanningSkill.includes("If that link does not open here, say 'open the recipe board.'"));
+  assert.ok(expected.forbidden_behaviors.includes("claims_the_recipe_board_opened_when_only_file_creation_succeeded"));
+  const defaultSchedule = matrix.cases.find((testCase) => testCase.id === "weekly-meal-default-schedule");
+  assert.ok(defaultSchedule?.invariants.includes("resolve_sunday_morning_to_9am"));
+  assert.ok(automationReference.includes("Fullwell weekly meal planning"));
+  assert.ok(automationReference.includes("Sunday at 9:00 AM"));
+  assert.ok(automationReference.includes("$plan-household-meals"));
+  assert.ok(automationReference.includes("Just this week, or every week?"));
+  assert.ok(automationReference.includes("Fullwell stores no scheduler receipt"));
+  assert.ok(managingSkill.includes("After the primary setup and any chosen cloud handoff finish"));
+  const localMemberRename = matrix.cases.find((testCase) => testCase.id === "change-local-member-name");
+  assert.deepEqual(localMemberRename?.required_tools, ["fullwell_local_profile_load", "fullwell_local_profile_update"]);
+  const connectedMemberRename = matrix.cases.find((testCase) => testCase.id === "change-connected-member-name");
+  assert.ok(connectedMemberRename?.invariants.includes("never_claim_atomic_dual_write"));
+  const connectedHouseholdRename = matrix.cases.find((testCase) => testCase.id === "change-connected-household-name");
+  assert.ok(connectedHouseholdRename?.invariants.includes("owner_only_cloud_household_rename"));
+  const stopRunner = matrix.cases.find((testCase) => testCase.id === "stop-local-whatsapp-runner");
+  assert.deepEqual(stopRunner?.required_tools, ["fullwell_local_whatsapp_runner_stop"]);
+  const stopReminder = matrix.cases.find((testCase) => testCase.id === "stop-weekly-meal-reminder");
+  assert.ok(stopReminder?.invariants.includes("remove_not_pause"));
+  assert.ok(mealPlanningSkill.includes("\"Stop\", \"turn off\", \"remove\", and \"cancel the weekly reminder\" mean permanently remove"));
+  const inviteNextStep = matrix.cases.find((testCase) => testCase.id === "cloud-household-invite-next-step");
+  assert.ok(inviteNextStep?.invariants.includes("mention_chat_household_invitation"));
+  assert.ok(managingSkill.includes("You can invite someone to this household here in chat whenever you're ready."));
+  const collectionNextStep = matrix.cases.find((testCase) => testCase.id === "cloud-items-collection-next-step");
+  assert.ok(collectionNextStep?.invariants.includes("include_weeknight_favorites_example"));
+  assert.ok(managingSkill.includes("Make a Weeknight Favorites collection from the recipes we liked."));
+  const promptPrivacy = matrix.cases.find((testCase) => testCase.id === "weekly-meal-scheduled-prompt-privacy");
+  assert.ok(promptPrivacy?.invariants.includes("task_grants_no_search_or_write"));
+  assert.ok(expected.forbidden_behaviors.includes("puts_household_identity_constraints_recipes_urls_queries_credentials_or_transcript_in_the_scheduled_prompt"));
+  assert.ok(expected.forbidden_behaviors.includes("stores_scheduler_state_in_fullwell_git_neon_local_journal_or_mcp"));
+  const requiredMealPlanningCases = new Map([
+    ["meal-recorded-constraints-review", "persist_exact_bounded_constraint_labels"],
+    ["meal-resolved-profile-missing-weekly-review", "no_search_or_proposal_before_weekly_review"],
+    ["meal-general-planning-no-research-approval", "general_request_is_not_research_approval"],
+    ["meal-changed-constraints", "append_review_against_new_revision"],
+    ["meal-free-form-proposal", "accept_freeform_source"],
+    ["meal-external-recipe-provenance", "store_canonical_https_recipe_url"],
+    ["meal-two-local-actors-same-slot", "preserve_two_local_actor_labels"],
+    ["meal-proposer-withdrawal-success", "proposer_may_withdraw_own_proposal"],
+    ["meal-owner-withdrawal-success", "owner_may_withdraw_any_proposal"],
+    ["meal-visual-board-exact-retry", "return_same_private_board"],
+    ["meal-visual-board-unsafe-image", "reject_non_https_image"],
+    ["meal-visual-board-open-success", "report_opened_only_after_confirmation"],
+    ["meal-visual-board-connected-cloud-source", "write_board_only_to_private_local_directory"],
+    ["weekly-meal-exact-replay", "reuse_existing_exact_task"],
+    ["weekly-meal-scheduled-visual-handoff", "board_requires_separate_acceptance"],
+    ["weekly-meal-host-unavailable", "do_not_guarantee_unavailable_host_run"],
+    ["weekly-meal-rollback-cleanup", "claim_cleanup_only_after_confirmation"],
+  ]);
+  for (const [id, invariant] of requiredMealPlanningCases) {
+    const evalCase = matrix.cases.find((testCase) => testCase.id === id);
+    assert.ok(evalCase, `missing meal-planning eval ${id}`);
+    assert.ok(evalCase.invariants.includes(invariant), `${id} must require ${invariant}`);
+  }
   for (const testCase of matrix.cases) {
     assert.ok(testCase.prompt.length >= 20 || testCase.id === "bare-fullwell-greeting-asks-account");
     assert.ok(testCase.invariants.length >= 1);

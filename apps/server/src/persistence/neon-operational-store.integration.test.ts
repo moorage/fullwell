@@ -6,6 +6,9 @@ import {
   GitObjectIdSchema,
   HouseholdIdSchema,
   InvitationIdSchema,
+  MealPlanEventSchema,
+  MealPlanningProfileSchema,
+  MealProposalSchema,
   OnboardingRecordSchema,
   RequestIdSchema,
   ShareIdSchema,
@@ -176,16 +179,56 @@ describeDatabase("NeonOperationalStore", () => {
     expect(await store.listMutationsForReconciliation(householdId)).toEqual([]);
 
     const rebuiltHead = GitObjectIdSchema.parse("3".repeat(40));
+    const mealPlanningProfile = MealPlanningProfileSchema.parse({
+      constraints: {
+        status: "confirmed_none",
+        time_zone: "America/Los_Angeles",
+        reviewed_at: "2026-07-20T16:00:00.000Z",
+      },
+      revision: rebuiltHead,
+      updated_at: "2026-07-20T16:00:00.000Z",
+      schema_version: 1,
+    });
+    const reviewEvent = MealPlanEventSchema.parse({
+      id: "mle_0000000000000101",
+      kind: "constraints_reviewed",
+      week_start: "2026-07-20",
+      constraint_revision: rebuiltHead,
+      actor: ownerActorId,
+      occurred_at: "2026-07-20T16:01:00.000Z",
+      schema_version: 1,
+    });
+    const mealProposal = MealProposalSchema.parse({
+      id: "mlp_0000000000000101",
+      week_start: "2026-07-20",
+      meal_date: "2026-07-20",
+      slot: { kind: "dinner" },
+      proposed_by: ownerActorId,
+      source: { kind: "freeform", title: "Soup" },
+      servings: 4,
+      notes: null,
+      constraint_revision: rebuiltHead,
+      constraint_review_event_id: reviewEvent.id,
+      compatibility: "incomplete_evidence",
+      compatibility_caveat: "Ingredients need review.",
+      created_at: "2026-07-20T16:02:00.000Z",
+      schema_version: 1,
+    });
     const rebuilt: HouseholdProjection = {
       evidence: new Map(),
       items: new Map(),
       profiles: new Map([["household", { markdown: "# Rebuilt", revision: rebuiltHead }]]),
       collections: new Map(),
+      mealPlanningProfile,
+      mealProposals: new Map([[mealProposal.id, { proposal: mealProposal, revision: rebuiltHead }]]),
+      mealPlanEvents: new Map([[reviewEvent.id, { event: reviewEvent, revision: rebuiltHead }]]),
     };
     await store.withHouseholdLock(householdId, async () => {
-      await store.replaceHouseholdProjection(householdId, rebuiltHead, rebuilt, [{ actorId: ownerActorId, role: "owner", removedAt: null, userId: ownerId }]);
+      await store.replaceHouseholdProjection(householdId, "Rebuilt Household", rebuiltHead, rebuilt, [{ actorId: ownerActorId, role: "owner", removedAt: null, userId: ownerId }]);
     });
     expect((await store.projection(householdId)).profiles.get("household")).toEqual({ markdown: "# Rebuilt", revision: rebuiltHead });
+    expect((await store.projection(householdId)).mealProposals.get(mealProposal.id)?.proposal.source).toEqual({ kind: "freeform", title: "Soup" });
+    expect((await store.getHousehold(householdId))?.name).toBe("Rebuilt Household");
     expect(await store.getMembership(householdId, ownerId)).toMatchObject({ role: "owner", projectionHead: rebuiltHead });
   });
 

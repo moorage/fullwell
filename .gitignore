@@ -29,3 +29,6 @@ tmp/
 *.db
 .beads-credential-key
 .beads/proxieddb/
+.beads/context/
+.beads/plans/
+apps/server/.data/

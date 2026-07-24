@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { lstat, readFile } from "node:fs/promises";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { MemoryHouseholdRepository, MemoryOperationalStore, validateRepositoryPath } from "../../apps/server/src/adapters/memory.js";
@@ -177,7 +177,10 @@ describe("security boundaries", () => {
     expect(listed.status, listed.stderr).toBe(0);
     expect(deleted.status, deleted.stderr).toBe(0);
     const deletedPaths = new Set(deleted.stdout.split("\0").filter((path) => path.length > 0));
-    const paths = listed.stdout.split("\0").filter((path) => path.length > 0 && !deletedPaths.has(path));
+    const candidates = listed.stdout.split("\0").filter((path) => path.length > 0 && !deletedPaths.has(path));
+    const paths = (await Promise.all(candidates.map(async (path) => (
+      (await lstat(path)).isFile() ? path : null
+    )))).filter((path): path is string => path !== null);
     const tracked = (await Promise.all(paths.map(async (path) => await readFile(path, "utf8")))).join("\n");
     const secretSignatures = [
       /-----BEGIN (?:EC |OPENSSH |RSA )?PRIVATE KEY-----/,

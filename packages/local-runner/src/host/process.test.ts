@@ -39,4 +39,17 @@ describe("runProcess", () => {
     })).rejects.toThrow(/timed out/);
     expect(Date.now() - started).toBeLessThan(1_500);
   });
+
+  it("rejects a child stdin pipe failure without emitting an unhandled error", async () => {
+    await expect(runProcess({
+      command: process.execPath,
+      args: ["-e", "process.stdin.destroy();setTimeout(()=>process.exit(0),50)"],
+      cwd: "/tmp",
+      stdin: "x".repeat(1_000_000),
+      signal: new AbortController().signal,
+      timeoutMilliseconds: 1_000,
+      maxOutputBytes: 1_024,
+      env: {},
+    })).rejects.toMatchObject({ code: "EPIPE" });
+  });
 });

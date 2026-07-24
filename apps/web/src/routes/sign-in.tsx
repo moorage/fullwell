@@ -1,5 +1,6 @@
 import { Mail } from "lucide-react";
 import { AppShell } from "../components/app-shell.js";
+import { BrandMark } from "../components/brand-mark.js";
 import { PasskeySignInButton } from "../components/passkey-actions.js";
 import { Button, Field, PageHeader, StatusNotice, TextInput } from "../components/ui.js";
 import { useWebContext } from "../context.js";
@@ -24,7 +25,7 @@ export function SignInRoute({ emailSent, returnTo }: { emailSent: boolean; retur
           <form action="/auth/apple/start" method="post">
             {returnTo ? <input type="hidden" name="pending_intent" value={returnTo} /> : null}
             <Button className="button--full apple-button" type="submit">
-              <span className="apple-mark" aria-hidden="true">●</span> Continue with Apple
+              <BrandMark brand="apple" size={21} /> Continue with Apple
             </Button>
           </form>
           {auth.passkeysEnabled ? (

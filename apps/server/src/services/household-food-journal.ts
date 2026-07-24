@@ -17,6 +17,16 @@ import {
   ImportIdSchema,
   InvitationIdSchema,
   ItemIdSchema,
+  MealPlanEventIdSchema,
+  MealPlanEventSchema,
+  MEAL_PLAN_MAX_EVENTS_PER_WEEK,
+  MEAL_PLAN_MAX_PROPOSALS_PER_SLOT,
+  MEAL_PLAN_MAX_PROPOSALS_PER_WEEK,
+  MEAL_PLAN_MAX_REVIEW_EVENTS_PER_WEEK,
+  MEAL_PLAN_MAX_WITHDRAWAL_EVENTS_PER_WEEK,
+  MealPlanningProfileSchema,
+  MealProposalIdSchema,
+  MealProposalSchema,
   OnboardingStatusSchema,
   RequestIdSchema,
   ShareIdSchema,
@@ -28,12 +38,26 @@ import {
   type OnboardingSection,
   type OnboardingSectionState,
   type OnboardingStatus,
+  type MealPlanEvent,
+  type MealProposal,
+  type MealSlot,
 } from "@hfj/contracts";
 import { AppError } from "../core/errors.js";
-import type { Clock, ExportArtifactPort, HouseholdRepositoryPort, OperationalStorePort, RandomSource, RepositoryChange, TelemetryPort, TokenHasher } from "../core/ports.js";
+import type { Clock, ExportArtifactPort, HouseholdRepositoryPort, OperationalStorePort, RandomSource, RepositoryChange, TelemetryPort, TokenHasher, UserProfilePort } from "../core/ports.js";
 import type { JsonValue, MembershipRecord, MutationRecord, Principal } from "../core/types.js";
 import { requireMembership, requireScope } from "../domain/authorization.js";
-import { journalEvidencePath, journalItemPath, markdownDocument, validateItemEvidence, validateReport } from "../domain/journal-validation.js";
+import {
+  journalEvidencePath,
+  journalItemPath,
+  markdownDocument,
+  mealPlanEventPath,
+  mealProposalNeedsRecheck,
+  mealProposalPath,
+  validateItemEvidence,
+  validateMealProposalReview,
+  validateMealProposalSource,
+  validateReport,
+} from "../domain/journal-validation.js";
 import { nextOnboardingSkip, transitionOnboarding } from "../domain/onboarding.js";
 import { stableJson } from "../adapters/memory.js";
 import { MutationRunner } from "./mutation-runner.js";
@@ -52,6 +76,7 @@ export class HouseholdFoodJournalService {
     private readonly telemetry: TelemetryPort,
     private readonly publicOrigin: URL,
     private readonly exportArtifacts: ExportArtifactPort = new MemoryExportArtifactStore(),
+    private readonly userProfiles: UserProfilePort | null = null,
   ) {
     this.mutations = new MutationRunner(store, repository, clock, random, telemetry);
   }
@@ -60,8 +85,10 @@ export class HouseholdFoodJournalService {
     try {
       switch (name) {
         case "hfj_get_context": return this.read(await this.getContext(input, principal));
+        case "hfj_update_user_display_name": return this.write(await this.updateUserDisplayName(input, principal));
         case "hfj_create_household": return this.write(await this.createHousehold(input, principal));
         case "hfj_select_household": return this.read(await this.selectHousehold(input, principal));
+        case "hfj_update_household_name": return this.write(await this.updateHouseholdName(input, principal));
         case "hfj_update_onboarding": return this.write(await this.updateOnboarding(input, principal));
         case "hfj_commit_onboarding": return this.write(await this.commitOnboarding(input, principal));
         case "hfj_create_family_invite": return this.write(await this.createInvite(input, principal));
@@ -83,6 +110,11 @@ export class HouseholdFoodJournalService {
         case "hfj_plan_collection_import": return this.read(await this.planImport(input, principal));
         case "hfj_import_collection_items": return this.write(await this.importItems(input, principal));
         case "hfj_export_household": return this.write(await this.exportHousehold(input, principal));
+        case "hfj_get_meal_plan": return this.read(await this.getMealPlan(input, principal));
+        case "hfj_update_meal_planning_constraints": return this.write(await this.updateMealPlanningConstraints(input, principal));
+        case "hfj_review_meal_constraints": return this.write(await this.reviewMealConstraints(input, principal));
+        case "hfj_add_meal_proposal": return this.write(await this.addMealProposal(input, principal));
+        case "hfj_withdraw_meal_proposal": return this.write(await this.withdrawMealProposal(input, principal));
       }
     } catch (error) {
       return this.error(error);
@@ -141,6 +173,48 @@ export class HouseholdFoodJournalService {
     };
   }
 
+  private async updateUserDisplayName(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_update_user_display_name.parse(input);
+    requireScope(principal, "journal:write");
+    if (this.userProfiles === null) throw new AppError("PROVIDER_UNAVAILABLE", "Cloud member profile updates are not configured");
+    const fingerprint = this.mutationFingerprint("hfj_update_user_display_name", parsed);
+    let mutation = await this.store.getMutation(principal.userId, "hfj_update_user_display_name", parsed.idempotency_key);
+    if (mutation === null) {
+      const requestId = this.requestId();
+      const occurredAt = this.now();
+      const record = this.mutationRecord(
+        requestId,
+        principal,
+        "hfj_update_user_display_name",
+        parsed.idempotency_key,
+        null,
+        occurredAt,
+      );
+      record.response = { _request_fingerprint: fingerprint };
+      await this.store.saveMutation(record);
+      mutation = await this.store.getMutation(principal.userId, "hfj_update_user_display_name", parsed.idempotency_key);
+    }
+    if (mutation === null) throw new AppError("INTERNAL_ERROR", "Member profile mutation record was not found");
+    if (mutation.response?._request_fingerprint !== fingerprint) {
+      throw new AppError("REVISION_CONFLICT", "The idempotency key was already used for a different member name");
+    }
+    if (mutation.state === "completed" && mutation.response !== null) {
+      const data = { ...mutation.response };
+      delete data._request_fingerprint;
+      return { data, head: null, requestId: mutation.requestId };
+    }
+    if (mutation.state === "quarantined") {
+      throw new AppError("RECONCILIATION_REQUIRED", "This member profile request is quarantined for operator review");
+    }
+    const updated = await this.userProfiles.updateUserDisplayName(principal.userId, parsed.display_name, mutation.createdAt);
+    if (updated === null) throw new AppError("NOT_FOUND", "Member profile was not found");
+    const data = { status: "completed", display_name: updated.displayName } satisfies Record<string, JsonValue>;
+    await this.store.transitionMutation(mutation.requestId, "completed", {
+      response: { ...data, _request_fingerprint: fingerprint },
+    });
+    return { data, head: null, requestId: mutation.requestId };
+  }
+
   private async createHousehold(input: unknown, principal: Principal): Promise<WriteResult> {
     const parsed = ToolInputSchemas.hfj_create_household.parse(input);
     requireScope(principal, "household:manage");
@@ -184,6 +258,31 @@ export class HouseholdFoodJournalService {
     await this.store.setDefaultHousehold(principal.userId, parsed.household_id);
     const household = await this.requiredHousehold(parsed.household_id);
     return { data: { status: "completed", household_id: parsed.household_id }, head: household.repositoryHead };
+  }
+
+  private async updateHouseholdName(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_update_household_name.parse(input);
+    return await this.mutations.run({
+      principal,
+      tool: "hfj_update_household_name",
+      householdId: parsed.household_id,
+      idempotencyKey: parsed.idempotency_key,
+      requestFingerprint: this.mutationFingerprint("hfj_update_household_name", parsed),
+      expectedHead: parsed.expected_head,
+      minimumRole: "owner",
+      requiredScope: "household:manage",
+      summary: "household: update display name",
+      enforceFingerprintOnReplay: true,
+      buildChanges: async () => [{
+        path: "household.md",
+        content: markdownDocument({ name: parsed.name, schema_version: 1 }, ""),
+        appendOnly: false,
+      }],
+      applyProjection: async () => {
+        await this.store.updateHouseholdName(parsed.household_id, parsed.name);
+        return { status: "completed", household_id: parsed.household_id, name: parsed.name };
+      },
+    });
   }
 
   private async updateOnboarding(input: unknown, principal: Principal): Promise<WriteResult> {
@@ -518,6 +617,239 @@ export class HouseholdFoodJournalService {
     const household = await this.requiredHousehold(parsed.household_id);
     const profile = (await this.store.projection(parsed.household_id)).profiles.get(parsed.profile);
     return { data: { profile: parsed.profile, markdown: profile?.markdown ?? "", revision: profile?.revision ?? null }, head: household.repositoryHead };
+  }
+
+  private async getMealPlan(input: unknown, principal: Principal): Promise<ReadResult> {
+    const parsed = ToolInputSchemas.hfj_get_meal_plan.parse(input);
+    requireScope(principal, "journal:read");
+    return await this.store.withHouseholdLock(parsed.household_id, async () => {
+      const membership = await requireMembership(this.store, principal, parsed.household_id, "viewer");
+      const household = await this.requiredHousehold(parsed.household_id);
+      const head = await this.repository.head(parsed.household_id);
+      if (household.repositoryHead !== head || membership.projectionHead !== head) {
+        throw new AppError("PROJECTION_DRIFT", "The household meal-plan projection does not match Git", true);
+      }
+      const projection = await this.store.projection(parsed.household_id);
+      const proposals = [...projection.mealProposals.values()]
+        .map(({ proposal }) => proposal)
+        .filter((proposal) => proposal.week_start === parsed.week_start)
+        .sort((left, right) => left.id.localeCompare(right.id));
+      const cursorIndex = parsed.cursor === undefined ? -1 : proposals.findIndex((proposal) => proposal.id === parsed.cursor);
+      if (parsed.cursor !== undefined && cursorIndex < 0) throw new AppError("VALIDATION_FAILED", "The meal-plan cursor is invalid");
+      const page = proposals.slice(cursorIndex + 1, cursorIndex + 1 + parsed.limit);
+      const events = [...projection.mealPlanEvents.values()]
+        .map(({ event }) => event)
+        .filter((event) => event.week_start === parsed.week_start)
+        .sort((left, right) => left.id.localeCompare(right.id));
+      assertMealPlanReadBounds(proposals, events);
+      const withdrawn = new Set(events.flatMap((event) => event.kind === "proposal_withdrawn" ? [event.proposal_id] : []));
+      const currentConstraintRevision = projection.mealPlanningProfile?.revision ?? null;
+      const visibleProposals = page.map((proposal) => {
+        const itemRevision = proposal.source.kind === "journal_recipe"
+          ? projection.items.get(proposal.source.item_id)?.revision ?? null
+          : null;
+        const needsRecheck = currentConstraintRevision === null
+          || mealProposalNeedsRecheck(proposal, currentConstraintRevision, itemRevision);
+        return {
+          proposal: jsonRoundTrip(proposal),
+          active: !withdrawn.has(proposal.id),
+          effective_compatibility: needsRecheck ? "needs_recheck" : proposal.compatibility,
+        };
+      });
+      const consumed = cursorIndex + 1 + page.length;
+      return {
+        data: {
+          week_start: parsed.week_start,
+          constraint_profile: projection.mealPlanningProfile === null ? null : jsonRoundTrip(projection.mealPlanningProfile),
+          proposals: visibleProposals,
+          events: events.map(jsonRoundTrip),
+          events_truncated: false,
+          next_cursor: consumed < proposals.length ? page.at(-1)?.id ?? null : null,
+        },
+        head,
+      };
+    });
+  }
+
+  private async updateMealPlanningConstraints(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_update_meal_planning_constraints.parse(input);
+    return await this.mutations.run({
+      principal,
+      tool: "hfj_update_meal_planning_constraints",
+      householdId: parsed.household_id,
+      idempotencyKey: parsed.idempotency_key,
+      requestFingerprint: this.mutationFingerprint("hfj_update_meal_planning_constraints", parsed),
+      expectedHead: parsed.expected_head,
+      minimumRole: "editor",
+      requiredScope: "journal:write",
+      summary: "meal-planning: update household constraints",
+      enforceFingerprintOnReplay: true,
+      buildChanges: async () => [{
+        path: "profiles/meal-planning.md",
+        content: markdownDocument({
+          constraints: parsed.constraints,
+          updated_at: parsed.constraints.reviewed_at,
+          schema_version: 1,
+        }, ""),
+        appendOnly: false,
+      }],
+      applyProjection: async (head) => {
+        const profile = MealPlanningProfileSchema.parse({
+          constraints: parsed.constraints,
+          revision: head,
+          updated_at: parsed.constraints.reviewed_at,
+          schema_version: 1,
+        });
+        (await this.store.projection(parsed.household_id)).mealPlanningProfile = profile;
+        return { status: "completed", constraint_revision: head };
+      },
+    });
+  }
+
+  private async reviewMealConstraints(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_review_meal_constraints.parse(input);
+    let plannedEvent: MealPlanEvent | null = null;
+    const eventFor = (requestId: RequestId, occurredAt: string): MealPlanEvent => MealPlanEventSchema.parse({
+      id: MealPlanEventIdSchema.parse(this.mutationId("mle", requestId, "constraints-reviewed")),
+      kind: "constraints_reviewed",
+      week_start: parsed.week_start,
+      constraint_revision: parsed.constraint_revision,
+      actor: principal.actorId,
+      occurred_at: occurredAt,
+      schema_version: 1,
+    });
+    return await this.mutations.run({
+      principal,
+      tool: "hfj_review_meal_constraints",
+      householdId: parsed.household_id,
+      idempotencyKey: parsed.idempotency_key,
+      requestFingerprint: this.mutationFingerprint("hfj_review_meal_constraints", parsed),
+      conflictPolicy: "append_to_current_head",
+      minimumRole: "editor",
+      requiredScope: "journal:write",
+      summary: "meal-planning: append weekly constraint review",
+      buildChanges: async (requestId, occurredAt) => {
+        const projection = await this.store.projection(parsed.household_id);
+        if (projection.mealPlanningProfile?.constraints.status === "unresolved"
+          || projection.mealPlanningProfile?.revision !== parsed.constraint_revision) {
+          throw new AppError("REVISION_CONFLICT", "Meal-planning constraints changed before the weekly review");
+        }
+        const event = eventFor(requestId, occurredAt);
+        if (projection.mealPlanEvents.has(event.id)) throw new AppError("REVISION_CONFLICT", "Meal-plan event already exists");
+        assertMealEventCapacity(projection.mealPlanEvents.values(), parsed.week_start, event.kind);
+        plannedEvent = event;
+        return [{ path: mealPlanEventPath(event), content: stableJson(event), appendOnly: true }];
+      },
+      applyProjection: async (head, requestId, occurredAt) => {
+        const event = plannedEvent ?? eventFor(requestId, occurredAt);
+        (await this.store.projection(parsed.household_id)).mealPlanEvents.set(event.id, { event, revision: head });
+        return { status: "completed", event_id: event.id, constraint_revision: parsed.constraint_revision };
+      },
+    });
+  }
+
+  private async addMealProposal(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_add_meal_proposal.parse(input);
+    let plannedProposal: MealProposal | null = null;
+    const proposalFor = (requestId: RequestId, occurredAt: string): MealProposal => MealProposalSchema.parse({
+      id: MealProposalIdSchema.parse(this.mutationId("mlp", requestId, "proposal")),
+      week_start: parsed.week_start,
+      meal_date: parsed.meal_date,
+      slot: parsed.slot,
+      proposed_by: principal.actorId,
+      source: parsed.source,
+      servings: parsed.servings,
+      notes: parsed.notes,
+      constraint_revision: parsed.constraint_revision,
+      constraint_review_event_id: parsed.constraint_review_event_id,
+      compatibility: parsed.compatibility,
+      compatibility_caveat: parsed.compatibility_caveat,
+      created_at: occurredAt,
+      schema_version: 1,
+    });
+    return await this.mutations.run({
+      principal,
+      tool: "hfj_add_meal_proposal",
+      householdId: parsed.household_id,
+      idempotencyKey: parsed.idempotency_key,
+      requestFingerprint: this.mutationFingerprint("hfj_add_meal_proposal", parsed),
+      conflictPolicy: "append_to_current_head",
+      minimumRole: "editor",
+      requiredScope: "journal:write",
+      summary: "meal-planning: append proposal",
+      buildChanges: async (requestId, occurredAt) => {
+        const projection = await this.store.projection(parsed.household_id);
+        if (projection.mealPlanningProfile?.constraints.status === "unresolved"
+          || projection.mealPlanningProfile?.revision !== parsed.constraint_revision) {
+          throw new AppError("REVISION_CONFLICT", "Meal-planning constraints changed before the proposal");
+        }
+        const proposal = proposalFor(requestId, occurredAt);
+        const events = new Map([...projection.mealPlanEvents].map(([id, entry]) => [id, entry.event]));
+        const items = new Map([...projection.items].map(([id, entry]) => [id, entry.item]));
+        const itemRevisions = new Map([...projection.items].map(([id, entry]) => [id, entry.revision]));
+        validateMealProposalReview(proposal, events);
+        validateMealProposalSource(proposal, items, projection.evidence, itemRevisions);
+        if (projection.mealProposals.has(proposal.id)) throw new AppError("REVISION_CONFLICT", "Meal proposal already exists");
+        assertMealProposalCapacity(projection.mealProposals.values(), proposal);
+        plannedProposal = proposal;
+        return [{ path: mealProposalPath(proposal), content: stableJson(proposal), appendOnly: true }];
+      },
+      applyProjection: async (head, requestId, occurredAt) => {
+        const proposal = plannedProposal ?? proposalFor(requestId, occurredAt);
+        (await this.store.projection(parsed.household_id)).mealProposals.set(proposal.id, { proposal, revision: head });
+        return { status: "completed", proposal_id: proposal.id };
+      },
+    });
+  }
+
+  private async withdrawMealProposal(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_withdraw_meal_proposal.parse(input);
+    let plannedEvent: MealPlanEvent | null = null;
+    const eventFor = (requestId: RequestId, occurredAt: string): MealPlanEvent => MealPlanEventSchema.parse({
+      id: MealPlanEventIdSchema.parse(this.mutationId("mle", requestId, "proposal-withdrawn")),
+      kind: "proposal_withdrawn",
+      week_start: parsed.week_start,
+      proposal_id: parsed.proposal_id,
+      reason: parsed.reason,
+      actor: principal.actorId,
+      occurred_at: occurredAt,
+      schema_version: 1,
+    });
+    return await this.mutations.run({
+      principal,
+      tool: "hfj_withdraw_meal_proposal",
+      householdId: parsed.household_id,
+      idempotencyKey: parsed.idempotency_key,
+      requestFingerprint: this.mutationFingerprint("hfj_withdraw_meal_proposal", parsed),
+      conflictPolicy: "append_to_current_head",
+      minimumRole: "editor",
+      requiredScope: "journal:write",
+      summary: "meal-planning: append proposal withdrawal",
+      buildChanges: async (requestId, occurredAt) => {
+        const projection = await this.store.projection(parsed.household_id);
+        const proposal = projection.mealProposals.get(parsed.proposal_id)?.proposal;
+        if (proposal === undefined || proposal.week_start !== parsed.week_start) {
+          throw new AppError("NOT_FOUND", "Meal proposal was not found");
+        }
+        const membership = await requireMembership(this.store, principal, parsed.household_id, "editor");
+        if (proposal.proposed_by !== principal.actorId && membership.role !== "owner") {
+          throw new AppError("FORBIDDEN", "Only the proposer or a household owner can withdraw this meal proposal");
+        }
+        if ([...projection.mealPlanEvents.values()].some(({ event }) =>
+          event.kind === "proposal_withdrawn" && event.proposal_id === proposal.id)) {
+          throw new AppError("REVISION_CONFLICT", "Meal proposal is already withdrawn");
+        }
+        const event = eventFor(requestId, occurredAt);
+        assertMealEventCapacity(projection.mealPlanEvents.values(), parsed.week_start, event.kind);
+        plannedEvent = event;
+        return [{ path: mealPlanEventPath(event), content: stableJson(event), appendOnly: true }];
+      },
+      applyProjection: async (head, requestId, occurredAt) => {
+        const event = plannedEvent ?? eventFor(requestId, occurredAt);
+        (await this.store.projection(parsed.household_id)).mealPlanEvents.set(event.id, { event, revision: head });
+        return { status: "completed", proposal_id: parsed.proposal_id, event_id: event.id };
+      },
+    });
   }
 
   private async updateProfile(input: unknown, principal: Principal): Promise<WriteResult> {
@@ -897,10 +1229,83 @@ export class HouseholdFoodJournalService {
 }
 
 interface ReadResult { readonly data: JsonValue; readonly head: GitObjectId | null }
-interface WriteResult { readonly data: Record<string, JsonValue>; readonly head: GitObjectId; readonly requestId: RequestId }
+interface WriteResult { readonly data: Record<string, JsonValue>; readonly head: GitObjectId | null; readonly requestId: RequestId }
 type OperationalMutationOutcome =
   | { readonly status: "completed"; readonly result: WriteResult }
   | { readonly status: "failed"; readonly error: unknown };
+
+function assertMealPlanReadBounds(proposals: readonly MealProposal[], events: readonly MealPlanEvent[]): void {
+  if (proposals.length > MEAL_PLAN_MAX_PROPOSALS_PER_WEEK || events.length > MEAL_PLAN_MAX_EVENTS_PER_WEEK) {
+    throw new AppError("PROJECTION_DRIFT", "The projected meal plan exceeds its supported weekly bounds");
+  }
+  const reviewCount = events.filter(({ kind }) => kind === "constraints_reviewed").length;
+  const withdrawalCount = events.length - reviewCount;
+  if (reviewCount > MEAL_PLAN_MAX_REVIEW_EVENTS_PER_WEEK
+    || withdrawalCount > MEAL_PLAN_MAX_WITHDRAWAL_EVENTS_PER_WEEK) {
+    throw new AppError("PROJECTION_DRIFT", "The projected meal-plan events exceed their supported bounds");
+  }
+  const slotCounts = new Map<string, number>();
+  for (const proposal of proposals) {
+    const key = `${proposal.meal_date}:${mealSlotKey(proposal.slot)}`;
+    const count = (slotCounts.get(key) ?? 0) + 1;
+    if (count > MEAL_PLAN_MAX_PROPOSALS_PER_SLOT) {
+      throw new AppError("PROJECTION_DRIFT", "The projected meal-plan slot exceeds its supported bound");
+    }
+    slotCounts.set(key, count);
+  }
+}
+
+function assertMealProposalCapacity(
+  entries: Iterable<Readonly<{ proposal: MealProposal }>>,
+  candidate: MealProposal,
+): void {
+  let weekCount = 0;
+  let slotCount = 0;
+  const candidateSlot = mealSlotKey(candidate.slot);
+  for (const { proposal } of entries) {
+    if (proposal.week_start !== candidate.week_start) continue;
+    weekCount += 1;
+    if (proposal.meal_date === candidate.meal_date && mealSlotKey(proposal.slot) === candidateSlot) slotCount += 1;
+  }
+  if (weekCount > MEAL_PLAN_MAX_PROPOSALS_PER_WEEK || slotCount > MEAL_PLAN_MAX_PROPOSALS_PER_SLOT) {
+    throw new AppError("PROJECTION_DRIFT", "The projected meal plan exceeds its supported bounds");
+  }
+  if (weekCount === MEAL_PLAN_MAX_PROPOSALS_PER_WEEK) {
+    throw new AppError("VALIDATION_FAILED", "This week has reached its meal-proposal limit");
+  }
+  if (slotCount === MEAL_PLAN_MAX_PROPOSALS_PER_SLOT) {
+    throw new AppError("VALIDATION_FAILED", "This meal slot has reached its proposal limit");
+  }
+}
+
+function assertMealEventCapacity(
+  entries: Iterable<Readonly<{ event: MealPlanEvent }>>,
+  weekStart: string,
+  kind: MealPlanEvent["kind"],
+): void {
+  let kindCount = 0;
+  for (const { event } of entries) {
+    if (event.week_start === weekStart && event.kind === kind) kindCount += 1;
+  }
+  const limit = kind === "constraints_reviewed"
+    ? MEAL_PLAN_MAX_REVIEW_EVENTS_PER_WEEK
+    : MEAL_PLAN_MAX_WITHDRAWAL_EVENTS_PER_WEEK;
+  if (kindCount > limit) {
+    throw new AppError("PROJECTION_DRIFT", "The projected meal plan exceeds its supported event bound");
+  }
+  if (kindCount === limit) {
+    throw new AppError(
+      "VALIDATION_FAILED",
+      kind === "constraints_reviewed"
+        ? "This week has reached its constraint-review limit"
+        : "This week has reached its proposal-withdrawal limit",
+    );
+  }
+}
+
+function mealSlotKey(slot: MealSlot): string {
+  return slot.kind === "custom" ? `custom:${slot.label}` : slot.kind;
+}
 
 function itemFrontmatter(item: import("@hfj/contracts").JournalItem): object {
   const { body_markdown: _body, ...frontmatter } = item;

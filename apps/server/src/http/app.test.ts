@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { ToolInputSchemas } from "@hfj/contracts";
+import { GitObjectIdSchema, HouseholdIdSchema, MealPlanEventIdSchema, MealProposalIdSchema, ToolInputSchemas } from "@hfj/contracts";
+import { z } from "zod";
 import { MemoryHouseholdRepository, MemoryOperationalStore } from "../adapters/memory.js";
 import {
   DeterministicRandomSource,
@@ -278,15 +279,22 @@ describe("Fastify application", () => {
   it("serves the production React build with server-owned public state", async () => {
     const base = await fixture();
     await base.app.close();
+    const browserOwner = await base.authentication.authenticate("Bearer test-owner-token");
+    const browserEditor = await base.authentication.authenticate("Bearer test-member-token");
     const viewModels = await WebViewModelService.create({
       service: base.service,
       store: base.store,
       authentication: base.authentication,
       hasher: base.hasher,
       random: base.random,
+      clock: base.clock,
       publicOrigin: base.publicOrigin,
       installMetadataPath: resolve(import.meta.dirname, "../../../../packages/agent-client/install-metadata.json"),
-      resolvePrincipal: async (request) => request.headers["x-test-browser-session"] === "owner" ? await base.authentication.authenticate("Bearer test-owner-token") : null,
+      resolvePrincipal: async (request) => {
+        if (request.headers["x-test-browser-session"] === "owner") return browserOwner;
+        if (request.headers["x-test-browser-session"] === "editor") return browserEditor;
+        return null;
+      },
       verifyCsrf: async (_request, submittedToken) => {
         if (submittedToken !== "c".repeat(32)) throw new AppError("FORBIDDEN", "CSRF validation failed");
       },
@@ -304,6 +312,10 @@ describe("Fastify application", () => {
         assetsRoot: resolve(import.meta.dirname, "../../../web/dist"),
         contextFor: (request) => viewModels.contextFor(request),
         createHousehold: (request, input) => viewModels.createHousehold(request, input),
+        reviewMealConstraints: (request, input) => viewModels.reviewMealConstraints(request, input),
+        addMealProposal: (request, input) => viewModels.addMealProposal(request, input),
+        withdrawMealProposal: (request, input) => viewModels.withdrawMealProposal(request, input),
+        journalItems: (request, input) => viewModels.journalItems(request, input),
       },
     });
     const response = await app.inject({ method: "GET", url: "/c/not-a-real-token" });
@@ -341,6 +353,313 @@ describe("Fastify application", () => {
     });
     expect(replayed.headers.location).toBe(created.headers.location);
     expect(await base.store.listHouseholds()).toHaveLength(1);
+    const householdId = HouseholdIdSchema.parse(created.headers.location?.split("/").at(-1));
+    const createdHousehold = await base.store.getHousehold(householdId);
+    if (createdHousehold === null) throw new Error("created household missing");
+    const anonymousRecipes = await app.inject({ method: "GET", url: `/households/${householdId}/recipes` });
+    expect(anonymousRecipes.statusCode).toBe(303);
+    expect(anonymousRecipes.headers.location).toBe(`/sign-in?returnTo=${encodeURIComponent(`/households/${householdId}/recipes`)}`);
+    const emptyRecipes = await app.inject({
+      method: "GET",
+      url: `/households/${householdId}/recipes`,
+      headers: { "x-test-browser-session": "owner" },
+    });
+    expect(emptyRecipes.statusCode).toBe(200);
+    expect(emptyRecipes.headers["x-robots-tag"]).toBe("noindex, nofollow");
+    expect(emptyRecipes.body).toContain("No recipes recorded yet");
+    const anonymousJournalBatch = await app.inject({
+      method: "GET",
+      url: `/households/${householdId}/journal-items?section=recipes`,
+    });
+    expect(anonymousJournalBatch.statusCode).toBe(401);
+    const emptyJournalBatch = await app.inject({
+      method: "GET",
+      url: `/households/${householdId}/journal-items?section=recipes`,
+      headers: { "x-test-browser-session": "owner" },
+    });
+    expect(emptyJournalBatch.statusCode).toBe(200);
+    expect(emptyJournalBatch.headers["cache-control"]).toBe("private, no-store");
+    expect(emptyJournalBatch.headers["x-robots-tag"]).toBe("noindex, nofollow");
+    expect(emptyJournalBatch.json()).toMatchObject({ householdId, section: "recipes", total: 0, items: [], nextCursor: null });
+    const invalidJournalCursor = await app.inject({
+      method: "GET",
+      url: `/households/${householdId}/journal-items?section=recipes&cursor=not-a-cursor`,
+      headers: { "x-test-browser-session": "owner" },
+    });
+    expect(invalidJournalCursor.statusCode).toBe(400);
+    const invited = await base.service.call("hfj_create_family_invite", {
+      household_id: householdId,
+      role: "editor",
+      expected_head: createdHousehold.repositoryHead,
+      idempotency_key: "web-meal-editor-invite-0001",
+    }, browserOwner);
+    if (!invited.ok) throw new Error(invited.error.message);
+    const invitationUrl = z.object({ url: z.url() }).parse(invited.data).url;
+    const invitationToken = new URL(invitationUrl).pathname.split("/").at(-1);
+    if (invitationToken === undefined) throw new Error("editor invitation token missing");
+    const accepted = await base.service.call("hfj_accept_family_invite", {
+      token: invitationToken,
+      accept: true,
+      idempotency_key: "web-meal-editor-accept-0001",
+    }, browserEditor);
+    if (!accepted.ok) throw new Error(accepted.error.message);
+    const household = await base.store.getHousehold(householdId);
+    if (household === null) throw new Error("accepted household missing");
+    const owner = browserOwner;
+    const constraints = await base.service.call("hfj_update_meal_planning_constraints", {
+      household_id: householdId,
+      expected_head: household.repositoryHead,
+      idempotency_key: "web-meal-constraints-0001",
+      constraints: {
+        status: "confirmed_none",
+        time_zone: "America/Los_Angeles",
+        reviewed_at: "2026-07-15T12:00:00.000Z",
+      },
+    }, owner);
+    if (!constraints.ok) throw new Error(constraints.error.message);
+    const constraintRevision = GitObjectIdSchema.parse(
+      z.object({ constraint_revision: z.string() }).parse(constraints.data).constraint_revision,
+    );
+    const mealPlanUrl = `/households/${householdId}/meal-plan?week=2026-07-13`;
+    const anonymousMealPlan = await app.inject({ method: "GET", url: mealPlanUrl });
+    expect(anonymousMealPlan.statusCode).toBe(303);
+    expect(anonymousMealPlan.headers.location).toBe(`/sign-in?returnTo=${encodeURIComponent(mealPlanUrl)}`);
+    const unreviewedMealPlan = await app.inject({ method: "GET", url: mealPlanUrl, headers: { "x-test-browser-session": "owner" } });
+    expect(unreviewedMealPlan.statusCode).toBe(200);
+    expect(unreviewedMealPlan.headers["x-robots-tag"]).toBe("noindex, nofollow");
+    expect(unreviewedMealPlan.body).toContain("Review updated household constraints");
+
+    const reviewPayload = new URLSearchParams({
+      week: "2026-07-13",
+      constraintRevision,
+      csrf: "c".repeat(32),
+      idempotencyKey: "web-meal-review-0001",
+    }).toString();
+    const rejectedReview = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/meal-plan/review`,
+      headers: { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "owner" },
+      payload: new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(reviewPayload)), csrf: "x".repeat(32) }).toString(),
+    });
+    expect(rejectedReview.statusCode).toBe(403);
+    const reviewed = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/meal-plan/review`,
+      headers: { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "owner" },
+      payload: reviewPayload,
+    });
+    expect(reviewed.statusCode).toBe(303);
+    expect(reviewed.headers.location).toContain("changed=constraints-reviewed");
+    const projected = await base.service.call("hfj_get_meal_plan", {
+      household_id: householdId,
+      week_start: "2026-07-13",
+    }, owner);
+    if (!projected.ok) throw new Error(projected.error.message);
+    const reviewEventId = MealPlanEventIdSchema.parse(z.object({
+      events: z.array(z.object({ id: z.string(), kind: z.string() })),
+    }).parse(projected.data).events.find(({ kind }) => kind === "constraints_reviewed")?.id);
+    const proposalPayload = (title: string, idempotencyKey: string) => new URLSearchParams({
+      week: "2026-07-13",
+      mealDate: "2026-07-13",
+      slotKind: "lunch",
+      title,
+      servings: "",
+      notes: "",
+      constraintRevision,
+      constraintReviewEventId: reviewEventId,
+      csrf: "c".repeat(32),
+      idempotencyKey,
+    }).toString();
+    const proposalHeaders = { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "owner" };
+    const editorProposalHeaders = { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "editor" };
+    const [firstProposal, secondProposal] = await Promise.all([
+      app.inject({ method: "POST", url: `/households/${householdId}/meal-plan/proposals`, headers: proposalHeaders, payload: proposalPayload("Egg salad sandwich", "web-meal-proposal-egg-0001") }),
+      app.inject({ method: "POST", url: `/households/${householdId}/meal-plan/proposals`, headers: editorProposalHeaders, payload: proposalPayload("Pizza", "web-meal-proposal-pizza-0001") }),
+    ]);
+    expect(firstProposal.statusCode).toBe(303);
+    expect(secondProposal.statusCode).toBe(303);
+    expect(firstProposal.headers.location).toContain("#slot-2026-07-13-lunch");
+    const replayedProposal = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/meal-plan/proposals`,
+      headers: proposalHeaders,
+      payload: proposalPayload("Egg salad sandwich", "web-meal-proposal-egg-0001"),
+    });
+    expect(replayedProposal.statusCode).toBe(303);
+    const conflictingRetry = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/meal-plan/proposals`,
+      headers: proposalHeaders,
+      payload: proposalPayload("Changed retry", "web-meal-proposal-egg-0001"),
+    });
+    expect(conflictingRetry.statusCode).toBe(409);
+    expect(conflictingRetry.headers["content-type"]).toContain("text/html");
+    expect(conflictingRetry.body).toContain("The meal plan changed before this request completed.");
+    expect(conflictingRetry.body).toContain("Return to the meal plan and try again");
+    const malformedProposal = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/meal-plan/proposals`,
+      headers: proposalHeaders,
+      payload: new URLSearchParams({
+        ...Object.fromEntries(new URLSearchParams(proposalPayload("Bad date", "web-meal-proposal-invalid-0001"))),
+        mealDate: "not-a-date",
+      }).toString(),
+    });
+    expect(malformedProposal.statusCode).toBe(400);
+    expect(malformedProposal.headers["content-type"]).toContain("text/html");
+    expect(malformedProposal.body).toContain("submitted meal details were not valid");
+    const populatedMealPlan = await app.inject({ method: "GET", url: mealPlanUrl, headers: { "x-test-browser-session": "owner" } });
+    expect(populatedMealPlan.body).toContain("Egg salad sandwich");
+    expect(populatedMealPlan.body).toContain("Pizza");
+    expect(populatedMealPlan.body.match(/meal-card/g)?.length).toBeGreaterThanOrEqual(2);
+    const invalidWeek = await app.inject({
+      method: "GET",
+      url: `/households/${householdId}/meal-plan?week=2026-07-14`,
+      headers: { "x-test-browser-session": "owner" },
+    });
+    expect(invalidWeek.statusCode).toBe(400);
+    const populatedProjection = await base.service.call("hfj_get_meal_plan", {
+      household_id: householdId,
+      week_start: "2026-07-13",
+    }, owner);
+    if (!populatedProjection.ok) throw new Error(populatedProjection.error.message);
+    const proposalRows = z.object({
+      proposals: z.array(z.object({
+        proposal: z.object({ id: z.string(), source: z.object({ title: z.string() }).passthrough() }).passthrough(),
+      })),
+    }).parse(populatedProjection.data).proposals;
+    const eggProposalId = MealProposalIdSchema.parse(
+      proposalRows.find(({ proposal }) => proposal.source.title === "Egg salad sandwich")?.proposal.id,
+    );
+    const pizzaProposalId = MealProposalIdSchema.parse(
+      proposalRows.find(({ proposal }) => proposal.source.title === "Pizza")?.proposal.id,
+    );
+    const forbiddenEditorWithdrawal = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/meal-plan/proposals/${eggProposalId}/withdraw`,
+      headers: editorProposalHeaders,
+      payload: new URLSearchParams({
+        week: "2026-07-13",
+        csrf: "c".repeat(32),
+        idempotencyKey: "web-meal-withdraw-other-editor-0001",
+      }).toString(),
+    });
+    expect(forbiddenEditorWithdrawal.statusCode).toBe(403);
+    expect(forbiddenEditorWithdrawal.headers["content-type"]).toContain("text/html");
+    const withdrawalPayload = new URLSearchParams({
+      week: "2026-07-13",
+      csrf: "c".repeat(32),
+      idempotencyKey: "web-meal-withdraw-pizza-0001",
+    }).toString();
+    const withdrawn = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/meal-plan/proposals/${pizzaProposalId}/withdraw`,
+      headers: editorProposalHeaders,
+      payload: withdrawalPayload,
+    });
+    expect(withdrawn.statusCode).toBe(303);
+    expect(withdrawn.headers.location).toContain("changed=proposal-withdrawn");
+    const replayedWithdrawal = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/meal-plan/proposals/${pizzaProposalId}/withdraw`,
+      headers: editorProposalHeaders,
+      payload: withdrawalPayload,
+    });
+    expect(replayedWithdrawal.statusCode).toBe(303);
+    const afterWithdrawal = await app.inject({ method: "GET", url: mealPlanUrl, headers: { "x-test-browser-session": "owner" } });
+    expect(afterWithdrawal.body).toContain("Egg salad sandwich");
+    expect(afterWithdrawal.body).not.toContain(">Pizza<");
+    const ownerWithdrawal = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/meal-plan/proposals/${eggProposalId}/withdraw`,
+      headers: proposalHeaders,
+      payload: new URLSearchParams({
+        week: "2026-07-13",
+        csrf: "c".repeat(32),
+        idempotencyKey: "web-meal-withdraw-egg-owner-0001",
+      }).toString(),
+    });
+    expect(ownerWithdrawal.statusCode).toBe(303);
+    const secondHousehold = await base.service.call("hfj_create_household", {
+      name: "Owner-only Kitchen",
+      idempotency_key: "web-meal-cross-tenant-household-0001",
+    }, owner);
+    if (!secondHousehold.ok) throw new Error(secondHousehold.error.message);
+    const secondHouseholdId = HouseholdIdSchema.parse(
+      z.object({ household_id: z.string() }).parse(secondHousehold.data).household_id,
+    );
+    const crossTenantRead = await app.inject({
+      method: "GET",
+      url: `/households/${secondHouseholdId}/meal-plan?week=2026-07-13`,
+      headers: { "x-test-browser-session": "editor" },
+    });
+    expect(crossTenantRead.statusCode).toBe(200);
+    expect(crossTenantRead.body).toContain("Household not found");
+    expect(crossTenantRead.body).not.toContain("Owner-only Kitchen");
+    expect(crossTenantRead.body).not.toContain("Egg salad sandwich");
+    const crossTenantJournalBatch = await app.inject({
+      method: "GET",
+      url: `/households/${secondHouseholdId}/journal-items?section=recipes`,
+      headers: { "x-test-browser-session": "editor" },
+    });
+    expect(crossTenantJournalBatch.statusCode).toBe(404);
+    const crossTenantAdd = await app.inject({
+      method: "POST",
+      url: `/households/${secondHouseholdId}/meal-plan/proposals`,
+      headers: editorProposalHeaders,
+      payload: proposalPayload("Cross-tenant idea", "web-meal-cross-tenant-0001"),
+    });
+    expect(crossTenantAdd.statusCode).toBe(403);
+    const editorMembership = (await base.store.listMemberships(browserEditor.userId))[0]?.membership;
+    if (editorMembership === undefined) throw new Error("editor membership missing");
+    await base.store.upsertMembership({ ...editorMembership, removedAt: "2026-07-15T13:00:00.000Z" });
+    const removedEditorAdd = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/meal-plan/proposals`,
+      headers: editorProposalHeaders,
+      payload: proposalPayload("Removed editor idea", "web-meal-removed-editor-0001"),
+    });
+    expect(removedEditorAdd.statusCode).toBe(403);
+    const removedEditorJournal = await app.inject({
+      method: "GET",
+      url: `/households/${householdId}/journal-items?section=groceries`,
+      headers: { "x-test-browser-session": "editor" },
+    });
+    expect(removedEditorJournal.statusCode).toBe(404);
+    await base.store.upsertMembership({
+      ...editorMembership,
+      projectionHead: GitObjectIdSchema.parse("0".repeat(40)),
+      removedAt: null,
+    });
+    const staleEditorAdd = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/meal-plan/proposals`,
+      headers: editorProposalHeaders,
+      payload: proposalPayload("Stale editor idea", "web-meal-stale-editor-0001"),
+    });
+    expect(staleEditorAdd.statusCode).toBe(409);
+    const staleEditorJournal = await app.inject({
+      method: "GET",
+      url: `/households/${householdId}/journal-items?section=groceries`,
+      headers: { "x-test-browser-session": "editor" },
+    });
+    expect(staleEditorJournal.statusCode).toBe(409);
+    const ownerMembership = (await base.store.listMemberships(owner.userId))[0]?.membership;
+    if (ownerMembership === undefined) throw new Error("owner membership missing");
+    await base.store.upsertMembership({ ...ownerMembership, role: "viewer" });
+    const viewerMealPlan = await app.inject({ method: "GET", url: mealPlanUrl, headers: { "x-test-browser-session": "owner" } });
+    expect(viewerMealPlan.body).toContain("only household owners and editors can change it");
+    expect(viewerMealPlan.body).not.toContain("Add meal idea");
+    const forbiddenViewerAdd = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/meal-plan/proposals`,
+      headers: proposalHeaders,
+      payload: proposalPayload("Viewer idea", "web-meal-proposal-viewer-0001"),
+    });
+    expect(forbiddenViewerAdd.statusCode).toBe(403);
+    const publicAfterPlanning = await app.inject({ method: "GET", url: "/c/not-a-real-token" });
+    expect(publicAfterPlanning.body).not.toContain("Egg salad sandwich");
+    expect(publicAfterPlanning.body).not.toContain("Pizza");
     const noJavaScriptPlan = await app.inject({
       method: "POST",
       url: "/c/not-a-real-token/import/plan",
@@ -369,6 +688,7 @@ describe("Fastify application", () => {
     expect(unauthorizedMcp.statusCode).toBe(401);
     expect(unauthorizedMcp.headers["www-authenticate"]).toContain("resource_metadata");
     await app.close();
+
   });
 
   it("maps tool and public-preview failures to stable HTTP statuses", async () => {

@@ -10,7 +10,7 @@ The implemented architecture uses:
 - Neon PostgreSQL for operational identity, OAuth, authorization projections, idempotency, locking, and jobs;
 - one shared agent-client source package for Codex and Claude, with an account-free local guest household under the active Codex home.
 
-After installation, `@Fullwell hi` asks whether the person already has an account. Existing users connect through OAuth. Everyone else can complete grocery and recipe onboarding and use the resulting journal locally before deciding whether to create an account for cloud features.
+After installation, `@Fullwell hi` first asks and privately remembers what to call the person, then asks whether they already have an account. Existing users connect through OAuth and keep that name as their cloud display name. Everyone else gets a deterministically named first local household, can complete grocery and recipe onboarding locally, and may later connect for cloud features. Fullwell can also build an additive weekly household meal plan from liked recipes, separately approved web research, or free-form ideas; local users can open a private image-forward recipe board, while connected households gain a shared authenticated week view.
 
 Product truth lives in:
 

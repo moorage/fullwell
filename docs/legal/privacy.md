@@ -1,6 +1,6 @@
 # Household Food Journal Privacy Notice
 
-Effective date: 2026-07-22
+Effective date: 2026-07-24
 
 This notice describes the Household Food Journal service operated by Fullwell. Contact `privacy@fullwell.app` for privacy requests and `support@fullwell.app` for product support.
 
@@ -13,6 +13,7 @@ This notice describes the Household Food Journal service operated by Fullwell. C
 - Service information: sessions, OAuth grants, request IDs, idempotency records, safe error categories, timing, device/browser security signals, backup and integrity results.
 - Optional messaging information: a linked WhatsApp sender and local-runner device, encrypted inbound request and reply text, provider delivery status, and bounded queue/lease timestamps. Searchable fields contain only HMACed provider identifiers and low-cardinality status.
 - Local onboarding information: while setup is unfinished, the installed client may checkpoint authorized source scope, audit progress, typed food evidence, proposed profiles, and reports under the Codex home on your computer. It excludes passwords, tokens, cookies, browser state, screenshots, and raw page captures and is not sent to Fullwell until you confirm the final write.
+- Meal-planning information: the explicit household answer about allergies and food sensitivities, confirmed time zone, weekly review history, proposed meals, proposer attribution, compatibility caveats, recipe provenance, and withdrawal history. Fullwell does not ask for names, diagnoses, severity, or medical narratives in the constraint profile.
 
 We do not ask for store passwords, one-time codes, browser cookies, Apple private relay addresses beyond what Apple provides for account use, SSH keys, Git credentials, or copied MCP tokens. Codex, Claude, Apple, your email provider, and sites you ask an agent to inspect operate under their own privacy terms.
 
@@ -20,11 +21,13 @@ We do not ask for store passwords, one-time codes, browser cookies, Apple privat
 
 We use information to authenticate you, authorize household access, preserve an auditable journal, prevent duplicate or conflicting changes, deliver magic links and security notices, create exports, publish only collections you approve, support imports, detect abuse, reconcile storage, and restore from failure. We do not sell personal information or use private journal content for advertising.
 
-Programs validate structure and deterministic evidence relationships. Connected Codex or Claude agents, under your direction, make semantic food judgments and author journal prose. The central service does not use a separate model to classify your food or write reports. For optional WhatsApp restocking, the central service verifies and routes the message only. Codex or Claude reads the fixed grocery snapshot for snacks, ingredients, condiments, and other groceries and controls the approved retailer locally on your Mac; the server does not receive the selected product, store, cart quantity, browser session, or local action receipt.
+Programs validate structure and deterministic evidence relationships. Connected Codex or Claude agents, under your direction, make semantic food judgments, author journal prose, and recommend meals. The central service does not use a separate model to classify your food, search for recipes, decide compatibility, or write reports. Internet recipe research occurs only after you approve it in the agent host; if a search would include an allergy or sensitivity term, the agent asks separately before sending that term for that search. Recipe pages and image hosts operate under their own privacy terms. For optional WhatsApp restocking, the central service verifies and routes the message only. Codex or Claude reads the fixed grocery snapshot for snacks, ingredients, condiments, and other groceries and controls the approved retailer locally on your Mac; the server does not receive the selected product, store, cart quantity, browser session, or local action receipt.
 
 ## Household and public sharing
 
 Household members can see private household content according to their owner, editor, or viewer role. Each member uses a separate account. A family invitation grants membership only after sign-in and explicit acceptance.
+
+Connected household members can see the shared meal-planning constraint profile, weekly reviews, proposals, proposer attribution, compatibility caveats, and withdrawal history. These fields are not included in public collection snapshots. A personal Codex or Claude weekly task is not shared household state and is not stored by Fullwell.
 
 A collection link is a revocable capability URL to an immutable snapshot. Anyone holding a valid link can view that snapshot until it expires or is revoked. It does not grant household membership. Before publishing, you choose the items and public fields. Public snapshots exclude order data, counts, private evidence and locators, household/member identifiers, and unselected notes. Avoid forwarding a link beyond its intended recipients.
 
@@ -38,6 +41,8 @@ A collection link is a revocable capability URL to an immutable snapshot. Anyone
 - Meta/WhatsApp carries optional restocking requests and Fullwell's bounded service replies through the direct WhatsApp Business Platform. No messaging middleware vendor receives them.
 - Codex or Claude and the approved retailer process local restocking work under the accounts and permissions you choose on your Mac.
 - Codex or Claude stores an unfinished onboarding checkpoint under the Codex home, separated by stable Fullwell user and household IDs. It uses private local file modes but is not encrypted from another person who can access the same operating-system account.
+- Codex or Claude may store local meal-planning state and private static recipe boards under the Codex home. Board image requests contact the named source host directly with ordinary network metadata and may include existing site state; boards use no-referrer and anonymous loading where supported but are not an anonymity service.
+- Codex or Claude owns any optional personal weekly meal-planning task. Fullwell stores no schedule, reminder receipt, calendar event, or task prompt.
 
 Repositories contain pseudonymous member identifiers; private identity mappings remain in PostgreSQL. Git is authoritative for household journal content. Operational logs are structured and exclude tokens, emails, titles, food names, order IDs, source URLs, and request bodies.
 
@@ -49,11 +54,13 @@ WhatsApp link challenges expire after ten minutes. Encrypted message envelopes a
 
 An onboarding checkpoint expires after 30 days and is discarded when setup next loads it. Confirmed finalization or explicit setup cancellation removes the matching checkpoint immediately. Uninstalling the plugin does not delete a checkpoint automatically; you may remove `~/.codex/fullwell/drafts` to delete all local Fullwell onboarding drafts on that operating-system account without changing server-authoritative household data.
 
+Private recipe boards are bounded disposable local snapshots. Later board creation removes expired or excess generated boards; uninstalling the plugin does not guarantee immediate deletion. Removing the local generated-board directory does not change the journal or connected household. Native weekly tasks remain in their Codex or Claude host until you pause or remove them there.
+
 We retain household content and audit history while the household exists. Account deletion immediately revokes sessions and grants. If other members retain a household, audit identity becomes a stable pseudonymous former-member label. A sole owner must transfer or explicitly export/delete the household first. Deleted active data may remain in encrypted, access-controlled backups until the backup retention window expires; the production retention schedule and any legal hold override are recorded in the service release notice.
 
 ## Your choices
 
-You can review household membership, revoke invitations and collection links, revoke MCP and local-runner grants, unlink WhatsApp, remove passkeys while retaining another sign-in method, delete local onboarding checkpoints, leave an eligible household, export a readable ZIP or verifiable Git bundle, and request account or household deletion. You can also choose which stores and recipe sources an agent may inspect and update those choices later.
+You can review household membership, revoke invitations and collection links, revoke MCP and local-runner grants, unlink WhatsApp, remove passkeys while retaining another sign-in method, delete local onboarding checkpoints and recipe boards, pause or remove personal host tasks, leave an eligible household, export a readable ZIP or verifiable Git bundle, and request account or household deletion. You can also choose which stores and recipe sources an agent may inspect, whether each web search may disclose constraint terms, and update those choices later.
 
 Requests may require reauthentication. We may retain bounded security and audit records when necessary to protect other members, establish what happened, meet legal obligations, or preserve repository integrity.
 

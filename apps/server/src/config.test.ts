@@ -12,7 +12,12 @@ describe("parseConfig", () => {
   });
 
   it("provides deterministic local defaults", () => {
-    expect(parseConfig({ NODE_ENV: "test", PATH: "/usr/bin", HOME: "/tmp" })).toMatchObject({ PORT: 3000, AUTH_MODE: "test", EXPORT_ROOT: "./.data/exports", BACKUP_RETENTION_DAYS: 35 });
+    expect(parseConfig({ NODE_ENV: "test", PATH: "/usr/bin", HOME: "/tmp" })).toMatchObject({
+      PORT: 3000,
+      AUTH_MODE: "test",
+      EXPORT_ROOT: "./.data/exports",
+      BACKUP_RETENTION_DAYS: 35,
+    });
     expect(() => parseConfig({ NODE_ENV: "test", OBJECT_STORAGE_BUCKET: "backup" })).toThrow(/must be complete/);
   });
 

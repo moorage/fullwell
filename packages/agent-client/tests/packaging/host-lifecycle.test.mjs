@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +15,28 @@ const codexPluginName = "fullwell";
 const codexMarketplaceName = "fullwell";
 const claudePluginName = "fullwell";
 const claudeMarketplaceName = "fullwell";
+
+test("Codex and Claude share one privacy-bounded native weekly meal-planning lifecycle", async () => {
+  const [skill, automation, codexMcp, claudeMcp] = await Promise.all([
+    readFile(path.join(localPackageRoot, "skills/plan-household-meals/SKILL.md"), "utf8"),
+    readFile(path.join(localPackageRoot, "references/weekly-meal-planning-automation.md"), "utf8"),
+    readFile(path.join(localPackageRoot, "codex-mcp.json"), "utf8"),
+    readFile(path.join(localPackageRoot, ".mcp.json"), "utf8"),
+  ]);
+  assert.match(skill, /Fullwell weekly meal planning/);
+  assert.match(automation, /\$plan-household-meals/);
+  assert.match(automation, /Every Codex native task prompt includes both lines/);
+  assert.match(automation, /including a task attached to the current chat/);
+  assert.match(automation, /explicitly direct it to the `plan-household-meals` skill/);
+  assert.match(automation, /Sunday at 9:00 AM/);
+  assert.match(automation, /pause and resume/);
+  assert.match(automation, /skip only this week/);
+  assert.match(automation, /pause or remove the native task through its host/);
+  assert.match(automation, /host confirmation is still required/);
+  assert.match(automation, /cannot guarantee a run while the selected host/);
+  assert.match(automation, /no scheduler receipt, cron row, calendar event, launchd job/);
+  assert.doesNotMatch(`${codexMcp}\n${claudeMcp}`, /scheduler|calendar|cron|launchd/i);
+});
 
 async function versionOf(command) {
   try {

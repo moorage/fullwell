@@ -10,7 +10,12 @@ Public pages use a small masthead with the Fullwell wordmark, a sign-in action, 
 
 | Route                   | Purpose                                                            | Primary action                        |
 | ----------------------- | ------------------------------------------------------------------ | ------------------------------------- |
-| `/install`              | Choose one agent host and follow its current installation handoff. | Use with Codex or Use with Claude     |
+| `/install`              | Choose one agent host and follow its current installation handoff. | Use with ChatGPT or Use with Claude   |
+| `/guides`               | Choose an advanced task-specific chat guide.                       | Open a guide                          |
+| `/guides/whatsapp`      | Connect WhatsApp without putting credentials in chat.              | Set up WhatsApp                       |
+| `/guides/household-invitations` | Invite a person with an explicit role and browser confirmation. | Invite someone                     |
+| `/guides/collections/create` | Build a named recipe or grocery collection in chat.             | Create a collection                   |
+| `/guides/collections/share` | Publish and share a reviewed collection snapshot.                | Share a collection                    |
 | `/sign-in`              | Start Apple, passkey, or email-link authentication.                | Continue with Apple                   |
 | `/invite/family/:token` | Review a family invitation without accepting it.                   | Sign in to continue or Join household |
 | `/c/:token`             | Preview a public-safe collection snapshot and select items.        | Import selected                       |
@@ -20,12 +25,14 @@ Public pages use a small masthead with the Fullwell wordmark, a sign-in action, 
 
 ### Authenticated workspace
 
-Authenticated pages share a compact top navigation: Households, Collections, and Account. The active household appears in the page heading, not as a hidden global state. Household pages use local tabs for Overview, Members, and Collections.
+Authenticated pages share a compact top navigation: Households, Collections, Guides, and Account. The active household appears in the page heading, not as a hidden global state. Household pages use local tabs for Overview, Recipes, Groceries, Members, and Collections.
 
 | Route                         | Purpose                                                              | Primary action       |
 | ----------------------------- | -------------------------------------------------------------------- | -------------------- |
 | `/households`                 | Choose or create a household.                                        | Create household     |
-| `/households/:id`             | Review role, recent journal summaries, and agent handoff.            | Open in Codex/Claude |
+| `/households/:id`             | Review role, recent journal summaries, and agent handoff.            | Open in ChatGPT/Claude |
+| `/households/:id/recipes`     | Browse recorded recipes as progressively loaded visual cards.        | Load more recipes    |
+| `/households/:id/groceries`   | Browse recorded groceries as progressively loaded visual cards.      | Load more groceries  |
 | `/households/:id/members`     | Review people, invitations, and role controls.                       | Invite family member |
 | `/households/:id/collections` | Review private collections and published links.                      | Create with agent    |
 | `/account`                    | Manage identity methods, grants, exports, memberships, and deletion. | Contextual only      |
@@ -47,4 +54,4 @@ Authenticated pages share a compact top navigation: Households, Collections, and
 - At 320-639 pixels, navigation becomes a wrapping text rail; tables become labeled rows without losing headings.
 - At 640-959 pixels, lists remain single-column and action groups may wrap.
 - At 960 pixels and above, workspace pages use a 12-column content grid with a narrow context rail only where it improves scanning.
-- Collection item selection remains one column until 760 pixels, then uses a two-column media list. Recipes and snacks never merge into one undifferentiated grid.
+- Collection item selection remains one column until 760 pixels, then uses a two-column media list. Recipe and grocery journal cards adapt from one to multiple columns while preserving deterministic reading order. Recipes and groceries never merge into one undifferentiated grid.

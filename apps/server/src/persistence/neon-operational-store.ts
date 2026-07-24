@@ -3,6 +3,7 @@ import type { Sql, TransactionSql } from "postgres";
 import { z } from "zod";
 import {
   ActorIdSchema,
+  CloudMealSourceSchema,
   CollectionIdSchema,
   CollectionSnapshotSchema,
   EvidenceSchema,
@@ -10,6 +11,9 @@ import {
   HouseholdIdSchema,
   InvitationIdSchema,
   JournalItemSchema,
+  MealPlanEventSchema,
+  MealPlanningProfileSchema,
+  MealProposalSchema,
   MutationStateSchema,
   OAuthScopeSchema,
   OnboardingRecordSchema,
@@ -134,6 +138,20 @@ const ProjectionDocumentSchema = z.object({
   items: z.record(z.string(), z.object({ item: JournalItemSchema, revision: GitObjectIdSchema })),
   profiles: z.record(z.string(), z.object({ markdown: z.string(), revision: GitObjectIdSchema })),
   collections: z.record(z.string(), z.object({ snapshot: CollectionSnapshotSchema, revision: GitObjectIdSchema })),
+  meal_planning_profile: MealPlanningProfileSchema.refine((profile) => typeof profile.revision === "string").nullable().default(null),
+  meal_proposals: z.record(z.string(), z.object({
+    proposal: MealProposalSchema.refine((proposal) =>
+      typeof proposal.proposed_by === "string"
+      && typeof proposal.constraint_revision === "string"
+      && CloudMealSourceSchema.safeParse(proposal.source).success),
+    revision: GitObjectIdSchema,
+  })).default({}),
+  meal_plan_events: z.record(z.string(), z.object({
+    event: MealPlanEventSchema.refine((event) =>
+      typeof event.actor === "string"
+      && (event.kind !== "constraints_reviewed" || typeof event.constraint_revision === "string")),
+    revision: GitObjectIdSchema,
+  })).default({}),
 }).strict();
 
 const SessionRowSchema = z.object({
@@ -164,6 +182,15 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
         VALUES (${record.id}, ${record.repositoryHead}, ${sql.json(this.projectionDocument(emptyProjection()))})
       `;
     });
+  }
+
+  async updateHouseholdName(householdId: HouseholdId, name: string): Promise<void> {
+    const rows = await this.sql()<Record<string, unknown>[]>`
+      UPDATE households SET display_name = ${name}, updated_at = now()
+      WHERE id = ${householdId}
+      RETURNING id
+    `;
+    if (rows.length !== 1) throw new AppError("NOT_FOUND", "Household was not found");
   }
 
   async updateHouseholdHead(householdId: HouseholdId, head: GitObjectId): Promise<void> {
@@ -431,6 +458,7 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
 
   async replaceHouseholdProjection(
     householdId: HouseholdId,
+    name: string,
     head: GitObjectId,
     projection: HouseholdProjection,
     memberships: ReadonlyArray<RepositoryMembershipState>,
@@ -443,7 +471,11 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
       RETURNING household_id
     `;
     if (projectionRows.length !== 1) throw new AppError("NOT_FOUND", "Household projection was not found");
-    await sql`UPDATE households SET repository_head = ${head}, provisioning_state = 'ready', updated_at = now() WHERE id = ${householdId}`;
+    await sql`
+      UPDATE households
+      SET display_name = ${name}, repository_head = ${head}, provisioning_state = 'ready', updated_at = now()
+      WHERE id = ${householdId}
+    `;
     for (const membership of memberships) {
       const existing = await sql<{ user_id: string; role: string }[]>`
         SELECT user_id, role FROM memberships WHERE household_id = ${householdId} AND actor_id = ${membership.actorId}
@@ -732,6 +764,9 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
       items: Object.fromEntries(projection.items),
       profiles: Object.fromEntries(projection.profiles),
       collections: Object.fromEntries(projection.collections),
+      meal_planning_profile: projection.mealPlanningProfile,
+      meal_proposals: Object.fromEntries(projection.mealProposals),
+      meal_plan_events: Object.fromEntries(projection.mealPlanEvents),
     });
   }
 }
@@ -821,11 +856,22 @@ function projectionFromDocument(input: unknown): HouseholdProjection {
     items: new Map(Object.entries(document.items)),
     profiles: new Map(Object.entries(document.profiles)),
     collections: new Map(Object.entries(document.collections)),
+    mealPlanningProfile: document.meal_planning_profile,
+    mealProposals: new Map(Object.entries(document.meal_proposals)),
+    mealPlanEvents: new Map(Object.entries(document.meal_plan_events)),
   };
 }
 
 function emptyProjection(): HouseholdProjection {
-  return { evidence: new Map(), items: new Map(), profiles: new Map(), collections: new Map() };
+  return {
+    evidence: new Map(),
+    items: new Map(),
+    profiles: new Map(),
+    collections: new Map(),
+    mealPlanningProfile: null,
+    mealProposals: new Map(),
+    mealPlanEvents: new Map(),
+  };
 }
 
 function toJsonValue(input: unknown): JsonValue {

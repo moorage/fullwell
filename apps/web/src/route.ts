@@ -30,6 +30,11 @@ export function resolveWebRoute(input: string): WebRoute {
   if (url.pathname === "/" || url.pathname === "/install") {
     return { page: "install", host: url.searchParams.get("host") === "claude" ? "claude" : "codex" };
   }
+  if (url.pathname === "/guides") return { page: "guides" };
+  if (url.pathname === "/guides/whatsapp") return { page: "guide-detail", slug: "whatsapp" };
+  if (url.pathname === "/guides/household-invitations") return { page: "guide-detail", slug: "household-invitations" };
+  if (url.pathname === "/guides/collections/create") return { page: "guide-detail", slug: "collections-create" };
+  if (url.pathname === "/guides/collections/share") return { page: "guide-detail", slug: "collections-share" };
   if (url.pathname === "/sign-in") {
     return {
       page: "sign-in",
@@ -50,6 +55,15 @@ export function resolveWebRoute(input: string): WebRoute {
     return { page: "collection", token: parts[1] };
   }
   if (url.pathname === "/households") return { page: "households" };
+  if (parts[0] === "households" && parts[1] && parts[2] === "meal-plan" && parts.length === 3) {
+    return { page: "meal-plan", householdId: parts[1] };
+  }
+  if (parts[0] === "households" && parts[1] && parts[2] === "recipes" && parts.length === 3) {
+    return { page: "recipes", householdId: parts[1], pageNumber: visualPageNumber(url) };
+  }
+  if (parts[0] === "households" && parts[1] && parts[2] === "groceries" && parts.length === 3) {
+    return { page: "groceries", householdId: parts[1], pageNumber: visualPageNumber(url) };
+  }
   if (parts[0] === "households" && parts[1] && parts[2] === "members") {
     return { page: "members", householdId: parts[1] };
   }
@@ -63,4 +77,9 @@ export function resolveWebRoute(input: string): WebRoute {
   if (url.pathname === "/privacy") return { page: "privacy" };
   if (url.pathname === "/terms") return { page: "terms" };
   return { page: "not-found" };
+}
+
+function visualPageNumber(url: URL): number {
+  const value = Number(url.searchParams.get("page") ?? "1");
+  return Number.isSafeInteger(value) && value > 0 ? Math.min(value, 17) : 1;
 }

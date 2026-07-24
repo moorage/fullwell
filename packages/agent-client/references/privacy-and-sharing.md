@@ -27,9 +27,17 @@ Bind every load to the current repository HEAD and both onboarding revisions. Ne
 
 A person without a Fullwell account may keep one durable guest household under `~/.codex/fullwell/local/household.json`, or the configured Codex home equivalent. The local ID is generated on the device and is not a Fullwell user or household identity. The document is bounded, revision-checked, atomically replaced, and stored in `0700` directories with mode `0600`. It is accessible to another person who can access the same operating-system account and is not encrypted at rest.
 
+The remembered preferred name lives separately under `~/.codex/fullwell/local/profile.json` with the same private directory and file modes. The preferred name and household title are private identity data: use them for the user's own local and authenticated cloud display surfaces, but never put them in telemetry, scheduled-task prompts, public collection snapshots, share messages without review, or logs.
+
 Guest access uses the plugin-provided `fullwell-local` server's stable read, update, and collecting-only deletion tools. The server performs no network access and emits no journal content to logs or stderr. Do not execute a version-specific plugin-cache script, broaden Node command permissions, or edit the user's allowlist. If the local server is unavailable, stop and ask the user to reload or reinstall Fullwell.
 
 The guest household may contain only source scope, progress cursors, typed food evidence, agent-authored semantic decisions, profiles, items, reports, section outcomes, and cloud-backup metadata returned after a successful hosted commit. It must not contain credentials, passwords, authorization headers, access or refresh tokens, cookies, browser state, screenshots, raw HTML, raw page captures, or one-time codes. A local journal is not a cloud backup. Failed, declined, or interrupted promotion leaves it unchanged and usable. Successful promotion records the cloud user, household, repository HEAD, and exact local revision but does not delete the local copy; a later local change makes that backup marker stale.
+
+Meal-planning constraints are shared household data in cloud mode. Ask only for bounded allergy and sensitivity labels needed for meals, not names, diagnoses, severity, or medical narratives. External recipe research requires its own approval, and every search that would include constraint terms requires a separate disclosure decision. Store neither the search query nor that one-search consent.
+
+A visual recipe board is a private local static snapshot, not a public share. It contains the recommendations already shown, source provenance, and compatibility caveats but omits raw constraint labels by default. It has no Fullwell login or edit authority. Remote images use anonymous requests and no referrer, but their source sites can still receive ordinary network metadata; recipe links may use existing site state.
+
+The weekly meal-planning reminder exists only in the selected Codex or Claude native task list. Its name and fixed instruction contain no household title, identity, recipe, constraint, URL, query, credential, or transcript. Never copy local journal content into a remote task or store native task state in Fullwell data.
 
 Sharing returns a link and suggested message. Use an operating-system share sheet when available, otherwise let the user copy the link or open an email/text draft. Never read contacts or transmit a message without the user's confirmation in their chosen application.
 

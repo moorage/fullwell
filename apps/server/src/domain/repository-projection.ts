@@ -1,10 +1,15 @@
 import { z } from "zod";
 import {
   ActorIdSchema,
+  CloudMealSourceSchema,
   CollectionIdSchema,
   CollectionSnapshotSchema,
+  ConfirmedMealPlanningConstraintsSchema,
   EvidenceSchema,
   JournalItemSchema,
+  MealPlanEventSchema,
+  MealPlanningProfileSchema,
+  MealProposalSchema,
   RequestIdSchema,
   RoleSchema,
   SnapshotIdSchema,
@@ -13,7 +18,13 @@ import {
   type UserId,
 } from "@hfj/contracts";
 import { AppError } from "../core/errors.js";
-import { journalItemPath } from "./journal-validation.js";
+import {
+  journalItemPath,
+  mealPlanEventPath,
+  mealProposalPath,
+  validateMealProposalReview,
+  validateMealProposalSource,
+} from "./journal-validation.js";
 import type { RepositorySnapshot } from "../core/ports.js";
 import type { HouseholdProjection, RepositoryMembershipState } from "../core/types.js";
 
@@ -28,8 +39,18 @@ const CollectionDocumentSchema = z.object({
   id: CollectionIdSchema,
   current_snapshot_id: SnapshotIdSchema.optional(),
 }).passthrough();
+const MealPlanningProfileDocumentSchema = z.object({
+  constraints: ConfirmedMealPlanningConstraintsSchema,
+  updated_at: z.iso.datetime({ offset: true }),
+  schema_version: z.literal(1),
+}).strict();
+const HouseholdDocumentSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  schema_version: z.literal(1),
+}).strict();
 
 export interface RebuiltRepositoryState {
+  readonly householdName: string | null;
   readonly projection: HouseholdProjection;
   readonly memberships: ReadonlyArray<RepositoryMembershipState>;
 }
@@ -55,10 +76,23 @@ export function rebuildRepositoryState(
   const items = new Map<string, { item: z.infer<typeof JournalItemSchema>; revision: typeof snapshot.head }>();
   const profiles = new Map<string, { markdown: string; revision: typeof snapshot.head }>();
   const snapshots = new Map<string, { snapshot: z.infer<typeof CollectionSnapshotSchema>; revision: typeof snapshot.head }>();
+  let mealPlanningProfile: z.infer<typeof MealPlanningProfileSchema> | null = null;
+  const mealProposals = new Map<string, { proposal: z.infer<typeof MealProposalSchema>; revision: typeof snapshot.head }>();
+  const mealPlanEvents = new Map<string, { event: z.infer<typeof MealPlanEventSchema>; revision: typeof snapshot.head }>();
   const collectionDocuments: Array<{ collectionId: string; snapshotId?: string }> = [];
   const memberships: RepositoryMembershipState[] = [];
+  let householdName: string | null = null;
 
   for (const file of snapshot.files) {
+    if (file.path === "household.md") {
+      if (householdName !== null) throw projectionError(file.path);
+      householdName = parseValue(
+        HouseholdDocumentSchema,
+        parseMarkdownDocument(file.content, file.path).frontmatter,
+        file.path,
+      ).name;
+      continue;
+    }
     if (/^(snacks|groceries|recipes)\/evidence\/\d{4}\/evd_[0-9a-z]{16,64}\.json$/.test(file.path)) {
       const parsed = parseJson(EvidenceSchema, file.content, file.path);
       evidence.set(parsed.id, parsed);
@@ -71,9 +105,40 @@ export function rebuildRepositoryState(
       items.set(item.id, { item, revision: file.revision });
       continue;
     }
+    if (file.path === "profiles/meal-planning.md") {
+      const document = parseValue(MealPlanningProfileDocumentSchema, parseMarkdownDocument(file.content, file.path).frontmatter, file.path);
+      mealPlanningProfile = parseValue(MealPlanningProfileSchema, {
+        ...document,
+        revision: file.revision,
+      }, file.path);
+      continue;
+    }
     const profile = /^profiles\/([a-zA-Z0-9._-]+)\.md$/.exec(file.path);
     if (profile?.[1] !== undefined) {
       profiles.set(profile[1], { markdown: removeDocumentTerminator(file.content), revision: file.revision });
+      continue;
+    }
+    if (/^meal-plans\/weeks\/\d{4}-\d{2}-\d{2}\/proposals\/mlp_[0-9a-z]{16,64}\.json$/.test(file.path)) {
+      const proposal = parseJson(MealProposalSchema, file.content, file.path);
+      if (typeof proposal.proposed_by !== "string"
+        || typeof proposal.constraint_revision !== "string"
+        || !CloudMealSourceSchema.safeParse(proposal.source).success
+        || mealProposalPath(proposal) !== file.path
+        || mealProposals.has(proposal.id)) {
+        throw projectionError(file.path);
+      }
+      mealProposals.set(proposal.id, { proposal, revision: file.revision });
+      continue;
+    }
+    if (/^meal-plans\/weeks\/\d{4}-\d{2}-\d{2}\/events\/mle_[0-9a-z]{16,64}\.json$/.test(file.path)) {
+      const event = parseJson(MealPlanEventSchema, file.content, file.path);
+      if (typeof event.actor !== "string"
+        || (event.kind === "constraints_reviewed" && typeof event.constraint_revision !== "string")
+        || mealPlanEventPath(event) !== file.path
+        || mealPlanEvents.has(event.id)) {
+        throw projectionError(file.path);
+      }
+      mealPlanEvents.set(event.id, { event, revision: file.revision });
       continue;
     }
     if (/^collections\/col_[0-9a-z]{16,64}\/snapshots\/snp_[0-9a-z]{16,64}\.json$/.test(file.path)) {
@@ -113,7 +178,34 @@ export function rebuildRepositoryState(
     collections.set(document.collectionId, selected);
   }
 
-  return { projection: { evidence, items, profiles, collections }, memberships };
+  const events = new Map([...mealPlanEvents].map(([id, entry]) => [id, entry.event]));
+  const itemValues = new Map([...items].map(([id, entry]) => [id, entry.item]));
+  const itemRevisions = new Map([...items].map(([id, entry]) => [id, entry.revision]));
+  for (const { proposal } of mealProposals.values()) {
+    validateMealProposalReview(proposal, events);
+    if (proposal.source.kind === "journal_recipe" && itemRevisions.get(proposal.source.item_id) === proposal.source.item_revision) {
+      validateMealProposalSource(proposal, itemValues, evidence, itemRevisions);
+    }
+  }
+  for (const { event } of mealPlanEvents.values()) {
+    if (event.kind !== "proposal_withdrawn") continue;
+    const proposal = mealProposals.get(event.proposal_id)?.proposal;
+    if (proposal === undefined || proposal.week_start !== event.week_start) throw projectionError(mealPlanEventPath(event));
+  }
+
+  return {
+    householdName,
+    projection: {
+      evidence,
+      items,
+      profiles,
+      collections,
+      mealPlanningProfile,
+      mealProposals,
+      mealPlanEvents,
+    },
+    memberships,
+  };
 }
 
 function parseMarkdownDocument(content: string, path: string): { frontmatter: Record<string, unknown>; body: string } {

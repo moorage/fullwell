@@ -46,6 +46,7 @@ export function HouseholdMembersRoute({ householdId }: { householdId: string }) 
             <Button type="submit"><UserPlus aria-hidden="true" size={18} /> Create invitation</Button>
           </form>
         </details> : null}
+        <p className="management-help"><a className="text-link text-link--arrow" href="/guides/household-invitations">See the household invitation guide</a></p>
       </section>
     </AppShell>
   );

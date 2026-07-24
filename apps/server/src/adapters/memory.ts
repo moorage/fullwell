@@ -183,7 +183,20 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
     if (this.households.has(record.id)) throw new AppError("VALIDATION_FAILED", "Household already exists");
     this.households.set(record.id, record);
     this.memberships.set(this.membershipKey(record.id, owner.userId), owner);
-    this.projections.set(record.id, { evidence: new Map(), items: new Map(), profiles: new Map(), collections: new Map() });
+    this.projections.set(record.id, {
+      evidence: new Map(),
+      items: new Map(),
+      profiles: new Map(),
+      collections: new Map(),
+      mealPlanningProfile: null,
+      mealProposals: new Map(),
+      mealPlanEvents: new Map(),
+    });
+  }
+  async updateHouseholdName(householdId: HouseholdId, name: string): Promise<void> {
+    const household = await this.getHousehold(householdId);
+    if (household === null) throw new AppError("NOT_FOUND", "Household was not found");
+    household.name = name;
   }
   async updateHouseholdHead(householdId: HouseholdId, head: GitObjectId): Promise<void> {
     const household = await this.getHousehold(householdId);
@@ -240,7 +253,8 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
     return this.mutations.get(`${userId}\0${tool}\0${idempotencyKey}`) ?? null;
   }
   async saveMutation(record: MutationRecord): Promise<void> {
-    this.mutations.set(`${record.userId}\0${record.tool}\0${record.idempotencyKey}`, record);
+    const key = `${record.userId}\0${record.tool}\0${record.idempotencyKey}`;
+    if (!this.mutations.has(key)) this.mutations.set(key, record);
   }
   async transitionMutation(requestId: RequestId, state: MutationState, update: { commitId?: GitObjectId; response?: Record<string, JsonValue>; failure?: string } = {}): Promise<void> {
     const record = [...this.mutations.values()].find((candidate) => candidate.requestId === requestId);
@@ -254,9 +268,10 @@ export class MemoryOperationalStore implements OperationalStorePort, SessionStor
   async listMutationsForReconciliation(householdId: HouseholdId): Promise<ReadonlyArray<MutationRecord>> {
     return [...this.mutations.values()].filter((record) => record.householdId === householdId && ["received", "locked", "git_committed", "reconciliation_required"].includes(record.state));
   }
-  async replaceHouseholdProjection(householdId: HouseholdId, head: GitObjectId, projection: HouseholdProjection, memberships: ReadonlyArray<RepositoryMembershipState>): Promise<void> {
+  async replaceHouseholdProjection(householdId: HouseholdId, name: string, head: GitObjectId, projection: HouseholdProjection, memberships: ReadonlyArray<RepositoryMembershipState>): Promise<void> {
     const household = this.households.get(householdId);
     if (household === undefined) throw new AppError("NOT_FOUND", "Household was not found");
+    household.name = name;
     household.repositoryHead = head;
     household.provisioningState = "ready";
     this.projections.set(householdId, projection);

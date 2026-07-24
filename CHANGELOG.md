@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Add branded ChatGPT, Claude, and Apple action marks, public task-specific agent guides, and membership-authorized visual recipe and grocery browsers with accessible progressive loading.
+- Exclude local credentials, runtime state, artifacts, and private key material from the OCI build context.
+- Handle child-stdin pipe closure inside the local runner so timeout and early-exit races reject cleanly instead of emitting an unhandled `EPIPE`.
+- Ask and remember the member name before account routing, reuse it for the cloud display identity and possessive first-household name, add local and cloud member/household renames, support chat-driven WhatsApp runner and weekly-reminder shutdown, and surface eligible invitation and collection next steps.
+- Add local and connected collaborative weekly meal planning with explicit food-constraint reviews, additive same-slot proposals, liked/external/free-form sources, attributed withdrawals, private login-free recipe boards, and an optional host-native weekly check-in.
+- Make connected meal-planning tools, navigation, browser routes, and mutations unconditionally available by removing the unused rollout flag before any users exist.
+- Bound local and connected weeks to 500 proposals and 48 per date-and-slot, with separate 500-event review and withdrawal reserves so every accepted proposal remains withdrawable; cloud reads return all bounded events independently of proposal pagination.
+- Refresh the transitive `find-my-way` production dependency to 9.7.0 after the release audit detected GHSA-c96f-x56v-gq3h.
+- Add a membership-authorized, no-JavaScript weekly meal-plan view with all same-slot proposals, shared constraint-review state, CSRF-protected idempotent proposal and withdrawal forms, responsive 320-pixel rendering, and public-data exclusion.
 - Preserve the optional cloud-connection handoff when an unconnected guest accepts the first onboarding restock invitation before reaching the cloud question.
 - Add a configurable automatic cart-add maximum with a strict `USD 50.00` default, conversational profile updates, price-bound confirmation at or above the maximum, versioned idempotency receipts, and exact post-add reminders.
 - Correct Fullwell's host-specific plugin-root MCP paths and macOS real-path handling so Claude connects to the stable local journal server, and make host lifecycle verification require a healthy connection.

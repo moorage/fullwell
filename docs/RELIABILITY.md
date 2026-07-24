@@ -22,7 +22,7 @@ OpenTofu stores DigitalOcean state in a dedicated Neon database through the dire
 
 ## Mutation and retry policy
 
-Each mutating request must:
+Each household-scoped mutating request must:
 
 1. authenticate and authorize against the current projection;
 2. validate its schema, idempotency key, expected revision, and evidence references;
@@ -34,7 +34,11 @@ Each mutating request must:
 
 Retries resume or return the recorded result. Ambiguous states enter reconciliation; they do not produce a second commit. Conflicts return the latest safe revision and structured comparison data for explicit client or agent resolution.
 
-Errors are propagated only after the transaction containing `git_committed`, `reconciliation_required`, or `failed_before_commit` has committed. A retry must match the hashed canonical request bound to the idempotency key and searches Git main for the request trailer before considering a new commit. The scheduled reconciler validates the repository, rebuilds evidence, item, profile, collection, and membership projections with per-file revisions, repairs recoverable private identity links, and advances replayable mutations to `projections_applied`. Missing authoritative documents, unverifiable commits, or Git members without a private identity mapping quarantine the household and keep authorization closed.
+The account-scoped display-name mutation is the narrow exception to the household pipeline: it requires authenticated `journal:write`, validates and fingerprints the exact name, durably claims the user/tool/idempotency tuple, and then performs an idempotent private identity-store assignment. It requires no household, Git commit, or household lock. A response-loss retry returns the stored result; a retry after an interrupted assignment safely repeats the same setter; changed input under the same key conflicts. Names are excluded from telemetry and failure fields.
+
+Meal proposals and withdrawal/review events are immutable unique-path appends. Their explicit `append_to_current_head` policy reloads the current HEAD under the household lock, validates one server-derived path, and preserves unrelated concurrent appends; profile writes remain strict revision conflicts. Exact retries fan into one durable mutation receipt and response, while changed idempotency input conflicts. Projection rebuild derives active, withdrawn, and `needs_recheck` state from Git.
+
+Errors are propagated only after the transaction containing `git_committed`, `reconciliation_required`, or `failed_before_commit` has committed. A retry must match the hashed canonical request bound to the idempotency key and searches Git main for the request trailer before considering a new commit. The scheduled reconciler validates the repository, rebuilds the household name plus evidence, item, profile, collection, and membership projections with per-file revisions, repairs recoverable private identity links, and advances replayable mutations to `projections_applied`. A cloud household rename writes `household.md` through the ordinary exact-HEAD Git pipeline; if Git succeeds before Neon display-name projection, reconciliation restores the Git name. Missing authoritative documents, unverifiable commits, or Git members without a private identity mapping quarantine the household and keep authorization closed.
 
 WebAuthn challenges are consumed exactly once and expire after five minutes. Authentication issues a session only after cryptographic verification and an atomic credential-counter update; a stale or regressing counter fails the ceremony rather than producing a success-shaped fallback. Counterless authenticators may remain at zero but cannot reset a nonzero stored counter.
 
@@ -48,6 +52,10 @@ Browser household leave and account deletion use the same transaction-scoped hou
 - public health responses reveal no tenant counts, paths, credentials, repository identifiers, or provider error bodies.
 
 The live and readiness routes are public and contain no counts or paths. Production readiness checks Neon, schema `0007`, Git, volume identity/writability, application/manifest signing configuration, and single-writer leadership. `/health/operator` uses a dedicated HMAC-compared bearer credential and adds incomplete/reconciliation-required mutation counts and age, quarantine count, backup gaps/age, volume capacity, fsck/signature failure counts, restore-drill freshness, messaging queue age/depth, and runner-online state. Missing, stale, or failed evidence degrades operator health.
+
+Connected meal-planning tools, authenticated routes, mutations, and navigation are always registered. Rollback must use a reader that preserves the append-only meal-plan paths and rebuildable projection fields; it must never delete authoritative Git documents. Host-native weekly tasks are separate personal state: Fullwell cannot guarantee a run while the selected host or required context is unavailable, and rollback must pause or remove canary tasks through that host before removing management guidance.
+
+Cloud and local meal planning admit at most 500 immutable proposals per week and 48 proposals per date-and-slot combination. Each mode reserves a separate weekly capacity of 500 constraint reviews and 500 withdrawals, so review churn cannot consume the capacity needed to withdraw every accepted proposal. Append paths count by kind under the household lock or local file lock, so races cannot cross a limit. A request at capacity fails without a commit or local revision; exact replay still succeeds; an already oversized cloud projection fails closed as drift before MCP pagination or authenticated SSR can amplify it. Cloud reads return the complete bounded event set independently of proposal pagination.
 
 ## Backups and recovery
 
@@ -82,6 +90,8 @@ An encrypted `response_ready` result is retried before the linked device's next 
 The Codex runner verifies its dedicated project before every resolution or action turn. Any configured MCP other than `node_repl`, a missing Browser or Chrome plugin, an unavailable exact-origin approval, or isolated-login drift blocks the task before cart mutation. The keyring-backed noninteractive host passed the fake-retailer quantity-one and duplicate-replay proof on 2026-07-21. Claims are enabled for the linked staging runner; service replies are disabled while Meta business/display-name review blocks outbound acceptance.
 
 The gateway retains encrypted bodies no longer than seven days and removes expired envelopes, receipts, challenges, and unconfirmed links through scheduled maintenance. Late results are not sent outside an open pre-cutoff service window. The compiled zero-cost cutoff prevents intake, linking, claims, and replies on or after `2026-10-01T00:00:00-07:00`.
+
+Local host subprocesses bound stdin, stdout, stderr, runtime, cancellation, and termination grace. A child that closes stdin early is an explicit invocation failure; pipe errors are consumed by the adapter and cannot escape as unhandled process errors after timeout or cancellation.
 
 ## Load and concurrency gates
 

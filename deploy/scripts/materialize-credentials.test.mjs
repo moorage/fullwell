@@ -64,9 +64,10 @@ test("fails before deployment when a required credential is missing", async () =
 });
 
 test("systemd keeps runtime credentials available and recreates containers when they rotate", async () => {
-  const [compose, dockerfile, service, maintenance] = await Promise.all([
+  const [compose, dockerfile, dockerignore, service, maintenance] = await Promise.all([
     readFile(join(deployRoot, "compose.yaml"), "utf8"),
     readFile(join(deployRoot, "../Dockerfile"), "utf8"),
+    readFile(join(deployRoot, "../.dockerignore"), "utf8"),
     readFile(join(deployRoot, "systemd/household-food-journal.service"), "utf8"),
     readFile(join(deployRoot, "systemd/household-food-journal-maintenance.service"), "utf8"),
   ]);
@@ -74,6 +75,10 @@ test("systemd keeps runtime credentials available and recreates containers when 
   assert.match(compose, /DEPLOY_CREDENTIALS_DIRECTORY/);
   assert.doesNotMatch(compose, /^\s*init:\s*true\s*$/m);
   assert.match(dockerfile, /ENTRYPOINT \["\/sbin\/tini", "--"\]/);
+  const ignoredBuildPaths = new Set(dockerignore.split(/\r?\n/).filter(Boolean));
+  for (const path of [".git", ".codex/runtime", ".beads", "apps/server/.data", "artifacts", ".env", "*.key", "*.pem"]) {
+    assert.equal(ignoredBuildPaths.has(path), true, `${path} must stay outside the container build context`);
+  }
   assert.match(service, /RuntimeDirectory=household-food-journal\/credentials/);
   assert.match(service, /ExecStartPre=.*materialize-credentials\.sh/);
   assert.match(service, /ExecStart=.*--force-recreate.*--wait/);

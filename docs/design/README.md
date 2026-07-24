@@ -12,6 +12,9 @@ The browser is an administrative and handoff surface. It does not become a secon
 - [Content style](content-style.md)
 - [Visual system](visual-system.md)
 - [Component inventory](component-inventory.md)
+- Public advanced-agent guides and visual journal browsing are specified across the information architecture, user flows, state matrix, and component inventory.
+- [Weekly meal-planning automation](weekly-meal-planning-automation.md)
+- [Private visual recipe board](meal-planning-visual-board.md)
 
 ## Design acceptance
 

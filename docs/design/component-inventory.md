@@ -16,7 +16,9 @@
 
 | Component           | Responsibility                                                           |
 | ------------------- | ------------------------------------------------------------------------ |
-| `HostChooser`       | Segmented Codex/Claude mode with one visible current install action.     |
+| `BrandMark`         | Decorative ChatGPT, Claude, or Apple mark paired with visible text.      |
+| `HostChooser`       | Segmented ChatGPT/Claude mode with one visible current install action.   |
+| `GuideCard`         | Task, outcome, concrete chat example, and stable detail destination.     |
 | `SignInOptions`     | Ordered Apple, eligible passkey, and email-link choices.                 |
 | `InviteSummary`     | Household, inviter, requested role, expiry, and membership consequence.  |
 | `CollectionItem`    | Image/fallback, safe title, source, optional note, and labeled checkbox. |
@@ -29,10 +31,12 @@
 | `SignInMethodRow`   | Apple/email/passkey method status and permitted removal action.          |
 | `GrantRow`          | Connected host, granted household actions, last used, revoke action.     |
 | `DangerZone`        | Plain-language consequence and reauthentication-gated form.              |
+| `VisualJournalFeed` | Deterministic recipe/grocery cards, bounded continuation, retry, and end state. |
 
 ## Interaction contracts
 
 - Icon-only controls are limited to familiar actions such as copy; every one has an accessible name and tooltip.
 - `details` provides the no-JavaScript disclosure baseline for troubleshooting and advanced export information.
 - Client enhancement may update selection counts, copy to clipboard, call Web Share, or focus an error; it does not decide authorization or mutation success.
+- Visual-journal enhancement may append a strictly parsed same-origin batch automatically or through an explicit link, but authorization and item projection remain server-owned.
 - Every form includes a server-provided CSRF field and a scoped idempotency field where the server contract requires one.

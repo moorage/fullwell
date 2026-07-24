@@ -1,5 +1,10 @@
 import { setTimeout as delay } from "node:timers/promises";
-import { HouseholdIdSchema } from "@hfj/contracts";
+import {
+  GitObjectIdSchema,
+  HouseholdIdSchema,
+  MEAL_PLAN_MAX_PROPOSALS_PER_WEEK,
+  MealProposalSchema,
+} from "@hfj/contracts";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { MemoryHouseholdRepository, MemoryOperationalStore } from "../../apps/server/src/adapters/memory.js";
@@ -21,7 +26,11 @@ afterEach(async () => {
   await Promise.all(apps.splice(0).map((app) => app.close()));
 });
 
-async function createFixture(): Promise<{ app: FastifyInstance; repository: MemoryHouseholdRepository }> {
+async function createFixture(): Promise<{
+  app: FastifyInstance;
+  repository: MemoryHouseholdRepository;
+  store: MemoryOperationalStore;
+}> {
   const store = new MemoryOperationalStore();
   const repository = new MemoryHouseholdRepository();
   const random = new DeterministicRandomSource();
@@ -45,7 +54,7 @@ async function createFixture(): Promise<{ app: FastifyInstance; repository: Memo
     publicOrigin: new URL("https://load.example.test"),
   });
   apps.push(app);
-  return { app, repository };
+  return { app, repository, store };
 }
 
 describe("bounded load and race behavior", () => {
@@ -129,6 +138,90 @@ describe("bounded load and race behavior", () => {
     })));
     expect(crossTenant.every((response) => response.statusCode === 403)).toBe(true);
     expect(crossTenant.every((response) => !response.body.includes("Load Kitchen"))).toBe(true);
+  }, 15_000);
+
+  it("serves the maximum meal week once and rejects an oversized projection before paging it", async () => {
+    const { app, store } = await createFixture();
+    const headers = { authorization: "Bearer test-owner-token", "x-forwarded-for": "198.51.100.32" };
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_create_household",
+      headers,
+      payload: { name: "Bounded Load Kitchen", idempotency_key: "load-meal-household-0001" },
+    });
+    const householdId = HouseholdIdSchema.parse(created.json().data.household_id);
+    const constraints = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_update_meal_planning_constraints",
+      headers,
+      payload: {
+        household_id: householdId,
+        expected_head: created.json().repository_head,
+        idempotency_key: "load-meal-constraints-0001",
+        constraints: {
+          status: "confirmed_none",
+          time_zone: "America/Los_Angeles",
+          reviewed_at: "2026-07-20T16:00:00.000Z",
+        },
+      },
+    });
+    const constraintRevision = GitObjectIdSchema.parse(constraints.json().data.constraint_revision);
+    const review = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_review_meal_constraints",
+      headers,
+      payload: {
+        household_id: householdId,
+        week_start: "2026-07-20",
+        constraint_revision: constraintRevision,
+        idempotency_key: "load-meal-review-0001",
+      },
+    });
+    const reviewEventId = review.json().data.event_id as string;
+    const projection = await store.projection(householdId);
+    const proposalFor = (index: number) => MealProposalSchema.parse({
+      id: `mlp_${index.toString(36).padStart(16, "0")}`,
+      week_start: "2026-07-20",
+      meal_date: "2026-07-20",
+      slot: { kind: "custom", label: `Slot ${index}` },
+      proposed_by: "act_0000000000000001",
+      source: { kind: "freeform", title: `Synthetic meal ${index}` },
+      servings: null,
+      notes: null,
+      constraint_revision: constraintRevision,
+      constraint_review_event_id: reviewEventId,
+      compatibility: "incomplete_evidence",
+      compatibility_caveat: "Ingredients still need review.",
+      created_at: "2026-07-20T16:00:00.000Z",
+      schema_version: 1,
+    });
+    for (let index = 0; index < MEAL_PLAN_MAX_PROPOSALS_PER_WEEK; index += 1) {
+      const proposal = proposalFor(index);
+      projection.mealProposals.set(proposal.id, { proposal, revision: constraintRevision });
+    }
+
+    const startedAt = performance.now();
+    const bounded = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_get_meal_plan",
+      headers,
+      payload: { household_id: householdId, week_start: "2026-07-20", limit: 500 },
+    });
+    expect(bounded.statusCode).toBe(200);
+    expect(bounded.json().data.proposals).toHaveLength(MEAL_PLAN_MAX_PROPOSALS_PER_WEEK);
+    expect(performance.now() - startedAt).toBeLessThan(2_000);
+
+    const overflow = proposalFor(MEAL_PLAN_MAX_PROPOSALS_PER_WEEK);
+    projection.mealProposals.set(overflow.id, { proposal: overflow, revision: constraintRevision });
+    const rejected = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_get_meal_plan",
+      headers,
+      payload: { household_id: householdId, week_start: "2026-07-20", limit: 500 },
+    });
+    expect(rejected.statusCode).toBe(409);
+    expect(rejected.json().error).toMatchObject({ code: "PROJECTION_DRIFT" });
+    expect(rejected.body).not.toContain("Synthetic meal");
   }, 15_000);
 
   it("serializes same-household maintenance work without blocking another household", async () => {

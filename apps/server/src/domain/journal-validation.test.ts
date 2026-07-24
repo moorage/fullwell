@@ -1,6 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { EvidenceIdSchema, EvidenceSchema, ItemIdSchema, JournalItemSchema, ReportSchema } from "@hfj/contracts";
-import { journalEvidencePath, journalItemArea, journalItemPath, markdownDocument, validateItemEvidence, validateReport } from "./journal-validation.js";
+import {
+  EvidenceIdSchema,
+  EvidenceSchema,
+  GitObjectIdSchema,
+  ItemIdSchema,
+  JournalItemSchema,
+  MealPlanEventSchema,
+  MealProposalSchema,
+  ReportSchema,
+} from "@hfj/contracts";
+import {
+  journalEvidencePath,
+  journalItemArea,
+  journalItemPath,
+  markdownDocument,
+  mealPlanEventPath,
+  mealProposalNeedsRecheck,
+  mealProposalPath,
+  validateItemEvidence,
+  validateMealProposalReview,
+  validateMealProposalSource,
+  validateReport,
+} from "./journal-validation.js";
 
 const actorId = "act_0000000000000301";
 const baseEvidence = {
@@ -28,7 +49,16 @@ const cooking = EvidenceSchema.parse({
   kind: "cooking",
   cooking: { recipe_candidate: "Soup", cooked_on: "2026-07-15", result: "Good", changes: [] },
 });
-const confirmation = EvidenceSchema.parse({ ...baseEvidence, id: "evd_0000000000000303", kind: "user_confirmation" });
+const confirmation = EvidenceSchema.parse({
+  ...baseEvidence,
+  id: "evd_0000000000000303",
+  kind: "user_confirmation",
+  confirmation: {
+    subject: "recipe_preference",
+    recipe_item_id: "itm_0000000000000301",
+    preference: "liked",
+  },
+});
 const purchase = EvidenceSchema.parse({
   ...baseEvidence,
   id: "evd_0000000000000304",
@@ -82,6 +112,28 @@ describe("journal validation", () => {
       evidence_ids: [purchase.id], created_at: baseEvidence.observed_at, updated_at: baseEvidence.observed_at, schema_version: 1, body_markdown: "",
     });
     expect(() => validateItemEvidence(snack, new Map([[purchase.id, purchase]]))).not.toThrow();
+  });
+
+  it("reads legacy Liked confirmations but requires exact evidence for a new proposal", () => {
+    const legacy = EvidenceSchema.parse({
+      ...baseEvidence,
+      id: "evd_0000000000000307",
+      kind: "user_confirmation",
+    });
+    const item = recipe([legacy.id], { saved: "unknown", cooked: "unknown", liked: "yes" });
+    expect(() => validateItemEvidence(item, new Map([[legacy.id, legacy]]))).not.toThrow();
+    const proposal = mealProposal({
+      kind: "journal_recipe",
+      item_id: item.id,
+      item_revision: "a".repeat(40),
+      liked_evidence_ids: [legacy.id],
+    });
+    expect(() => validateMealProposalSource(
+      proposal,
+      new Map([[item.id, item]]),
+      new Map([[legacy.id, legacy]]),
+      new Map([[item.id, "a".repeat(40)]]),
+    )).toThrow("must be a cited user confirmation");
   });
 
   it("maps grocery kinds and new purchase evidence to canonical areas", () => {
@@ -146,4 +198,133 @@ describe("journal validation", () => {
     expect(() => validateReport(withAssertion({ distinct_order_count: 2 }), evidence, items)).toThrow("incorrect distinct-order count");
     expect(() => validateReport(withAssertion({ last_date: "2026-07-14" }), evidence, items)).toThrow("incorrect last date");
   });
+
+  it("binds a meal proposal to the exact weekly constraint review", () => {
+    const event = mealReviewEvent();
+    const proposal = mealProposal();
+    const events = new Map([[event.id, event]]);
+    expect(() => validateMealProposalReview(proposal, events)).not.toThrow();
+    expect(() => validateMealProposalReview(
+      proposal,
+      new Map([[event.id, MealPlanEventSchema.parse({ ...event, constraint_revision: "b".repeat(40) })]]),
+    )).toThrow("must match the proposal week and constraint revision");
+    expect(() => validateMealProposalReview(
+      proposal,
+      new Map([[proposal.constraint_review_event_id, MealPlanEventSchema.parse({ ...event, id: "mle_0000000000000302" })]]),
+    )).toThrow("must match the proposal week and constraint revision");
+    expect(() => validateMealProposalReview(proposal, new Map())).toThrow("requires a constraints-reviewed event");
+  });
+
+  it("requires current recipe revision and actual Liked confirmation evidence", () => {
+    const item = recipe([confirmation.id], { saved: "unknown", cooked: "unknown", liked: "yes" });
+    const proposal = mealProposal({
+      kind: "journal_recipe",
+      item_id: item.id,
+      item_revision: "a".repeat(40),
+      liked_evidence_ids: [confirmation.id],
+    });
+    const items = new Map([[item.id, item]]);
+    const evidence = new Map([[confirmation.id, confirmation]]);
+    const revisions = new Map([[item.id, "a".repeat(40)]]);
+    expect(() => validateMealProposalSource(proposal, items, evidence, revisions)).not.toThrow();
+    const mismatchedItem = JournalItemSchema.parse({ ...item, id: "itm_0000000000000399" });
+    expect(() => validateMealProposalSource(
+      proposal,
+      new Map([[item.id, mismatchedItem]]),
+      evidence,
+      revisions,
+    )).toThrow("must cite an existing recipe");
+    expect(() => validateMealProposalSource(proposal, items, evidence, new Map([[item.id, "b".repeat(40)]]))).toThrow("no longer current");
+    expect(() => validateMealProposalSource(
+      mealProposal({ ...proposal.source, liked_evidence_ids: [discovery.id] }),
+      items,
+      new Map([[discovery.id, discovery]]),
+      revisions,
+    )).toThrow("must be a cited user confirmation");
+    const mismatchedId = EvidenceSchema.parse({
+      ...confirmation,
+      id: "evd_0000000000000306",
+    });
+    expect(() => validateMealProposalSource(
+      proposal,
+      items,
+      new Map([[confirmation.id, mismatchedId]]),
+      revisions,
+    )).toThrow("must be a cited user confirmation");
+    const unrelated = EvidenceSchema.parse({
+      ...baseEvidence,
+      id: "evd_0000000000000305",
+      kind: "user_confirmation",
+      confirmation: {
+        subject: "recipe_preference",
+        recipe_item_id: "itm_0000000000000399",
+        preference: "liked",
+      },
+    });
+    const unrelatedItem = recipe([unrelated.id], { saved: "unknown", cooked: "unknown", liked: "yes" });
+    expect(() => validateMealProposalSource(
+      mealProposal({
+        kind: "journal_recipe",
+        item_id: unrelatedItem.id,
+        item_revision: "a".repeat(40),
+        liked_evidence_ids: [unrelated.id],
+      }),
+      new Map([[unrelatedItem.id, unrelatedItem]]),
+      new Map([[unrelated.id, unrelated]]),
+      revisions,
+    )).toThrow("must be a cited user confirmation");
+  });
+
+  it("derives staleness and confined append-only paths without rewriting proposals", () => {
+    const review = mealReviewEvent();
+    const external = mealProposal();
+    const journal = mealProposal({
+      kind: "journal_recipe",
+      item_id: "itm_0000000000000301",
+      item_revision: "a".repeat(40),
+      liked_evidence_ids: [confirmation.id],
+    });
+    expect(mealProposalNeedsRecheck(external, GitObjectIdSchema.parse("a".repeat(40)), null)).toBe(false);
+    expect(mealProposalNeedsRecheck(external, GitObjectIdSchema.parse("b".repeat(40)), null)).toBe(true);
+    expect(mealProposalNeedsRecheck(journal, GitObjectIdSchema.parse("a".repeat(40)), "b".repeat(40))).toBe(true);
+    expect(mealProposalPath(external)).toBe(`meal-plans/weeks/2026-07-20/proposals/${external.id}.json`);
+    expect(mealPlanEventPath(review)).toBe(`meal-plans/weeks/2026-07-20/events/${review.id}.json`);
+  });
 });
+
+function mealReviewEvent() {
+  return MealPlanEventSchema.parse({
+    id: "mle_0000000000000301",
+    kind: "constraints_reviewed",
+    week_start: "2026-07-20",
+    constraint_revision: "a".repeat(40),
+    actor: actorId,
+    occurred_at: "2026-07-20T12:00:00.000Z",
+    schema_version: 1,
+  });
+}
+
+function mealProposal(source: unknown = {
+  kind: "external_recipe",
+  title: "Summer soup",
+  canonical_url: "https://recipes.example/summer-soup",
+  site_name: "Recipes Example",
+  discovered_at: "2026-07-20T12:00:00.000Z",
+}) {
+  return MealProposalSchema.parse({
+    id: "mlp_0000000000000301",
+    week_start: "2026-07-20",
+    meal_date: "2026-07-20",
+    slot: { kind: "lunch" },
+    proposed_by: actorId,
+    source,
+    servings: 4,
+    notes: null,
+    constraint_revision: "a".repeat(40),
+    constraint_review_event_id: "mle_0000000000000301",
+    compatibility: "incomplete_evidence",
+    compatibility_caveat: "Verify the current ingredients and cross-contact statement.",
+    created_at: "2026-07-20T12:00:00.000Z",
+    schema_version: 1,
+  });
+}

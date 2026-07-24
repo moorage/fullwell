@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ArrowRight, Check, Clipboard, MessageCircle, Terminal } from "lucide-react";
 import { AppShell } from "../components/app-shell.js";
+import { BrandMark } from "../components/brand-mark.js";
 import { Button, ButtonLink, PageHeader } from "../components/ui.js";
 import { useWebContext } from "../context.js";
 
@@ -58,11 +59,12 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
                 setPromptCopyFailed(false);
               }}
             >
+              <BrandMark brand={option === "codex" ? "chatgpt" : "claude"} />
               Use with {hostDetails[option].label}
             </button>
           ))}
         </div>
-        <noscript><p><a href="/install?host=codex">Use with Codex</a> · <a href="/install?host=claude">Use with Claude</a></p></noscript>
+        <noscript><p><a href="/install?host=codex">Use with ChatGPT</a> · <a href="/install?host=claude">Use with Claude</a></p></noscript>
         <section className="install-step" aria-labelledby="install-heading">
           <div className="install-step__number" aria-hidden="true">1</div>
           <div>
@@ -108,6 +110,7 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
           <p>Check that your agent is current, then try the command again. Reinstalling the client does not remove your local journal or cloud household.</p>
           <a href="mailto:support@fullwell.example">Contact support</a>
         </details>
+        <p className="install-guides"><a className="text-link text-link--arrow" href="/guides">Explore advanced agent guides <ArrowRight aria-hidden="true" size={17} /></a></p>
         <a className="text-link text-link--arrow" href="/sign-in">
           Sign in to an existing account <ArrowRight aria-hidden="true" size={17} />
         </a>

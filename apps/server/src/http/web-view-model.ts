@@ -1,17 +1,36 @@
 import { readFile } from "node:fs/promises";
 import type { FastifyRequest } from "fastify";
-import { CollectionSnapshotSchema, HouseholdIdSchema } from "@hfj/contracts";
-import type { WebRenderContext } from "@hfj/web/types";
+import {
+  CollectionSnapshotSchema,
+  DateSchema,
+  GitObjectIdSchema,
+  HouseholdIdSchema,
+  MealCompatibilitySchema,
+  MealPlanEventIdSchema,
+  MealPlanEventSchema,
+  MealPlanningProfileSchema,
+  MealProposalIdSchema,
+  MealProposalSchema,
+  MondayDateSchema,
+} from "@hfj/contracts";
+import type { VisualJournalPage, WebRenderContext } from "@hfj/web/types";
 import { z } from "zod";
 import { AppError } from "../core/errors.js";
-import type { AuthenticationPort, OperationalStorePort, RandomSource, TokenHasher } from "../core/ports.js";
+import type { AuthenticationPort, Clock, OperationalStorePort, RandomSource, TokenHasher } from "../core/ports.js";
 import type { HouseholdRecord, MembershipRecord, Principal } from "../core/types.js";
 import type { PasskeyCredential } from "../auth/types.js";
 import type { IdentityMethodProvider } from "../auth/types.js";
 import type { OAuthGrantSummary } from "../oauth/types.js";
 import type { MessagingAccountStatus } from "../messaging/service.js";
 import { HouseholdFoodJournalService } from "../services/household-food-journal.js";
-import type { WebCreateHouseholdInput, WebImportInput } from "./web.js";
+import type {
+  WebAddMealProposalInput,
+  WebCreateHouseholdInput,
+  WebImportInput,
+  WebJournalItemsInput,
+  WebReviewMealConstraintsInput,
+  WebWithdrawMealProposalInput,
+} from "./web.js";
 
 const InstallMetadataSchema = z.object({
   release: z.string().min(1),
@@ -32,6 +51,26 @@ const PreviewDataSchema = z.object({ snapshot: CollectionSnapshotSchema, expires
 const ImportPlanDataSchema = z.object({ items: z.array(z.object({
   collection_item_id: z.string(), exact_duplicates: z.array(z.string()), possible_duplicates: z.array(z.string()), requires_resolution: z.boolean(),
 })) });
+const MealPlanDataSchema = z.object({
+  week_start: MondayDateSchema,
+  constraint_profile: MealPlanningProfileSchema.nullable(),
+  proposals: z.array(z.object({
+    proposal: MealProposalSchema,
+    active: z.boolean(),
+    effective_compatibility: MealCompatibilitySchema,
+  })),
+  events: z.array(MealPlanEventSchema),
+  events_truncated: z.boolean(),
+  next_cursor: MealProposalIdSchema.nullable(),
+});
+const VisualJournalInputSchema = z.object({
+  householdId: HouseholdIdSchema,
+  section: z.enum(["recipes", "groceries"]),
+  cursor: z.string().max(16).regex(/^v1_\d+$/).optional(),
+}).strict();
+const VisualJournalPageNumberSchema = z.coerce.number().int().min(1).max(17);
+const VISUAL_JOURNAL_BATCH_SIZE = 12;
+const VISUAL_JOURNAL_MAX_PREFIX = 200;
 
 export class WebViewModelService {
   private constructor(
@@ -40,6 +79,7 @@ export class WebViewModelService {
     private readonly authentication: AuthenticationPort,
     private readonly hasher: TokenHasher,
     private readonly random: RandomSource,
+    private readonly clock: Clock,
     private readonly publicOrigin: URL,
     private readonly install: z.infer<typeof InstallMetadataSchema>,
     private readonly resolvePrincipal: ((request: FastifyRequest) => Promise<Principal | null>) | undefined,
@@ -55,6 +95,7 @@ export class WebViewModelService {
     authentication: AuthenticationPort;
     hasher: TokenHasher;
     random: RandomSource;
+    clock: Clock;
     publicOrigin: URL;
     installMetadataPath: string;
     resolvePrincipal?: (request: FastifyRequest) => Promise<Principal | null>;
@@ -70,6 +111,7 @@ export class WebViewModelService {
       options.authentication,
       options.hasher,
       options.random,
+      options.clock,
       options.publicOrigin,
       metadata,
       options.resolvePrincipal,
@@ -126,6 +168,59 @@ export class WebViewModelService {
     return { householdId };
   }
 
+  async journalItems(request: FastifyRequest, input: WebJournalItemsInput): Promise<VisualJournalPage> {
+    if (this.resolvePrincipal === undefined) throw new AppError("PROVIDER_UNAVAILABLE", "Visual journal browsing is not configured");
+    const parsed = VisualJournalInputSchema.parse(input);
+    const principal = await this.resolvePrincipal(request);
+    if (principal === null) throw new AppError("AUTH_REQUIRED", "Sign in is required");
+    const selected = (await this.store.listMemberships(principal.userId))
+      .find(({ household }) => household.id === parsed.householdId);
+    if (selected === undefined) throw new AppError("NOT_FOUND", "Household was not found");
+    return await this.visualJournalFor(selected, parsed.section, cursorOffset(parsed.cursor), VISUAL_JOURNAL_BATCH_SIZE);
+  }
+
+  async reviewMealConstraints(request: FastifyRequest, input: WebReviewMealConstraintsInput): Promise<void> {
+    const principal = await this.mutablePrincipal(request, input.csrf);
+    const result = await this.service.call("hfj_review_meal_constraints", {
+      household_id: HouseholdIdSchema.parse(input.householdId),
+      week_start: MondayDateSchema.parse(input.week),
+      constraint_revision: GitObjectIdSchema.parse(input.constraintRevision),
+      idempotency_key: input.idempotencyKey,
+    }, principal);
+    if (!result.ok) throw new AppError(result.error.code, result.error.message);
+  }
+
+  async addMealProposal(request: FastifyRequest, input: WebAddMealProposalInput): Promise<void> {
+    const principal = await this.mutablePrincipal(request, input.csrf);
+    const result = await this.service.call("hfj_add_meal_proposal", {
+      household_id: HouseholdIdSchema.parse(input.householdId),
+      week_start: MondayDateSchema.parse(input.week),
+      meal_date: DateSchema.parse(input.mealDate),
+      slot: { kind: input.slotKind },
+      source: { kind: "freeform", title: input.title },
+      servings: input.servings,
+      notes: input.notes,
+      constraint_revision: GitObjectIdSchema.parse(input.constraintRevision),
+      constraint_review_event_id: MealPlanEventIdSchema.parse(input.constraintReviewEventId),
+      compatibility: "incomplete_evidence",
+      compatibility_caveat: "Confirm ingredients, package labels, and cross-contact risks before serving.",
+      idempotency_key: input.idempotencyKey,
+    }, principal);
+    if (!result.ok) throw new AppError(result.error.code, result.error.message);
+  }
+
+  async withdrawMealProposal(request: FastifyRequest, input: WebWithdrawMealProposalInput): Promise<void> {
+    const principal = await this.mutablePrincipal(request, input.csrf);
+    const result = await this.service.call("hfj_withdraw_meal_proposal", {
+      household_id: HouseholdIdSchema.parse(input.householdId),
+      week_start: MondayDateSchema.parse(input.week),
+      proposal_id: MealProposalIdSchema.parse(input.proposalId),
+      reason: input.reason,
+      idempotency_key: input.idempotencyKey,
+    }, principal);
+    if (!result.ok) throw new AppError(result.error.code, result.error.message);
+  }
+
   async contextFor(request: FastifyRequest): Promise<WebRenderContext> {
     const requestUrl = new URL(request.url, this.publicOrigin);
     const pathname = requestUrl.pathname;
@@ -157,13 +252,38 @@ export class WebViewModelService {
         ...(setupDeviceId === null ? {} : { deviceId: setupDeviceId }),
         ...(setupHouseholdId === null ? {} : { householdId: setupHouseholdId }),
       });
+    const mealPlan = principal === null || selectedMembership === undefined || !pathname.endsWith("/meal-plan")
+      ? null
+      : await this.mealPlanFor(
+        selectedMembership,
+        principal,
+        requestUrl.searchParams.get("week") !== null
+          ? MondayDateSchema.parse(requestUrl.searchParams.get("week"))
+          : currentMonday(this.clock.now(), await this.mealPlanningTimeZone(selectedMembership.household)),
+        requestUrl.searchParams.get("changed"),
+      );
+    const visualSection = pathname.endsWith("/recipes")
+      ? "recipes" as const
+      : pathname.endsWith("/groceries") ? "groceries" as const : null;
+    const visualPageNumber = visualSection === null
+      ? 1
+      : VisualJournalPageNumberSchema.parse(requestUrl.searchParams.get("page") ?? "1");
+    const visualJournal = principal === null || selectedMembership === undefined || visualSection === null
+      ? null
+      : await this.visualJournalFor(
+        selectedMembership,
+        visualSection,
+        0,
+        Math.min(visualPageNumber * VISUAL_JOURNAL_BATCH_SIZE, VISUAL_JOURNAL_MAX_PREFIX),
+      );
 
     return {
       security: { csrfToken, idempotencyPrefix: this.random.opaqueId("web") },
+      capabilities: { mealPlanning: true },
       canonicalUrl: this.publicOrigin.toString(),
       install: { hosts: {
         codex: {
-          label: hostName(this.install.platforms.codex.label),
+          label: "ChatGPT",
           command: this.install.platforms.codex.fallback_commands.join(" && "),
           next: this.install.platforms.codex.primary_action,
           setupPrompt: this.install.platforms.codex.setup_prompt,
@@ -193,6 +313,8 @@ export class WebViewModelService {
       households,
       members: selectedMembership === undefined || principal === null ? [] : await this.membersFor(selectedMembership.household, principal),
       collections: selectedMembership === undefined ? [] : await this.collectionsFor(selectedMembership.household),
+      mealPlan,
+      visualJournal,
       publicCollection: collection.model,
       invite,
       collectionState: collection.state,
@@ -203,6 +325,187 @@ export class WebViewModelService {
   private async optionalPrincipal(authorization: string | undefined): Promise<Principal | null> {
     if (authorization === undefined) return null;
     return await this.authentication.authenticate(authorization);
+  }
+
+  private async visualJournalFor(
+    selected: { household: HouseholdRecord; membership: MembershipRecord },
+    section: VisualJournalPage["section"],
+    offset: number,
+    limit: number,
+  ): Promise<VisualJournalPage> {
+    if (selected.household.provisioningState !== "ready" || selected.membership.projectionHead !== selected.household.repositoryHead) {
+      throw new AppError("PROJECTION_DRIFT", "The household snapshot does not match Git", true);
+    }
+    const projection = await this.store.projection(selected.household.id);
+    const entries = [...projection.items.values()]
+      .filter(({ item }) => section === "recipes" ? item.kind === "recipe" : item.kind !== "recipe")
+      .sort((left, right) => {
+        const leftTitle = left.item.kind === "recipe" ? left.item.title : left.item.display_name;
+        const rightTitle = right.item.kind === "recipe" ? right.item.title : right.item.display_name;
+        return leftTitle.localeCompare(rightTitle, "en-US") || left.item.id.localeCompare(right.item.id);
+      });
+    const items = entries.slice(offset, offset + limit).map(({ item }) => {
+      if (item.kind === "recipe") {
+        return {
+          kind: "recipe" as const,
+          id: item.id,
+          title: item.title,
+          source: item.author_or_publisher,
+          imageUrl: item.image_url,
+          imagePageUrl: item.image_page_url,
+          canonicalUrl: item.canonical_url,
+          saved: item.saved,
+          cooked: item.cooked,
+          liked: item.liked,
+          lastCookedLabel: item.last_cooked === null ? null : formatDate(item.last_cooked),
+        };
+      }
+      return {
+        kind: "grocery" as const,
+        journalKind: item.kind,
+        id: item.id,
+        title: item.display_name,
+        brand: item.brand,
+        detail: [item.product_line, item.flavor, item.formulation, item.format, item.category, item.produce_variety, ...item.known_size_variants.slice(0, 1)]
+          .filter((value): value is string => value !== null)
+          .filter((value, index, values) => values.indexOf(value) === index)
+          .join(" · "),
+        imageUrl: item.image_url,
+        imagePageUrl: item.image_page_url,
+      };
+    });
+    const nextOffset = offset + items.length;
+    return {
+      householdId: selected.household.id,
+      section,
+      total: entries.length,
+      items,
+      nextCursor: nextOffset < entries.length ? `v1_${nextOffset}` : null,
+    };
+  }
+
+  private async mutablePrincipal(request: FastifyRequest, csrf: string): Promise<Principal> {
+    if (this.resolvePrincipal === undefined || this.verifyCsrf === undefined) {
+      throw new AppError("PROVIDER_UNAVAILABLE", "Browser meal planning is not configured");
+    }
+    const principal = await this.resolvePrincipal(request);
+    if (principal === null) throw new AppError("AUTH_REQUIRED", "Sign in is required");
+    await this.verifyCsrf(request, csrf);
+    return principal;
+  }
+
+  private async mealPlanningTimeZone(household: HouseholdRecord): Promise<string> {
+    const constraints = (await this.store.projection(household.id)).mealPlanningProfile?.constraints;
+    return constraints === undefined || constraints.status === "unresolved" ? "UTC" : constraints.time_zone;
+  }
+
+  private async mealPlanFor(
+    selected: { household: HouseholdRecord; membership: MembershipRecord },
+    principal: Principal,
+    weekStart: z.infer<typeof MondayDateSchema>,
+    changed: string | null,
+  ): Promise<NonNullable<WebRenderContext["mealPlan"]>> {
+    const pages: Array<z.infer<typeof MealPlanDataSchema>> = [];
+    let cursor: z.infer<typeof MealProposalIdSchema> | undefined;
+    const seenCursors = new Set<string>();
+    do {
+      const result = await this.service.call("hfj_get_meal_plan", {
+        household_id: selected.household.id,
+        week_start: weekStart,
+        limit: 500,
+        ...(cursor === undefined ? {} : { cursor }),
+      }, principal);
+      if (!result.ok) throw new AppError(result.error.code, result.error.message);
+      const page = MealPlanDataSchema.parse(result.data);
+      pages.push(page);
+      cursor = page.next_cursor ?? undefined;
+      if (cursor !== undefined && seenCursors.has(cursor)) throw new AppError("PROJECTION_DRIFT", "Meal-plan pagination did not advance");
+      if (cursor !== undefined) seenCursors.add(cursor);
+    } while (cursor !== undefined);
+
+    const firstPage = pages[0];
+    if (firstPage === undefined) throw new AppError("PROJECTION_DRIFT", "Meal-plan data was unavailable");
+    const events = pages.flatMap(({ events }) => events);
+    const reviewEvent = firstPage.constraint_profile === null
+      ? undefined
+      : events.find((event) =>
+        event.kind === "constraints_reviewed"
+        && event.constraint_revision === firstPage.constraint_profile?.revision);
+    const editableRole = selected.membership.role === "owner" || selected.membership.role === "editor";
+    const actorNames = new Map((await this.store.listHouseholdMemberships(selected.household.id)).map((membership, index) => [
+      membership.actorId,
+      membership.userId === principal.userId ? principal.displayName : `Household member ${index + 1}`,
+    ]));
+    const journalItems = (await this.store.projection(selected.household.id)).items;
+    const active = pages.flatMap(({ proposals }) => proposals).filter(({ active: isActive }) => isActive);
+    const proposalsBySlot = new Map<string, typeof active>();
+    for (const entry of active) {
+      const key = `${entry.proposal.meal_date}:${mealSlotKey(entry.proposal.slot)}`;
+      proposalsBySlot.set(key, [...(proposalsBySlot.get(key) ?? []), entry]);
+    }
+    const customSlots = [...new Set(active.flatMap(({ proposal }) => proposal.slot.kind === "custom" ? [proposal.slot.label] : []))]
+      .sort((left, right) => left.localeCompare(right));
+    const slots = [
+      { key: "breakfast", label: "Breakfast" },
+      { key: "lunch", label: "Lunch" },
+      { key: "dinner", label: "Dinner" },
+      { key: "snack", label: "Snack" },
+      ...customSlots.map((label) => ({ key: `custom:${label}`, label })),
+    ];
+    const days = Array.from({ length: 7 }, (_, offset) => addDays(weekStart, offset)).map((date) => ({
+      date,
+      label: formatDay(date),
+      shortLabel: formatShortDay(date),
+      slots: slots.map((slot, index) => ({
+        id: `slot-${date}-${safeFragment(slot.key)}${slot.key.startsWith("custom:") ? `-${index}` : ""}`,
+        key: slot.key,
+        label: slot.label,
+        proposals: (proposalsBySlot.get(`${date}:${slot.key}`) ?? []).map(({ proposal, effective_compatibility: compatibility }) => ({
+          id: proposal.id,
+          title: (() => {
+            if (proposal.source.kind !== "journal_recipe") return proposal.source.title;
+            const item = journalItems.get(proposal.source.item_id)?.item;
+            return item?.kind === "recipe" ? item.title : "Journal recipe";
+          })(),
+          sourceKind: proposal.source.kind,
+          sourceDetail: proposal.source.kind === "external_recipe"
+            ? proposal.source.site_name
+            : proposal.source.kind === "journal_recipe" ? "Liked recipe from your journal" : "Household idea",
+          ...(proposal.source.kind === "external_recipe" ? { sourceHref: proposal.source.canonical_url } : {}),
+          proposedBy: typeof proposal.proposed_by === "string"
+            ? actorNames.get(proposal.proposed_by) ?? "Household member"
+            : proposal.proposed_by.label,
+          servings: proposal.servings,
+          notes: proposal.notes,
+          compatibilityLabel: compatibilityLabel(compatibility),
+          compatibilityCaveat: proposal.compatibility_caveat,
+          needsRecheck: compatibility === "needs_recheck",
+          canWithdraw: editableRole && (selected.membership.role === "owner" || proposal.proposed_by === principal.actorId),
+        })),
+      })),
+    }));
+    const constraints = firstPage.constraint_profile?.constraints;
+    const constraintState = constraints === undefined || constraints.status === "unresolved"
+      ? "missing" as const
+      : reviewEvent === undefined ? "needs_review" as const : "reviewed" as const;
+    const confirmedTimeZone = constraints === undefined || constraints.status === "unresolved" ? "UTC" : constraints.time_zone;
+    return {
+      householdId: selected.household.id,
+      weekStart,
+      weekLabel: formatWeek(weekStart),
+      previousWeek: addDays(weekStart, -7),
+      nextWeek: addDays(weekStart, 7),
+      timeZoneLabel: formatTimeZone(confirmedTimeZone, this.clock.now()),
+      role: selected.membership.role,
+      canEdit: editableRole && constraintState === "reviewed",
+      canReview: editableRole && constraintState === "needs_review",
+      constraintState,
+      constraintRevision: firstPage.constraint_profile === null ? null : String(firstPage.constraint_profile.revision),
+      constraintReviewEventId: reviewEvent?.id ?? null,
+      proposalCount: active.length,
+      statusMessage: changedStatus(changed),
+      days,
+    };
   }
 
   private async householdsFor(memberships: ReadonlyArray<{ household: HouseholdRecord; membership: MembershipRecord }>): Promise<WebRenderContext["households"]> {
@@ -315,4 +618,87 @@ function hostName(label: string): string {
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));
+}
+
+function cursorOffset(cursor: string | undefined): number {
+  if (cursor === undefined) return 0;
+  return z.coerce.number().int().min(0).max(10_000_000).parse(cursor.slice("v1_".length));
+}
+
+function currentMonday(now: Date, timeZone: string): z.infer<typeof MondayDateSchema> {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const valueFor = (type: Intl.DateTimeFormatPartTypes) => {
+    const value = parts.find((part) => part.type === type)?.value;
+    if (value === undefined) throw new AppError("PROJECTION_DRIFT", "Meal-planning time zone could not be resolved");
+    return value;
+  };
+  const localDate = `${valueFor("year")}-${valueFor("month")}-${valueFor("day")}`;
+  const weekday = new Date(`${localDate}T00:00:00.000Z`).getUTCDay();
+  return MondayDateSchema.parse(addDays(localDate, -(weekday === 0 ? 6 : weekday - 1)));
+}
+
+function addDays(date: string, offset: number): z.infer<typeof DateSchema> {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + offset);
+  return DateSchema.parse(value.toISOString().slice(0, 10));
+}
+
+function formatDay(date: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T00:00:00.000Z`));
+}
+
+function formatShortDay(date: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T00:00:00.000Z`));
+}
+
+function formatWeek(weekStart: string): string {
+  const end = addDays(weekStart, 6);
+  const startDate = new Date(`${weekStart}T00:00:00.000Z`);
+  const endDate = new Date(`${end}T00:00:00.000Z`);
+  const startMonth = new Intl.DateTimeFormat("en-US", { month: "long", timeZone: "UTC" }).format(startDate);
+  const endMonth = new Intl.DateTimeFormat("en-US", { month: "long", timeZone: "UTC" }).format(endDate);
+  const startDay = startDate.getUTCDate();
+  const endDay = endDate.getUTCDate();
+  return startMonth === endMonth ? `${startMonth} ${startDay}–${endDay}` : `${startMonth} ${startDay}–${endMonth} ${endDay}`;
+}
+
+function formatTimeZone(timeZone: string, now: Date): string {
+  return new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "long" })
+    .formatToParts(now)
+    .find(({ type }) => type === "timeZoneName")?.value ?? timeZone;
+}
+
+function mealSlotKey(slot: z.infer<typeof MealProposalSchema>["slot"]): string {
+  return slot.kind === "custom" ? `custom:${slot.label}` : slot.kind;
+}
+
+function safeFragment(value: string): string {
+  return value.toLocaleLowerCase().replaceAll(/[^a-z0-9]+/g, "-").replaceAll(/^-|-$/g, "") || "custom";
+}
+
+function compatibilityLabel(value: z.infer<typeof MealCompatibilitySchema>): string {
+  if (value === "appears_compatible") return "Appears compatible";
+  if (value === "incomplete_evidence") return "Compatibility evidence is incomplete";
+  return "Compatibility needs review";
+}
+
+function changedStatus(value: string | null): string | null {
+  if (value === "proposal-added") return "Meal idea added to the selected date and slot.";
+  if (value === "proposal-withdrawn") return "Meal idea withdrawn; its slot is updated.";
+  if (value === "constraints-reviewed") return "Household constraints reviewed for this week.";
+  return null;
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.12 - 2026-07-24
+
+- Ask and remember the member name before account routing; derive the first local or cloud household name, synchronize the cloud display name on connection, support local/cloud renames and chat-driven runner/reminder shutdown, and suggest eligible invitations or collections with concrete examples.
+- Add local and connected collaborative weekly meal planning with explicit household food-constraint reviews, Liked-recipe evidence, separately approved web research, multi-proposal slots, attributed withdrawals, and deterministic recheck state.
+- Add a private login-free static recipe board with bounded cards, image provenance, CSP, strict escaping, integrity-checked replay, and browser-open fallbacks.
+- Offer one optional host-native Codex or Claude weekly planning check-in after setup, defaulting to Sunday at 9:00 AM in the confirmed time zone, with duplicate reconciliation and conversational schedule lifecycle controls.
+
 ## 1.1.11 - 2026-07-23
 
 - Resume the optional Fullwell cloud handoff after a guest's first successful direct-local restock by adding the cloud-capabilities P.S. and asking whether to connect; omit the reminder for linked WhatsApp and already-connected households.

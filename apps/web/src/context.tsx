@@ -22,6 +22,10 @@ export function parseWebRenderContext(input: unknown): WebRenderContext {
   return webRenderContextSchema.parse(input);
 }
 
+export function parseVisualJournalPage(input: unknown): WebRenderContext["visualJournal"] {
+  return visualJournalPageSchema.parse(input);
+}
+
 const householdRoleSchema = z.enum(["owner", "editor", "viewer"]);
 const collectionItemSchema = z.object({
   id: z.string().min(1),
@@ -63,8 +67,84 @@ const messagingStatusSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
+const mealPlanSchema = z.object({
+  householdId: z.string().min(1),
+  weekStart: z.iso.date(),
+  weekLabel: z.string().min(1),
+  previousWeek: z.iso.date(),
+  nextWeek: z.iso.date(),
+  timeZoneLabel: z.string().min(1),
+  role: householdRoleSchema,
+  canEdit: z.boolean(),
+  canReview: z.boolean(),
+  constraintState: z.enum(["missing", "needs_review", "reviewed"]),
+  constraintRevision: z.string().min(1).nullable(),
+  constraintReviewEventId: z.string().min(1).nullable(),
+  proposalCount: z.number().int().nonnegative(),
+  statusMessage: z.string().min(1).nullable(),
+  days: z.array(z.object({
+    date: z.iso.date(),
+    label: z.string().min(1),
+    shortLabel: z.string().min(1),
+    slots: z.array(z.object({
+      id: z.string().min(1),
+      key: z.string().min(1),
+      label: z.string().min(1),
+      proposals: z.array(z.object({
+        id: z.string().min(1),
+        title: z.string().min(1),
+        sourceKind: z.enum(["freeform", "journal_recipe", "external_recipe"]),
+        sourceDetail: z.string().min(1),
+        sourceHref: safeHttpUrlSchema.optional(),
+        proposedBy: z.string().min(1),
+        servings: z.number().int().positive().nullable(),
+        notes: z.string().nullable(),
+        compatibilityLabel: z.string().min(1),
+        compatibilityCaveat: z.string().min(1),
+        needsRecheck: z.boolean(),
+        canWithdraw: z.boolean(),
+      })),
+    })),
+  })).length(7),
+});
+
+const visualJournalItemSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("recipe"),
+    id: z.string().min(1),
+    title: z.string().min(1),
+    source: z.string().nullable(),
+    imageUrl: safeHttpUrlSchema.nullable(),
+    imagePageUrl: safeHttpUrlSchema.nullable(),
+    canonicalUrl: safeHttpUrlSchema.nullable(),
+    saved: z.enum(["yes", "no", "unknown"]),
+    cooked: z.enum(["yes", "no", "unknown"]),
+    liked: z.enum(["yes", "no", "unknown"]),
+    lastCookedLabel: z.string().nullable(),
+  }),
+  z.object({
+    kind: z.literal("grocery"),
+    journalKind: z.enum(["snack", "ingredient", "condiment", "other_grocery"]),
+    id: z.string().min(1),
+    title: z.string().min(1),
+    brand: z.string().nullable(),
+    detail: z.string(),
+    imageUrl: safeHttpUrlSchema.nullable(),
+    imagePageUrl: safeHttpUrlSchema.nullable(),
+  }),
+]);
+
+const visualJournalPageSchema = z.object({
+  householdId: z.string().min(1),
+  section: z.enum(["recipes", "groceries"]),
+  total: z.number().int().nonnegative(),
+  items: z.array(visualJournalItemSchema),
+  nextCursor: z.string().max(16).regex(/^v1_\d+$/).nullable(),
+});
+
 const webRenderContextSchema: z.ZodType<WebRenderContext> = z.object({
   security: z.object({ csrfToken: z.string().min(16), idempotencyPrefix: z.string().min(8) }),
+  capabilities: z.object({ mealPlanning: z.boolean() }),
   canonicalUrl: safeHttpUrlSchema,
   install: z.object({ hosts: z.object({ codex: installHostSchema, claude: installHostSchema }) }),
   auth: z.object({
@@ -91,6 +171,8 @@ const webRenderContextSchema: z.ZodType<WebRenderContext> = z.object({
     id: z.string().min(1), title: z.string().min(1), itemCount: z.number().int().nonnegative(),
     status: z.enum(["private", "published", "expired"]), detail: z.string(), publicUrl: safeHttpUrlSchema.optional(),
   })),
+  mealPlan: mealPlanSchema.nullable(),
+  visualJournal: visualJournalPageSchema.nullable(),
   publicCollection: z.object({
     token: z.string().min(1), title: z.string().min(1), sharedBy: z.string().min(1), expiresLabel: z.string(),
     description: z.string(), items: z.array(collectionItemSchema),

@@ -4,7 +4,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { App } from "../app.js";
 import { parseWebRenderContext } from "../context.js";
-import { demoWebContext } from "../fixtures.js";
+import { demoWebContext, groceryVisualJournalFixture, recipeVisualJournalFixture } from "../fixtures.js";
 import { renderWebRoute } from "../server.js";
 
 function renderApp(url: string, context = demoWebContext) {
@@ -15,12 +15,13 @@ describe("web experience", () => {
   it("shows one selected installation host at a time", async () => {
     const user = userEvent.setup();
     renderApp("/install");
-    expect(screen.getByRole("button", { name: "Use with Codex" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Use with ChatGPT" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText(/codex plugin add fullwell@fullwell/)).toBeVisible();
     expect(screen.getByRole("link", { name: "Start Fullwell setup" })).toHaveAttribute("href", demoWebContext.install.hosts.codex.setupHref);
     expect(screen.getByText("@Fullwell hi")).toBeVisible();
     expect(screen.getByText(/Start locally without an account/)).toBeVisible();
     expect(screen.getByText(/No account is required to start/)).toBeVisible();
+    expect(screen.getByRole("link", { name: "Explore advanced agent guides" })).toHaveAttribute("href", "/guides");
     await user.click(screen.getByRole("button", { name: "Use with Claude" }));
     expect(screen.getByText(/claude plugin install fullwell@fullwell/)).toBeVisible();
     expect(screen.queryByText(/codex plugin add fullwell@fullwell/)).not.toBeInTheDocument();
@@ -113,9 +114,15 @@ describe("web experience", () => {
 
   it.each([
     ["/sign-in?returnTo=%2Fc%2Fshare", "Sign in to Fullwell"],
+    ["/guides", "Do more with Fullwell in chat"],
+    ["/guides/whatsapp", "Connect WhatsApp"],
+    ["/guides/household-invitations", "Invite household members"],
+    ["/guides/collections/create", "Create a collection"],
+    ["/guides/collections/share", "Share a collection"],
     ["/authorize", "Authorization request unavailable"],
     ["/households", "Your households"],
     ["/households/alvarez-home", "Alvarez home"],
+    ["/households/alvarez-home/meal-plan?week=2026-07-20", "Meals for July 20–26"],
     ["/households/alvarez-home/members", "People in Alvarez home"],
     ["/households/alvarez-home/collections", "Collections from Alvarez home"],
     ["/account", "Account"],
@@ -125,6 +132,135 @@ describe("web experience", () => {
   ])("renders the %s route", (url, heading) => {
     renderApp(url);
     expect(screen.getByRole("heading", { name: heading, level: 1 })).toBeVisible();
+  });
+
+  it("links each advanced workflow to its own guide and keeps agent names visible beside marks", () => {
+    renderApp("/guides");
+    expect(screen.getByRole("link", { name: "Connect WhatsApp" })).toHaveAttribute("href", "/guides/whatsapp");
+    expect(screen.getByRole("link", { name: "Invite household members" })).toHaveAttribute("href", "/guides/household-invitations");
+    expect(screen.getByRole("link", { name: "Create a collection" })).toHaveAttribute("href", "/guides/collections/create");
+    expect(screen.getByRole("link", { name: "Share a collection" })).toHaveAttribute("href", "/guides/collections/share");
+    expect(screen.getAllByLabelText("Works with ChatGPT and Claude")).toHaveLength(4);
+
+    renderApp("/guides/collections/share");
+    expect(screen.getByText("“Share my Weeknight favorites collection for 7 days.”")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Use with ChatGPT" })).toHaveAttribute("href", "/install?host=codex");
+    expect(screen.getByRole("link", { name: "Use with Claude" })).toHaveAttribute("href", "/install?host=claude");
+  });
+
+  it("uses the Apple mark in sign-in and routes household help to the relevant guides", () => {
+    const signIn = renderApp("/sign-in");
+    expect(screen.getByRole("button", { name: "Continue with Apple" }).querySelector("svg")).not.toBeNull();
+    signIn.unmount();
+
+    const members = renderApp("/households/alvarez-home/members");
+    expect(screen.getByRole("link", { name: "See the household invitation guide" })).toHaveAttribute("href", "/guides/household-invitations");
+    members.unmount();
+
+    renderApp("/households/alvarez-home/collections");
+    expect(screen.getByRole("link", { name: "Create guide" })).toHaveAttribute("href", "/guides/collections/create");
+    expect(screen.getByRole("link", { name: "Sharing guide" })).toHaveAttribute("href", "/guides/collections/share");
+  });
+
+  it("renders visual recipe cards and progressively appends a deduplicated journal batch", async () => {
+    const user = userEvent.setup();
+    const initialPage = { ...recipeVisualJournalFixture, items: recipeVisualJournalFixture.items.slice(0, 12), nextCursor: "v1_12" };
+    const finalItems = recipeVisualJournalFixture.items.slice(12);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      ...recipeVisualJournalFixture,
+      items: [initialPage.items[0], ...finalItems],
+      nextCursor: null,
+    }), { status: 200, headers: { "content-type": "application/json" } })));
+    renderApp("/households/alvarez-home/recipes", { ...demoWebContext, visualJournal: initialPage });
+
+    expect(screen.getByRole("heading", { name: "Recipes in Alvarez home" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Load more recipes" })).toHaveAttribute("href", "?page=2");
+    const image = document.querySelector(".visual-journal-card__media img");
+    expect(image).not.toBeNull();
+    expect(image).toHaveAttribute("loading", "lazy");
+    expect(image).toHaveAttribute("referrerpolicy", "no-referrer");
+    await user.click(screen.getByRole("link", { name: "Load more recipes" }));
+    expect(await screen.findByRole("heading", { name: "Strawberry cornmeal cake" })).toBeVisible();
+    expect(screen.getAllByRole("heading", { level: 2, name: "Tomato, mustard & thyme tart" })).toHaveLength(1);
+    expect(screen.getByRole("status")).toHaveTextContent("reached the end");
+  });
+
+  it("keeps an explicit retry when an infinite-scroll batch fails", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
+    renderApp("/households/alvarez-home/recipes", {
+      ...demoWebContext,
+      visualJournal: { ...recipeVisualJournalFixture, items: recipeVisualJournalFixture.items.slice(0, 12), nextCursor: "v1_12" },
+    });
+    await user.click(screen.getByRole("link", { name: "Load more recipes" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("More recipes could not be loaded");
+    expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
+  });
+
+  it("renders groceries as recorded-only visual cards with intentional missing-image fallbacks", () => {
+    renderApp("/households/alvarez-home/groceries", { ...demoWebContext, visualJournal: groceryVisualJournalFixture });
+    expect(screen.getByRole("heading", { name: "Groceries in Alvarez home" })).toBeVisible();
+    expect(screen.getByText("Black sesame buns").closest("article")).toHaveTextContent("No image recorded");
+    expect(screen.getByText(/does not infer brands, products, or categories/)).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent("reached the end");
+  });
+
+  it("keeps same-slot proposals visible and exposes ordinary no-JavaScript meal forms", () => {
+    renderApp("/households/alvarez-home/meal-plan?week=2026-07-20");
+    const mondayLunch = screen.getByRole("region", { name: "Monday, July 20 lunch" });
+    expect(within(mondayLunch).getByRole("heading", { name: "Egg salad sandwich" })).toBeVisible();
+    expect(within(mondayLunch).getByRole("heading", { name: "Pizza" })).toBeVisible();
+    expect(screen.getAllByRole("heading", { level: 2, name: /day,/ })).toHaveLength(7);
+    expect(screen.getByText("Constraints reviewed for this week")).toBeVisible();
+    const add = screen.getByRole("button", { name: "Add meal idea" }).closest("form");
+    expect(add).toHaveAttribute("method", "post");
+    expect(add).toHaveAttribute("action", "/households/alvarez-home/meal-plan/proposals");
+    expect(add).toHaveFormValues({
+      csrf: demoWebContext.security.csrfToken,
+      week: "2026-07-20",
+      constraintRevision: demoWebContext.mealPlan?.constraintRevision,
+      constraintReviewEventId: demoWebContext.mealPlan?.constraintReviewEventId,
+    });
+    expect(screen.getByText("Needs review against the current household constraints")).toBeVisible();
+  });
+
+  it("focuses and announces the post/redirect/get meal-plan result", () => {
+    renderApp("/households/alvarez-home/meal-plan?week=2026-07-20&changed=proposal-added", {
+      ...demoWebContext,
+      mealPlan: demoWebContext.mealPlan === null ? null : {
+        ...demoWebContext.mealPlan,
+        statusMessage: "Meal idea added to the selected date and slot.",
+      },
+    });
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Meal idea added to the selected date and slot.");
+    expect(status).toHaveAttribute("aria-live", "polite");
+    expect(status).toHaveAttribute("aria-atomic", "true");
+    expect(status).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("renders a complete empty week and keeps viewers read-only", () => {
+    const mealPlan = demoWebContext.mealPlan;
+    if (mealPlan === null) throw new Error("meal plan fixture missing");
+    renderApp("/households/alvarez-home/meal-plan?week=2026-07-20", {
+      ...demoWebContext,
+      households: demoWebContext.households.map((household) =>
+        household.id === "alvarez-home" ? { ...household, role: "viewer" as const } : household),
+      mealPlan: {
+        ...mealPlan,
+        canEdit: false,
+        proposalCount: 0,
+        days: mealPlan.days.map((day) => ({
+          ...day,
+          slots: day.slots.map((slot) => ({ ...slot, proposals: [] })),
+        })),
+      },
+    });
+    expect(screen.getByText("No meals have been proposed yet.")).toBeVisible();
+    expect(screen.getAllByRole("heading", { level: 2, name: /day,/ })).toHaveLength(7);
+    expect(screen.queryByRole("button", { name: "Add meal idea" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Withdraw/ })).not.toBeInTheDocument();
+    expect(screen.getByText("You can view this week, but only household owners and editors can change it.")).toBeVisible();
   });
 
   it("renders an actionable OAuth consent handoff with exact hidden fields", () => {
@@ -176,6 +312,15 @@ describe("web experience", () => {
     expect(screen.getByRole("heading", { name: "WhatsApp restocking" })).toBeVisible();
     expect(screen.getByText(/Meta carries your request/)).toBeVisible();
     expect(screen.getByText(/Product reasoning and approved-retailer cart control happen locally/)).toBeVisible();
+  });
+
+  it("renders the current meal-planning privacy boundaries", () => {
+    renderApp("/privacy");
+    expect(screen.getByText("Effective July 24, 2026")).toBeVisible();
+    expect(screen.getByText(/Connected household members can see the shared meal-planning constraint profile/)).toBeVisible();
+    expect(screen.getByText(/asks separately before sending allergy or sensitivity terms to a search provider/)).toBeVisible();
+    expect(screen.getByText(/Recipe images load directly from their named source hosts/)).toBeVisible();
+    expect(screen.getByText(/Any optional weekly meal-planning task belongs to Codex or Claude, not Fullwell/)).toBeVisible();
   });
 
   it.each([

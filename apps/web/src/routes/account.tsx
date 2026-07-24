@@ -134,7 +134,7 @@ export function AccountRoute() {
               ))}
             </div>
           )}
-          <a className="text-link" href="/install">Review agent installation</a>
+          <a className="text-link" href="/guides">Review advanced agent guides</a>
         </section>
         <section className="account-section" aria-labelledby="messaging-heading">
           <header><h2 id="messaging-heading">WhatsApp</h2><p>No-message-cost window through {messaging.availableThroughLabel}</p></header>
@@ -161,7 +161,7 @@ export function AccountRoute() {
 function WhatsAppConnection({ status, csrf }: { status: ReturnType<typeof useWebContext>["messaging"]; csrf: string }) {
   if (status.kind === "disabled") return <p className="section-empty">WhatsApp restocking is disabled.</p>;
   if (status.kind === "not_configured") {
-    return <div className="account-row"><span className="row-icon"><MessageCircle aria-hidden="true" /></span><div><h3>Not connected</h3><p>Install and connect a local runner before linking WhatsApp.</p></div><a className="text-link" href="/install">Install runner</a></div>;
+    return <div className="account-row"><span className="row-icon"><MessageCircle aria-hidden="true" /></span><div><h3>Not connected</h3><p>Install and connect a local runner before linking WhatsApp.</p></div><a className="text-link" href="/guides/whatsapp">Connection guide</a></div>;
   }
   if (status.kind === "setup") {
     return <div className="account-row"><span className="row-icon"><MessageCircle aria-hidden="true" /></span><div><h3>Fullwell on WhatsApp</h3><p>Ready to link with {status.deviceName}.</p></div><form action="/account/messaging/whatsapp/link" method="post"><input type="hidden" name="csrf" value={csrf} /><input type="hidden" name="household_id" value={status.householdId} /><input type="hidden" name="device_id" value={status.deviceId} /><Button type="submit">Link WhatsApp</Button></form></div>;

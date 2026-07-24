@@ -5,13 +5,24 @@ import {
   HostActionReceiptSchema,
   HostReadyToActSchema,
   HouseholdSnapshotManifestSchema,
+  MEAL_PLAN_MAX_EVENTS_PER_WEEK,
+  MEAL_PLAN_MAX_PROPOSALS_PER_SLOT,
+  MEAL_PLAN_MAX_PROPOSALS_PER_WEEK,
+  MEAL_PLAN_MAX_REVIEW_EVENTS_PER_WEEK,
+  MEAL_PLAN_MAX_WITHDRAWAL_EVENTS_PER_WEEK,
+  MealPlanEventSchema,
+  MealPlanningConstraintsSchema,
+  MealPlanningToolInputSchemas,
+  MealProposalSchema,
   OnboardingRecordSchema,
   OnboardingSectionStateSchema,
   ONBOARDING_COMMIT_MAX_EVIDENCE,
   ONBOARDING_COMMIT_MAX_ITEMS,
   RunnerClaimRequestSchema,
   RunnerCompletionSchema,
+  SafeHttpsUrlSchema,
   ToolInputSchemas,
+  parseMealPlanningToolInput,
   parseToolInput,
 } from "./index.js";
 
@@ -59,11 +70,193 @@ describe("contract boundaries", () => {
   });
 
   it("publishes the complete stable tool catalog", () => {
-    expect(Object.keys(ToolInputSchemas)).toHaveLength(24);
+    expect(Object.keys(ToolInputSchemas)).toHaveLength(31);
     expect(ToolInputSchemas.hfj_get_context).toBeDefined();
+    expect(ToolInputSchemas.hfj_update_user_display_name).toBeDefined();
+    expect(ToolInputSchemas.hfj_update_household_name).toBeDefined();
     expect(ToolInputSchemas.hfj_update_onboarding).toBeDefined();
     expect(ToolInputSchemas.hfj_commit_onboarding).toBeDefined();
     expect(ToolInputSchemas.hfj_export_household).toBeDefined();
+    expect(Object.keys(MealPlanningToolInputSchemas)).toEqual([
+      "hfj_get_meal_plan",
+      "hfj_update_meal_planning_constraints",
+      "hfj_review_meal_constraints",
+      "hfj_add_meal_proposal",
+      "hfj_withdraw_meal_proposal",
+    ]);
+    for (const name of Object.keys(MealPlanningToolInputSchemas)) {
+      expect(ToolInputSchemas[name as keyof typeof MealPlanningToolInputSchemas]).toBeDefined();
+    }
+  });
+
+  it("normalizes names while rejecting control characters", () => {
+    expect(parseToolInput("hfj_update_user_display_name", {
+      display_name: "  Taylor  ",
+      idempotency_key: "member-name-1",
+    })).toMatchObject({ display_name: "Taylor" });
+    expect(() => parseToolInput("hfj_update_household_name", {
+      household_id: "hsh_0123456789abcdef",
+      expected_head: "a".repeat(40),
+      idempotency_key: "household-name-1",
+      name: "Kitchen\nTable",
+    })).toThrow();
+  });
+
+  it("freezes bounded cloud meal-plan capacity", () => {
+    expect({
+      eventsPerWeek: MEAL_PLAN_MAX_EVENTS_PER_WEEK,
+      proposalsPerSlot: MEAL_PLAN_MAX_PROPOSALS_PER_SLOT,
+      proposalsPerWeek: MEAL_PLAN_MAX_PROPOSALS_PER_WEEK,
+      reviewEventsPerWeek: MEAL_PLAN_MAX_REVIEW_EVENTS_PER_WEEK,
+      withdrawalEventsPerWeek: MEAL_PLAN_MAX_WITHDRAWAL_EVENTS_PER_WEEK,
+    }).toEqual({
+      eventsPerWeek: 1_000,
+      proposalsPerSlot: 48,
+      proposalsPerWeek: 500,
+      reviewEventsPerWeek: 500,
+      withdrawalEventsPerWeek: 500,
+    });
+  });
+
+  it("keeps unanswered meal constraints distinct from an explicit none", () => {
+    expect(MealPlanningConstraintsSchema.safeParse({ status: "unresolved" }).success).toBe(true);
+    expect(MealPlanningConstraintsSchema.safeParse({
+      status: "confirmed_none",
+      time_zone: "America/Los_Angeles",
+      reviewed_at: "2026-07-23T12:00:00.000Z",
+    }).success).toBe(true);
+    expect(MealPlanningConstraintsSchema.safeParse({
+      status: "confirmed_none",
+      time_zone: "+01:00",
+      reviewed_at: "2026-07-23T12:00:00.000Z",
+    }).success).toBe(false);
+    expect(MealPlanningConstraintsSchema.safeParse({
+      status: "recorded",
+      time_zone: "America/Los_Angeles",
+      allergy_labels: [],
+      sensitivity_labels: [],
+      reviewed_at: "2026-07-23T12:00:00.000Z",
+    }).success).toBe(false);
+    expect(() => parseMealPlanningToolInput("hfj_update_meal_planning_constraints", {
+      household_id: "hsh_0123456789abcdef",
+      expected_head: "a".repeat(40),
+      idempotency_key: "constraints-1",
+      constraints: { status: "unresolved" },
+    })).toThrow();
+  });
+
+  it("accepts immutable proposals only inside their Monday-start week", () => {
+    const proposal = mealProposalFixture();
+    expect(MealProposalSchema.safeParse(proposal).success).toBe(true);
+    expect(MealProposalSchema.safeParse({ ...proposal, week_start: "2026-07-21" }).success).toBe(false);
+    expect(MealProposalSchema.safeParse({ ...proposal, meal_date: "2026-08-03" }).success).toBe(false);
+    expect(MealProposalSchema.safeParse({ ...proposal, slot: { kind: "custom", label: "" } }).success).toBe(false);
+    expect(MealProposalSchema.safeParse({ ...proposal, source: { kind: "freeform", title: "Pizza" } }).success).toBe(true);
+  });
+
+  it("requires credential-free HTTPS provenance for external recipes", () => {
+    const proposal = mealProposalFixture();
+    const source = proposal.source;
+    expect(source.kind).toBe("external_recipe");
+    if (source.kind !== "external_recipe") throw new Error("external recipe fixture required");
+    expect(MealProposalSchema.safeParse({
+      ...proposal,
+      source: { ...source, canonical_url: "http://recipes.example/soup" },
+    }).success).toBe(false);
+    expect(MealProposalSchema.safeParse({
+      ...proposal,
+      source: { ...source, canonical_url: "https://user:pass@recipes.example/soup" },
+    }).success).toBe(false);
+    expect(MealProposalSchema.safeParse({
+      ...proposal,
+      source: { ...source, raw_html: "<script>bad()</script>" },
+    }).success).toBe(false);
+    expect(SafeHttpsUrlSchema.safeParse(`https://recipes.example/${"x".repeat(2048)}`).success).toBe(false);
+  });
+
+  it("parses bounded meal-plan tool inputs and rejects mismatched dates", () => {
+    expect(parseMealPlanningToolInput("hfj_add_meal_proposal", {
+      household_id: "hsh_0123456789abcdef",
+      idempotency_key: "meal-proposal-1",
+      week_start: "2026-07-20",
+      meal_date: "2026-07-20",
+      slot: { kind: "lunch" },
+      source: { kind: "freeform", title: "Egg salad sandwich" },
+      constraint_revision: "a".repeat(40),
+      constraint_review_event_id: "mle_0123456789abcdef",
+      compatibility: "incomplete_evidence",
+      compatibility_caveat: "Ingredients and cross-contact details still need review.",
+    })).toMatchObject({ slot: { kind: "lunch" }, servings: null, notes: null });
+    expect(() => parseMealPlanningToolInput("hfj_get_meal_plan", {
+      household_id: "hsh_0123456789abcdef",
+      week_start: "2026-07-21",
+    })).toThrow();
+    expect(() => parseMealPlanningToolInput("hfj_add_meal_proposal", {
+      household_id: "hsh_0123456789abcdef",
+      idempotency_key: "meal-proposal-2",
+      week_start: "2026-07-20",
+      meal_date: "2026-07-27",
+      slot: { kind: "lunch" },
+      source: { kind: "freeform", title: "Pizza" },
+      constraint_revision: "a".repeat(40),
+      constraint_review_event_id: "mle_0123456789abcdef",
+      compatibility: "incomplete_evidence",
+      compatibility_caveat: "Ingredients are not yet known.",
+    })).toThrow();
+    expect(() => parseMealPlanningToolInput("hfj_review_meal_constraints", {
+      household_id: "hsh_0123456789abcdef",
+      idempotency_key: "meal-review-1",
+      week_start: "2026-07-20",
+      constraint_revision: 1,
+    })).toThrow();
+    expect(() => parseMealPlanningToolInput("hfj_add_meal_proposal", {
+      household_id: "hsh_0123456789abcdef",
+      idempotency_key: "meal-proposal-3",
+      week_start: "2026-07-20",
+      meal_date: "2026-07-20",
+      slot: { kind: "lunch" },
+      source: {
+        kind: "journal_recipe",
+        item_id: "itm_0123456789abcdef",
+        item_revision: `sha256:${"a".repeat(64)}`,
+        liked_evidence_ids: ["evd_0123456789abcdef"],
+      },
+      constraint_revision: "a".repeat(40),
+      constraint_review_event_id: "mle_0123456789abcdef",
+      compatibility: "appears_compatible",
+      compatibility_caveat: "Verify the current ingredients.",
+    })).toThrow();
+  });
+
+  it("requires strict append-only meal-plan events", () => {
+    const event = MealPlanEventSchema.parse({
+      id: "mle_0123456789abcdef",
+      kind: "constraints_reviewed",
+      week_start: "2026-07-20",
+      constraint_revision: 1,
+      actor: { kind: "local", label: "Alice" },
+      occurred_at: "2026-07-20T12:00:00.000Z",
+      schema_version: 1,
+    });
+    expect(Object.isFrozen(event)).toBe(true);
+    expect(Object.isFrozen(event.actor)).toBe(true);
+    expect(MealPlanEventSchema.safeParse({
+      id: "mle_0123456789abcdef",
+      kind: "proposal_withdrawn",
+      week_start: "2026-07-20",
+      proposal_id: "mlp_0123456789abcdef",
+      actor: { kind: "local", label: "" },
+      reason: null,
+      occurred_at: "2026-07-20T12:00:00.000Z",
+      schema_version: 1,
+    }).success).toBe(false);
+  });
+
+  it("returns immutable proposal content from the parse boundary", () => {
+    const proposal = MealProposalSchema.parse(mealProposalFixture());
+    expect(Object.isFrozen(proposal)).toBe(true);
+    expect(Object.isFrozen(proposal.slot)).toBe(true);
+    expect(Object.isFrozen(proposal.source)).toBe(true);
   });
 
   it("accepts every grocery item kind as a search boundary", () => {
@@ -267,6 +460,31 @@ function onboardingEvidence(index: number) {
     summary: "Confirmed",
     actor_id: "act_0123456789abcdef",
     limitations: [],
+    schema_version: 1,
+  };
+}
+
+function mealProposalFixture() {
+  return {
+    id: "mlp_0123456789abcdef",
+    week_start: "2026-07-20",
+    meal_date: "2026-07-20",
+    slot: { kind: "lunch" as const },
+    proposed_by: "act_0123456789abcdef",
+    source: {
+      kind: "external_recipe" as const,
+      title: "Summer soup",
+      canonical_url: "https://recipes.example/summer-soup",
+      site_name: "Recipes Example",
+      discovered_at: "2026-07-20T12:00:00.000Z",
+    },
+    servings: 4,
+    notes: null,
+    constraint_revision: "a".repeat(40),
+    constraint_review_event_id: "mle_0123456789abcdef",
+    compatibility: "appears_compatible" as const,
+    compatibility_caveat: "Appears compatible based on the listed ingredients; verify current labels.",
+    created_at: "2026-07-20T12:00:00.000Z",
     schema_version: 1,
   };
 }

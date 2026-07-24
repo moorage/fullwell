@@ -8,6 +8,9 @@ import type {
   HouseholdId,
   InvitationId,
   JournalItem,
+  MealPlanEvent,
+  MealPlanningProfile,
+  MealProposal,
   MutationState,
   OAuthScope,
   RequestId,
@@ -88,6 +91,9 @@ export interface HouseholdProjection {
   readonly items: Map<string, { item: JournalItem; revision: GitObjectId }>;
   readonly profiles: Map<string, { markdown: string; revision: GitObjectId }>;
   readonly collections: Map<string, { snapshot: CollectionSnapshot; revision: GitObjectId }>;
+  mealPlanningProfile: MealPlanningProfile | null;
+  readonly mealProposals: Map<string, { proposal: MealProposal; revision: GitObjectId }>;
+  readonly mealPlanEvents: Map<string, { event: MealPlanEvent; revision: GitObjectId }>;
 }
 
 export interface RepositoryMembershipState {

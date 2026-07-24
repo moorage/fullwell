@@ -18,6 +18,15 @@ export const SafeHttpUrlSchema = z.url().refine((value) => {
   const protocol = new URL(value).protocol;
   return protocol === "http:" || protocol === "https:";
 }, "Only http and https URLs are accepted");
+export const SafeHttpsUrlSchema = z.url().max(2048).refine((value) => {
+  const url = new URL(value);
+  return url.protocol === "https:" && url.username === "" && url.password === "";
+}, "Only credential-free HTTPS URLs are accepted");
+const ianaTimeZones = new Set(["UTC", ...Intl.supportedValuesOf("timeZone")]);
+export const IanaTimeZoneSchema = z.string().trim().min(1).max(100).refine(
+  (value) => ianaTimeZones.has(value),
+  "A canonical IANA time zone is required",
+);
 export const SchemaVersionSchema = z.literal(1);
 
 export const ErrorCodeSchema = z.enum([
@@ -65,6 +74,7 @@ export const ErrorEnvelopeSchema = z.object({
 
 export type Role = z.infer<typeof RoleSchema>;
 export type OAuthScope = z.infer<typeof OAuthScopeSchema>;
+export type IanaTimeZone = z.infer<typeof IanaTimeZoneSchema>;
 export type ContractError = z.infer<typeof ContractErrorSchema>;
 export type ErrorEnvelope = z.infer<typeof ErrorEnvelopeSchema>;
 export type SuccessEnvelope<T> = {

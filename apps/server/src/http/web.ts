@@ -3,7 +3,15 @@ import { resolve } from "node:path";
 import fastifyStatic from "@fastify/static";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { renderWebRoute } from "@hfj/web/server";
-import type { WebRenderContext } from "@hfj/web/types";
+import type { VisualJournalPage, WebRenderContext } from "@hfj/web/types";
+import {
+  DateSchema,
+  GitObjectIdSchema,
+  IdempotencyKeySchema,
+  MealPlanEventIdSchema,
+  MealProposalIdSchema,
+  MondayDateSchema,
+} from "@hfj/contracts";
 import { z } from "zod";
 
 const ManifestSchema = z.record(z.string(), z.object({
@@ -16,6 +24,10 @@ export interface WebExperience {
   contextFor(request: FastifyRequest): Promise<WebRenderContext>;
   createHousehold?(request: FastifyRequest, input: WebCreateHouseholdInput): Promise<{ householdId: string }>;
   importCollection?(request: FastifyRequest, input: WebImportInput): Promise<{ householdId: string }>;
+  reviewMealConstraints?(request: FastifyRequest, input: WebReviewMealConstraintsInput): Promise<void>;
+  addMealProposal?(request: FastifyRequest, input: WebAddMealProposalInput): Promise<void>;
+  withdrawMealProposal?(request: FastifyRequest, input: WebWithdrawMealProposalInput): Promise<void>;
+  journalItems?(request: FastifyRequest, input: WebJournalItemsInput): Promise<VisualJournalPage>;
 }
 
 export type WebCreateHouseholdInput = {
@@ -32,6 +44,43 @@ export type WebImportInput = {
   readonly idempotencyKey: string;
 };
 
+export type WebReviewMealConstraintsInput = {
+  readonly householdId: string;
+  readonly week: string;
+  readonly constraintRevision: string;
+  readonly csrf: string;
+  readonly idempotencyKey: string;
+};
+
+export type WebAddMealProposalInput = {
+  readonly householdId: string;
+  readonly week: string;
+  readonly mealDate: string;
+  readonly slotKind: "breakfast" | "lunch" | "dinner" | "snack";
+  readonly title: string;
+  readonly servings: number | null;
+  readonly notes: string | null;
+  readonly constraintRevision: string;
+  readonly constraintReviewEventId: string;
+  readonly csrf: string;
+  readonly idempotencyKey: string;
+};
+
+export type WebWithdrawMealProposalInput = {
+  readonly householdId: string;
+  readonly week: string;
+  readonly proposalId: string;
+  readonly reason: string | null;
+  readonly csrf: string;
+  readonly idempotencyKey: string;
+};
+
+export type WebJournalItemsInput = {
+  readonly householdId: string;
+  readonly section: "recipes" | "groceries";
+  readonly cursor?: string;
+};
+
 const SelectionFormSchema = z.object({
   itemIds: z.union([z.string(), z.array(z.string())]).transform((value) => Array.isArray(value) ? value : [value]),
   csrf: z.string().min(16).max(512),
@@ -43,6 +92,30 @@ const CreateHouseholdFormSchema = z.object({
   name: z.string().trim().min(1).max(120),
   csrf: z.string().min(16).max(512),
   idempotencyKey: z.string().min(8).max(128),
+}).strict();
+const MealMutationFormSchema = z.object({
+  week: MondayDateSchema,
+  csrf: z.string().min(16).max(512),
+  idempotencyKey: IdempotencyKeySchema,
+});
+const ReviewMealConstraintsFormSchema = MealMutationFormSchema.extend({
+  constraintRevision: GitObjectIdSchema,
+}).strict();
+const AddMealProposalFormSchema = MealMutationFormSchema.extend({
+  mealDate: DateSchema,
+  slotKind: z.enum(["breakfast", "lunch", "dinner", "snack"]),
+  title: z.string().trim().min(1).max(160),
+  servings: z.union([z.literal(""), z.coerce.number().int().min(1).max(100)]).transform((value) => value === "" ? null : value),
+  notes: z.string().trim().max(500).transform((value) => value === "" ? null : value),
+  constraintRevision: GitObjectIdSchema,
+  constraintReviewEventId: MealPlanEventIdSchema,
+}).strict();
+const WithdrawMealProposalFormSchema = MealMutationFormSchema.extend({
+  reason: z.string().trim().max(500).optional().transform((value) => value === undefined || value === "" ? null : value),
+}).strict();
+const JournalItemsQuerySchema = z.object({
+  section: z.enum(["recipes", "groceries"]),
+  cursor: z.string().max(16).regex(/^v1_\d+$/).optional(),
 }).strict();
 
 export async function registerWebExperience(app: FastifyInstance, experience: WebExperience): Promise<void> {
@@ -82,14 +155,72 @@ export async function registerWebExperience(app: FastifyInstance, experience: We
     return reply.redirect(`/households/${encodeURIComponent(result.householdId)}`, 303);
   });
 
+  app.post<{ Params: { householdId: string } }>("/households/:householdId/meal-plan/review", async (request, reply) => {
+    if (experience.reviewMealConstraints === undefined) return reply.code(501).send({ error: { code: "PROVIDER_UNAVAILABLE", message: "Browser meal planning is not configured" } });
+    const form = ReviewMealConstraintsFormSchema.parse(request.body);
+    await experience.reviewMealConstraints(request, { householdId: request.params.householdId, ...form });
+    return reply.redirect(mealPlanRedirect(request.params.householdId, form.week, "constraints-reviewed", "constraint-review"), 303);
+  });
+
+  app.post<{ Params: { householdId: string } }>("/households/:householdId/meal-plan/proposals", async (request, reply) => {
+    if (experience.addMealProposal === undefined) return reply.code(501).send({ error: { code: "PROVIDER_UNAVAILABLE", message: "Browser meal planning is not configured" } });
+    const form = AddMealProposalFormSchema.parse(request.body);
+    await experience.addMealProposal(request, { householdId: request.params.householdId, ...form });
+    return reply.redirect(mealPlanRedirect(request.params.householdId, form.week, "proposal-added", slotAnchor(form.mealDate, form.slotKind)), 303);
+  });
+
+  app.post<{ Params: { householdId: string; proposalId: string } }>("/households/:householdId/meal-plan/proposals/:proposalId/withdraw", async (request, reply) => {
+    if (experience.withdrawMealProposal === undefined) return reply.code(501).send({ error: { code: "PROVIDER_UNAVAILABLE", message: "Browser meal planning is not configured" } });
+    const form = WithdrawMealProposalFormSchema.parse(request.body);
+    const proposalId = MealProposalIdSchema.parse(request.params.proposalId);
+    await experience.withdrawMealProposal(request, { householdId: request.params.householdId, proposalId, ...form });
+    return reply.redirect(mealPlanRedirect(request.params.householdId, form.week, "proposal-withdrawn", "meal-week"), 303);
+  });
+
+  app.get<{ Params: { householdId: string } }>("/households/:householdId/journal-items", async (request, reply) => {
+    if (experience.journalItems === undefined) return reply.code(501).send({ error: { code: "PROVIDER_UNAVAILABLE", message: "Visual journal browsing is not configured" } });
+    const query = JournalItemsQuerySchema.parse(request.query);
+    const page = await experience.journalItems(request, {
+      householdId: request.params.householdId,
+      section: query.section,
+      ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+    });
+    reply.header("cache-control", "private, no-store");
+    reply.header("x-robots-tag", "noindex, nofollow");
+    return reply.send(page);
+  });
+
   app.get("/*", async (request, reply) => {
     if (!isWebPath(request.url)) return reply.code(404).send({ error: { code: "NOT_FOUND", message: "Route was not found" } });
+    const requestUrl = new URL(request.url, "https://local.invalid");
     const context = await experience.contextFor(request);
-    if (new URL(request.url, "https://local.invalid").pathname === "/account" && context.viewer.displayName === "") {
-      return reply.redirect("/sign-in?returnTo=%2Faccount", 303);
+    const privateJournal = requestUrl.pathname.endsWith("/recipes") || requestUrl.pathname.endsWith("/groceries");
+    if ((requestUrl.pathname === "/account" || requestUrl.pathname.endsWith("/meal-plan") || privateJournal) && context.viewer.displayName === "") {
+      return reply.redirect(`/sign-in?returnTo=${encodeURIComponent(`${requestUrl.pathname}${requestUrl.search}`)}`, 303);
     }
-    return sendWebPage(reply, request.url, context, entry.file, entry.css ?? [], request.url.startsWith("/c/") || request.url.startsWith("/invite/"));
+    return sendWebPage(reply, request.url, context, entry.file, entry.css ?? [], request.url.startsWith("/c/") || request.url.startsWith("/invite/") || requestUrl.pathname.startsWith("/households/"));
   });
+}
+
+export function isMealPlanMutationPath(rawUrl: string): boolean {
+  return /^\/households\/[^/]+\/meal-plan\/(?:review|proposals(?:\/[^/]+\/withdraw)?)$/
+    .test(new URL(rawUrl, "https://local.invalid").pathname);
+}
+
+export function sendMealPlanMutationError(
+  reply: import("fastify").FastifyReply,
+  rawUrl: string,
+  statusCode: number,
+  message: string,
+) {
+  const householdId = /^\/households\/([^/]+)\/meal-plan\//.exec(new URL(rawUrl, "https://local.invalid").pathname)?.[1];
+  const returnPath = householdId === undefined
+    ? "/households"
+    : `/households/${encodeURIComponent(householdId)}/meal-plan`;
+  reply.header("content-type", "text/html; charset=utf-8");
+  reply.header("cache-control", "no-store");
+  reply.header("x-robots-tag", "noindex, nofollow");
+  return reply.code(statusCode).send(`<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Meal plan update</title></head><body><main><h1>We could not update the meal plan</h1><p role="alert">${escapeText(message)}</p><p><a href="${escapeAttribute(returnPath)}">Return to the meal plan and try again</a></p></main></body></html>`);
 }
 
 function sendWebPage(reply: import("fastify").FastifyReply, url: string, context: WebRenderContext, script: string, styles: readonly string[], noIndex: boolean) {
@@ -102,10 +233,19 @@ function sendWebPage(reply: import("fastify").FastifyReply, url: string, context
 
 function isWebPath(rawUrl: string): boolean {
   const path = new URL(rawUrl, "https://local.invalid").pathname;
-  return path === "/" || ["/install", "/sign-in", "/authorize", "/households", "/account", "/privacy", "/terms"].includes(path)
+  return path === "/" || ["/install", "/sign-in", "/authorize", "/households", "/account", "/privacy", "/terms", "/guides"].includes(path)
+    || /^\/guides\/(?:whatsapp|household-invitations|collections\/(?:create|share))$/.test(path)
     || /^\/invite\/family\/[^/]+$/.test(path)
     || /^\/c\/[^/]+(?:\/import\/plan)?$/.test(path)
-    || /^\/households\/[^/]+(?:\/(?:members|collections))?$/.test(path);
+    || /^\/households\/[^/]+(?:\/(?:members|collections|meal-plan|recipes|groceries))?$/.test(path);
+}
+
+function mealPlanRedirect(householdId: string, week: string, changed: string, anchor: string): string {
+  return `/households/${encodeURIComponent(householdId)}/meal-plan?week=${encodeURIComponent(week)}&changed=${encodeURIComponent(changed)}#${encodeURIComponent(anchor)}`;
+}
+
+function slotAnchor(mealDate: string, slotKind: string): string {
+  return `slot-${mealDate}-${slotKind}`;
 }
 
 function htmlDocument(title: string, appHtml: string, context: WebRenderContext, script: string, styles: readonly string[]): string {

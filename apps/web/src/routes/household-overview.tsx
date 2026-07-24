@@ -1,5 +1,6 @@
 import { ArrowUpRight, BookOpen, Coffee, Download, ExternalLink, Sparkles } from "lucide-react";
 import { AppShell, HouseholdNav } from "../components/app-shell.js";
+import { BrandMark } from "../components/brand-mark.js";
 import { ButtonLink, PageHeader, StatusNotice } from "../components/ui.js";
 import { useWebContext } from "../context.js";
 import { NotFoundRoute } from "./not-found.js";
@@ -19,17 +20,17 @@ export function HouseholdOverviewRoute({ householdId }: { householdId: string })
         </PageHeader>
         <HouseholdNav householdId={householdId} active="overview" />
         <StatusNotice tone="info" title="Continue journal work with your agent">
-          <p>Ask Codex or Claude to audit purchases, track a recipe, or create a collection. The browser does not edit journal entries.</p>
+          <p>Ask ChatGPT or Claude to audit purchases, track a recipe, or create a collection. The browser does not edit journal entries.</p>
           <div className="notice-actions">
-            <a href="/install?host=codex">Open Codex instructions <ExternalLink aria-hidden="true" size={16} /></a>
-            <a href="/install?host=claude">Open Claude instructions <ExternalLink aria-hidden="true" size={16} /></a>
+            <a href="/install?host=codex"><BrandMark brand="chatgpt" /> Use with ChatGPT <ExternalLink aria-hidden="true" size={16} /></a>
+            <a href="/install?host=claude"><BrandMark brand="claude" /> Use with Claude <ExternalLink aria-hidden="true" size={16} /></a>
           </div>
         </StatusNotice>
         <section className="journal-summary" aria-labelledby="journal-summary-heading">
           <header><h2 id="journal-summary-heading">Journal at a glance</h2><p>{household.updatedLabel}</p></header>
           <div className="summary-rail">
-            <div><BookOpen aria-hidden="true" /><strong>{household.recipes}</strong><span>Recipes</span></div>
-            <div><Coffee aria-hidden="true" /><strong>{household.groceries}</strong><span>Groceries</span></div>
+            <a href={`/households/${householdId}/recipes`}><BookOpen aria-hidden="true" /><strong>{household.recipes}</strong><span>Recipes</span><small>Browse visually</small></a>
+            <a href={`/households/${householdId}/groceries`}><Coffee aria-hidden="true" /><strong>{household.groceries}</strong><span>Groceries</span><small>Browse visually</small></a>
             <div><Sparkles aria-hidden="true" /><strong>{collections.length}</strong><span>Collections</span></div>
           </div>
         </section>

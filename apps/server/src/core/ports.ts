@@ -43,6 +43,10 @@ export interface AuthenticationPort {
   authenticate(authorization: string | undefined): Promise<Principal>;
 }
 
+export interface UserProfilePort {
+  updateUserDisplayName(userId: UserId, displayName: string, updatedAt: string): Promise<{ readonly displayName: string } | null>;
+}
+
 export interface MailPort {
   sendMagicLink(recipient: string, url: URL): Promise<void>;
   sendInvitation(recipient: string, url: URL): Promise<void>;
@@ -119,6 +123,7 @@ export interface HouseholdRepositoryPort {
 
 export interface OperationalStorePort {
   createHousehold(record: HouseholdRecord, owner: MembershipRecord): Promise<void>;
+  updateHouseholdName(householdId: HouseholdId, name: string): Promise<void>;
   updateHouseholdHead(householdId: HouseholdId, head: GitObjectId): Promise<void>;
   getHousehold(householdId: HouseholdId): Promise<HouseholdRecord | null>;
   listHouseholds(): Promise<ReadonlyArray<HouseholdRecord>>;
@@ -141,7 +146,7 @@ export interface OperationalStorePort {
   saveMutation(record: MutationRecord): Promise<void>;
   transitionMutation(requestId: RequestId, state: MutationState, update?: { commitId?: GitObjectId; response?: Record<string, JsonValue>; failure?: string }): Promise<void>;
   listMutationsForReconciliation(householdId: HouseholdId): Promise<ReadonlyArray<MutationRecord>>;
-  replaceHouseholdProjection(householdId: HouseholdId, head: GitObjectId, projection: HouseholdProjection, memberships: ReadonlyArray<RepositoryMembershipState>): Promise<void>;
+  replaceHouseholdProjection(householdId: HouseholdId, name: string, head: GitObjectId, projection: HouseholdProjection, memberships: ReadonlyArray<RepositoryMembershipState>): Promise<void>;
   quarantineHousehold(householdId: HouseholdId): Promise<void>;
   saveExportDownload(record: ExportDownloadRecord): Promise<void>;
   getActiveExportDownload(tokenHash: string, userId: UserId, now: string): Promise<ExportDownloadRecord | null>;

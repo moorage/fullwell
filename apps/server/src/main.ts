@@ -1,5 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import type { FastifyRequest } from "fastify";
+import { z } from "zod";
 import { MemoryOperationalStore } from "./adapters/memory.js";
 import {
   CryptoRandomSource,
@@ -68,7 +70,7 @@ const identity = config.APPLE_CLIENT_ID === undefined || config.APPLE_TEAM_ID ==
   ? new UnconfiguredAppleIdentityProvider()
   : new AppleIdentityProvider(config.APPLE_CLIENT_ID, config.APPLE_TEAM_ID, config.APPLE_KEY_ID, config.APPLE_PRIVATE_KEY);
 const exportArtifacts = new FileExportArtifactStore(config.EXPORT_ROOT);
-const service = new HouseholdFoodJournalService(store, repository, clock, random, hasher, telemetry, publicOrigin, exportArtifacts);
+const service = new HouseholdFoodJournalService(store, repository, clock, random, hasher, telemetry, publicOrigin, exportArtifacts, authStore);
 const passkeys = new WebAuthnPasskeyProvider({ rpName: "Fullwell", rpId: publicOrigin.hostname, origin: publicOrigin.origin });
 const browserAuth = new BrowserAuthService(authStore, clock, random, hasher, mail, identity, passkeys, publicOrigin);
 const oauth = new OAuthService(oauthStore, clock, random, hasher, new URL("/mcp", publicOrigin));
@@ -107,16 +109,31 @@ const runner = messaging === undefined ? undefined : {
     authorize: async (principal, deviceId, householdId) => await messaging.service.authorizeRunner(principal, deviceId, householdId),
   }, clock),
 };
+const resolveWebPrincipal = async (request: FastifyRequest) => {
+  if (request.cookies.hfj_session !== undefined) return await browserAuth.authenticateSession(request.cookies.hfj_session);
+  if (config.AUTH_MODE === "test" && request.headers.authorization !== undefined) {
+    return await authentication.authenticate(request.headers.authorization);
+  }
+  return null;
+};
+const verifyWebCsrf = async (request: FastifyRequest, submittedToken: string) => {
+  if (config.AUTH_MODE === "test" && request.headers.authorization !== undefined) {
+    z.string().min(16).max(512).parse(submittedToken);
+    return;
+  }
+  await browserCsrfVerifier(browserAuth)(request, submittedToken);
+};
 const webViewModels = await WebViewModelService.create({
   service,
   store,
   authentication,
   hasher,
   random,
+  clock,
   publicOrigin,
   installMetadataPath: resolve(repositoryRoot, "packages/agent-client/install-metadata.json"),
-  resolvePrincipal: async (request) => request.cookies.hfj_session === undefined ? null : browserAuth.authenticateSession(request.cookies.hfj_session),
-  verifyCsrf: browserCsrfVerifier(browserAuth),
+  resolvePrincipal: resolveWebPrincipal,
+  verifyCsrf: verifyWebCsrf,
   listPasskeys: (userId) => browserAuth.listPasskeys(userId),
   accountSummary: (userId) => accounts.summary(userId),
   ...(messaging === undefined ? {} : { messagingStatus: (principal, setup) => messaging.service.accountStatus(principal, setup) }),
@@ -153,6 +170,10 @@ const app = await buildApp({
     contextFor: (request) => webViewModels.contextFor(request),
     createHousehold: (request, input) => webViewModels.createHousehold(request, input),
     importCollection: (request, input) => webViewModels.importCollection(request, input),
+    reviewMealConstraints: (request, input) => webViewModels.reviewMealConstraints(request, input),
+    addMealProposal: (request, input) => webViewModels.addMealProposal(request, input),
+    withdrawMealProposal: (request, input) => webViewModels.withdrawMealProposal(request, input),
+    journalItems: (request, input) => webViewModels.journalItems(request, input),
   },
 });
 await app.listen({ host: config.HOST, port: config.PORT });

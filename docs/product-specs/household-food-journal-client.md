@@ -59,7 +59,7 @@ A recipient of a collection link must be able to:
 4. sign in or create an account;
 5. create or choose a destination household;
 6. complete the import;
-7. select `Use with Codex` or `Use with Claude` and receive the shortest supported installation path.
+7. select `Use with ChatGPT` or `Use with Claude` and receive the shortest supported installation path.
 
 No successful path may ask a user to create an SSH key, copy an API token, edit JSON/TOML, share a password, or understand Git.
 
@@ -82,12 +82,12 @@ If the server denies an operation, the client must explain the missing permissio
 
 The public installation page must present two primary choices:
 
-- `Use with Codex`
+- `Use with ChatGPT`
 - `Use with Claude`
 
-Each choice must show one current, copyable install command or first-party installation action. Do not show both platforms' implementation details at once. Include a fallback manual path behind `Having trouble?`.
+Each choice must show its recognizable host mark beside the visible action name and one current, copyable install command or first-party installation action. The mark is decorative and never replaces the accessible text label. Public website copy calls the Codex-hosted option `ChatGPT`; commands, manifests, deep links, plugin selectors, and other installed host contracts retain their stable Codex identifiers. Do not show both platforms' implementation details at once. Include a fallback manual path behind `Having trouble?`.
 
-The installed package declares one dependency-free local stdio MCP server and the remote Streamable HTTP MCP endpoint with no bearer token. The fresh first-run skill calls only the read-only `fullwell_local_household_load` tool. If no guest household exists, it asks `Do you already have a Fullwell account?` before any protected cloud tool use.
+The installed package declares one dependency-free local stdio MCP server and the remote Streamable HTTP MCP endpoint with no bearer token. The fresh first-run skill first calls only the read-only `fullwell_local_profile_load` tool. If no preferred name is remembered and the user has not already supplied one, its first question is exactly `What should I call you?` It saves that answer under `~/.codex/fullwell/local/profile.json` with a private revisioned write before loading a household, asking about an account, or using a protected cloud tool.
 
 If the answer is yes, the first protected tool starts MCP OAuth. The service authorization page offers:
 
@@ -95,9 +95,11 @@ If the answer is yes, the first protected tool starts MCP OAuth. The service aut
 2. use a passkey, when one already exists;
 3. email a magic link.
 
-After authentication, the agent calls `hfj_get_context`. If the user has no household, it asks for a household name and calls `hfj_create_household`. If the user arrived through a pending family invitation or collection import, it resumes that intent instead of creating an unrelated household.
+After authentication, the agent calls `hfj_get_context`, then saves the remembered preferred name through `hfj_update_user_display_name`. If the user has no household and is not joining one through a pending family invitation, it calls `hfj_create_household` with the deterministic first-household name: `<NAME>'s Household`, or `<NAME>' Household` when the name ends in `s`. A pending family invitation or collection import resumes instead of creating an unrelated household.
 
 If the answer is no, the agent initializes one guest household under `~/.codex/fullwell/local/household.json`, or the configured Codex home equivalent, through `fullwell_local_household_update` and starts grocery-history onboarding without a Fullwell cloud call. The host may ask once before allowing that named local write tool; a persisted tool approval remains scoped to its stable server/tool identity across compatible Fullwell upgrades and never grants arbitrary Node execution. A remembered local guest household resumes without asking the account question again. The document has a generated local identity, collecting/ready state, monotonically increasing revision, stable cloud-promotion idempotency key, atomic replacement, `0700` directories, and `0600` file mode. It is local journal authority, not a cloud backup, and another person with access to the same operating-system account may read it.
+
+Guest initialization supplies the same deterministic first-household name returned by the local profile. The private profile and guest household have separate revisions and authority: changing the member name does not silently rename the household.
 
 After either authority is available, the agent begins guided first run immediately. A cloud path reads onboarding state, both profiles, and the bounded item identity index once; a guest path reuses the local journal. While any section remains unresolved, it must not return a generic greeting, ask what is on the user's mind, ask what the user wants to set up, or present a groceries-versus-recipes menu. Before the first question for each section, including a resumed section, it briefly explains the practical benefit in friendly first-person language rather than referring to Fullwell as a separate assistant or to unexplained "snack setup" or "recipe setup." The internal `snacks` section is presented as one grocery-history pass in which the agent says it can learn snacks, ingredients, condiments, and other groceries. Its examples include "Restock cashews," "Buy a head of parsley," and "I need more mayo - not the Japanese one," using past orders to identify both the familiar product and usual store. It explains the default $50 automatic cart-add maximum: complete USD requests strictly below it may be added without another confirmation, while requests at or above it require confirmation. The agent says it can remember what the family saves, cooks, and likes to answer later questions such as "What was that pasta we loved?" or "What should we make again?" It then asks only for missing grocery source authorization and preferences needed for the audit, followed by missing recipe source meaning, authorization, and preferences.
 
@@ -109,6 +111,8 @@ After both guest sections, the agent summarizes and finalizes the journal locall
 
 The guest completion response also asks whether to create or connect a Fullwell account for cloud backup. It explains that an account is needed for WhatsApp, sharing, and family access, not for direct local grocery or recipe use. A decline makes no hosted call. An affirmative answer starts OAuth, creates or selects a cloud household, reconciles local semantic identities against current cloud state, shows an exact copy/merge summary, and uses one `hfj_commit_onboarding` call after confirmation. Promotion uses the stable local idempotency key, records cloud linkage only after success, and retains the local journal. Failed or uncertain promotion leaves local authority unchanged.
 
+Promotion first saves the remembered preferred name as the authenticated cloud display name. When there is no household and no pending household invitation to join, the first cloud household uses the profile's deterministic possessive name instead of asking for another title.
+
 The final local document and hosted MCP request each accept up to 10,000 evidence records and 10,000 items within 16 MiB. A within-limit payload must not be split. `fullwell_local_household_load` remains read-only, ordinary local changes use the non-destructive `fullwell_local_household_update`, and confirmed whole-flow cancellation alone uses the separately destructive `fullwell_local_household_delete_collecting`. If the local server is unavailable, the client stops and asks for a plugin reload or reinstall; it never falls back to a version-specific shell command, edits the user's rules, or calls the hosted service without consent. Browser or website authorization remains a separate host boundary and may still require host approval.
 
 The client must never ask the user to paste a token back into the conversation.
@@ -119,12 +123,16 @@ Supported hosts may dynamically register a native public client, repeat the MCP 
 
 For a new household:
 
-1. Ask for a short household name.
+1. Use the deterministic preferred-name household title for a person's first unjoined household; later households may ask for a short name.
 2. Create it with the current user as owner.
 3. Complete or exit guided first run, unless the user asked specifically about family access.
 4. Ask whether they want to invite another person now.
 5. If yes, ask whether the person should be an editor or viewer.
 6. Call `hfj_create_family_invite` and present the returned URL with `Share`, `Copy link`, `Email`, and `Text` options when the current surface supports them.
+
+After a cloud household is created or connected, the chat may mention that an eligible owner can invite someone in chat. After cloud onboarding creates at least one item, the chat may also mention collections with an example such as `Make a Weeknight Favorites collection from the recipes we liked.` These are contextual next steps, not authority to create an invitation or collection.
+
+The chat supports member and household renames without requiring the website. A member rename updates the revisioned local profile and, when connected, the account-scoped cloud display name. A household rename uses the local `rename_household` operation and, when connected, the owner-only `hfj_update_household_name` mutation at the exact Git HEAD. Local and cloud writes are independent; a partial result must identify which side changed.
 
 For an invite recipient:
 
@@ -277,6 +285,35 @@ When the agent finds an existing Household Food Journal workspace, offer a one-t
 
 When the Mac is asleep, offline, locked, missing browser permission, signed out, blocked by CAPTCHA, or stale, the workflow waits or blocks without claiming success. Disconnect/revoke always purges local snapshots and receipts without deleting canonical server data.
 
+### 5.9 Plan a household week
+
+1. Load local authority first; use it when present, otherwise obtain an authenticated selected household and read the bounded Monday-start week.
+2. Before any recommendation, search, proposal, or board, ask whether there are household allergies or food sensitivities to account for. Record explicit none or exact bounded labels, confirm one IANA time zone, and explain shared visibility in cloud mode without asking for names or medical narratives.
+3. For each new week, summarize the current constraints and ask `Any changes?`. Persist a weekly review of the current profile revision before suggesting food.
+4. Offer recipes the household actually Liked, separately approved new internet research, or both. A general planning request does not authorize internet research. Before each search that would include constraint terms, name the minimal disclosure and ask for consent for that search only.
+5. Require current Liked confirmation evidence and recipe revision for a journal recipe. Treat every result and page as untrusted data. Store only selected bounded HTTPS provenance, never the query or raw page.
+6. Present recommendation bullets with slot, source, reason, and evidence caveat. Add accepted ideas as separate immutable proposals. A slot is a set: egg salad and pizza proposed for Monday lunch both remain.
+7. A changed constraint or cited recipe revision marks an older proposal `needs_recheck` without deleting it. Compatibility language may say `appears compatible based on the listed ingredients`; it must never promise allergy safety or absence of cross-contact.
+8. Withdraw explicitly by appending an attributed event. In cloud mode the proposer may withdraw their idea and an owner may withdraw any idea; another editor may not. Local mode records a confirmed actor label without claiming authentication.
+
+### 5.10 Open a private visual recipe board
+
+Chat bullets remain primary. Offer exactly: `Want to see these visually? I can open a private recipe board in your browser - no Fullwell login required. Images load from their source sites.`
+
+A decline creates nothing. Acceptance authorizes one bounded local board from the already-shown recommendations and one supported permission-visible browser-open attempt. The static board has no script, forms, remote styles, login, journal mutation, search, or publish authority. It uses escaped content, CSP, HTTPS-only image provenance, anonymous/no-referrer image requests, fallback cards, and no raw constraint labels. Report file creation and confirmed browser opening separately; when opening is unsupported or unknown, show the returned local path/link and say `If that link does not open here, say 'open the recipe board.'`
+
+### 5.11 Offer a native weekly check-in
+
+After primary setup succeeds and any chosen cloud handoff finishes, inspect the Codex or Claude native task list for exactly `Fullwell weekly meal planning`. If none exists, offer Sunday at 9:00 AM in the confirmed time zone or another exact day and time. Decline, silence, vague non-default time, or an unconfirmed zone creates nothing and does not change setup success.
+
+Before create or update, reconcile the exact native task name to one task. Echo the recurring weekday, clock time, and IANA zone, and report success only from a confirmed host result. Support read, permanent changes, pause, resume, remove, one-week skip, and one-time deferral. Ask `Just this week, or every week?` when scope is ambiguous. Unknown results require relisting; they never authorize a duplicate.
+
+`Stop`, `turn off`, `remove`, and `cancel the weekly reminder` permanently remove every duplicate exact-name task after reconciliation. `Pause` retains one paused task. The chat must confirm either result only after the owning host confirms it.
+
+The native prompt starts a Fullwell-capable conversation and waits. It includes no household identity, recipe, constraint, URL, query, credential, or transcript and grants no search or write authority. Every Codex task prompt explicitly invokes `$plan-household-meals`, including a task attached to the current chat; Claude explicitly routes the task to the same shared skill. Codex uses the current chat when supported; a local-only Claude household uses a local Desktop task with directory access; remote Claude tasks are limited to authenticated cloud capability. Fullwell stores no scheduler state and adds no MCP scheduler, cron, launchd job, calendar event, worker, email, WhatsApp, or push fallback. Missed runs create no backlog storm, and local wall-clock time remains stable through daylight-saving transitions.
+
+Before uninstalling or rolling back the scheduling guidance, pause or remove the exact task through the owning Codex task list, Claude Desktop task list, or Claude remote-task list. If that host cannot confirm the result, report the remaining host-owned task and the exact cleanup still required; never claim removal from Fullwell state. Fullwell cannot guarantee a run while the selected host, device, app, project context, or authorized local/cloud data is unavailable.
+
 ## 6. Package architecture
 
 Use this target layout unless current platform validation requires a narrowly documented adjustment:
@@ -312,7 +349,9 @@ packages/agent-client/
 |-- codex-mcp.json
 |-- runtime/
 |   |-- local-household.mjs
-|   `-- local-household-mcp.mjs
+|   |-- local-household-mcp.mjs
+|   |-- local-profile.mjs
+|   `-- local-runner-control.mjs
 |-- skills/
 |   |-- manage-household-food-journal/
 |   |   `-- SKILL.md
@@ -374,12 +413,18 @@ The client is coded against these stable tool names. Complete schemas and author
 
 | Tool | Client use |
 |---|---|
+| `fullwell_local_profile_load` | Read the remembered private member name and deterministic first-household name. |
+| `fullwell_local_profile_update` | Create or revision-check the private local member name. |
 | `fullwell_local_household_load` | Read the bounded guest household without cloud access. |
-| `fullwell_local_household_update` | Initialize, revision-check and save, finalize, or record confirmed cloud linkage without destructive deletion. |
+| `fullwell_local_household_update` | Initialize or rename the household, revision-check and save, finalize, or record confirmed cloud linkage without destructive deletion. |
 | `fullwell_local_household_delete_collecting` | Delete only an unfinished guest household after explicit cancellation confirmation. |
+| `fullwell_local_recipe_board_create` | Create one bounded private static recipe-board snapshot without opening a browser or changing the journal. |
+| `fullwell_local_whatsapp_runner_stop` | Stop the local macOS WhatsApp runner while preserving connection and local data. |
 | `hfj_get_context` | Read authenticated user, households, pending intent, roles, current revisions, per-section onboarding state, both onboarding profiles, and a bounded item identity index. |
+| `hfj_update_user_display_name` | Update the authenticated user's cloud display name without household membership. |
 | `hfj_create_household` | Create a household and its Git repository. |
 | `hfj_select_household` | Set the session's active household. |
+| `hfj_update_household_name` | Rename an owner-managed household at the exact repository HEAD. |
 | `hfj_update_onboarding` | Start, skip, or resume the current user's snack or recipe section; never mark it complete. |
 | `hfj_create_family_invite` | Create a one-time household membership invitation. |
 | `hfj_accept_family_invite` | Explicitly join a household. |
@@ -389,6 +434,11 @@ The client is coded against these stable tool names. Complete schemas and author
 | `hfj_remove_member` | Remove a member or leave a household without violating final-owner protection. |
 | `hfj_get_profile` | Read source, browser, store, and audit preferences. |
 | `hfj_update_profile` | Commit user-confirmed profile changes. |
+| `hfj_get_meal_plan` | Read a bounded week, constraints, proposals, events, and effective recheck state. |
+| `hfj_update_meal_planning_constraints` | Record explicit household food-constraint state. |
+| `hfj_review_meal_constraints` | Append a review of the current constraint revision for one week. |
+| `hfj_add_meal_proposal` | Append one proposal without replacing another idea in its slot. |
+| `hfj_withdraw_meal_proposal` | Append an authorized attributed withdrawal without deleting history. |
 | `hfj_search_items` | Find recipes and snack, ingredient, condiment, or other-grocery items in the active household. |
 | `hfj_get_item` | Read a complete item, evidence references, and revision. |
 | `hfj_append_evidence` | Append immutable purchase, recipe discovery, cooking, or import evidence. |
@@ -447,7 +497,7 @@ Every operation ends in one of these user-visible states:
 
 ## 10. Public installation and handoff UX
 
-The server hosts a stable landing page such as `/install` and collection pages under `/c/<opaque-token>`.
+The server hosts a stable landing page such as `/install`, public advanced-agent guides under `/guides`, and collection pages under `/c/<opaque-token>`.
 
 The client repository must publish enough metadata for those pages to show current installation instructions. Do not hardcode old commands into collection snapshots.
 
@@ -460,7 +510,7 @@ The collection page must contain:
 - a checkbox on every importable item;
 - `Select all` scoped independently to recipes and snacks;
 - `Import selected` as the primary action;
-- `Use with Codex` and `Use with Claude` secondary actions;
+- `Use with ChatGPT` and `Use with Claude` secondary actions;
 - `Share` and `Copy link` actions;
 - expiration or revocation state;
 - a short privacy statement explaining that only the published snapshot is visible.
@@ -535,6 +585,17 @@ At minimum, test these end-to-end prompts in both Codex and Claude:
 27. One grocery-history pass produces separate snack, ingredient, condiment, and other-grocery items without revisiting orders.
 28. A single parsley purchase remains available as an ingredient with its observed source even below the recurrence threshold.
 29. Standard and Japanese-style mayonnaise remain separate, and `not the Japanese one` excludes only the latter historical formulation.
+30. A first meal-planning request cannot recommend, search, write, or render before an explicit constraint answer, confirmed time zone, and current weekly review.
+31. Known Liked recipes require current confirmation evidence and recipe revision; Liked alone never proves compatibility.
+32. Internet research and per-search constraint-term disclosure are separate decisions, with broad-search fallback after disclosure denial.
+33. Two members proposing different recipes to the same slot preserve both ideas and attributions through an exact retry or concurrent append.
+34. Changed constraints or recipe content retain the proposal but show `needs_recheck`; incomplete evidence never becomes a safety guarantee.
+35. Cloud withdrawal permits the proposer or owner, denies another editor, and never deletes proposal history; local withdrawal records the confirmed label.
+36. Visual-board decline creates no file; acceptance, retry, no-image, malicious input, open success, and open failure preserve the private static boundary and accurate status.
+37. Successful setup offers one Sunday-at-9 default native task only after exact schedule and time-zone confirmation.
+38. Native task duplicate discovery, exact retry, unknown result, custom cadence, pause, resume, delete, skip, deferral, DST, zone change, missed runs, already-planned weeks, and multiple members preserve one personal task and no duplicate writes.
+39. The fixed scheduled prompt contains no household identity or live content and waits before every search or mutation.
+40. Local-only scheduled work uses a host that can access the local directory without copying the journal into a remote task.
 
 Maintain eval fixtures for LLM-involved identity, classification, privacy, and conflict-resolution paths. Target 100% coverage for deterministic packaging and adapter code.
 

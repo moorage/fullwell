@@ -5,6 +5,13 @@ import {
   HouseholdIdSchema,
   ItemIdSchema,
   JournalItemSchema,
+  MEAL_PLAN_MAX_EVENTS_PER_WEEK,
+  MEAL_PLAN_MAX_PROPOSALS_PER_SLOT,
+  MEAL_PLAN_MAX_PROPOSALS_PER_WEEK,
+  MEAL_PLAN_MAX_REVIEW_EVENTS_PER_WEEK,
+  MEAL_PLAN_MAX_WITHDRAWAL_EVENTS_PER_WEEK,
+  MealPlanEventSchema,
+  MealProposalSchema,
   ONBOARDING_COMMIT_MAX_EVIDENCE,
   ONBOARDING_COMMIT_MAX_ITEMS,
   OnboardingStatusSchema,
@@ -33,16 +40,25 @@ const member: Principal = {
   scopes: owner.scopes,
   client: "test",
 };
+const outsider: Principal = {
+  userId: UserIdSchema.parse("usr_0000000000000203"),
+  actorId: ActorIdSchema.parse("act_0000000000000203"),
+  displayName: "Other Household",
+  scopes: owner.scopes,
+  client: "test",
+};
 const objectDataSchema = z.record(z.string(), z.json());
 
 describe("HouseholdFoodJournalService", () => {
   let store: MemoryOperationalStore;
   let repository: MemoryHouseholdRepository;
   let service: HouseholdFoodJournalService;
+  let cloudDisplayName: string;
 
   beforeEach(() => {
     store = new MemoryOperationalStore();
     repository = new MemoryHouseholdRepository();
+    cloudDisplayName = owner.displayName;
     service = new HouseholdFoodJournalService(
       store,
       repository,
@@ -51,6 +67,14 @@ describe("HouseholdFoodJournalService", () => {
       new HmacTokenHasher("journal-service-test-pepper"),
       new NoopTelemetry(),
       new URL("https://journal.example.test"),
+      undefined,
+      {
+        updateUserDisplayName: async (userId, displayName) => {
+          if (userId !== owner.userId) return null;
+          cloudDisplayName = displayName;
+          return { displayName };
+        },
+      },
     );
   });
 
@@ -65,6 +89,62 @@ describe("HouseholdFoodJournalService", () => {
         onboarding_snapshot: null,
       },
       repository_head: null,
+    });
+  });
+
+  it("updates the cloud member display name idempotently without requiring a household", async () => {
+    const input = { display_name: "Taylor", idempotency_key: "member-name-update-0201" };
+    const renamed = await service.call("hfj_update_user_display_name", input, owner);
+    expect(renamed).toMatchObject({
+      ok: true,
+      data: { status: "completed", display_name: "Taylor" },
+      repository_head: null,
+    });
+    expect(cloudDisplayName).toBe("Taylor");
+    expect(await service.call("hfj_update_user_display_name", input, owner)).toEqual(renamed);
+    expect(await service.call("hfj_update_user_display_name", {
+      display_name: "Morgan",
+      idempotency_key: input.idempotency_key,
+    }, owner)).toMatchObject({
+      ok: false,
+      error: { code: "REVISION_CONFLICT" },
+    });
+  });
+
+  it("renames a household through Git and restricts the change to owners", async () => {
+    const created = await call("hfj_create_household", {
+      name: "Taylor's Household",
+      idempotency_key: "household-create-name-0201",
+    });
+    const householdId = HouseholdIdSchema.parse(created.data.household_id);
+    const renamed = await call("hfj_update_household_name", {
+      household_id: householdId,
+      expected_head: created.head,
+      idempotency_key: "household-name-update-0201",
+      name: "Garden Table",
+    });
+    expect(renamed.data).toMatchObject({ status: "completed", name: "Garden Table" });
+    expect((await call("hfj_get_context", { household_id: householdId })).data.households).toEqual([
+      expect.objectContaining({ id: householdId, name: "Garden Table" }),
+    ]);
+    expect(await repository.read(householdId, "household.md")).toContain('name: "Garden Table"');
+
+    await store.upsertMembership({
+      householdId,
+      userId: member.userId,
+      actorId: member.actorId,
+      role: "editor",
+      projectionHead: GitObjectIdSchema.parse(renamed.head),
+      removedAt: null,
+    });
+    expect(await service.call("hfj_update_household_name", {
+      household_id: householdId,
+      expected_head: renamed.head,
+      idempotency_key: "household-name-update-0202",
+      name: "Bypassed Name",
+    }, member)).toMatchObject({
+      ok: false,
+      error: { code: "FORBIDDEN" },
     });
   });
 
@@ -151,6 +231,8 @@ describe("HouseholdFoodJournalService", () => {
     const discoveryId = "evd_0000000000000202";
     const cookingId = "evd_0000000000000203";
     const confirmationId = "evd_0000000000000204";
+    const snackId = ItemIdSchema.parse("itm_0000000000000201");
+    const recipeId = ItemIdSchema.parse("itm_0000000000000202");
     const evidence = await call("hfj_append_evidence", {
       household_id: householdId,
       expected_head: head,
@@ -175,13 +257,12 @@ describe("HouseholdFoodJournalService", () => {
           id: confirmationId, kind: "user_confirmation", observed_at: "2026-07-15T10:03:00.000Z", evidence_date: "2026-07-15", date_precision: "day",
           source_type: "conversation", source_label: "Owner", stable_locator: "confirmation-0201", summary: "Liked soup", actor_id: owner.actorId,
           limitations: [], schema_version: 1,
+          confirmation: { subject: "recipe_preference", recipe_item_id: recipeId, preference: "liked" },
         },
       ],
     });
     head = evidence.head;
 
-    const snackId = ItemIdSchema.parse("itm_0000000000000201");
-    const recipeId = ItemIdSchema.parse("itm_0000000000000202");
     const changeSet = await call("hfj_commit_change_set", {
       household_id: householdId,
       expected_head: head,
@@ -750,6 +831,363 @@ describe("HouseholdFoodJournalService", () => {
     expect(recovered.data).toMatchObject({ status: "completed", onboarding_state: "ready" });
     expect(recovered.head).toBe(durable?.commitId);
     expect(await store.listHouseholds()).toHaveLength(1);
+  });
+
+  it("preserves concurrent same-slot meal proposals and enforces withdrawal ownership", async () => {
+    const created = await call("hfj_create_household", {
+      name: "Planning Kitchen",
+      idempotency_key: "meal-household-0201",
+    });
+    const householdId = HouseholdIdSchema.parse(created.data.household_id);
+    const invitation = await call("hfj_create_family_invite", {
+      household_id: householdId,
+      expected_head: created.head,
+      idempotency_key: "meal-invite-0201",
+      role: "editor",
+      intended_email_hint: "planner@example.test",
+      expires_in_days: 7,
+    });
+    const invitationToken = new URL(z.string().parse(invitation.data.url)).pathname.split("/").at(-1);
+    if (invitationToken === undefined) throw new Error("Invitation token missing");
+    const accepted = await call("hfj_accept_family_invite", {
+      token: invitationToken,
+      accept: true,
+      idempotency_key: "meal-accept-0201",
+    }, member);
+    const constraints = await call("hfj_update_meal_planning_constraints", {
+      household_id: householdId,
+      expected_head: accepted.head,
+      idempotency_key: "meal-constraints-0201",
+      constraints: {
+        status: "confirmed_none",
+        time_zone: "America/Los_Angeles",
+        reviewed_at: "2026-07-20T16:00:00.000Z",
+      },
+    });
+    const constraintRevision = GitObjectIdSchema.parse(constraints.data.constraint_revision);
+    expect(await service.call("hfj_update_meal_planning_constraints", {
+      household_id: householdId,
+      expected_head: accepted.head,
+      idempotency_key: "meal-constraints-0201",
+      constraints: {
+        status: "recorded",
+        time_zone: "America/Los_Angeles",
+        allergy_labels: ["peanut"],
+        sensitivity_labels: [],
+        reviewed_at: "2026-07-20T16:00:00.000Z",
+      },
+    }, owner)).toMatchObject({ ok: false, error: { code: "REVISION_CONFLICT" } });
+    const reviewed = await call("hfj_review_meal_constraints", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      constraint_revision: constraintRevision,
+      idempotency_key: "meal-review-0201",
+    });
+    const reviewEventId = z.string().parse(reviewed.data.event_id);
+    const ownerInput = {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      meal_date: "2026-07-20",
+      slot: { kind: "lunch" as const },
+      source: { kind: "freeform" as const, title: "Egg salad sandwich" },
+      servings: 2,
+      notes: null,
+      constraint_revision: constraintRevision,
+      constraint_review_event_id: reviewEventId,
+      compatibility: "appears_compatible" as const,
+      compatibility_caveat: "No household constraints are currently recorded; verify ingredients before serving.",
+      idempotency_key: "meal-proposal-owner-0201",
+    };
+    const memberInput = {
+      ...ownerInput,
+      source: { kind: "freeform" as const, title: "Pizza" },
+      idempotency_key: "meal-proposal-member-0201",
+    };
+
+    const [ownerProposal, memberProposal] = await Promise.all([
+      call("hfj_add_meal_proposal", ownerInput),
+      call("hfj_add_meal_proposal", memberInput, member),
+    ]);
+    const ownerProposalId = z.string().parse(ownerProposal.data.proposal_id);
+    const memberProposalId = z.string().parse(memberProposal.data.proposal_id);
+    const weekSchema = z.object({
+      proposals: z.array(z.object({
+        proposal: z.object({ id: z.string(), source: z.object({ title: z.string() }).passthrough() }).passthrough(),
+        active: z.boolean(),
+        effective_compatibility: z.string(),
+      })),
+    }).passthrough();
+    const week = weekSchema.parse((await call("hfj_get_meal_plan", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+    })).data);
+    expect(week.proposals.map(({ proposal }) => proposal.source.title).sort()).toEqual(["Egg salad sandwich", "Pizza"]);
+    expect(repository.commitCount(householdId)).toBe(6);
+
+    expect(await call("hfj_add_meal_proposal", ownerInput)).toEqual(ownerProposal);
+    expect(repository.commitCount(householdId)).toBe(6);
+    expect(await service.call("hfj_add_meal_proposal", {
+      ...ownerInput,
+      source: { kind: "freeform", title: "Changed retry" },
+    }, owner)).toMatchObject({ ok: false, error: { code: "REVISION_CONFLICT" } });
+
+    expect(await service.call("hfj_withdraw_meal_proposal", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      proposal_id: ownerProposalId,
+      reason: null,
+      idempotency_key: "meal-withdraw-member-0201",
+    }, member)).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
+    const withdrawal = await call("hfj_withdraw_meal_proposal", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      proposal_id: memberProposalId,
+      reason: "Choosing the other lunch",
+      idempotency_key: "meal-withdraw-owner-0201",
+    });
+    const afterWithdrawal = weekSchema.parse((await call("hfj_get_meal_plan", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+    })).data);
+    expect(afterWithdrawal.proposals.find(({ proposal }) => proposal.id === memberProposalId)?.active).toBe(false);
+    expect(afterWithdrawal.proposals.find(({ proposal }) => proposal.id === ownerProposalId)?.active).toBe(true);
+
+    await call("hfj_update_meal_planning_constraints", {
+      household_id: householdId,
+      expected_head: withdrawal.head,
+      idempotency_key: "meal-constraints-0202",
+      constraints: {
+        status: "recorded",
+        time_zone: "America/Los_Angeles",
+        allergy_labels: ["peanut"],
+        sensitivity_labels: [],
+        reviewed_at: "2026-07-20T17:00:00.000Z",
+      },
+    });
+    const afterConstraintChange = weekSchema.parse((await call("hfj_get_meal_plan", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+    })).data);
+    expect(afterConstraintChange.proposals.every(({ effective_compatibility }) => effective_compatibility === "needs_recheck")).toBe(true);
+
+    expect(await service.call("hfj_get_meal_plan", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+    }, outsider)).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
+  });
+
+  it("bounds cloud meal proposals by slot and week and bounds weekly events", async () => {
+    const created = await call("hfj_create_household", {
+      name: "Bounded Planning",
+      idempotency_key: "bounded-meal-household-0201",
+    });
+    const householdId = HouseholdIdSchema.parse(created.data.household_id);
+    const constraints = await call("hfj_update_meal_planning_constraints", {
+      household_id: householdId,
+      expected_head: created.head,
+      idempotency_key: "bounded-meal-constraints-0201",
+      constraints: {
+        status: "confirmed_none",
+        time_zone: "America/Los_Angeles",
+        reviewed_at: "2026-07-20T16:00:00.000Z",
+      },
+    });
+    const constraintRevision = GitObjectIdSchema.parse(constraints.data.constraint_revision);
+    const review = await call("hfj_review_meal_constraints", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      constraint_revision: constraintRevision,
+      idempotency_key: "bounded-meal-review-0201",
+    });
+    const reviewEventId = z.string().parse(review.data.event_id);
+    const projection = await store.projection(householdId);
+    const proposalFor = (index: number, slot: { readonly kind: "lunch" } | { readonly kind: "custom"; readonly label: string }) =>
+      MealProposalSchema.parse({
+        id: `mlp_${index.toString(36).padStart(16, "0")}`,
+        week_start: "2026-07-20",
+        meal_date: "2026-07-20",
+        slot,
+        proposed_by: owner.actorId,
+        source: { kind: "freeform", title: `Meal ${index}` },
+        servings: null,
+        notes: null,
+        constraint_revision: constraintRevision,
+        constraint_review_event_id: reviewEventId,
+        compatibility: "incomplete_evidence",
+        compatibility_caveat: "Ingredients still need review.",
+        created_at: "2026-07-20T16:00:00.000Z",
+        schema_version: 1,
+      });
+    const addInput = {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      meal_date: "2026-07-20",
+      slot: { kind: "lunch" as const },
+      source: { kind: "freeform" as const, title: "One more meal" },
+      servings: null,
+      notes: null,
+      constraint_revision: constraintRevision,
+      constraint_review_event_id: reviewEventId,
+      compatibility: "incomplete_evidence" as const,
+      compatibility_caveat: "Ingredients still need review.",
+      idempotency_key: "bounded-meal-slot-overflow-0201",
+    };
+
+    for (let index = 0; index < MEAL_PLAN_MAX_PROPOSALS_PER_SLOT; index += 1) {
+      const proposal = proposalFor(index, { kind: "lunch" });
+      projection.mealProposals.set(proposal.id, { proposal, revision: constraintRevision });
+    }
+    expect(await service.call("hfj_add_meal_proposal", addInput, owner)).toMatchObject({
+      ok: false,
+      error: { code: "VALIDATION_FAILED", message: "This meal slot has reached its proposal limit" },
+    });
+
+    projection.mealProposals.clear();
+    for (let index = 0; index < MEAL_PLAN_MAX_PROPOSALS_PER_WEEK; index += 1) {
+      const proposal = proposalFor(index, { kind: "custom", label: `Slot ${index}` });
+      projection.mealProposals.set(proposal.id, { proposal, revision: constraintRevision });
+    }
+    expect(await service.call("hfj_add_meal_proposal", {
+      ...addInput,
+      idempotency_key: "bounded-meal-week-overflow-0201",
+    }, owner)).toMatchObject({
+      ok: false,
+      error: { code: "VALIDATION_FAILED", message: "This week has reached its meal-proposal limit" },
+    });
+
+    const extraProposal = proposalFor(MEAL_PLAN_MAX_PROPOSALS_PER_WEEK, { kind: "custom", label: "Overflow" });
+    projection.mealProposals.set(extraProposal.id, { proposal: extraProposal, revision: constraintRevision });
+    expect(await service.call("hfj_get_meal_plan", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      limit: 500,
+    }, owner)).toMatchObject({ ok: false, error: { code: "PROJECTION_DRIFT" } });
+    projection.mealProposals.delete(extraProposal.id);
+
+    for (let index = 1; index < MEAL_PLAN_MAX_REVIEW_EVENTS_PER_WEEK; index += 1) {
+      const event = MealPlanEventSchema.parse({
+        id: `mle_${index.toString(36).padStart(16, "0")}`,
+        kind: "constraints_reviewed",
+        week_start: "2026-07-20",
+        constraint_revision: constraintRevision,
+        actor: owner.actorId,
+        occurred_at: "2026-07-20T16:00:00.000Z",
+        schema_version: 1,
+      });
+      projection.mealPlanEvents.set(event.id, { event, revision: constraintRevision });
+    }
+    expect(await service.call("hfj_review_meal_constraints", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      constraint_revision: constraintRevision,
+      idempotency_key: "bounded-meal-event-overflow-0201",
+    }, owner)).toMatchObject({
+      ok: false,
+      error: { code: "VALIDATION_FAILED", message: "This week has reached its constraint-review limit" },
+    });
+
+    for (let index = 3; index < MEAL_PLAN_MAX_WITHDRAWAL_EVENTS_PER_WEEK; index += 1) {
+      const proposal = proposalFor(index, { kind: "custom", label: `Slot ${index}` });
+      const event = MealPlanEventSchema.parse({
+        id: `mle_w${index.toString(36).padStart(16, "0")}`,
+        kind: "proposal_withdrawn",
+        week_start: "2026-07-20",
+        proposal_id: proposal.id,
+        reason: null,
+        actor: owner.actorId,
+        occurred_at: "2026-07-20T16:00:00.000Z",
+        schema_version: 1,
+      });
+      projection.mealPlanEvents.set(event.id, { event, revision: constraintRevision });
+    }
+    const withdrawalInputs = [0, 1, 2].map((index) => ({
+      household_id: householdId,
+      week_start: "2026-07-20",
+      proposal_id: proposalFor(index, { kind: "custom", label: `Slot ${index}` }).id,
+      reason: null,
+      idempotency_key: `bounded-meal-withdraw-${index.toString().padStart(4, "0")}`,
+    }));
+    const withdrawals = await Promise.all(withdrawalInputs.map(async (input) =>
+      await service.call("hfj_withdraw_meal_proposal", input, owner)));
+    expect(withdrawals.every(({ ok }) => ok)).toBe(true);
+    expect(await service.call("hfj_withdraw_meal_proposal", withdrawalInputs[0], owner)).toEqual(withdrawals[0]);
+
+    const completeWeek = await service.call("hfj_get_meal_plan", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+    }, owner);
+    expect(completeWeek).toMatchObject({
+      ok: true,
+      data: {
+        events_truncated: false,
+        events: expect.arrayContaining([
+          expect.objectContaining({ id: reviewEventId, kind: "constraints_reviewed" }),
+          expect.objectContaining({ proposal_id: withdrawalInputs[0]?.proposal_id, kind: "proposal_withdrawn" }),
+        ]),
+      },
+    });
+    if (!completeWeek.ok) throw new Error("The bounded meal week should be readable");
+    expect(z.object({ events: z.array(MealPlanEventSchema) }).parse(completeWeek.data).events).toHaveLength(MEAL_PLAN_MAX_EVENTS_PER_WEEK);
+  });
+
+  it("reconstructs a committed meal proposal after projection failure without duplicating Git", async () => {
+    const created = await call("hfj_create_household", {
+      name: "Recovery Planning",
+      idempotency_key: "meal-recovery-household-0201",
+    });
+    const householdId = HouseholdIdSchema.parse(created.data.household_id);
+    const constraints = await call("hfj_update_meal_planning_constraints", {
+      household_id: householdId,
+      expected_head: created.head,
+      idempotency_key: "meal-recovery-constraints-0201",
+      constraints: {
+        status: "confirmed_none",
+        time_zone: "America/Los_Angeles",
+        reviewed_at: "2026-07-20T16:00:00.000Z",
+      },
+    });
+    const constraintRevision = GitObjectIdSchema.parse(constraints.data.constraint_revision);
+    const review = await call("hfj_review_meal_constraints", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      constraint_revision: constraintRevision,
+      idempotency_key: "meal-recovery-review-0201",
+    });
+    const input = {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      meal_date: "2026-07-21",
+      slot: { kind: "dinner" as const },
+      source: { kind: "freeform" as const, title: "Tacos" },
+      servings: 3,
+      notes: null,
+      constraint_revision: constraintRevision,
+      constraint_review_event_id: z.string().parse(review.data.event_id),
+      compatibility: "incomplete_evidence" as const,
+      compatibility_caveat: "Ingredients still need review.",
+      idempotency_key: "meal-recovery-proposal-0201",
+    };
+    const loadProjection = store.projection.bind(store);
+    let projectionCalls = 0;
+    store.projection = async (id) => {
+      projectionCalls += 1;
+      if (projectionCalls === 2) throw new Error("simulated meal projection outage");
+      return await loadProjection(id);
+    };
+
+    expect(await service.call("hfj_add_meal_proposal", input, owner)).toMatchObject({
+      ok: false,
+      error: { code: "RECONCILIATION_REQUIRED" },
+    });
+    const commitsAfterFailure = repository.commitCount(householdId);
+    const recovered = await call("hfj_add_meal_proposal", input);
+
+    expect(recovered.data).toMatchObject({ status: "completed" });
+    expect(repository.commitCount(householdId)).toBe(commitsAfterFailure);
+    expect((await call("hfj_get_meal_plan", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+    })).data).toMatchObject({ proposals: [expect.objectContaining({ active: true })] });
   });
 });
 

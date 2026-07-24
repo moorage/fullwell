@@ -117,6 +117,25 @@ describe("ReconciliationWorker", () => {
     expect(await new ReconciliationWorker(store, repository, new NoopTelemetry()).run()).toEqual({ checked: 1, rebuilt: 0, quarantined: 0 });
   });
 
+  it("repairs a projected household name from the authoritative Git document", async () => {
+    const store = new MemoryOperationalStore();
+    const repository = new MemoryHouseholdRepository();
+    const created = await createService(store, repository).call("hfj_create_household", {
+      name: "Authoritative Name",
+      idempotency_key: "household-name-rebuild-0801",
+    }, principal);
+    if (!created.ok) throw new Error(created.error.code);
+    const householdId = HouseholdIdSchema.parse(z.object({ household_id: z.string() }).parse(created.data).household_id);
+    await store.updateHouseholdName(householdId, "Stale Projection");
+
+    expect(await new ReconciliationWorker(store, repository, new NoopTelemetry()).run()).toEqual({
+      checked: 1,
+      rebuilt: 1,
+      quarantined: 0,
+    });
+    expect((await store.getHousehold(householdId))?.name).toBe("Authoritative Name");
+  });
+
   it("marks an abandoned pre-commit request as failed", async () => {
     const store = new MemoryOperationalStore();
     const repository = new MemoryHouseholdRepository();
@@ -160,6 +179,68 @@ describe("ReconciliationWorker", () => {
 
     expect(await new ReconciliationWorker(store, repository, new NoopTelemetry()).run()).toEqual({ checked: 1, rebuilt: 1, quarantined: 0 });
     expect((await store.projection(householdId)).profiles.get("household")?.markdown).toBe("# Authoritative");
+  });
+
+  it("rebuilds the complete meal-plan projection from Git", async () => {
+    const store = new MemoryOperationalStore();
+    const repository = new MemoryHouseholdRepository();
+    const service = createService(store, repository);
+    const created = await service.call("hfj_create_household", {
+      name: "Meal rebuild",
+      idempotency_key: "meal-rebuild-create-0801",
+    }, principal);
+    if (!created.ok) throw new Error(created.error.code);
+    const householdId = HouseholdIdSchema.parse(z.object({ household_id: z.string() }).parse(created.data).household_id);
+    const constraints = await service.call("hfj_update_meal_planning_constraints", {
+      household_id: householdId,
+      expected_head: created.repository_head,
+      idempotency_key: "meal-rebuild-constraints-0801",
+      constraints: {
+        status: "confirmed_none",
+        time_zone: "America/Los_Angeles",
+        reviewed_at: "2026-07-20T16:00:00.000Z",
+      },
+    }, principal);
+    if (!constraints.ok) throw new Error(constraints.error.code);
+    const constraintRevision = GitObjectIdSchema.parse(constraints.repository_head);
+    const review = await service.call("hfj_review_meal_constraints", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      constraint_revision: constraintRevision,
+      idempotency_key: "meal-rebuild-review-0801",
+    }, principal);
+    if (!review.ok) throw new Error(review.error.code);
+    const reviewEventId = z.object({ event_id: z.string() }).parse(review.data).event_id;
+    const proposal = await service.call("hfj_add_meal_proposal", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      meal_date: "2026-07-20",
+      slot: { kind: "dinner" },
+      source: { kind: "freeform", title: "Soup" },
+      servings: 4,
+      notes: null,
+      constraint_revision: constraintRevision,
+      constraint_review_event_id: reviewEventId,
+      compatibility: "incomplete_evidence",
+      compatibility_caveat: "Ingredients need review.",
+      idempotency_key: "meal-rebuild-proposal-0801",
+    }, principal);
+    if (!proposal.ok) throw new Error(proposal.error.code);
+    const proposalId = z.object({ proposal_id: z.string() }).parse(proposal.data).proposal_id;
+    const projection = await store.projection(householdId);
+    projection.mealPlanningProfile = null;
+    projection.mealProposals.clear();
+    projection.mealPlanEvents.clear();
+
+    expect(await new ReconciliationWorker(store, repository, new NoopTelemetry()).run()).toEqual({
+      checked: 1,
+      rebuilt: 1,
+      quarantined: 0,
+    });
+    const rebuilt = await store.projection(householdId);
+    expect(rebuilt.mealPlanningProfile?.revision).toBe(constraintRevision);
+    expect(rebuilt.mealProposals.get(proposalId)?.proposal.source).toMatchObject({ title: "Soup" });
+    expect(rebuilt.mealPlanEvents.get(reviewEventId)?.event.kind).toBe("constraints_reviewed");
   });
 
   it("quarantines a database membership that has no Git authority", async () => {

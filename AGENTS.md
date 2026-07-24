@@ -52,6 +52,7 @@ Before non-trivial work, read in this order:
 - repeated correction or failed verification -> run `npm run self-improve:distill` and promote only lessons that repeated or caused a real failure
 - After code changes:
   - run the narrowest relevant tests first
+  - after changing `packages/contracts`, build that workspace before dependent server or web typechecks/tests; those consumers resolve compiled workspace output, so do not run the contract build concurrently with dependent verification
   - if the change is a major feature implementation or changes an end-to-end setup, invitation, journal, collection, import, export, or account workflow, run `npm run test:e2e`
   - then run `npm run verify`
   - then run `npm run verify:docs`

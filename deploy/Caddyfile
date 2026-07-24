@@ -3,6 +3,10 @@
 	admin off
 }
 
+fullwell.ai, www.fullwell.ai {
+	redir https://{$PUBLIC_DOMAIN}{uri} permanent
+}
+
 {$PUBLIC_DOMAIN} {
 	encode zstd gzip
 	header {

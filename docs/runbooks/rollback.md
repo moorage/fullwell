@@ -22,6 +22,10 @@ For the WhatsApp gateway, disable local live-cart authority first, then service 
 
 For conversational onboarding, remove the new client package/install handoff before rolling back the server so no host calls an unavailable tool. The previous server remains compatible with schema `0007` because it ignores `onboarding_preferences`. Drop that table with `0007_conversational_onboarding.down.sql` only after stopping writers, recording a protected database recovery point, and accepting loss of per-user skip/resume preferences; canonical snack and recipe reports remain in Git and are not changed by the down migration.
 
+## Brand-alias rollback
+
+The `fullwell.ai` aliases do not require an application or database rollback. Restore the prior `/opt/household-food-journal/deploy/Caddyfile`, validate it with the running Caddy image, and recreate only the gateway container. If the alias must be withdrawn, restore the previously recorded Namecheap records or remove the alias `A` records after lowering DNS TTL and preserving a screenshot or export of both states. Leave `PUBLIC_DOMAIN`, Apple, passkey, OAuth, MCP, and session configuration unchanged. Re-run the canonical deployment smoke after either rollback.
+
 ## Invariants
 
 - Never reset, force-push, or delete household `main` refs.

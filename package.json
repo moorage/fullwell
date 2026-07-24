@@ -44,7 +44,7 @@
     "test:knowledge": "python3 scripts/knowledge/suggest_doc_updates.test.py",
     "test:infrastructure": "node --test infra/opentofu/staging-baseline.test.mjs",
     "test:apple-container": "node scripts/local/apple-container.test.mjs",
-    "test:unit": "npm run test:git-hooks && node scripts/ci/apply-migrations.test.mjs && node --test scripts/ci/messaging-smoke.test.mjs && node --test deploy/scripts/materialize-credentials.test.mjs && npm run test:infrastructure && npm run test:apple-container && npm run test:self-improvement && npm run test:knowledge",
+    "test:unit": "npm run test:git-hooks && node scripts/ci/apply-migrations.test.mjs && node --test scripts/ci/messaging-smoke.test.mjs && node --test deploy/scripts/materialize-credentials.test.mjs deploy/caddy.test.mjs && npm run test:infrastructure && npm run test:apple-container && npm run test:self-improvement && npm run test:knowledge",
     "container:system:start": "node scripts/local/apple-container.mjs system:start",
     "container:postgres:start": "node scripts/local/apple-container.mjs postgres:start",
     "container:postgres:stop": "node scripts/local/apple-container.mjs postgres:stop",

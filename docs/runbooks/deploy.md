@@ -4,7 +4,7 @@
 
 - A reviewed image exists by immutable digest and passed build, test, security, restore, and browser gates.
 - The direct and pooled Neon URLs address the intended staging or production project and branch.
-- DNS, Apple Services ID, passkey RP ID, OAuth issuer/resource, email sender, and object-storage origin exactly match the public domain.
+- DNS, Apple Services ID, passkey RP ID, OAuth issuer/resource, email sender, and object-storage origin exactly match the canonical public domain. Any brand aliases point to the same gateway only for HTTPS termination and permanent redirect; they are not additional application origins.
 - A dedicated Neon OpenTofu database and least-privilege role are reachable through a direct TLS endpoint. `PG_CONN_STR`, `PG_SCHEMA_NAME`, and `DIGITALOCEAN_TOKEN` are supplied only to the operator process.
 - The release has a rollback digest. Database migration up/down/up was rehearsed on an isolated Neon branch.
 - The off-site Backblaze B2 bucket is private, compliance-object-locked, encrypted before upload, and controlled through credentials held separately from DigitalOcean.
@@ -37,6 +37,8 @@ Use `systemd-creds encrypt --name=<credential-name> - /etc/credstore.encrypted/<
 
 Put only `PUBLIC_DOMAIN`, the immutable `HFJ_IMAGE` digest, and the non-secret object endpoint/region/bucket/prefix/key ID/retention settings in `/etc/hfj/deploy.env`, root-owned mode `0440`. No credential belongs in that file, the image, OpenTofu state, `/opt`, or `/data/households`.
 
+For `fullwell.ai`, keep `PUBLIC_DOMAIN=fullwell.souschefstudio.com`. Configure Namecheap `A` records for `@` and `www` to the Droplet's current reserved public IPv4 address, with no conflicting URL redirect, CNAME, or AAAA records. The checked-in Caddyfile obtains certificates for both aliases and returns `308` to `https://fullwell.souschefstudio.com{uri}`. Confirm the canonical host before changing DNS, deploy and validate the Caddyfile, then verify apex and `www` over both HTTP and HTTPS with a non-root path and query string.
+
 ## Release
 
 1. Run `deploy/scripts/verify-volume.sh` and `docker compose config --quiet` from `deploy/` under the service credential context.
@@ -46,6 +48,7 @@ Put only `PUBLIC_DOMAIN`, the immutable `HFJ_IMAGE` digest, and the non-secret o
 5. Verify `/health/live` and `/health/ready`, then call `/health/operator` and `/metrics` with `Authorization: Bearer <operator-token>`. Public readiness must show schema `0007`, pooled Neon, expected mount identity/writability, Git/signing, and single-writer leadership without counts or paths. Operator health must show reconciliation age/count, quarantine count, backup gaps/age, fsck/signature failures, restore-drill freshness, messaging queue age/depth, runner-online state, and capacity; OpenMetrics must expose the matching gauges. A normal OAuth token must receive `401` with `Bearer realm="operator"`.
 6. Run non-destructive install, OAuth metadata, MCP health, public-policy, canary repository, container-restart persistence, and log-redaction smoke tests.
 7. Confirm the canary commit exists after container restart and that no token, email, title, food name, order ID, source URL, or body appears in logs.
+8. When brand aliases are configured, verify each hostname returns a permanent redirect to the canonical host with the original path and query, then rerun the canonical deployment smoke. Do not claim alias readiness until DNS resolves to the gateway and its TLS certificate validates publicly.
 
 After WhatsApp credentials are installed but before linking a real sender, run `npm run test:messaging-smoke` with `STAGING_BASE_URL` and the four `MESSAGING_SMOKE_*_FILE` paths. The smoke validates the challenge, rejection, and signed empty-envelope boundaries only. It does not enqueue a message or call Meta's send API.
 

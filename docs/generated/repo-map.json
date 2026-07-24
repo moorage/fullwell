@@ -1012,6 +1012,10 @@
         },
         {
           "type": "file",
+          "name": "caddy.test.mjs"
+        },
+        {
+          "type": "file",
           "name": "compose.yaml"
         },
         {

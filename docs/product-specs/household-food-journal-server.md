@@ -1155,6 +1155,7 @@ No new LLM-involved server behavior may ship without evals. The server should no
 Deploy one containerized application process on one DigitalOcean Droplet initially, with:
 
 - a public HTTPS domain;
+- optional HTTPS brand aliases that terminate at the gateway and permanently preserve path and query while redirecting to the sole application origin;
 - DigitalOcean Block Storage mounted at `/data/households` for repositories and temporary worktrees;
 - Neon PostgreSQL, using pooled runtime connections and direct migration/administrative connections;
 - secret-manager injection for Apple credentials, OAuth signing/encryption keys, HMAC peppers, email provider credentials, and Git signing key;
@@ -1163,6 +1164,8 @@ Deploy one containerized application process on one DigitalOcean Droplet initial
 - encrypted off-site backup in a separate failure domain.
 
 Do not deploy the authoritative repository store on DigitalOcean App Platform or any ephemeral container filesystem. Do not place live `.git` directories on the Droplet root filesystem, in Dropbox, iCloud Drive, Google Drive, or another desktop sync folder.
+
+An alias domain must not become a second application origin. Browser sessions, passkey RP ID, Apple callbacks, OAuth issuer and resource metadata, MCP configuration, and absolute application links remain bound to the configured canonical public domain.
 
 Database releases must run through an explicit one-shot migration command, never application startup. The command must bind to an operator-supplied exact direct host, reject pooled or non-TLS endpoints, require an additional production confirmation, serialize with a database advisory lock, record a content hash for every applied migration, and reject changes to applied migration files.
 

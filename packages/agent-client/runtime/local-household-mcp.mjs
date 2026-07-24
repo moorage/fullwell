@@ -154,6 +154,7 @@ const updateOperationSchema = (operation, properties = {}) => ({
   additionalProperties: false,
 });
 const householdUpdateSchema = {
+  type: "object",
   oneOf: [
     {
       type: "object",

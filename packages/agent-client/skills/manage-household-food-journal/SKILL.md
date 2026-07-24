@@ -14,7 +14,7 @@ Use the plugin-provided `fullwell-local` tools for guest data and the bundled [l
 
 ## Remember the member before choosing authority
 
-Treat every greeting addressed to Fullwell, including a bare `@Fullwell hi`, as a request to start or resume this flow. Never call a Fullwell MCP tool merely to discover whether the person has an account.
+Treat every greeting addressed to Fullwell, including a bare `@Fullwell hi` or `Hi Fullwell.`, as a request to start or resume this flow. Never call a Fullwell MCP tool merely to discover whether the person has an account.
 
 1. Call `fullwell_local_profile_load` with no arguments before loading a household or contacting the cloud.
 2. If the profile is `missing` and the user has not already supplied a preferred name, ask exactly: "What should I call you?" Stop there. The account question, household setup, audits, and hosted calls all wait for this answer.

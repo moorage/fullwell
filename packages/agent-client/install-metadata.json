@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "release": "1.1.12",
+  "release": "1.1.13",
   "mcp_url": "https://fullwell.souschefstudio.com/mcp",
   "install_page": "https://fullwell.souschefstudio.com/install",
   "platforms": {
@@ -22,7 +22,7 @@
       "marketplace": "fullwell",
       "plugin": "fullwell",
       "primary_action": "After installation, start Fullwell with the prompt below.",
-      "setup_prompt": "Set up Fullwell.",
+      "setup_prompt": "Hi Fullwell.",
       "setup_href": null,
       "fallback_commands": [
         "claude plugin marketplace add moorage/fullwell",

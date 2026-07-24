@@ -26,7 +26,7 @@ describe("web experience", () => {
     expect(screen.getByText(/claude plugin install fullwell@fullwell/)).toBeVisible();
     expect(screen.queryByText(/codex plugin add fullwell@fullwell/)).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Start Fullwell setup" })).not.toBeInTheDocument();
-    expect(screen.getByText("Set up Fullwell.")).toBeVisible();
+    expect(screen.getByText("Hi Fullwell.")).toBeVisible();
   });
 
   it("reports install-command copy success and failure", async () => {

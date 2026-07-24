@@ -43,6 +43,12 @@ test("each eval has a unique identity and targets both host matrices", async () 
   assert.ok(bareGreeting?.invariants.includes("no_generic_greeting_while_open"));
   assert.ok(bareGreeting?.invariants.includes("ask_preferred_name_first"));
   assert.ok(bareGreeting?.invariants.includes("no_household_or_fullwell_call_before_name"));
+  const claudeGreeting = matrix.cases.find((testCase) => testCase.id === "claude-natural-greeting-asks-account");
+  assert.equal(claudeGreeting?.prompt, "Hi Fullwell.");
+  assert.deepEqual(claudeGreeting?.skills, ["manage-household-food-journal"]);
+  assert.deepEqual(claudeGreeting?.required_tools, ["fullwell_local_profile_load"]);
+  assert.ok(claudeGreeting?.invariants.includes("ask_preferred_name_first"));
+  assert.ok(managingSkill.includes("`Hi Fullwell.`"));
   const noAccount = matrix.cases.find((testCase) => testCase.id === "first-time-no-account-starts-local-groceries");
   assert.deepEqual(noAccount?.required_tools, [
     "fullwell_local_profile_load",
@@ -271,7 +277,11 @@ test("each eval has a unique identity and targets both host matrices", async () 
     assert.ok(evalCase.invariants.includes(invariant), `${id} must require ${invariant}`);
   }
   for (const testCase of matrix.cases) {
-    assert.ok(testCase.prompt.length >= 20 || testCase.id === "bare-fullwell-greeting-asks-account");
+    assert.ok(
+      testCase.prompt.length >= 20
+        || testCase.id === "bare-fullwell-greeting-asks-account"
+        || testCase.id === "claude-natural-greeting-asks-account",
+    );
     assert.ok(testCase.invariants.length >= 1);
   }
 });

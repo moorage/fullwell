@@ -148,6 +148,7 @@ test("Claude Code installs, disables, enables, updates, and uninstalls the share
     assert.equal(installedPlugins((await runClaude(["plugin", "list", "--json"])).stdout)[0]?.enabled, true);
     const mcpServers = (await runClaude(["mcp", "list"])).stdout;
     assert.match(mcpServers, /plugin:fullwell:fullwell-local:.*Connected/);
+    assert.doesNotMatch(mcpServers, /tools fetch failed/);
     assert.match(mcpServers, /household-food-journal/);
     await runClaude(["plugin", "disable", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"]);
     assert.equal(installedPlugins((await runClaude(["plugin", "list", "--json"])).stdout)[0]?.enabled, false);

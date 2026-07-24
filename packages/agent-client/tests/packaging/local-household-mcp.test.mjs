@@ -62,6 +62,7 @@ test("the local MCP server exposes stable, truthful tool identities", async () =
   assert.equal(listed.result.tools[5].annotations.idempotentHint, true);
   assert.equal(listed.result.tools[6].annotations.destructiveHint, true);
   assert.ok(listed.result.tools.every((tool) => tool.annotations.openWorldHint === false));
+  assert.ok(listed.result.tools.every((tool) => tool.inputSchema.type === "object"));
   const updateVariants = listed.result.tools[3].inputSchema.oneOf;
   assert.equal(updateVariants.length, 9);
   const profileVariant = updateVariants.find((schema) =>

@@ -64,6 +64,7 @@ const requiredEvalIds = [
   "first-time-setup-asks-account-before-oauth",
   "first-time-no-account-starts-local-groceries",
   "bare-fullwell-greeting-asks-account",
+  "claude-natural-greeting-asks-account",
   "snack-decline-advances-to-recipes",
   "recipe-no-sources-finishes-guided-run",
   "confirmed-onboarding-commits-once",
@@ -270,7 +271,7 @@ export const validatePackage = async () => {
   const setupUrl = new URL(install.platforms.codex.setup_href);
   assert(setupUrl.protocol === "codex:" && setupUrl.host === "new", "Codex setup link must open a new conversation");
   assert(setupUrl.searchParams.get("prompt") === "[@Fullwell](plugin://fullwell@fullwell) hi", "Codex setup link must prefill the installed plugin mention");
-  assert(install.platforms.claude.setup_prompt === "Set up Fullwell." && install.platforms.claude.setup_href === null, "Claude must provide a natural-language setup prompt without a Codex link");
+  assert(install.platforms.claude.setup_prompt === "Hi Fullwell." && install.platforms.claude.setup_href === null, "Claude must provide a conversational greeting without a Codex link");
 
   const hostMarkets = [
     { host: "Codex", market: codexMarket, manifest: codex, install: install.platforms.codex, marketplace: "fullwell" },

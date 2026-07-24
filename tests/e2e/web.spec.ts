@@ -15,7 +15,7 @@ test("serves a responsive, keyboard-usable install experience", async ({ page },
     await page.screenshot({ path: testInfo.outputPath("install-codex.png"), fullPage: true });
     await page.getByRole("button", { name: "Use with Claude" }).click();
     await expect(page.getByRole("heading", { name: "Install for Claude" })).toBeVisible();
-    await expect(page.getByText("Set up Fullwell.")).toBeVisible();
+    await expect(page.getByText("Hi Fullwell.")).toBeVisible();
   } else {
     await expect(page.getByRole("link", { name: "Use with Claude" })).toBeVisible();
   }

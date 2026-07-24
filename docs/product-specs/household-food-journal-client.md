@@ -45,7 +45,7 @@ These decisions are normative for version 1.
 A first-time user who already has Codex or Claude installed must be able to:
 
 1. install the client with one platform-specific action;
-2. choose the `Set up Fullwell` starter or say `@Fullwell hi` in Codex, or say `Set up Fullwell` in Claude;
+2. choose the `Set up Fullwell` starter or say `@Fullwell hi` in Codex, or say `Hi Fullwell` in Claude;
 3. say whether they already have a Fullwell account;
 4. continue locally without authentication, or complete browser authentication when they choose an existing account;
 5. perform a useful grocery or recipe action without editing configuration files or handling tokens;
@@ -501,7 +501,7 @@ The server hosts a stable landing page such as `/install`, public advanced-agent
 
 The client repository must publish enough metadata for those pages to show current installation instructions. Do not hardcode old commands into collection snapshots.
 
-After the install action, show one setup prompt. Codex and Claude installation add the `moorage/fullwell` marketplace and then install `fullwell@fullwell`. Codex uses the stable `Fullwell` display name and may expose a `codex://new` action that prefills the installed plugin mention plus `hi`; it must tell the user that the prompt is not sent until they review it and press Send. The manual Codex fallback is `@Fullwell hi`. Claude shows `Set up Fullwell.` without a Codex deep link. Starter prompts in the Codex manifest use natural language without embedded mention syntax.
+After the install action, show one setup prompt. Codex and Claude installation add the `moorage/fullwell` marketplace and then install `fullwell@fullwell`. Codex uses the stable `Fullwell` display name and may expose a `codex://new` action that prefills the installed plugin mention plus `hi`; it must tell the user that the prompt is not sent until they review it and press Send. The manual Codex fallback is `@Fullwell hi`. Claude shows the conversational greeting `Hi Fullwell.` without a Codex deep link. Starter prompts in the Codex manifest use natural language without embedded mention syntax.
 
 The collection page must contain:
 

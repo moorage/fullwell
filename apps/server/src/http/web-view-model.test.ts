@@ -167,7 +167,11 @@ describe("WebViewModelService", () => {
       setupPrompt: "@Fullwell hi",
       setupHref: "codex://new?prompt=%5B%40Fullwell%5D(plugin%3A%2F%2Ffullwell%40fullwell)%20hi",
     });
-    expect(anonymous.install.hosts.claude.command).toContain("claude plugin install fullwell@fullwell");
+    expect(anonymous.install.hosts.claude).toMatchObject({
+      command: expect.stringContaining("claude plugin install fullwell@fullwell"),
+      setupPrompt: "Hi Fullwell.",
+      setupHref: null,
+    });
 
     const authenticated = await context(`/households/${householdId}/members`, true, "c".repeat(32));
     expect(authenticated.viewer.displayName).toBe("Test Owner");

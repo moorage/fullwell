@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.13 - 2026-07-24
+
+- Add the required top-level object type to the local household-update tool schema so Claude can fetch every Fullwell local tool after connecting.
+- Replace Claude's system-like setup instruction with the conversational `Hi Fullwell.` greeting and route that exact greeting through name-first onboarding.
+
 ## 1.1.12 - 2026-07-24
 
 - Ask and remember the member name before account routing; derive the first local or cloud household name, synchronize the cloud display name on connection, support local/cloud renames and chat-driven runner/reminder shutdown, and suggest eligible invitations or collections with concrete examples.

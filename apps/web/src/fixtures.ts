@@ -228,7 +228,7 @@ export const demoWebContext: WebRenderContext = {
         label: "Claude",
         command: "claude plugin marketplace add moorage/fullwell && claude plugin install fullwell@fullwell",
         next: "After installation, start Fullwell with the prompt below.",
-        setupPrompt: "Set up Fullwell.",
+        setupPrompt: "Hi Fullwell.",
         setupHref: null,
       },
     },

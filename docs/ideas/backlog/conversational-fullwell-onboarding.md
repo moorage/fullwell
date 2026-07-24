@@ -49,7 +49,7 @@ This is a `now` item because a populated journal is a prerequisite for useful re
 ## Open questions
 
 - Staging must confirm the exact rendered Codex plugin mention in a prefilled deep link after the new public package version is installed.
-- Claude does not share Codex deep links, so its public install flow should continue to use the same natural-language `Set up Fullwell` prompt.
+- Claude does not share Codex deep links, so its public install flow uses the natural-language `Hi Fullwell.` greeting.
 
 ## Promotion trigger
 

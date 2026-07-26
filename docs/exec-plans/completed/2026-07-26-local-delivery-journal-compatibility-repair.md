@@ -13,7 +13,7 @@ This change adds one bounded local compatibility repair to the existing non-dest
 - [x] 2026-07-26T18:18Z: Milestone 1 - added the deterministic, atomic, idempotent local compatibility repair and MCP contract; 35 focused runtime/MCP tests pass.
 - [x] 2026-07-26T18:18Z: Milestone 2 - made the Fullwell agent repair, reload, and resume automatically with novice-friendly fallback language; the 14-case eval matrix and package build pass.
 - [x] 2026-07-26T18:18Z: Proved the complete transform on a private copy of revision 460 without emitting private content: revision 461 validates with all 511 delivery order lines preserved, 138 normalized dishes, and 24 exact restaurant/location report rows.
-- [ ] Milestone 3 - verify, release, reinstall, and exercise the repair through the installed package.
+- [x] 2026-07-26T18:55Z: Milestone 3 - full verification passed; commit `8100ae1` was pushed; immutable 1.1.16 was published and checksum-verified; Codex reinstalled and enabled 1.1.16; the installed repair updated the live local history to revision 461 and the repeat call returned `already_compatible`.
 
 ## Surprises & Discoveries
 
@@ -202,4 +202,8 @@ Recovery and rollback:
 
 ## Outcomes & Retrospective
 
-Pending implementation and installed-host verification.
+Fullwell now owns this recovery from detection through continuation. A read remains non-mutating, but a recognized old delivery journal produces one dedicated signal that the agent handles automatically through the stable update tool. The transform is locked, atomic, deterministic, fully validated before replacement, idempotent, and local-only. It covers the actual older ID, mixed restaurant-name, report-summary, report-type, and obsolete browser-label shapes while preserving exact meal-plan replay.
+
+The private-copy and installed live proofs both preserved all 511 delivery order lines. The live repair advanced revision 460 to 461, replaced five legacy IDs, partitioned one evidence-backed mixed-name item, normalized one report type and one stale report summary, removed two obsolete browser labels, and produced 138 exact dishes across 24 exact report rows. A second installed call made no write. No cloud read or write occurred, so the previous cloud backup remains intentionally stale until the user resumes the separately consented sync.
+
+Release commit `8100ae1` is on `origin/main`. Public npm version 1.1.16 is `latest` with SHA-1 `d719382f711e421499cfb2aa8a71774a0f971fe5` and SHA-512 `sha512-a8tAft/9aDWqze9LOKDfkE4dP474hUPuGd8/yXghc03QdVCQzbprkcKXnOyaRbXVNBFN97/UPm598vqBM95t6g==`. The current Codex installation reports Fullwell 1.1.16 enabled.

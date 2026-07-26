@@ -64,7 +64,11 @@ test("the local MCP server exposes stable, truthful tool identities", async () =
   assert.ok(listed.result.tools.every((tool) => tool.annotations.openWorldHint === false));
   assert.ok(listed.result.tools.every((tool) => tool.inputSchema.type === "object"));
   const updateVariants = listed.result.tools[3].inputSchema.oneOf;
-  assert.equal(updateVariants.length, 11);
+  assert.equal(updateVariants.length, 12);
+  const repairVariant = updateVariants.find((schema) =>
+    schema.properties.operation.const === "repair_compatibility");
+  assert.deepEqual(repairVariant.required, ["operation"]);
+  assert.equal(repairVariant.additionalProperties, false);
   const profileVariant = updateVariants.find((schema) =>
     schema.properties.operation.const === "save_meal_planning_profile");
   assert.ok(profileVariant.required.includes("idempotency_key"));
@@ -148,6 +152,16 @@ test("stable local tools preserve the existing revisioned household contract", a
     const loaded = await call(root, 4, "fullwell_local_household_load");
     assert.equal(parsedToolContent(loaded).journal.items[0].title, "Parsley");
     assert.equal(JSON.parse(await readFile(localHouseholdPath(root), "utf8")).revision, 2);
+    const compatible = await call(root, 5, "fullwell_local_household_update", {
+      operation: "repair_compatibility",
+    });
+    assert.equal(parsedToolContent(compatible).status, "already_compatible");
+    assert.equal(parsedToolContent(compatible).repaired_delivery_dish_count, 0);
+    assert.equal(parsedToolContent(compatible).split_delivery_dish_count, 0);
+    assert.equal(parsedToolContent(compatible).repaired_delivery_report_count, 0);
+    assert.equal(parsedToolContent(compatible).repaired_delivery_report_row_count, 0);
+    assert.equal(parsedToolContent(compatible).removed_legacy_browser_label_count, 0);
+    assert.equal(parsedToolContent(compatible).revision, 2);
   });
 });
 

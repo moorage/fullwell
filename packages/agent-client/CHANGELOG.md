@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.16 - 2026-07-26
+
+- Automatically repair recognized older local delivery-journal formats through the stable local update tool, including deterministic ID/reference updates, evidence-backed restaurant-name partitions, report-summary normalization, and obsolete browser-label removal; reload and resume the interrupted delivery sync without direct file edits, cloud writes, internal jargon, or a user-coordinated product fix.
+
 ## 1.1.15 - 2026-07-26
 
 - Offer cloud sync after every successful local-only delivery audit, accept clear contextual responses such as `yes` or `sync it` without scripted confirmation text, and keep connection, household selection, and provider-specific visibility/retention approval separate from the offer while making ambiguity, decline, or silence a no-op.

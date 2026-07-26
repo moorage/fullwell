@@ -17,6 +17,7 @@ const SERVER_VERSION = "1";
 const MAX_MESSAGE_BYTES = 20 * 1024 * 1024;
 const UPDATE_OPERATIONS = new Set([
   "initialize",
+  "repair_compatibility",
   "save",
   "rename_household",
   "finalize",
@@ -188,6 +189,7 @@ const householdUpdateSchema = {
       },
       additionalProperties: false,
     },
+    updateOperationSchema("repair_compatibility"),
     updateOperationSchema("save", {
       expected_revision: revisionSchema,
       journal: { type: "object" },
@@ -308,7 +310,7 @@ const localTools = [
   {
     name: "fullwell_local_household_update",
     title: "Update Fullwell's private local household journal",
-    description: "Initializes, revision-checks, saves, finalizes, records confirmed cloud linkage, stages delivery promotion authority with a one-way target digest, or appends validated meal-planning state for the bounded local Fullwell guest household.",
+    description: "Initializes, safely repairs recognized older local formats, revision-checks, saves, finalizes, records confirmed cloud linkage, stages delivery promotion authority with a one-way target digest, or appends validated meal-planning state for the bounded local Fullwell guest household.",
     inputSchema: householdUpdateSchema,
     annotations: {
       title: "Update local Fullwell household",

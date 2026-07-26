@@ -18,6 +18,7 @@ import {
   recordCloudBackup,
   recordLocalDeliveryPromotion,
   recordLocalMealPlanEvent,
+  repairLocalHouseholdCompatibility,
   renameLocalHousehold,
   releaseLocalLock,
   reviewLocalMealConstraints,
@@ -622,6 +623,321 @@ test("local meal proposals bind current delivery evidence and become stale after
       },
     }, now);
     assert.equal(changed.meal_proposal_statuses[0].effective_compatibility, "needs_recheck");
+  });
+});
+
+test("recognized legacy delivery IDs repair atomically and preserve exact meal-proposal replay", async () => {
+  await withLocalRoot(async (root) => {
+    await initializeLocalHousehold(root, now);
+    const delivery = deliveryJournalFixture({
+      seed: "0451",
+      providerOrigin: "https://delivery.example/",
+      providerLabel: "DoorDash",
+      locationLabel: "Palo Alto",
+    });
+    const saved = await saveLocalHousehold(root, {
+      expected_revision: 1,
+      journal: delivery,
+    }, now);
+    const profiled = await saveLocalMealPlanningProfile(root, {
+      expected_revision: saved.revision,
+      idempotency_key: "legacy-delivery-profile-0001",
+      actor_label: "Maya",
+      constraints: {
+        status: "confirmed_none",
+        time_zone: "America/Los_Angeles",
+        reviewed_at: now.toISOString(),
+      },
+    }, now);
+    const reviewed = await reviewLocalMealConstraints(root, {
+      expected_revision: profiled.revision,
+      idempotency_key: "legacy-delivery-review-0001",
+      actor_label: "Maya",
+      week_start: "2026-07-20",
+      constraint_revision: 1,
+    }, now);
+    const deliveryRevision = reviewed.delivery_content_revisions[0];
+    const proposalInput = {
+      expected_revision: reviewed.revision,
+      idempotency_key: "legacy-delivery-proposal-0001",
+      actor_label: "Maya",
+      week_start: "2026-07-20",
+      meal_date: "2026-07-20",
+      slot: { kind: "dinner" },
+      source: {
+        kind: "journal_delivery_dish",
+        item_id: deliveryRevision.item_id,
+        item_revision: deliveryRevision.item_revision,
+        evidence_ids: deliveryRevision.evidence_ids,
+      },
+      servings: 2,
+      notes: null,
+      constraint_revision: 1,
+      constraint_review_event_id: reviewed.event.id,
+      compatibility: "incomplete_evidence",
+      compatibility_caveat: "Ingredients are not known.",
+    };
+    const proposed = await appendLocalMealProposal(root, proposalInput, now);
+    const filePath = localHouseholdPath(root);
+    const legacyId = "itm_dd206fries";
+    const legacyDocument = JSON.parse(await readFile(filePath, "utf8"));
+    legacyDocument.journal.items = legacyDocument.journal.items.map((item) =>
+      item.id === deliveryRevision.item_id ? { ...item, id: legacyId } : item);
+    legacyDocument.journal.delivery_report.assertions =
+      legacyDocument.journal.delivery_report.assertions.map((assertion) => ({
+        ...assertion,
+        item_ids: assertion.item_ids.map((id) => id === deliveryRevision.item_id ? legacyId : id),
+      }));
+    legacyDocument.journal.meal_planning.proposals =
+      legacyDocument.journal.meal_planning.proposals.map((proposal) => ({
+        ...proposal,
+        source: proposal.source.kind === "journal_delivery_dish"
+          ? { ...proposal.source, item_id: legacyId }
+          : proposal.source,
+      }));
+    await writeFile(filePath, `${JSON.stringify(legacyDocument, null, 2)}\n`);
+
+    await assert.rejects(
+      loadLocalHousehold(root),
+      (error) =>
+        error instanceof LocalHouseholdError
+        && error.code === "LOCAL_HOUSEHOLD_COMPATIBILITY_REQUIRED",
+    );
+    const repaired = await repairLocalHouseholdCompatibility(
+      root,
+      new Date("2026-07-22T23:01:00.000Z"),
+    );
+    assert.equal(repaired.status, "repaired");
+    assert.equal(repaired.repaired_delivery_dish_count, 1);
+    assert.equal(repaired.split_delivery_dish_count, 0);
+    assert.equal(repaired.repaired_delivery_report_count, 0);
+    assert.equal(repaired.repaired_delivery_report_row_count, 0);
+    assert.equal(repaired.removed_legacy_browser_label_count, 0);
+    assert.equal(repaired.revision, proposed.revision + 1);
+    assert.equal(repaired.journal.items.length, proposed.journal.items.length);
+    assert.equal(repaired.journal.evidence.length, proposed.journal.evidence.length);
+    const repairedRevision = repaired.delivery_content_revisions[0];
+    assert.match(repairedRevision.item_id, /^itm_[0-9a-z]{16,64}$/);
+    assert.notEqual(repairedRevision.item_id, legacyId);
+    assert.ok(repaired.journal.delivery_report.assertions.some(({ item_ids: itemIds }) =>
+      itemIds.includes(repairedRevision.item_id)));
+    assert.ok(repaired.journal.delivery_report.assertions.every(({ item_ids: itemIds }) =>
+      !itemIds.includes(legacyId)));
+    assert.equal(
+      repaired.journal.meal_planning.proposals[0].source.item_id,
+      repairedRevision.item_id,
+    );
+    assert.equal(
+      repaired.journal.meal_planning.proposals[0].source.item_revision,
+      repairedRevision.item_revision,
+    );
+
+    const replayed = await appendLocalMealProposal(root, {
+      ...proposalInput,
+      expected_revision: repaired.revision,
+      source: {
+        ...proposalInput.source,
+        item_id: repairedRevision.item_id,
+        item_revision: repairedRevision.item_revision,
+      },
+    }, new Date("2026-07-22T23:02:00.000Z"));
+    assert.equal(replayed.status, "replayed");
+    assert.equal(replayed.revision, repaired.revision);
+
+    const repeated = await repairLocalHouseholdCompatibility(
+      root,
+      new Date("2026-07-22T23:03:00.000Z"),
+    );
+    assert.equal(repeated.status, "already_compatible");
+    assert.equal(repeated.repaired_delivery_dish_count, 0);
+    assert.equal(repeated.split_delivery_dish_count, 0);
+    assert.equal(repeated.repaired_delivery_report_count, 0);
+    assert.equal(repeated.repaired_delivery_report_row_count, 0);
+    assert.equal(repeated.removed_legacy_browser_label_count, 0);
+    assert.equal(repeated.revision, repaired.revision);
+  });
+});
+
+test("compatibility repair splits evidence-backed restaurant names and removes obsolete browser labels", async () => {
+  await withLocalRoot(async (root) => {
+    await initializeLocalHousehold(root, now);
+    const delivery = deliveryJournalFixture({
+      seed: "0453",
+      providerOrigin: "https://delivery.example/",
+      providerLabel: "DoorDash",
+      locationLabel: "Palo Alto",
+    });
+    const saved = await saveLocalHousehold(root, {
+      expected_revision: 1,
+      journal: delivery,
+    }, now);
+    const profiled = await saveLocalMealPlanningProfile(root, {
+      expected_revision: saved.revision,
+      idempotency_key: "split-delivery-profile-0001",
+      actor_label: "Maya",
+      constraints: {
+        status: "confirmed_none",
+        time_zone: "America/Los_Angeles",
+        reviewed_at: now.toISOString(),
+      },
+    }, now);
+    const reviewed = await reviewLocalMealConstraints(root, {
+      expected_revision: profiled.revision,
+      idempotency_key: "split-delivery-review-0001",
+      actor_label: "Maya",
+      week_start: "2026-07-20",
+      constraint_revision: 1,
+    }, now);
+    const originalRevision = reviewed.delivery_content_revisions[0];
+    const proposalInput = {
+      expected_revision: reviewed.revision,
+      idempotency_key: "split-delivery-proposal-0001",
+      actor_label: "Maya",
+      week_start: "2026-07-20",
+      meal_date: "2026-07-20",
+      slot: { kind: "dinner" },
+      source: {
+        kind: "journal_delivery_dish",
+        item_id: originalRevision.item_id,
+        item_revision: originalRevision.item_revision,
+        evidence_ids: originalRevision.evidence_ids,
+      },
+      servings: 2,
+      notes: null,
+      constraint_revision: 1,
+      constraint_review_event_id: reviewed.event.id,
+      compatibility: "incomplete_evidence",
+      compatibility_caveat: "Ingredients are not known.",
+    };
+    const proposed = await appendLocalMealProposal(root, proposalInput, now);
+    const filePath = localHouseholdPath(root);
+    const document = JSON.parse(await readFile(filePath, "utf8"));
+    const item = document.journal.items[0];
+    const firstEvidence = document.journal.evidence[0];
+    const secondEvidence = structuredClone(firstEvidence);
+    secondEvidence.id = "evd_0000000000000454";
+    secondEvidence.evidence_date = "2026-07-21";
+    secondEvidence.stable_locator = "order-0454/line-1";
+    secondEvidence.delivery_order_line.provider_order_locator = "order-0454";
+    secondEvidence.delivery_order_line.order_group_locator = "order-0454-delivery";
+    secondEvidence.delivery_order_line.order_date = "2026-07-21";
+    secondEvidence.delivery_order_line.line_key = "line-0454";
+    secondEvidence.delivery_order_line.restaurant.restaurant_name = "Wanpo Express";
+    secondEvidence.delivery_order_line.historical_menu_item_locator = "menu-0454";
+    document.journal.evidence.push(secondEvidence);
+    item.evidence_ids.push(secondEvidence.id);
+    item.known_menu_item_locators.push("menu-0454");
+    item.known_modifier_occurrences.push({
+      ...structuredClone(item.known_modifier_occurrences[0]),
+      evidence_id: secondEvidence.id,
+    });
+    const legacyId = "itm_wanpo";
+    item.id = legacyId;
+    document.journal.delivery_report.report_type = "delivery_history";
+    document.journal.delivery_report.assertions[0] = {
+      ...document.journal.delivery_report.assertions[0],
+      item_ids: [legacyId],
+      evidence_ids: [firstEvidence.id, secondEvidence.id],
+      distinct_order_count: 99,
+      last_date: "2026-07-20",
+    };
+    document.journal.meal_planning.proposals[0].source.item_id = legacyId;
+    document.journal.profiles = {
+      snacks: { authorized_browser: "Chrome", retained_setting: true },
+      recipes: { authorized_browser: "Chrome", retained_setting: true },
+    };
+    await writeFile(filePath, `${JSON.stringify(document, null, 2)}\n`);
+
+    await assert.rejects(
+      loadLocalHousehold(root),
+      (error) =>
+        error instanceof LocalHouseholdError
+        && error.code === "LOCAL_HOUSEHOLD_COMPATIBILITY_REQUIRED",
+    );
+    const repaired = await repairLocalHouseholdCompatibility(
+      root,
+      new Date("2026-07-22T23:01:00.000Z"),
+    );
+    assert.equal(repaired.status, "repaired");
+    assert.equal(repaired.repaired_delivery_dish_count, 1);
+    assert.equal(repaired.split_delivery_dish_count, 1);
+    assert.equal(repaired.repaired_delivery_report_count, 1);
+    assert.equal(repaired.removed_legacy_browser_label_count, 2);
+    assert.equal(repaired.revision, proposed.revision + 1);
+    assert.equal(repaired.journal.evidence.length, 2);
+    assert.equal(repaired.journal.items.length, 2);
+    assert.equal(repaired.journal.delivery_report.report_type, "delivery_index");
+    assert.equal(repaired.journal.delivery_report.assertions.length, 2);
+    assert.deepEqual(
+      repaired.journal.delivery_report.assertions
+        .map(({ distinct_order_count: orderCount }) => orderCount)
+        .sort(),
+      [1, 1],
+    );
+    assert.deepEqual(
+      repaired.journal.delivery_report.assertions
+        .map(({ last_date: lastDate }) => lastDate)
+        .sort(),
+      ["2026-07-20", "2026-07-21"],
+    );
+    assert.equal(Object.hasOwn(repaired.journal.profiles.snacks, "authorized_browser"), false);
+    assert.equal(Object.hasOwn(repaired.journal.profiles.recipes, "authorized_browser"), false);
+    assert.equal(repaired.journal.profiles.snacks.retained_setting, true);
+    assert.equal(repaired.journal.profiles.recipes.retained_setting, true);
+    const primaryItem = repaired.journal.items.find(
+      ({ restaurant_name: restaurantName }) => restaurantName === "Wanpo Tea",
+    );
+    assert.deepEqual(
+      repaired.journal.meal_planning.proposals[0].source,
+      {
+        ...proposalInput.source,
+        item_id: primaryItem.id,
+        item_revision: repaired.delivery_content_revisions.find(
+          ({ item_id: itemId }) => itemId === primaryItem.id,
+        ).item_revision,
+      },
+    );
+    const replayed = await appendLocalMealProposal(root, {
+      ...proposalInput,
+      expected_revision: repaired.revision,
+      source: repaired.journal.meal_planning.proposals[0].source,
+    }, new Date("2026-07-22T23:02:00.000Z"));
+    assert.equal(replayed.status, "replayed");
+    assert.equal(replayed.revision, repaired.revision);
+  });
+});
+
+test("compatibility repair leaves unknown local corruption untouched", async () => {
+  await withLocalRoot(async (root) => {
+    await initializeLocalHousehold(root, now);
+    const delivery = deliveryJournalFixture({
+      seed: "0452",
+      providerOrigin: "https://delivery.example/",
+      providerLabel: "DoorDash",
+      locationLabel: "Palo Alto",
+    });
+    await saveLocalHousehold(root, { expected_revision: 1, journal: delivery }, now);
+    const filePath = localHouseholdPath(root);
+    const document = JSON.parse(await readFile(filePath, "utf8"));
+    const originalId = document.journal.items[0].id;
+    document.journal.items[0].id = "itm_UNSUPPORTED";
+    document.journal.delivery_report.assertions[0].item_ids =
+      document.journal.delivery_report.assertions[0].item_ids.map((id) =>
+        id === originalId ? "itm_UNSUPPORTED" : id);
+    const incompatibleText = `${JSON.stringify(document, null, 2)}\n`;
+    await writeFile(filePath, incompatibleText);
+
+    await assert.rejects(
+      loadLocalHousehold(root),
+      (error) => error instanceof LocalHouseholdError && error.code === "VALIDATION_FAILED",
+    );
+    await assert.rejects(
+      repairLocalHouseholdCompatibility(root, new Date("2026-07-22T23:01:00.000Z")),
+      (error) =>
+        error instanceof LocalHouseholdError
+        && error.code === "LOCAL_HOUSEHOLD_COMPATIBILITY_BLOCKED",
+    );
+    assert.equal(await readFile(filePath, "utf8"), incompatibleText);
   });
 });
 

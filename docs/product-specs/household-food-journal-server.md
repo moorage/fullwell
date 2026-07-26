@@ -23,7 +23,7 @@ Build a hosted Household Food Journal service that provides:
 
 Google Drive is out of scope. End users never interact with Git, SSH, repository hosting, personal access tokens, or server credentials.
 
-The installed agent may provide a single-user local guest journal before account creation. That guest document is outside this service's authority and contains no server identity, OAuth state, or Git checkout. The hosted service becomes involved only when the user chooses an existing account or explicitly promotes local data for cloud backup, WhatsApp, sharing, or family access. Once promoted, all cloud mutations still pass through this specification's authenticated contracts and sole Git writer.
+The installed agent may provide a single-user local guest journal before account creation. That guest document is outside this service's authority and contains no server identity, OAuth state, or Git checkout. A client compatibility repair for a recognized older local delivery identifier remains entirely inside the locked local runtime, changes no hosted state, and must rebuild the exact provider payload before a later hosted contribution. The hosted service becomes involved only when the user chooses an existing account or explicitly promotes local data for cloud backup, WhatsApp, sharing, or family access. Once promoted, all cloud mutations still pass through this specification's authenticated contracts and sole Git writer.
 
 ## 2. Product decisions
 

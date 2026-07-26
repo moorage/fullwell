@@ -899,6 +899,20 @@
       "invariants": ["ask_exact_changed_provider_origins", "accept_user_named_provider", "ask_installed_signed_in_browser", "preserve_prior_evidence", "revision_checked_full_journal_save"]
     },
     {
+      "id": "delivery-local-compatibility-autorepair",
+      "prompt": "While retrying the DoorDash sync, fullwell_local_household_load returned LOCAL_HOUSEHOLD_COMPATIBILITY_REQUIRED. Continue what I asked for.",
+      "skills": ["audit-food-delivery-orders", "manage-household-food-journal"],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update"],
+      "invariants": ["call_repair_compatibility_without_asking", "reload_after_repair", "resume_interrupted_delivery_sync", "rebuild_provider_payload_from_repaired_revision", "describe_saved_history_update_in_plain_language", "make_no_hosted_write_during_repair", "preserve_provider_visibility_boundary"]
+    },
+    {
+      "id": "delivery-local-compatibility-unknown",
+      "prompt": "The supported local repair says it cannot safely fix this saved delivery history without guessing. Explain what happens next.",
+      "skills": ["audit-food-delivery-orders", "manage-household-food-journal"],
+      "required_tools": [],
+      "invariants": ["say_saved_history_is_unchanged", "say_nothing_was_shared", "avoid_fullwell_internal_jargon", "do_not_promise_a_future_product_fix", "ask_only_a_concrete_unblocking_question", "offer_unaffected_local_features", "make_no_hosted_write"]
+    },
+    {
       "id": "delivery-local-completion-cloud-offer",
       "prompt": "I finished indexing 12 months of DoorDash locally and nothing was uploaded. Give me the completion response.",
       "skills": ["audit-food-delivery-orders", "manage-household-food-journal"],

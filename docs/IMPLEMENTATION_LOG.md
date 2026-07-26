@@ -4,6 +4,7 @@
   - `docs/exec-plans/active/2026-07-15-household-food-journal-v1.md`
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
+  - `docs/exec-plans/active/2026-07-26-local-delivery-journal-compatibility-repair.md`
 - completed ExecPlans:
   - `docs/exec-plans/completed/2026-07-24-food-delivery-history-and-cart-preparation.md`
   - `docs/exec-plans/completed/2026-07-24-agent-guides-and-visual-journal-browsing.md`
@@ -12,6 +13,9 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-26 local delivery compatibility repair adds one stable, locked, atomic, idempotent update operation and an automatic agent repair/reload/resume loop; user-facing recovery stays in ordinary language, no repair contacts cloud, and unknown corruption remains untouched
+- a private-copy proof of revision 460 repairs five legacy delivery IDs, one evidence-backed mixed restaurant-name item, one legacy report type, one stale report summary, and two obsolete browser labels into revision 461 while preserving all 511 delivery order lines; the normalized index has 138 exact dishes and 24 exact restaurant/location rows
+- focused local runtime and MCP coverage passes 35 tests, including exact meal-plan replay, repeat no-op, unknown-corruption preservation, report normalization, restaurant partitioning, and retained non-obsolete profile fields
 - 2026-07-26 DigitalOcean staging runs Takeout follow-on commit `6350469` as `hfj-staging:takeout-browser-20260726-1-runtime` at Linux/amd64 OCI index digest `sha256:93f6df13dee5b0f1dec736325a3675163e0a8f5a70470128ed7460b1a5052e0a` from checksum-matched archive SHA-256 `93eb847df3370083957e1902728a5bb6d269eaccb32b1fd44b1e166e5690e2d6`; readiness and operator health pass on schema `0008`, public deployment and MCP discovery smokes pass, the mounted-volume canary survives forced service recreation, and `/etc/hfj/deploy.env.pre-takeout-browser-20260726-1` retains the previous delivery image as rollback
 - 2026-07-26 food-delivery Milestone 7 adds the authenticated `Takeout` tab and Journal-at-a-glance count, exact-location delivery cards, ordered/shared and alcohol labeling, snapshot-bound 12-item infinite loading with retry and no-JavaScript continuation, and the `Meal plans` navigation label; 408-test coverage, 39 focused WebKit checks, eight-migration up/down/up, all 11 isolated PostgreSQL integrations, and the 10.52-second fixture-only H.264 screencast pass while private delivery locators and complete orders remain outside the browser view model
 - 2026-07-26 food-delivery Milestones 1-6 are implemented locally: provider-neutral complete delivery history and exact location/fulfillment/modifier indexing; provider-scoped household contribution; public-safe collection/import authority; revisioned local/cloud meal-plan sources; and provider-then-location previous-order cart preparation with full-cart proof, exact quantity/swap recovery, ordinary-maximum alcohol selection, user-controlled age UI, and structural no checkout/payment/tip/address/schedule/membership/subscription authority

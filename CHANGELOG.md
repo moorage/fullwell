@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Automatically repair recognized older local delivery-journal formats, including deterministic ID/reference updates, evidence-backed restaurant-name partitions, report-summary normalization, and obsolete browser-label removal; reload and resume the interrupted sync while preserving all history and explaining any unrecoverable problem in ordinary user language.
 - Offer cloud sync after every successful local-only delivery audit so the user can collaborate, share delivery dishes in collections, and use them in household meal plans; accept clear conversational responses such as `yes` or `sync it` without scripted text while making ambiguity, decline, and silence a no-op.
 - Add an authenticated `Takeout` household tab and Journal-at-a-glance count with exact restaurant locations, safe ordered/shared context, snapshot-bound infinite scrolling, a no-JavaScript continuation, and the `Meal plans` navigation label.
 - Add provider-neutral food-delivery history, household contribution, public-safe delivery-dish collections/import, and local or collaborative meal-plan sources from bounded user-directed navigation in an already signed-in browser.

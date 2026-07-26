@@ -34,6 +34,7 @@ The local tools store a private member profile at `fullwell/local/profile.json` 
 - `fullwell_local_profile_update` takes `expected_revision` and `display_name`.
 - `fullwell_local_household_load` takes no arguments.
 - `fullwell_local_household_update` with `initialize` may add the first `household_name`.
+- `fullwell_local_household_update` with `repair_compatibility` safely updates a recognized older local delivery format, rewrites only its defined references, and returns bounded counts. It requires no expected revision because it locks and validates the current private file itself.
 - `fullwell_local_household_update` with `save` adds `expected_revision` and the complete `journal` object.
 - `fullwell_local_household_update` with `rename_household` adds `expected_revision` and `household_name`.
 - `fullwell_local_household_update` with `finalize` adds `expected_revision` and makes collected data ready for direct local use.
@@ -46,6 +47,8 @@ The local tools store a private member profile at `fullwell/local/profile.json` 
 - `fullwell_local_whatsapp_runner_stop` stops only the local macOS runner and preserves the cloud connection, credentials, snapshots, receipts, and journal.
 
 If the `fullwell-local` server or any of these tools is unavailable, stop local setup and ask the user to reload or reinstall the Fullwell plugin. Do not fall back to a version-specific shell command, edit the user's Codex rules, or call the hosted service without account or cloud-backup consent.
+
+If `fullwell_local_household_load` returns `LOCAL_HOUSEHOLD_COMPATIBILITY_REQUIRED`, this is recoverable work for Fullwell, not a user decision. Call `fullwell_local_household_update` once with `{ "operation": "repair_compatibility" }`, reload, and continue the exact interrupted task. Do not edit the private file directly, ask the user to request a repair, or stop with "Fullwell needs to add a migration." Tell the user only the useful outcome: "I updated the saved delivery history and I'm continuing with the sync." If repair returns `LOCAL_HOUSEHOLD_COMPATIBILITY_BLOCKED`, keep everything unchanged, make no cloud call, avoid all implementation terms, and explain in ordinary language what is still safe and usable. Ask one concrete question only when its answer would let Fullwell proceed without guessing; otherwise offer to continue with unaffected local features instead of promising a future engineering fix. Never call compatibility repair for malformed JSON, prohibited local data, lock contention, conflicts, or any error other than `LOCAL_HOUSEHOLD_COMPATIBILITY_REQUIRED`.
 
 The journal contains only bounded source scope, completed-source cursors, typed grocery, recipe, or delivery evidence, agent-authored semantic decisions, profiles, items, reports, section outcomes, and finalization metadata. It must never contain credentials, passwords, authorization headers, access or refresh tokens, cookies, browser state, screenshots, raw HTML, raw page captures, delivery destinations, payment state, account identifiers, or one-time codes.
 
@@ -72,6 +75,7 @@ Route requests to learn, index, refresh, search, or compare delivery history thr
 3. If a local user asks to collaborate, authenticate and select the destination household, then reconcile with `hfj_search_delivery_history`, `hfj_get_delivery_order`, `hfj_get_delivery_index`, and current item/profile reads. Present the exact provider-specific copy/merge and retention notice.
 4. For each provider whose visibility and retention preview received a clear contextual affirmative, call local `stage_delivery_promotion`; do not require scripted confirmation text. The selected user and household IDs are transient inputs and only their one-way target-binding digest is retained while pending. Then call `hfj_commit_delivery_index` once in `local_promotion` mode with that stable key and `household_visibility_confirmed: true`. Call local `record_delivery_promotion` only after the hosted response confirms the returned user, household, provider, and HEAD.
 5. A decline makes no hosted write. A failed or uncertain result keeps the exact pending provider digest, authority, and key for retry without storing raw cloud linkage IDs. A conflict rereads and reconfirms that provider without undoing already committed providers.
+6. A recognized local compatibility failure runs the automatic repair/reload sequence above, then rebuilds the provider payload from the new local revision and resumes the already-requested sync. The format-only local repair does not require another explanation from the user and does not itself authorize or perform a hosted write.
 
 ## Optional cloud backup of a local household
 

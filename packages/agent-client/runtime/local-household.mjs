@@ -42,6 +42,7 @@ const HEAD_PATTERN = /^[0-9a-f]{40,64}$/;
 const ACTOR_ID_PATTERN = /^act_[0-9a-z]{16,64}$/;
 const COLLECTION_ID_PATTERN = /^col_[0-9a-z]{16,64}$/;
 const ITEM_ID_PATTERN = /^itm_[0-9a-z]{16,64}$/;
+const LEGACY_DELIVERY_ITEM_ID_PATTERN = /^itm_[0-9a-z]{1,15}$/;
 const EVIDENCE_ID_PATTERN = /^evd_[0-9a-z]{16,64}$/;
 const SNAPSHOT_ID_PATTERN = /^snp_[0-9a-z]{16,64}$/;
 const MEAL_PROPOSAL_ID_PATTERN = /^mlp_[0-9a-z]{16,64}$/;
@@ -1711,6 +1712,10 @@ function parseRequest(input) {
     assertExactKeys(input, new Set(["operation"]), "load request");
     return { operation: "load" };
   }
+  if (input.operation === "repair_compatibility") {
+    assertExactKeys(input, new Set(["operation"]), "repair_compatibility request");
+    return { operation: "repair_compatibility" };
+  }
   if (input.operation === "save") {
     assertExactKeys(input, new Set(["operation", "expected_revision", "journal"]), "save request");
     return {
@@ -1911,7 +1916,7 @@ export function localHouseholdPath(root) {
   return path.join(path.resolve(root), "fullwell", "local", "household.json");
 }
 
-async function readDocument(filePath) {
+async function readRawDocument(filePath) {
   let handle;
   try {
     const fileStat = await stat(filePath);
@@ -1921,9 +1926,8 @@ async function readDocument(filePath) {
     handle = await open(filePath, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
     const content = await handle.readFile("utf8");
     try {
-      return parseDocument(JSON.parse(content));
-    } catch (error) {
-      if (error instanceof LocalHouseholdError) throw error;
+      return JSON.parse(content);
+    } catch {
       fail("CORRUPT_LOCAL_HOUSEHOLD", "local household file is not valid JSON");
     }
   } catch (error) {
@@ -1932,6 +1936,475 @@ async function readDocument(filePath) {
   } finally {
     await handle?.close();
   }
+}
+
+function repairedDeliveryItemId(legacyId) {
+  const digest = createHash("sha256")
+    .update(`fullwell-local-delivery-item-id-v1:${legacyId}`)
+    .digest("hex");
+  return `itm_${digest.slice(0, 32)}`;
+}
+
+function splitDeliveryItemId(itemId, restaurantName) {
+  const digest = createHash("sha256")
+    .update(`fullwell-local-delivery-restaurant-split-v1:${itemId}:${restaurantName}`)
+    .digest("hex");
+  return `itm_${digest.slice(0, 32)}`;
+}
+
+function splitDeliveryRowId(rowId, itemId) {
+  return `delivery-compat-${createHash("sha256")
+    .update(`fullwell-local-delivery-row-split-v1:${rowId}:${itemId}`)
+    .digest("hex")
+    .slice(0, 32)}`;
+}
+
+function storedMealProposalFingerprint(proposal) {
+  return requestFingerprint({
+    operation: "append_meal_proposal",
+    actor: proposal.proposed_by,
+    week_start: proposal.week_start,
+    meal_date: proposal.meal_date,
+    slot: proposal.slot,
+    source: proposal.source,
+    servings: proposal.servings,
+    notes: proposal.notes,
+    constraint_revision: proposal.constraint_revision,
+    constraint_review_event_id: proposal.constraint_review_event_id,
+    compatibility: proposal.compatibility,
+    compatibility_caveat: proposal.compatibility_caveat,
+  });
+}
+
+function summarizeCompatibilityReportRow(assertion, evidenceIds, evidenceById) {
+  if (evidenceIds.some((id) => !evidenceById.has(id))) return null;
+  const row = { ...assertion, evidence_ids: evidenceIds };
+  if (assertion.distinct_order_count !== undefined) {
+    row.distinct_order_count = new Set(evidenceIds.map((id) => {
+      const line = evidenceById.get(id).delivery_order_line;
+      return stableJson([line.provider_origin, line.provider_order_locator, line.order_group_locator]);
+    })).size;
+  }
+  if (assertion.last_date !== undefined) {
+    row.last_date = evidenceIds
+      .map((id) => evidenceById.get(id).delivery_order_line.order_date)
+      .sort()
+      .at(-1);
+  }
+  return row;
+}
+
+function splitLegacyDeliveryRestaurantNames(value) {
+  const journal = value.journal;
+  if (!isPlainObject(journal)
+    || !Array.isArray(journal.items)
+    || !Array.isArray(journal.evidence)
+    || !isPlainObject(journal.delivery_report)
+    || !Array.isArray(journal.delivery_report.assertions)) {
+    return { document: value, splitDeliveryDishCount: 0 };
+  }
+  const evidenceById = new Map(journal.evidence
+    .filter((entry) => isPlainObject(entry) && entry.kind === "delivery_order_line")
+    .map((entry) => [entry.id, entry]));
+  const candidates = [];
+  for (const item of journal.items) {
+    if (!isPlainObject(item)
+      || item.kind !== "delivery_dish"
+      || item.delivery_authority === "public_import"
+      || !Array.isArray(item.evidence_ids)
+      || !Array.isArray(item.known_modifier_occurrences)) {
+      continue;
+    }
+    const citedEvidence = item.evidence_ids.map((id) => evidenceById.get(id));
+    if (citedEvidence.some((entry) => !isPlainObject(entry))) continue;
+    const byName = new Map();
+    for (const entry of citedEvidence) {
+      const line = entry.delivery_order_line;
+      const name = line?.restaurant?.restaurant_name;
+      if (typeof name !== "string") continue;
+      byName.set(name, [...(byName.get(name) ?? []), entry]);
+    }
+    if (byName.size < 2) continue;
+    if (!byName.has(item.restaurant_name)) return null;
+    const exactExceptName = citedEvidence.every(({ delivery_order_line: line }) =>
+      line.provider_label === item.provider_label
+      && line.provider_origin === item.provider_origin
+      && line.restaurant.public_location_label === item.public_location_label
+      && stableJson(line.restaurant.public_merchant_address) === stableJson(item.public_merchant_address)
+      && line.restaurant.merchant_locator === item.merchant_locator
+      && line.dish_name === item.dish_name
+      && stableJson(line.classification) === stableJson(item.classification));
+    if (!exactExceptName) return null;
+    const parts = [...byName.entries()].map(([restaurantName, entries]) => {
+      const evidenceIds = entries.map(({ id }) => id);
+      const evidenceIdSet = new Set(evidenceIds);
+      const knownMenuItemLocators = [...new Set(entries.flatMap(({ delivery_order_line: line }) =>
+        line.historical_menu_item_locator === null ? [] : [line.historical_menu_item_locator]))];
+      return {
+        ...item,
+        id: restaurantName === item.restaurant_name
+          ? item.id
+          : splitDeliveryItemId(item.id, restaurantName),
+        restaurant_name: restaurantName,
+        evidence_ids: evidenceIds,
+        known_menu_item_locators: knownMenuItemLocators,
+        known_modifier_occurrences: item.known_modifier_occurrences.filter(({ evidence_id: evidenceId }) =>
+          evidenceIdSet.has(evidenceId)),
+      };
+    });
+    candidates.push({
+      original: item,
+      primary: parts.find(({ restaurant_name: restaurantName }) => restaurantName === item.restaurant_name),
+      extras: parts.filter(({ restaurant_name: restaurantName }) => restaurantName !== item.restaurant_name),
+    });
+  }
+  if (candidates.length === 0) {
+    return { document: value, splitDeliveryDishCount: 0 };
+  }
+
+  const resultingIds = [
+    ...journal.items
+      .filter((item) => !candidates.some(({ original }) => original === item))
+      .map((item) => isPlainObject(item) ? item.id : undefined),
+    ...candidates.flatMap(({ primary, extras }) => [primary.id, ...extras.map(({ id }) => id)]),
+  ].filter((id) => typeof id === "string");
+  if (new Set(resultingIds).size !== resultingIds.length) return null;
+
+  const extraRows = [];
+  const assertions = journal.delivery_report.assertions.map((assertion) => {
+    if (!isPlainObject(assertion) || !Array.isArray(assertion.item_ids) || !Array.isArray(assertion.evidence_ids)) {
+      return assertion;
+    }
+    const matches = candidates.filter(({ original }) => assertion.item_ids.includes(original.id));
+    if (matches.length === 0) return assertion;
+    if (matches.length > 1) return null;
+    const candidate = matches[0];
+    const originalEvidenceIds = new Set(candidate.original.evidence_ids);
+    const retainedEvidenceIds = assertion.evidence_ids.filter((id) => !originalEvidenceIds.has(id));
+    const baseEvidenceIds = [...retainedEvidenceIds, ...candidate.primary.evidence_ids];
+    for (const item of candidate.extras) {
+      const extraRow = summarizeCompatibilityReportRow({
+        row_id: splitDeliveryRowId(assertion.row_id, item.id),
+        item_ids: [item.id],
+        evidence_ids: item.evidence_ids,
+        ...(assertion.distinct_order_count === undefined ? {} : { distinct_order_count: 0 }),
+        ...(assertion.last_date === undefined ? {} : { last_date: "1970-01-01" }),
+      }, item.evidence_ids, evidenceById);
+      if (extraRow === null) return null;
+      extraRows.push(extraRow);
+    }
+    return summarizeCompatibilityReportRow(assertion, baseEvidenceIds, evidenceById);
+  });
+  if (assertions.some((assertion) => assertion === null)) return null;
+  const rowIds = [...assertions, ...extraRows].map((assertion) => assertion.row_id);
+  if (new Set(rowIds).size !== rowIds.length) return null;
+
+  const repairedItems = journal.items.flatMap((item) => {
+    const candidate = candidates.find(({ original }) => original === item);
+    return candidate === undefined ? [item] : [candidate.primary, ...candidate.extras];
+  });
+  const candidateById = new Map(candidates.map((candidate) => [candidate.original.id, candidate]));
+  let repairedPlanning = journal.meal_planning;
+  if (isPlainObject(repairedPlanning) && Array.isArray(repairedPlanning.proposals)) {
+    const repairedProposalIds = new Set();
+    let invalidProposalReference = false;
+    const proposals = repairedPlanning.proposals.map((proposal) => {
+      const source = isPlainObject(proposal?.source) ? proposal.source : null;
+      const candidate = source?.kind === "journal_delivery_dish"
+        ? candidateById.get(source.item_id)
+        : undefined;
+      if (candidate === undefined) return proposal;
+      const sourceEvidenceIds = Array.isArray(source.evidence_ids) ? source.evidence_ids : [];
+      const matchingParts = [candidate.primary, ...candidate.extras].filter((item) => {
+        const itemEvidenceIds = new Set(item.evidence_ids);
+        return sourceEvidenceIds.length > 0
+          && sourceEvidenceIds.every((evidenceId) => itemEvidenceIds.has(evidenceId));
+      });
+      if (matchingParts.length !== 1) {
+        invalidProposalReference = true;
+        return proposal;
+      }
+      const item = matchingParts[0];
+      repairedProposalIds.add(proposal.id);
+      return {
+        ...proposal,
+        source: {
+          ...source,
+          item_id: item.id,
+          item_revision: localRecipeContentDigest(item),
+        },
+      };
+    });
+    if (invalidProposalReference) return null;
+    repairedPlanning = {
+      ...repairedPlanning,
+      proposals,
+      idempotency: Array.isArray(repairedPlanning.idempotency)
+        ? repairedPlanning.idempotency.map((receipt) => {
+            const proposal = isPlainObject(receipt) && receipt.kind === "meal_proposal"
+              ? proposals.find(({ id }) => id === receipt.entity_id)
+              : undefined;
+            return proposal === undefined || !repairedProposalIds.has(proposal.id)
+              ? receipt
+              : { ...receipt, fingerprint: storedMealProposalFingerprint(proposal) };
+          })
+        : repairedPlanning.idempotency,
+    };
+  }
+  return {
+    document: {
+      ...value,
+      journal: {
+        ...journal,
+        items: repairedItems,
+        delivery_report: {
+          ...journal.delivery_report,
+          assertions: [...assertions, ...extraRows],
+        },
+        ...(journal.meal_planning === undefined ? {} : { meal_planning: repairedPlanning }),
+      },
+    },
+    splitDeliveryDishCount: candidates.reduce((sum, { extras }) => sum + extras.length, 0),
+  };
+}
+
+function normalizeLegacyDeliveryReportSummaries(value) {
+  const journal = value.journal;
+  if (!isPlainObject(journal)
+    || !Array.isArray(journal.evidence)
+    || !isPlainObject(journal.delivery_report)
+    || !Array.isArray(journal.delivery_report.assertions)) {
+    return { document: value, repairedDeliveryReportRowCount: 0 };
+  }
+  const evidenceById = new Map(journal.evidence
+    .filter((entry) => isPlainObject(entry) && entry.kind === "delivery_order_line")
+    .map((entry) => [entry.id, entry]));
+  let repairedDeliveryReportRowCount = 0;
+  const assertions = journal.delivery_report.assertions.map((assertion) => {
+    if (!isPlainObject(assertion)
+      || !Array.isArray(assertion.evidence_ids)
+      || assertion.evidence_ids.some((id) => !evidenceById.has(id))) {
+      return assertion;
+    }
+    const repaired = summarizeCompatibilityReportRow(
+      assertion,
+      assertion.evidence_ids,
+      evidenceById,
+    );
+    if (stableJson(repaired) !== stableJson(assertion)) repairedDeliveryReportRowCount += 1;
+    return repaired;
+  });
+  return {
+    document: {
+      ...value,
+      journal: {
+        ...journal,
+        delivery_report: { ...journal.delivery_report, assertions },
+      },
+    },
+    repairedDeliveryReportRowCount,
+  };
+}
+
+function removeLegacyAuthorizedBrowserLabels(value) {
+  const profiles = value.journal?.profiles;
+  if (!isPlainObject(profiles)) {
+    return { document: value, removedLegacyBrowserLabelCount: 0 };
+  }
+  let removedLegacyBrowserLabelCount = 0;
+  let invalidLegacyLabel = false;
+  const repairedProfiles = Object.fromEntries(Object.entries(profiles).map(([key, profile]) => {
+    if (!["snacks", "recipes"].includes(key)
+      || !isPlainObject(profile)
+      || !Object.hasOwn(profile, "authorized_browser")) {
+      return [key, profile];
+    }
+    if (typeof profile.authorized_browser !== "string"
+      || profile.authorized_browser.length < 1
+      || profile.authorized_browser.length > 120) {
+      invalidLegacyLabel = true;
+      return [key, profile];
+    }
+    const repairedProfile = { ...profile };
+    delete repairedProfile.authorized_browser;
+    removedLegacyBrowserLabelCount += 1;
+    return [key, repairedProfile];
+  }));
+  if (invalidLegacyLabel) return null;
+  return {
+    document: removedLegacyBrowserLabelCount === 0
+      ? value
+      : {
+          ...value,
+          journal: {
+            ...value.journal,
+            profiles: repairedProfiles,
+          },
+        },
+    removedLegacyBrowserLabelCount,
+  };
+}
+
+/**
+ * Repairs only recognized delivery-history formats from earlier Fullwell
+ * releases. Every reference path is explicit so unrelated strings and future
+ * unknown formats can never be rewritten by accident.
+ */
+function repairLegacyDeliveryJournal(value, now, { incrementRevision }) {
+  if (!isPlainObject(value) || !isPlainObject(value.journal)) {
+    return null;
+  }
+  const browserLabels = removeLegacyAuthorizedBrowserLabels(value);
+  if (browserLabels === null || !Array.isArray(browserLabels.document.journal.items)) return null;
+  const workingValue = browserLabels.document;
+  const deliveryItems = workingValue.journal.items.filter((item) =>
+    isPlainObject(item) && item.kind === "delivery_dish");
+  const invalidDeliveryItems = deliveryItems.filter((item) =>
+    typeof item.id !== "string" || !ITEM_ID_PATTERN.test(item.id));
+  if (invalidDeliveryItems.some(({ id }) =>
+      typeof id !== "string" || !LEGACY_DELIVERY_ITEM_ID_PATTERN.test(id))) {
+    return null;
+  }
+  const allItemIds = workingValue.journal.items.map((item) =>
+    isPlainObject(item) && typeof item.id === "string" ? item.id : null);
+  const stringItemIds = allItemIds.filter((id) => id !== null);
+  if (new Set(stringItemIds).size !== stringItemIds.length) return null;
+
+  const replacements = new Map(invalidDeliveryItems.map(({ id }) => [id, repairedDeliveryItemId(id)]));
+  const replacementIds = [...replacements.values()];
+  const untouchedIds = new Set(stringItemIds.filter((id) => !replacements.has(id)));
+  if (new Set(replacementIds).size !== replacementIds.length
+    || replacementIds.some((id) => untouchedIds.has(id))) {
+    return null;
+  }
+
+  const repairedItems = workingValue.journal.items.map((item) =>
+    isPlainObject(item) && item.kind === "delivery_dish" && replacements.has(item.id)
+      ? { ...item, id: replacements.get(item.id) }
+      : item);
+  const repairedItemsByLegacyId = new Map(invalidDeliveryItems.map(({ id }) => [
+    id,
+    repairedItems.find((item) => isPlainObject(item) && item.id === replacements.get(id)),
+  ]));
+
+  const report = workingValue.journal.delivery_report;
+  const repairedReport = isPlainObject(report) && Array.isArray(report.assertions)
+    ? {
+        ...report,
+        ...(report.report_type === "delivery_history" ? { report_type: "delivery_index" } : {}),
+        assertions: report.assertions.map((assertion) =>
+          isPlainObject(assertion) && Array.isArray(assertion.item_ids)
+            ? {
+                ...assertion,
+                item_ids: assertion.item_ids.map((id) => replacements.get(id) ?? id),
+              }
+            : assertion),
+      }
+    : report;
+
+  const planning = workingValue.journal.meal_planning;
+  let repairedPlanning = planning;
+  if (isPlainObject(planning) && Array.isArray(planning.proposals)) {
+    const repairedProposalIds = new Set();
+    const proposals = planning.proposals.map((proposal) => {
+      const source = isPlainObject(proposal?.source) ? proposal.source : null;
+      if (source?.kind !== "journal_delivery_dish" || !replacements.has(source.item_id)) {
+        return proposal;
+      }
+      const repairedItem = repairedItemsByLegacyId.get(source.item_id);
+      if (repairedItem === undefined) return proposal;
+      repairedProposalIds.add(proposal.id);
+      return {
+        ...proposal,
+        source: {
+          ...source,
+          item_id: replacements.get(source.item_id),
+          item_revision: localRecipeContentDigest(repairedItem),
+        },
+      };
+    });
+    repairedPlanning = {
+      ...planning,
+      proposals,
+      idempotency: Array.isArray(planning.idempotency)
+        ? planning.idempotency.map((receipt) => {
+            if (!isPlainObject(receipt)
+              || receipt.kind !== "meal_proposal"
+              || !repairedProposalIds.has(receipt.entity_id)) {
+              return receipt;
+            }
+            const proposal = proposals.find(({ id }) => id === receipt.entity_id);
+            return proposal === undefined
+              ? receipt
+              : { ...receipt, fingerprint: storedMealProposalFingerprint(proposal) };
+          })
+        : planning.idempotency,
+    };
+  }
+
+  const identifierDocument = {
+    ...workingValue,
+    ...(incrementRevision
+      ? {
+          revision: Number.isSafeInteger(workingValue.revision)
+            ? workingValue.revision + 1
+            : workingValue.revision,
+          updated_at: now.toISOString(),
+        }
+      : {}),
+    journal: {
+      ...workingValue.journal,
+      items: repairedItems,
+      ...(report === undefined ? {} : { delivery_report: repairedReport }),
+      ...(planning === undefined ? {} : { meal_planning: repairedPlanning }),
+    },
+  };
+  const split = splitLegacyDeliveryRestaurantNames(identifierDocument);
+  if (split === null) return null;
+  const normalizedReport = normalizeLegacyDeliveryReportSummaries(split.document);
+  const repairedDeliveryReportCount = report?.report_type === "delivery_history" ? 1 : 0;
+  if (replacements.size === 0
+    && split.splitDeliveryDishCount === 0
+    && repairedDeliveryReportCount === 0
+    && normalizedReport.repairedDeliveryReportRowCount === 0
+    && browserLabels.removedLegacyBrowserLabelCount === 0) {
+    return null;
+  }
+  return {
+    document: normalizedReport.document,
+    repairedDeliveryDishCount: replacements.size,
+    splitDeliveryDishCount: split.splitDeliveryDishCount,
+    repairedDeliveryReportCount,
+    repairedDeliveryReportRowCount: normalizedReport.repairedDeliveryReportRowCount,
+    removedLegacyBrowserLabelCount: browserLabels.removedLegacyBrowserLabelCount,
+  };
+}
+
+function parseDocumentWithCompatibilitySignal(value) {
+  try {
+    return parseDocument(value);
+  } catch (error) {
+    if (!(error instanceof LocalHouseholdError)
+      || !["VALIDATION_FAILED", "PROHIBITED_LOCAL_DATA"].includes(error.code)) {
+      throw error;
+    }
+    const preview = repairLegacyDeliveryJournal(value, new Date(0), { incrementRevision: false });
+    if (preview === null) throw error;
+    try {
+      parseDocument(preview.document);
+    } catch {
+      throw error;
+    }
+    fail(
+      "LOCAL_HOUSEHOLD_COMPATIBILITY_REQUIRED",
+      "Your saved delivery history uses an older format that Fullwell can update safely.",
+    );
+  }
+}
+
+async function readDocument(filePath) {
+  const value = await readRawDocument(filePath);
+  return value === null ? null : parseDocumentWithCompatibilitySignal(value);
 }
 
 export async function ensurePrivateDirectory(root, directory) {
@@ -2383,6 +2856,54 @@ export async function loadLocalHousehold(root) {
   return document === null ? { status: "missing" } : { status: "found", ...publicDocument(document) };
 }
 
+export async function repairLocalHouseholdCompatibility(root, now = new Date()) {
+  const filePath = localHouseholdPath(root);
+  const directory = path.dirname(filePath);
+  await ensurePrivateDirectory(root, directory);
+  const lock = await acquireLocalLock(directory, now, { waitForLiveWriter: true });
+  try {
+    const value = await readRawDocument(filePath);
+    if (value === null) fail("LOCAL_HOUSEHOLD_MISSING", "no local household exists");
+    try {
+      const current = parseDocument(value);
+      return {
+        status: "already_compatible",
+        repaired_delivery_dish_count: 0,
+        split_delivery_dish_count: 0,
+        repaired_delivery_report_count: 0,
+        repaired_delivery_report_row_count: 0,
+        removed_legacy_browser_label_count: 0,
+        ...publicDocument(current),
+      };
+    } catch (error) {
+      if (!(error instanceof LocalHouseholdError)
+        || !["VALIDATION_FAILED", "PROHIBITED_LOCAL_DATA"].includes(error.code)) {
+        throw error;
+      }
+    }
+    const repair = repairLegacyDeliveryJournal(value, now, { incrementRevision: true });
+    if (repair === null) {
+      fail(
+        "LOCAL_HOUSEHOLD_COMPATIBILITY_BLOCKED",
+        "I found a problem in the saved delivery history that I cannot fix without guessing. The saved history is unchanged.",
+      );
+    }
+    const document = parseDocument(repair.document);
+    await writeDocument(root, document);
+    return {
+      status: "repaired",
+      repaired_delivery_dish_count: repair.repairedDeliveryDishCount,
+      split_delivery_dish_count: repair.splitDeliveryDishCount,
+      repaired_delivery_report_count: repair.repairedDeliveryReportCount,
+      repaired_delivery_report_row_count: repair.repairedDeliveryReportRowCount,
+      removed_legacy_browser_label_count: repair.removedLegacyBrowserLabelCount,
+      ...publicDocument(document),
+    };
+  } finally {
+    await releaseLocalLock(lock);
+  }
+}
+
 export async function saveLocalHousehold(root, input, now = new Date()) {
   const request = parseRequest({ ...input, operation: "save" });
   const document = await mutate(root, request.expected_revision, now, (current) => {
@@ -2824,6 +3345,7 @@ export async function runRequest(root, input, now = new Date()) {
   const request = parseRequest(input);
   if (request.operation === "initialize") return await initializeLocalHousehold(root, now, request.household_name);
   if (request.operation === "load") return await loadLocalHousehold(root);
+  if (request.operation === "repair_compatibility") return await repairLocalHouseholdCompatibility(root, now);
   if (request.operation === "save") return await saveLocalHousehold(root, request, now);
   if (request.operation === "rename_household") return await renameLocalHousehold(root, request, now);
   if (request.operation === "save_meal_planning_profile") return await saveLocalMealPlanningProfile(root, input, now);

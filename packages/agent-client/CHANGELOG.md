@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.15 - 2026-07-26
+
+- Offer cloud sync after every successful local-only delivery audit, while keeping connection, household selection, and provider-specific visibility/retention approval separate from the offer and making decline or silence a no-op.
+
 ## 1.1.14 - 2026-07-25
 
 - Add a local and connected food-delivery history audit for user-selected signed-in providers with complete order/modifier capture, delivery-versus-pickup evidence, exact restaurant locations, alcohol indexing, regulated-line exclusions, and no raw-page or credential storage.

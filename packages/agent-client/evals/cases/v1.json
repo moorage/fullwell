@@ -899,6 +899,20 @@
       "invariants": ["ask_exact_changed_provider_origins", "accept_user_named_provider", "ask_installed_signed_in_browser", "preserve_prior_evidence", "revision_checked_full_journal_save"]
     },
     {
+      "id": "delivery-local-completion-cloud-offer",
+      "prompt": "I finished indexing 12 months of DoorDash locally and nothing was uploaded. Give me the completion response.",
+      "skills": ["audit-food-delivery-orders", "manage-household-food-journal"],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update"],
+      "invariants": ["report_successful_local_delivery_save", "offer_cloud_sync_after_local_audit", "explain_household_collaboration_shared_collections_and_meal_plans", "ask_before_any_cloud_call", "require_provider_visibility_preview_after_acceptance", "decline_or_silence_makes_no_hosted_write"]
+    },
+    {
+      "id": "delivery-connected-completion-no-sync-offer",
+      "prompt": "The connected household delivery audit already committed every selected provider successfully. Finish the response.",
+      "skills": ["audit-food-delivery-orders"],
+      "required_tools": ["hfj_commit_delivery_index"],
+      "invariants": ["report_successful_connected_delivery_commit", "omit_redundant_cloud_sync_offer", "offer_private_history_try_prompt", "do_not_repeat_provider_visibility_confirmation_after_success"]
+    },
+    {
       "id": "delivery-household-visibility-declined",
       "prompt": "Index Uber Eats locally, but I do not agree that its order dates, groupings, locations, and modifiers stay visible to the household after I leave.",
       "skills": ["audit-food-delivery-orders", "manage-household-food-journal"],

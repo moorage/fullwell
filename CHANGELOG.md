@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Offer cloud sync after every successful local-only delivery audit so the user can collaborate, share delivery dishes in collections, and use them in household meal plans without making any remote call before acceptance and provider-specific visibility approval.
 - Add an authenticated `Takeout` household tab and Journal-at-a-glance count with exact restaurant locations, safe ordered/shared context, snapshot-bound infinite scrolling, a no-JavaScript continuation, and the `Meal plans` navigation label.
 - Add provider-neutral food-delivery history, household contribution, public-safe delivery-dish collections/import, and local or collaborative meal-plan sources from bounded user-directed navigation in an already signed-in browser.
 - Add exact provider, restaurant-location, fulfillment, dish, modifier, quantity, and complete-order evidence plus provider-then-location ambiguity handling for same-name restaurants.

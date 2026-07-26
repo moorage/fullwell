@@ -117,6 +117,8 @@ test("each eval has a unique identity and targets both host matrices", async () 
   const deliveryEvalIds = [
     "delivery-no-providers",
     "delivery-provider-set-changed",
+    "delivery-local-completion-cloud-offer",
+    "delivery-connected-completion-no-sync-offer",
     "delivery-household-visibility-declined",
     "delivery-local-promotion-success",
     "delivery-local-promotion-retry",
@@ -154,6 +156,11 @@ test("each eval has a unique identity and targets both host matrices", async () 
   assert.ok(promotionSuccess?.required_tools.includes("fullwell_local_household_update"));
   assert.ok(promotionSuccess?.invariants.includes("persist_only_target_digest_while_pending"));
   assert.ok(promotionSuccess?.invariants.includes("record_cloud_link_only_after_success"));
+  const deliveryLocalCompletion = matrix.cases.find((testCase) => testCase.id === "delivery-local-completion-cloud-offer");
+  assert.ok(deliveryLocalCompletion?.invariants.includes("offer_cloud_sync_after_local_audit"));
+  assert.ok(deliveryLocalCompletion?.invariants.includes("decline_or_silence_makes_no_hosted_write"));
+  const deliveryConnectedCompletion = matrix.cases.find((testCase) => testCase.id === "delivery-connected-completion-no-sync-offer");
+  assert.ok(deliveryConnectedCompletion?.invariants.includes("omit_redundant_cloud_sync_offer"));
   const signInBlock = matrix.cases.find((testCase) => testCase.id === "delivery-sign-in-block");
   assert.ok(signInBlock?.invariants.includes("store_no_partial_page_or_order"));
   const alcohol = matrix.cases.find((testCase) => testCase.id === "delivery-alcohol-indexing");
@@ -162,6 +169,8 @@ test("each eval has a unique identity and targets both host matrices", async () 
   assert.ok(excludedGoods?.invariants.includes("exclude_tobacco_cannabis_prescriptions_and_gift_cards"));
   assert.ok(deliveryAuditSkill.includes("stage_delivery_promotion"));
   assert.ok(deliveryAuditSkill.includes("record_delivery_promotion"));
+  assert.ok(deliveryAuditSkill.includes("Would you like to connect Fullwell cloud and sync this delivery history now?"));
+  assert.ok(deliveryAuditSkill.includes("Would you like to sync this delivery history to your linked Fullwell household now?"));
   assert.ok(deliveryAuditSkill.includes("This skill audits history only"));
   assert.ok(deliverySafetyReference.includes("Do not crawl, scrape, bypass controls"));
   assert.ok(deliverySafetyReference.includes("version 1 has no per-source erase"));
@@ -170,6 +179,8 @@ test("each eval has a unique identity and targets both host matrices", async () 
   assert.ok(localRuntime.includes("recordLocalDeliveryPromotion"));
   assert.ok(localRuntime.includes('kind: "journal_delivery_dish"'));
   assert.ok(expected.forbidden_behaviors.includes("records_local_delivery_cloud_linkage_before_confirmed_hosted_success"));
+  assert.ok(expected.forbidden_behaviors.includes("ends_a_successful_local_delivery_audit_without_a_cloud_sync_offer"));
+  assert.ok(expected.forbidden_behaviors.includes("treats_the_general_delivery_sync_offer_as_provider_visibility_consent"));
   assert.ok(expected.forbidden_behaviors.includes("prepares_or_changes_a_delivery_cart_during_history_audit"));
   const reorderEvalIds = [
     "delivery-reorder-provider-ambiguity",

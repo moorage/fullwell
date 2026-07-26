@@ -920,11 +920,25 @@
       "invariants": ["explain_no_per_source_erase_and_backup_retention", "keep_provider_local_or_skip", "make_no_hosted_delivery_write", "do_not_mark_provider_committed"]
     },
     {
+      "id": "delivery-conversational-visibility-confirmation",
+      "prompt": "You just explained what my DoorDash household members can see and how long it is retained. Sync it.",
+      "skills": ["audit-food-delivery-orders", "manage-household-food-journal"],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update", "hfj_commit_delivery_index"],
+      "invariants": ["interpret_clear_contextual_affirmative_as_provider_confirmation", "do_not_require_scripted_confirmation_text", "set_household_visibility_confirmed_true", "commit_only_the_previewed_provider", "preserve_stable_provider_key_and_local_authority"]
+    },
+    {
+      "id": "delivery-ambiguous-visibility-response",
+      "prompt": "You showed the DoorDash household visibility preview. I might want that later.",
+      "skills": ["audit-food-delivery-orders", "manage-household-food-journal"],
+      "required_tools": ["fullwell_local_household_load"],
+      "invariants": ["treat_intent_as_unconfirmed", "ask_one_natural_clarifying_question", "make_no_hosted_delivery_write", "do_not_set_household_visibility_confirmed", "keep_provider_local"]
+    },
+    {
       "id": "delivery-local-promotion-success",
       "prompt": "Share my local DoorDash index with this household after showing exactly what will copy.",
       "skills": ["audit-food-delivery-orders", "manage-household-food-journal"],
       "required_tools": ["fullwell_local_household_load", "hfj_get_context", "hfj_search_delivery_history", "hfj_get_delivery_index", "hfj_get_profile", "fullwell_local_household_update", "hfj_commit_delivery_index"],
-      "invariants": ["reconcile_one_provider", "show_exact_copy_merge_and_retention_preview", "literal_provider_visibility_confirmation", "stage_stable_provider_key_before_commit", "persist_only_target_digest_while_pending", "record_cloud_link_only_after_success", "preserve_local_authority"]
+      "invariants": ["reconcile_one_provider", "show_exact_copy_merge_and_retention_preview", "clear_contextual_provider_visibility_confirmation", "stage_stable_provider_key_before_commit", "persist_only_target_digest_while_pending", "record_cloud_link_only_after_success", "preserve_local_authority"]
     },
     {
       "id": "delivery-local-promotion-retry",

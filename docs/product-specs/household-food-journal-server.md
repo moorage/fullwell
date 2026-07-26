@@ -758,7 +758,7 @@ Output: the canonical agent-authored `delivery_index` report and its exact docum
 
 #### `hfj_commit_delivery_index`
 
-Input: `connected_audit_checkpoint | local_promotion`, one exact provider label/origin and literal provider visibility confirmation, expected household HEAD and delivery profile/report revisions, exact expected and next aggregate delivery profile/report documents, zero to 100 new completed delivery evidence records, zero to 100 history-backed delivery dishes, expected item revisions, and one provider-scoped idempotency key.
+Input: `connected_audit_checkpoint | local_promotion`, one exact provider label/origin and `household_visibility_confirmed: true` asserted by the agent only after a clear contextual response to that provider's visibility and retention preview, expected household HEAD and delivery profile/report revisions, exact expected and next aggregate delivery profile/report documents, zero to 100 new completed delivery evidence records, zero to 100 history-backed delivery dishes, expected item revisions, and one provider-scoped idempotency key. The server validates the boolean boundary; it does not require or parse scripted confirmation text.
 
 Output: completed mode/provider, evidence and item IDs, and exact profile/report revisions.
 

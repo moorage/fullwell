@@ -2,7 +2,7 @@
 
 ## 1.1.15 - 2026-07-26
 
-- Offer cloud sync after every successful local-only delivery audit, while keeping connection, household selection, and provider-specific visibility/retention approval separate from the offer and making decline or silence a no-op.
+- Offer cloud sync after every successful local-only delivery audit, accept clear contextual responses such as `yes` or `sync it` without scripted confirmation text, and keep connection, household selection, and provider-specific visibility/retention approval separate from the offer while making ambiguity, decline, or silence a no-op.
 
 ## 1.1.14 - 2026-07-25
 

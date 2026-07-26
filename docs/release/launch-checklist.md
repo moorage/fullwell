@@ -9,12 +9,13 @@
 - [ ] Direct WhatsApp linking, signed inbound/retry, local Codex/Claude restocking, evidence-only ambiguity, idempotent no-checkout cart action, reply/delivery, offline, cutoff, revoke, and uninstall flows pass.
 - [x] Provider-neutral fixture coverage passes for complete delivery indexing, provider/location ambiguity, household contribution, public-safe collections/import, local/cloud meal proposals, exact cart recovery, alcohol selection, and structural no-checkout behavior.
 - [x] Food-delivery local hardening passes the full deterministic WebKit matrix, eight-migration PostgreSQL rollback/reapply, 11 database integrations, zero-production-vulnerability audit, pinned Node 24 image build, and fixture-only screencast.
+- [x] Provider-neutral food-delivery schema `0008`, checksum-matched Linux/amd64 image, readiness/deployment/MCP smokes, immutable npm `1.1.14`, and clean downloaded Codex/Claude lifecycles pass with rollback evidence retained.
 - [ ] Authorized current DoorDash and Uber Eats matrices pass in supported Codex and Claude installed hosts; every advertised provider and alcohol sub-capability has an evidence-backed label.
 - [ ] Upgrade, disable, re-enable, uninstall, and rollback preserve canonical data.
 
 ## Quality and safety
 
-- [ ] Lint, typecheck, build, unit, contract, integration, security, eval, e2e, deploy smoke, docs, and ExecPlan gates pass.
+- [x] Lint, typecheck, build, unit, contract, integration, security, eval, e2e, deploy smoke, docs, and ExecPlan gates pass.
 - [x] Deterministic domain/adapter coverage meets the repository threshold; every LLM-involved semantic path has Codex and Claude eval evidence.
 - [ ] Accessibility and privacy reviews are approved with no release-blocking finding.
 - [ ] Cross-tenant, OAuth, CSRF, XSS/Markdown, prompt injection, Git/path, replay, rate-limit, redaction, race, and load suites pass.

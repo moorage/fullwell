@@ -17,6 +17,11 @@ Current evidence, 2026-07-16:
 - On macOS 26.5.1 with Safari 26.5, native page zoom was confirmed at exactly 200 percent through Safari's Page Menu. Install, sign-in, the long Privacy page, and the non-enumerating collection error state remained readable at the 1024x768 window without visible overlap or clipping; headings and controls remained coherent in the accessibility tree. Safari was restored to 100 percent after the review.
 - Native keyboard traversal reaches install and sign-in form controls with `Tab` and links with Safari's `Option-Tab` convention. Activating `Skip to content` moved focus to the main-content container, and the install controls cycled without a trap or unexpected loss.
 
+Takeout follow-on evidence, 2026-07-26:
+
+- The authenticated Takeout route passes automated WCAG 2.0/2.1/2.2 A/AA analysis and horizontal-overflow checks at desktop and 320 CSS pixels.
+- Desktop, iPhone, 320-pixel, and no-JavaScript WebKit preserve the ordinary `Load more takeout items` link, exact restaurant-location text, non-color fulfillment/alcohol labels, status announcements, and visible `Meal plans`/`Takeout` navigation. The narrow household navigation uses a three-column grid so the active Takeout tab does not begin offscreen.
+
 ## Manual
 
 - Complete every flow using keyboard only; no focus trap, hidden action, hover-only content, or unexpected focus loss.

@@ -26,6 +26,7 @@
 - Delivery audits prove bounded user-directed navigation at one exact signed-in provider origin, complete-group handling, and exclusion of credentials, raw pages, destination, payment, account, and age/identity data.
 - Provider-scoped cloud consent explains household visibility, contribution retention, no per-provider erasure, and backup expiry. Decline and uncertain writes leave local authority unchanged.
 - Delivery collection snapshots/imports prove that private locators, dates, recurrence, modifiers, history, and reorder authority cannot cross the public boundary.
+- Authenticated Takeout browser tests prove the server emits only allowlisted dish, public restaurant/location, bounded history, fulfillment, modifier, provider-label, import, and classification fields; private locators, provider origin, evidence/actor IDs, destinations, and complete orders remain absent from JSON and HTML.
 - Delivery cart proofs bind provider then exact location, full current-cart contents, quantities, replacement confirmation, and recovery while checkout, payment, tips, address/schedule changes, memberships, subscriptions, and ID handling remain unavailable.
 
 ## Local automated evidence
@@ -33,6 +34,7 @@
 - `npm run test:security` passes direct public-snapshot, unsafe-path/archive, malformed/unsupported/oversized-body, capability-log, hostile-rendering, prompt-content, URL-scheme, and tracked/untracked repository-secret probes.
 - The broader deterministic suite covers cross-household substitution, role/scope enforcement, CSRF, redirect validation, OAuth/passkey replay, refresh reuse, invitation/share non-enumeration, final-owner/idempotency races, signed webhook parsing, two-sided linking, encrypted queue retention, runner revocation, fixed snapshot extraction, Git object rejection, export claims, and central telemetry redaction.
 - Food-delivery Milestone 6 passes the local security, WebKit accessibility, full-cart recovery, migration/rollback, and PostgreSQL integration gates. Its fixture-only screencast contains invented data and never opens checkout.
+- Food-delivery Milestone 7 Takeout projection tests cover same-name locations, public imports, history-backed evidence narrowing, snapshot conflicts, authenticated route denial, strict client parsing, and two continuation pages without exposing private provider fields.
 - The provider-neutral build digest, schema, staging configuration, and automated probes are recorded in `verification-evidence.md`. Named manual reviewer identity and privacy/accessibility approval remain unrecorded and release-blocking for named-provider claims.
 - Delivery implementation evidence is provider-neutral and fixture-backed. Current live DoorDash/Uber Eats behavior, Codex/Claude installed-host execution, and alcohol age-step behavior remain unverified and therefore unsupported for named-provider release.
 

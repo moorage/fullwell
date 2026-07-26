@@ -30,6 +30,7 @@ export function renderWebRoute(url: string, context: WebRenderContext): Rendered
         : pathname.endsWith("/meal-plan") ? "Weekly meal plan"
           : pathname.endsWith("/recipes") ? "Household recipes"
             : pathname.endsWith("/groceries") ? "Household groceries"
+              : pathname.endsWith("/takeout") ? "Household takeout"
               : pathname.startsWith("/households/") ? "Household" : "Fullwell"
   );
   return { appHtml: renderToString(<App url={url} context={context} />), title };

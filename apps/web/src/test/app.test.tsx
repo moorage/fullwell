@@ -4,7 +4,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { App } from "../app.js";
 import { parseWebRenderContext } from "../context.js";
-import { demoWebContext, groceryVisualJournalFixture, recipeVisualJournalFixture } from "../fixtures.js";
+import { demoWebContext, groceryVisualJournalFixture, recipeVisualJournalFixture, takeoutVisualJournalFixture } from "../fixtures.js";
 import { renderWebRoute } from "../server.js";
 
 function renderApp(url: string, context = demoWebContext) {
@@ -211,6 +211,48 @@ describe("web experience", () => {
     expect(screen.getByText("Black sesame buns").closest("article")).toHaveTextContent("No image recorded");
     expect(screen.getByText(/does not infer brands, products, or categories/)).toBeVisible();
     expect(screen.getByRole("status")).toHaveTextContent("reached the end");
+  });
+
+  it("shows takeout in the household journal and progressively loads exact restaurant locations", async () => {
+    const user = userEvent.setup();
+    const first = { ...takeoutVisualJournalFixture, items: takeoutVisualJournalFixture.items.slice(0, 12), nextCursor: "v1_12" };
+    const batches = [
+      { ...takeoutVisualJournalFixture, items: takeoutVisualJournalFixture.items.slice(12, 24), nextCursor: "v1_24" },
+      { ...takeoutVisualJournalFixture, items: takeoutVisualJournalFixture.items.slice(24), nextCursor: null },
+    ];
+    const fetchMock = vi.fn(async (_input: string | URL | Request) => {
+      const batch = batches.shift();
+      return new Response(JSON.stringify(batch), { status: batch === undefined ? 500 : 200, headers: { "content-type": "application/json" } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderApp("/households/alvarez-home/takeout", { ...demoWebContext, visualJournal: first });
+
+    expect(screen.getByRole("heading", { name: "Delivery & takeout in Alvarez home" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Meal plans" })).toHaveAttribute("href", "/households/alvarez-home/meal-plan");
+    expect(screen.getAllByText("Wanpo")).toHaveLength(2);
+    expect(screen.getByText("Palo Alto, CA")).toBeVisible();
+    expect(screen.getByText("Cupertino, CA")).toBeVisible();
+    expect(screen.getByText(/never checks out/)).toBeVisible();
+
+    await user.click(screen.getByRole("link", { name: "Load more takeout items" }));
+    expect(await screen.findByRole("heading", { name: "Truffle fries" })).toBeVisible();
+    await user.click(screen.getByRole("link", { name: "Load more takeout items" }));
+    expect(await screen.findByRole("heading", { name: "Canned citrus spritz" })).toBeVisible();
+    expect(screen.getByText("Alcohol")).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent("reached the end");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstRequest = fetchMock.mock.calls[0]?.[0];
+    const firstRequestUrl = typeof firstRequest === "string"
+      ? firstRequest
+      : firstRequest instanceof URL ? firstRequest.href : firstRequest?.url;
+    expect(firstRequestUrl).toContain(`snapshotRevision=${"a".repeat(40)}`);
+  });
+
+  it("includes takeout in Journal at a glance", () => {
+    renderApp("/households/alvarez-home");
+    const journal = screen.getByRole("region", { name: "Journal at a glance" });
+    expect(within(journal).getByRole("link", { name: /27 Takeout/ })).toHaveAttribute("href", "/households/alvarez-home/takeout");
   });
 
   it("keeps same-slot proposals visible and exposes ordinary no-JavaScript meal forms", () => {
@@ -569,5 +611,9 @@ describe("web experience", () => {
       ...demoWebContext,
       install: { hosts: { ...demoWebContext.install.hosts, codex: { ...demoWebContext.install.hosts.codex, setupHref: "https://attacker.example/new" } } },
     })).toThrow("Only Codex new-conversation URLs are accepted");
+    expect(() => parseWebRenderContext({
+      ...demoWebContext,
+      visualJournal: { ...takeoutVisualJournalFixture, snapshotRevision: "b".repeat(64) },
+    })).not.toThrow();
   });
 });

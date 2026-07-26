@@ -926,6 +926,10 @@
                     },
                     {
                       "type": "file",
+                      "name": "household-takeout.tsx"
+                    },
+                    {
+                      "type": "file",
                       "name": "households.tsx"
                     },
                     {

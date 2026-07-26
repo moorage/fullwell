@@ -1,5 +1,16 @@
 # Verification Evidence
 
+## Food-delivery Milestone 7
+
+Date: 2026-07-26
+
+- The authenticated household website now exposes a `Takeout` tab and Journal-at-a-glance count. Same-name restaurant locations remain separate; cards distinguish ordered-before from shared dishes, delivery from pickup, and food from alcohol while repeating the structural manual-checkout boundary.
+- JavaScript infinite loading appends two deterministic 12-item cursor pages from a 25-item fixture, deduplicates IDs, retains retry/end states, and binds every continuation to the initial Git HEAD. A concurrent HEAD change returns a refresh-required conflict. The ordinary `?page=N` link remains the keyboard and no-JavaScript fallback.
+- Server and web tests cover strict runtime parsing, 40- and 64-character Git object IDs, authorization, stale snapshots, public-import authority, canonical evidence narrowing, exact location ordering, private-field exclusion, overview navigation, and the unchanged `/meal-plan` route behind the `Meal plans` label.
+- Focused WebKit evidence passes 39 checks with 9 intentional project skips across desktop, mobile, 320-pixel, no-JavaScript, axe, reduced-motion, and a hydrated two-page automatic append. The post-polish visual-journal matrix passes all four projects.
+- Deterministic coverage passes 408 tests with 11 database-gated skips at 96.49% statements/lines, 95.71% functions, and 90.05% branches. Contract/packaging, security, eval, load, eight-migration up/down/up, and all 11 Apple Container PostgreSQL integration tests pass.
+- The repository ffmpeg helper failed early because the macOS build has no `x11grab` input. The documented Playwright-native fallback produced `artifacts/screencasts/food-delivery-takeout-browser.mp4`, a 10.52-second, 422,921-byte H.264 1280x800 fixture-only capture of overview navigation, the Meal plans/Takeout tabs, Palo Alto and Cupertino Wanpo cards, and two automatic append steps. It contains invented data and never opens a provider or checkout.
+
 ## Food-delivery Milestones 1-6
 
 Date: 2026-07-26

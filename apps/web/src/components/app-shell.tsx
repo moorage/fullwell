@@ -62,10 +62,11 @@ export function HouseholdNav({ householdId, active }: { householdId: string; act
   const links = [
     { id: "overview", label: "Overview", href: `/households/${householdId}` },
     ...(capabilities.mealPlanning
-      ? [{ id: "meal-plan", label: "Meals", href: `/households/${householdId}/meal-plan` }]
+      ? [{ id: "meal-plan", label: "Meal plans", href: `/households/${householdId}/meal-plan` }]
       : []),
     { id: "recipes", label: "Recipes", href: `/households/${householdId}/recipes` },
     { id: "groceries", label: "Groceries", href: `/households/${householdId}/groceries` },
+    { id: "takeout", label: "Takeout", href: `/households/${householdId}/takeout` },
     { id: "members", label: "Members", href: `/households/${householdId}/members` },
     { id: "collections", label: "Collections", href: `/households/${householdId}/collections` },
   ];

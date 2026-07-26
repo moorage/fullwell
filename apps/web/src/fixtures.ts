@@ -15,6 +15,7 @@ export const households: readonly HouseholdSummary[] = [
     members: 4,
     recipes: 38,
     groceries: 22,
+    takeout: 27,
     updatedLabel: "Updated yesterday",
   },
   {
@@ -24,6 +25,7 @@ export const households: readonly HouseholdSummary[] = [
     members: 6,
     recipes: 14,
     groceries: 9,
+    takeout: 6,
     updatedLabel: "Updated 5 days ago",
   },
 ];
@@ -182,6 +184,7 @@ const recipeImages = [
 export const recipeVisualJournalFixture: VisualJournalPage = {
   householdId: "alvarez-home",
   section: "recipes",
+  snapshotRevision: "a".repeat(40),
   total: recipeTitles.length,
   items: recipeTitles.map((title, index) => ({
     kind: "recipe" as const,
@@ -219,6 +222,7 @@ const groceryTitles = [
 export const groceryVisualJournalFixture: VisualJournalPage = {
   householdId: "alvarez-home",
   section: "groceries",
+  snapshotRevision: "a".repeat(40),
   total: groceryTitles.length,
   items: groceryTitles.map((title, index) => ({
     kind: "grocery" as const,
@@ -230,6 +234,69 @@ export const groceryVisualJournalFixture: VisualJournalPage = {
     imageUrl: index % 4 === 1 ? null : recipeImages[index % recipeImages.length] ?? null,
     imagePageUrl: index % 4 === 1 ? null : "https://unsplash.com",
   })),
+  nextCursor: null,
+};
+
+const takeoutTitles = [
+  "Wintermelon boba",
+  "Coconut boba",
+  "Scallion pancake",
+  "Chili wontons",
+  "Chicken shawarma plate",
+  "Mushroom pizza",
+  "Spicy miso ramen",
+  "Garlic noodles",
+  "Paneer tikka masala",
+  "Crispy chicken sandwich",
+  "Salmon poke bowl",
+  "Veggie burrito",
+  "Beef pho",
+  "Margherita pizza",
+  "Dry-fried green beans",
+  "Falafel wrap",
+  "Katsu curry",
+  "Truffle fries",
+  "Tom yum noodles",
+  "Carnitas tacos",
+  "Lamb kebab plate",
+  "Tonkotsu ramen",
+  "Cucumber salad",
+  "Passionfruit tea",
+  "Canned citrus spritz",
+] as const;
+
+export const takeoutVisualJournalFixture: VisualJournalPage = {
+  householdId: "alvarez-home",
+  section: "takeout",
+  snapshotRevision: "a".repeat(40),
+  total: takeoutTitles.length,
+  items: takeoutTitles.map((title, index) => {
+    const location = index === 0
+      ? { restaurantName: "Wanpo", locationLabel: "Palo Alto", locationAddress: "Palo Alto, CA" }
+      : index === 1
+        ? { restaurantName: "Wanpo", locationLabel: "Cupertino", locationAddress: "Cupertino, CA" }
+        : {
+            restaurantName: ["Zareen's", "Dumpling City", "Pizzeria Delfina", "Ramen Nagi"][index % 4] ?? "Local restaurant",
+            locationLabel: ["Palo Alto", "San Mateo", "Burlingame", "Santa Clara"][index % 4] ?? "Peninsula",
+            locationAddress: null,
+          };
+    const shared = index % 6 === 5;
+    return {
+      kind: "takeout" as const,
+      id: `takeout-visual-${index + 1}`,
+      title,
+      ...location,
+      providerLabel: shared ? null : index % 2 === 0 ? "DoorDash" : "Uber Eats",
+      provenance: shared ? "shared_dish" as const : "ordered_before" as const,
+      classification: index === takeoutTitles.length - 1 ? "alcohol" as const : "food" as const,
+      occurrenceCount: shared ? 0 : (index % 4) + 1,
+      lastOrderedLabel: shared ? null : "Jul 18, 2026",
+      fulfillmentModes: shared ? [] : index % 3 === 0 ? ["pickup" as const] : ["delivery" as const],
+      modifierSummary: index < 2 ? "Sweetness: Half sweet · Ice: Less ice" : null,
+      imageUrl: shared ? recipeImages[index % recipeImages.length] ?? null : null,
+      imagePageUrl: shared ? "https://unsplash.com" : null,
+    };
+  }),
   nextCursor: null,
 };
 

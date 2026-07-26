@@ -53,6 +53,8 @@ This plan promotes `docs/ideas/backlog/food-delivery-history-and-cart-preparatio
 - [x] 2026-07-26T20:13Z: WU-09 synchronized client/server product contracts, architecture, security, reliability, privacy, quality, release evidence, launch gates, implementation history, and unreleased package guidance with implemented Milestones 1-5. Approved doc-drift recoveries added every delivery path/tool/authority, corrected projection and search-limit claims, removed an unavailable self-service deletion promise, and kept fixture evidence separate from pending provider/host/release proof. Root docs, ExecPlan, and diff gates passed; final doc-drift review returned PASS with only Milestone 6 evidence gaps remaining.
 - [x] 2026-07-26T04:35Z: WU-10 completed the local Milestone 6 hardening matrix. Full browser coverage passes 135 checks with 13 intentional project skips; schema `0008` passes eight migrations up/down/up and 11 PostgreSQL integrations through Apple Container; production dependencies audit cleanly; the pinned Node 24 image builds; and a 6.68-second fixture-only H.264 screencast proves provider/location ambiguity, Stanford selection with the prior coconut line, the resulting wintermelon cart, public-collection, meal-plan, and explicit stop-before-checkout states. The Linux X11/PulseAudio helper was unavailable on macOS, so Playwright-native video supplied the verified fallback. No authorized live provider, installed-host, staging, publication, or manual approval evidence exists, so DoorDash, Uber Eats, additional providers, and their alcohol sub-capabilities are explicitly unsupported for release. Fresh adversarial review returned PASS after verifying the exact frames, artifact metadata, tracking, release labels, authority boundaries, and rollout/rollback wording.
 - [x] 2026-07-26T05:14Z: Release commit `65aca44` was pushed, schema `0008` was applied after a root-only schema `0007` checkpoint, the checksum-matched Linux/amd64 image was deployed with the prior environment retained, and public readiness/deployment/MCP smokes pass. Immutable `@fullwell/fullwell@1.1.14` is npm `latest`; registry checksums match a clean 33-file download whose isolated Codex and Claude lifecycles pass. This provider-neutral release does not change the unsupported DoorDash, Uber Eats, additional-provider, installed-host live-provider, live alcohol age-step, or manual privacy/accessibility labels.
+- [x] 2026-07-26T05:40Z: Milestone 7 follow-on started after the user identified the missing authenticated Delivery/Takeout website surface. The work adds a `Takeout` tab and journal count, delivery-specific cards with exact location and safe order context, infinite cursor loading with an accessible fallback, and renames the `Meals` tab to `Meal plans`.
+- [x] 2026-07-26T23:04Z: Milestone 7 implementation and local verification completed. The strict server projection, authenticated routes, exact-location cards, snapshot-bound infinite loader, no-JavaScript fallback, responsive navigation, overview count, and Meal plans label pass focused server/web tests; 408-test coverage; 39 focused WebKit checks plus the four-project post-polish visual matrix; contract, packaging, security, eval, load, migration, and 11 isolated PostgreSQL integration gates. The standard screencast helper failed on unavailable macOS `x11grab`; the documented Playwright-native fallback produced a verified 10.52-second H.264 fixture capture.
 - [x] Milestone 0 - prove provider order-history, exact-location, cart, host, and no-checkout feasibility and freeze the support matrix.
 - [x] Milestone 1 - add additive delivery evidence, item, profile, report, and projection contracts while closing every legacy write/consumer boundary.
 - [x] Milestone 2 - implement local and connected delivery-history auditing, location-aware indexing, household contribution, and semantic evals.
@@ -60,6 +62,7 @@ This plan promotes `docs/ideas/backlog/food-delivery-history-and-cart-preparatio
 - [x] Milestone 4 - extend curated collection preview/import with public-safe delivery dishes and no reorder-authority leakage.
 - [x] Milestone 5 - extend local and cloud meal planning with revisioned delivery-dish proposals and conservative compatibility behavior.
 - [x] Milestone 6 - complete local security, privacy, accessibility, provider-classification, cross-host contract, rollout/rollback, screencast, and release evidence; conclude with a no-go for named-provider release because authorized live host/provider, staging, publication, and manual approval evidence is absent.
+- [x] Milestone 7 - add the authenticated Takeout visual journal, dashboard count, infinite loading, and Meal plans navigation label; verify and record the follow-on. Production deployment remains a release operation, not a local implementation prerequisite.
 
 ## Surprises & Discoveries
 
@@ -73,6 +76,7 @@ This plan promotes `docs/ideas/backlog/food-delivery-history-and-cart-preparatio
 - 2026-07-25: `apps/server/src/services/household-food-journal.ts` also assumes every non-recipe item exposes grocery fields in search and summary helpers. Every current shared-union consumer must narrow `delivery_dish` in Milestone 1; branches whose upstream contract cannot yet produce delivery must document and test that narrower discriminant.
 - 2026-07-25: Provider terms use broad language around automated scraping and systematic retrieval, but the requested product behavior is materially narrower: the account holder delegates the same visible, signed-in order-history navigation they could perform manually. The implementation must preserve that distinction through explicit initiation, bounded windows, exact origins, no bypass, and no background crawler.
 - 2026-07-26: The repository screencast helper assumes Linux X11 and PulseAudio inputs. On this macOS host, Playwright-native per-flow recordings provide deterministic, secret-free visible evidence and can be concatenated into the required fixture-only MP4 without widening permanent test configuration.
+- 2026-07-26: The existing recipe/grocery `VisualJournalFeed` already implements IntersectionObserver loading, ID deduplication, retry, and a no-JavaScript continuation. The Takeout page can reuse that control by extending the section and item unions instead of creating another infinite-scroll subsystem.
 
 ## Decision Log
 
@@ -100,6 +104,10 @@ This plan promotes `docs/ideas/backlog/food-delivery-history-and-cart-preparatio
 - 2026-07-25: Land the visual-journal narrowing with the core item union in Milestone 1. Keep the existing recipe/grocery response union unchanged and deliberately omit `delivery_dish`; do not add a placeholder delivery card. Milestones 4 and 5 add delivery-specific collection and meal-plan presentation after their full contracts exist.
 - 2026-07-25: After the WU-02 adversarial gate exhausted three attempts, move the complete direct-cart session contract from Milestone 1 to Milestone 3. A safe plan needs the actual reorder skill and eval consumers so its exact source-line edits, parsed full-cart baseline, visible replacement summary, confirmation fingerprint, and retry behavior land together. Milestone 1 keeps only the stable delivery history and journal contracts.
 - 2026-07-26: Milestone 6 may conclude with a documented no-go release decision. Deterministic implementation, rollback, database, image, security, accessibility, and screencast evidence can complete locally while every named provider and live alcohol sub-capability stays disabled and explicitly `unsupported` until separately authorized proof exists.
+- 2026-07-26: Use `Takeout` as the concise household tab and Journal-at-a-glance label, while the page heading and cards explicitly distinguish delivery from pickup. Rename only the existing `Meals` tab label to `Meal plans`; preserve the established `/meal-plan` route and server authority.
+- 2026-07-26: Reuse the authenticated visual-journal route with a strict `takeout` section. Project dish, restaurant, public location/address, provider label, provenance, classification, occurrence count, last-order date, fulfillment modes, and one recent exact modifier summary. Never send provider origin, order/group locator, merchant/menu locator, evidence ID, actor ID, or delivery destination to React.
+- 2026-07-26: Bind JavaScript visual-journal continuation requests to the initial repository HEAD. The existing offset-only cursor can skip or duplicate sorted entries if a concurrent journal commit changes the set between requests; a mismatched snapshot now fails with refresh guidance. A no-JavaScript `?page=N` request intentionally renders a fresh bounded prefix at the then-current HEAD.
+- 2026-07-26: Keep reorder handoff as visible instructional copy rather than embedding private restaurant or dish history in a `codex://`, query string, analytics event, or external URL. The user starts the request in their installed Fullwell conversation.
 
 ## Context and Orientation
 
@@ -374,7 +382,7 @@ Files:
 - create `tests/fixtures/fake-delivery-provider/server.mjs`;
 - create `tests/e2e/food-delivery.spec.ts`;
 - `playwright.config.ts`;
-- update `docs/exec-plans/active/2026-07-24-food-delivery-history-and-cart-preparation.md`.
+- update `docs/exec-plans/completed/2026-07-24-food-delivery-history-and-cart-preparation.md`.
 
 Tasks:
 
@@ -804,6 +812,76 @@ Exit criteria:
 - privacy, security, accessibility, screencast, provider, rollout, and rollback evidence is recorded;
 - unsupported or changed provider UI blocks truthfully.
 
+### Milestone 7 - Authenticated Takeout Visual Journal
+
+Files:
+
+- `apps/server/src/http/web-view-model.ts`
+- `apps/server/src/http/web-view-model.test.ts`
+- `apps/server/src/http/web.ts`
+- `apps/server/src/http/app.test.ts`
+- `apps/web/src/types.ts`
+- `apps/web/src/context.tsx`
+- `apps/web/src/route.ts`
+- `apps/web/src/app.tsx`
+- `apps/web/src/server.tsx`
+- `apps/web/src/components/app-shell.tsx`
+- `apps/web/src/components/visual-journal-feed.tsx`
+- create `apps/web/src/routes/household-takeout.tsx`
+- `apps/web/src/routes/household-overview.tsx`
+- `apps/web/src/fixtures.ts`
+- `apps/web/src/styles.css`
+- `apps/web/src/test/route.test.ts`
+- `apps/web/src/test/app.test.tsx`
+- `tests/e2e/web.spec.ts`
+- `tests/e2e/accessibility.spec.ts`
+- `docs/product-specs/household-food-journal-client.md`
+- `docs/product-specs/household-food-journal-server.md`
+- `docs/ARCHITECTURE.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/release/verification-evidence.md`
+- create `artifacts/screencasts/food-delivery-takeout-browser.mp4`
+
+Tasks:
+
+1. Extend the web household summary with a delivery-dish count named `takeout`. Count history-backed and public-import dishes once each; keep recipe and grocery totals unchanged.
+2. Extend the visual-journal section union with `takeout`, add one strict delivery visual item variant, and return the current repository HEAD as a semantic snapshot revision. Project only dish, restaurant, public location/address, optional recorded image, provider label, ordered/shared provenance, food/alcohol classification, bounded occurrence count, last-order label, fulfillment modes, and one recent exact modifier summary. Resolve those fields from the authorized current projection and cited canonical evidence; never serialize private locators, provider origin, evidence/actor IDs, destinations, or complete orders.
+3. Sort Takeout cards by restaurant name, exact public location, dish name, and item ID. Preserve same-name locations as separate cards and fail closed on projection drift or malformed cited evidence.
+4. Reuse `/households/:householdId/journal-items` for bounded `takeout` cursor pages, the existing 12-item batch, 200-item no-JavaScript prefix ceiling, membership checks, and no-store private-route behavior. JavaScript continuation requests must echo the initial snapshot revision and fail closed if the current household/projection HEAD changed; no-JavaScript prefix requests intentionally start from the current snapshot.
+5. Add `/households/:householdId/takeout`, a `Takeout` household tab, and a third Journal-at-a-glance tile. Rename the existing `Meals` navigation label to `Meal plans` without changing its route or mutations.
+6. Render delivery-specific cards with visually prominent restaurant and exact location, safe history/provenance details, clear delivery/pickup distinction, Alcohol labeling, and visible instructional reorder copy that grants no browser/cart/checkout authority and places no private history in a URL.
+7. Reuse the current automatic infinite loader, ID deduplication, explicit retry, status announcements, and ordinary `Load more takeout` link. Prove the link remains a usable no-JavaScript and keyboard fallback.
+8. Add type, runtime-schema, server, React, route, security/privacy, Playwright, responsive 320-pixel, no-JavaScript, and axe coverage. Exercise at least 25 delivery dishes across multiple same-name locations so two cursor continuations are proven.
+9. Update product, architecture, release, implementation, and active-plan evidence. Record a fixture-only screencast of overview-to-Takeout navigation, first automatic append, location distinction, and Meal plans label.
+
+Verification:
+
+- `npm run build --workspace @hfj/contracts`
+- `npm run typecheck`
+- `npm run test:app -- --project server --project web`
+- `npm run test:e2e -- tests/e2e/web.spec.ts tests/e2e/accessibility.spec.ts`
+- `npm run test:coverage`
+- `npm run lint`
+- `npm run build`
+- `npm run capture:screencast -- --output artifacts/screencasts/food-delivery-takeout-browser.mp4`
+- `npm run knowledge:refresh`
+- `npm run verify`
+- `npm run verify:docs`
+- `npm run verify:execplan`
+
+Exit criteria:
+
+- authenticated members can reach Takeout from both the household nav and Journal at a glance;
+- the summary total and paged total equal the number of current delivery-dish items without changing legacy totals;
+- same-name restaurant locations remain visually and structurally distinct;
+- infinite loading appends deterministic deduplicated pages and recovers from a failed page;
+- a concurrent repository update between automatic pages produces a refresh-required failure instead of a mixed-snapshot feed;
+- keyboard and no-JavaScript users retain a visible ordinary continuation;
+- browser JSON and rendered HTML contain no private delivery locators, evidence IDs, actor IDs, destinations, or complete orders;
+- imported dishes are labeled `Shared dish` and never imply ordered-before or reorder authority;
+- history-backed cards label provider, occurrence/date, delivery/pickup evidence, modifiers, and Alcohol without claiming preference, eligibility, compatibility, or checkout authority;
+- the household tab reads `Meal plans`, the established route remains `/meal-plan`, and all verification plus visible evidence passes.
+
 ## Acceptance / Verification
 
 The feature is accepted only when all of the following are true:
@@ -915,6 +993,8 @@ Implementation outcome as of 2026-07-25: the independently reviewed ExecPlan is 
 The user-directed browser boundary is now explicit: cataloging means bounded navigation over purchases visible in the account holder's own signed-in browser, initiated by that user. It is not public-site crawling, unattended scraping, access-control bypass, credential handling, or a provider-data service. This decision unblocks provider-neutral implementation through Milestones 1-5. It does not authorize release claims: current DoorDash/Uber Eats UI capability, actual installed-host behavior, and provider-specific limitations remain Milestone 6 evidence requirements.
 
 Milestones 1-6 are implemented, release-hardened, deployed provider-neutrally on schema `0008`, and published as immutable `@fullwell/fullwell@1.1.14`. Deterministic evidence proves provider-neutral indexing and contribution, public-safe collection/import, delivery-dish meal sources, exact ambiguity handling, full-cart preparation/recovery, ordinary-maximum alcohol selection, user-controlled age UI, structural no-checkout behavior, reversible schema `0008`, PostgreSQL persistence, a checksum-matched staging image, clean public-package host lifecycles, and visible fixture-only evidence. This is deliberately not a named-provider release: DoorDash, Uber Eats, additional providers, installed-host live-provider execution, and live alcohol age steps remain unsupported until authorized current evidence exists; manual privacy/accessibility approval remains a launch blocker for those claims.
+
+Milestone 7 is implemented and locally verified. Authenticated household members can open Takeout from the navigation or Journal at a glance, browse exact restaurant locations through a strict allowlist projection, and continue through snapshot-bound infinite loading or an ordinary no-JavaScript page link. The browser retains no cart authority and no private provider locators. The visible `Meal plans` label preserves the established route. Production deployment is intentionally recorded separately from this local completion evidence.
 
 Milestone 0 is complete for deterministic implementation. DoorDash, Uber Eats, and additional live providers are classified `unsupported` for release because no authorized run proved complete history or exact cart verification.
 

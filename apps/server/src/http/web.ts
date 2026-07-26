@@ -77,8 +77,9 @@ export type WebWithdrawMealProposalInput = {
 
 export type WebJournalItemsInput = {
   readonly householdId: string;
-  readonly section: "recipes" | "groceries";
+  readonly section: "recipes" | "groceries" | "takeout";
   readonly cursor?: string;
+  readonly snapshotRevision?: string;
 };
 
 const SelectionFormSchema = z.object({
@@ -114,8 +115,9 @@ const WithdrawMealProposalFormSchema = MealMutationFormSchema.extend({
   reason: z.string().trim().max(500).optional().transform((value) => value === undefined || value === "" ? null : value),
 }).strict();
 const JournalItemsQuerySchema = z.object({
-  section: z.enum(["recipes", "groceries"]),
+  section: z.enum(["recipes", "groceries", "takeout"]),
   cursor: z.string().max(16).regex(/^v1_\d+$/).optional(),
+  snapshotRevision: GitObjectIdSchema.optional(),
 }).strict();
 
 export async function registerWebExperience(app: FastifyInstance, experience: WebExperience): Promise<void> {
@@ -184,6 +186,7 @@ export async function registerWebExperience(app: FastifyInstance, experience: We
       householdId: request.params.householdId,
       section: query.section,
       ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+      ...(query.snapshotRevision === undefined ? {} : { snapshotRevision: query.snapshotRevision }),
     });
     reply.header("cache-control", "private, no-store");
     reply.header("x-robots-tag", "noindex, nofollow");
@@ -194,7 +197,9 @@ export async function registerWebExperience(app: FastifyInstance, experience: We
     if (!isWebPath(request.url)) return reply.code(404).send({ error: { code: "NOT_FOUND", message: "Route was not found" } });
     const requestUrl = new URL(request.url, "https://local.invalid");
     const context = await experience.contextFor(request);
-    const privateJournal = requestUrl.pathname.endsWith("/recipes") || requestUrl.pathname.endsWith("/groceries");
+    const privateJournal = requestUrl.pathname.endsWith("/recipes")
+      || requestUrl.pathname.endsWith("/groceries")
+      || requestUrl.pathname.endsWith("/takeout");
     if ((requestUrl.pathname === "/account" || requestUrl.pathname.endsWith("/meal-plan") || privateJournal) && context.viewer.displayName === "") {
       return reply.redirect(`/sign-in?returnTo=${encodeURIComponent(`${requestUrl.pathname}${requestUrl.search}`)}`, 303);
     }
@@ -237,7 +242,7 @@ function isWebPath(rawUrl: string): boolean {
     || /^\/guides\/(?:whatsapp|household-invitations|collections\/(?:create|share))$/.test(path)
     || /^\/invite\/family\/[^/]+$/.test(path)
     || /^\/c\/[^/]+(?:\/import\/plan)?$/.test(path)
-    || /^\/households\/[^/]+(?:\/(?:members|collections|meal-plan|recipes|groceries))?$/.test(path);
+    || /^\/households\/[^/]+(?:\/(?:members|collections|meal-plan|recipes|groceries|takeout))?$/.test(path);
 }
 
 function mealPlanRedirect(householdId: string, week: string, changed: string, anchor: string): string {

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add an authenticated `Takeout` household tab and Journal-at-a-glance count with exact restaurant locations, safe ordered/shared context, snapshot-bound infinite scrolling, a no-JavaScript continuation, and the `Meal plans` navigation label.
 - Add provider-neutral food-delivery history, household contribution, public-safe delivery-dish collections/import, and local or collaborative meal-plan sources from bounded user-directed navigation in an already signed-in browser.
 - Add exact provider, restaurant-location, fulfillment, dish, modifier, quantity, and complete-order evidence plus provider-then-location ambiguity handling for same-name restaurants.
 - Add previous-order cart preparation with full-cart verification, exact quantity/swap recovery, explicit different-location replacement confirmation, ordinary-maximum alcohol support, and a structural stop before checkout, payment, tips, address, schedule, membership, or subscription changes.

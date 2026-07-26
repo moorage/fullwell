@@ -1,4 +1,4 @@
-import { ArrowUpRight, BookOpen, Coffee, Download, ExternalLink, Sparkles } from "lucide-react";
+import { ArrowUpRight, BookOpen, Coffee, Download, ExternalLink, ShoppingBag, Sparkles } from "lucide-react";
 import { AppShell, HouseholdNav } from "../components/app-shell.js";
 import { BrandMark } from "../components/brand-mark.js";
 import { ButtonLink, PageHeader, StatusNotice } from "../components/ui.js";
@@ -31,6 +31,7 @@ export function HouseholdOverviewRoute({ householdId }: { householdId: string })
           <div className="summary-rail">
             <a href={`/households/${householdId}/recipes`}><BookOpen aria-hidden="true" /><strong>{household.recipes}</strong><span>Recipes</span><small>Browse visually</small></a>
             <a href={`/households/${householdId}/groceries`}><Coffee aria-hidden="true" /><strong>{household.groceries}</strong><span>Groceries</span><small>Browse visually</small></a>
+            <a href={`/households/${householdId}/takeout`}><ShoppingBag aria-hidden="true" /><strong>{household.takeout}</strong><span>Takeout</span><small>Browse familiar dishes</small></a>
             <div><Sparkles aria-hidden="true" /><strong>{collections.length}</strong><span>Collections</span></div>
           </div>
         </section>

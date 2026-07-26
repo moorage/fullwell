@@ -112,6 +112,8 @@ The local journal or household Git stores provider-neutral complete order-line e
 
 Collections serialize a public allowlist for individual delivery dishes only. Imported dishes gain public import provenance but no history, recurrence, or reorder authority. Local and cloud meal proposals cite an exact dish revision plus ordered-before or shared-dish evidence and default to incomplete ingredient compatibility.
 
+The authenticated React household experience exposes delivery dishes through a server-owned `Takeout` visual projection and dashboard count. The view model resolves history summaries from canonical cited evidence, emits only public restaurant/location and bounded display metadata, keeps public imports explicitly separate, and never serializes private provider/order/group/merchant/menu locators or complete orders. The shared visual-journal continuation is membership-authorized, private/no-store, cursor-bounded, and bound to the initial Git HEAD so infinite scrolling cannot mix repository snapshots; server-rendered page prefixes remain the no-JavaScript fallback.
+
 Direct computer use resolves a complete prior delivery order by provider and then restaurant location. Its ephemeral session binds source lines, current menu mappings, quantities, modifiers, fulfillment, full-cart baseline and target, replacement confirmation, subtotal, maximum, and current local revision or cloud HEAD. It can prepare and verify a cart only. Checkout, order placement, payment, tips, address or schedule changes, memberships, and subscriptions are absent from contracts and tools. Alcohol may be selected under the ordinary maximum, but age/identity UI is user-controlled and no ID data enters Fullwell.
 
 ### Operational persistence

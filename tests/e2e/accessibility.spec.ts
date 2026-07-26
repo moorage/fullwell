@@ -1,7 +1,12 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { demoWebContext, groceryVisualJournalFixture, recipeVisualJournalFixture } from "../../apps/web/src/fixtures.js";
+import {
+  demoWebContext,
+  groceryVisualJournalFixture,
+  recipeVisualJournalFixture,
+  takeoutVisualJournalFixture,
+} from "../../apps/web/src/fixtures.js";
 
 const wcagTags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 const publicRoutes = [
@@ -36,6 +41,10 @@ const visualRoutes = [
   {
     route: `/households/${demoWebContext.households[0]?.id ?? "missing"}/groceries`,
     context: { ...demoWebContext, visualJournal: groceryVisualJournalFixture },
+  },
+  {
+    route: `/households/${demoWebContext.households[0]?.id ?? "missing"}/takeout`,
+    context: { ...demoWebContext, visualJournal: takeoutVisualJournalFixture },
   },
 ];
 

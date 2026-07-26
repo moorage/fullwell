@@ -7,7 +7,7 @@
 - Impact: `high`
 - Confidence: `medium`
 - Effort: `large`
-- Last reviewed: `2026-07-24`
+- Last reviewed: `2026-07-26`
 
 ## Why this matters
 
@@ -26,6 +26,7 @@ The valuable memory is not merely `Wanpo`. It is the provider-backed restaurant 
 - `packages/contracts/src/tools.ts` limits `hfj_commit_onboarding` to the two grocery/recipe sections. A ready local delivery index needs its own atomic, idempotent cloud-promotion boundary rather than distorting first run.
 - `packages/agent-client/skills/share-food-collection/SKILL.md` already requires a field-level public preview; delivery dishes can join that flow through an allowlist projection.
 - `packages/agent-client/skills/plan-household-meals/SKILL.md` already treats each meal slot as a set of attributed proposals and separates familiarity from food-safety evidence.
+- Provider-neutral delivery indexing, collections, meal-plan sources, cart preparation, schema `0008`, and npm package `1.1.14` are released. The authenticated website still exposes only recipe and grocery visual journals; delivery dishes appear only inside collections and meal-plan cards.
 
 ## Expert panel
 
@@ -62,6 +63,40 @@ Let a person or household turn private delivery history into a useful, location-
 - Familiarity versus preference or safety: prior orders do not prove a dish was liked or satisfies current household constraints.
 - Delivery versus pickup: provider history often mixes both, so fulfillment mode must be evidence and current-cart state rather than an assumption.
 
+## Web follow-on roundtable
+
+### Expert panel
+
+- Household UX and accessibility expert - make delivery history discoverable without turning infinite loading into a keyboard or no-JavaScript dead end.
+- Security and privacy researcher - keep private order, merchant, menu, provider-origin, and account locators out of browser state while showing useful authenticated history.
+- Staff TypeScript architect - extend the existing visual-journal union and cursor boundary exhaustively instead of adding a parallel data path.
+- Reliability and performance engineer - keep pagination deterministic across duplicate responses, stale cursors, failed batches, and long journals.
+
+### What problem are we actually solving?
+
+Make the delivery index visible and useful in the household website: members should see takeout dishes grouped by exact restaurant location, understand whether each dish was ordered or shared, and reach the conversational reorder workflow without exposing cart or checkout authority.
+
+### Roundtable highlights
+
+- UX and accessibility: add `Takeout` beside Recipes and Groceries, rename the `Meals` tab to `Meal plans`, and retain an ordinary `Load more takeout` link as the no-JavaScript and keyboard fallback beneath automatic intersection loading.
+- Security and privacy: show dish, restaurant, public location/address, provider label, order count/date, fulfillment, known modifiers, classification, and provenance only. Never serialize provider origins, order/group locators, merchant/menu locators, actor IDs, evidence IDs, or delivery destinations.
+- Architecture: reuse `/households/:id/journal-items` with a new strict `takeout` section and a new exhaustive `delivery` visual item variant. Keep membership and projection-head validation server-side.
+- Reliability and performance: sort by restaurant, exact location, then dish and ID; use opaque bounded cursors, deduplicate appended IDs, expose retry, and cap no-JavaScript prefixes exactly like existing recipe/grocery journals.
+
+### Key tensions
+
+- `Takeout` is the concise navigation label, while the page must still distinguish delivery from pickup rather than implying every occurrence was delivered.
+- Infinite loading improves long journals, but automatic loading cannot replace an accessible continuation or error recovery control.
+- Authenticated order context is useful, but it must be projected from canonical evidence into explicit safe fields rather than passing evidence records to React.
+- Same-name restaurants are easy to collapse visually; location text must be prominent and participate in deterministic sorting.
+
+### Synthesis for decomposition
+
+- Extend the server-owned visual projection and household summary first, then add the route, cards, navigation, and infinite loader consumer.
+- Reuse the current cursor/feed implementation and add only a delivery-specific card; do not add a second pagination protocol.
+- Test exact-location separation, private-field exclusion, imported-dish behavior, duplicate-page recovery, no-JavaScript continuation, responsive layout, and accessibility before deployment.
+- Keep the page read-only. Reordering remains a conversational Codex/Claude handoff and still stops before checkout.
+
 ## Proposed direction
 
 1. Add an independently resumable food-delivery audit. Ask which browser-accessible delivery services the user uses, including DoorDash, Uber Eats, Grubhub, or another user-named HTTPS site, and which installed signed-in browser Fullwell may control.
@@ -86,6 +121,7 @@ Let a person or household turn private delivery history into a useful, location-
 20. Importing a delivery dish creates import provenance and a saved/shared dish record, not delivery-order evidence, recurrence, liking, or reorder authority.
 21. Extend meal-plan sources with a revisioned delivery dish. An explicit user-selected or accepted dish can become a proposal after the normal constraint review. Familiarity and imported provenance may be cited, but compatibility remains incomplete unless ingredient evidence supports more.
 22. Keep the central server free of provider automation and LLM behavior. Computer use runs only in Codex or Claude on the user's machine against exact approved origins.
+23. Add an authenticated `Takeout` household browser and dashboard count over the canonical delivery-dish projection. Use bounded cursor loading with accessible automatic continuation and no-JavaScript fallback; show only explicitly projected safe history fields and keep reorder initiation conversational.
 
 ## Non-goals
 
@@ -130,4 +166,4 @@ Land additive schemas, local-to-cloud promotion, and private indexing before ena
 
 ## Promotion trigger
 
-Promoted on `2026-07-24` to `docs/exec-plans/active/2026-07-24-food-delivery-history-and-cart-preparation.md`. Milestone 0 owns provider terms/UI feasibility, exact-location evidence, multi-line recovery, and the structural no-checkout gate before implementation can claim live provider support.
+Promoted on `2026-07-24` and completed on `2026-07-26` at `docs/exec-plans/completed/2026-07-24-food-delivery-history-and-cart-preparation.md`. The completed plan records the provider terms/UI feasibility boundary, exact-location evidence, multi-line recovery, structural no-checkout gate, provider-neutral implementation, and the follow-on Takeout browser.

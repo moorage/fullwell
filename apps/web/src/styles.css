@@ -232,7 +232,7 @@ main { flex: 1; }
 .journal-summary > header, .activity-section > header, .management-section > header, .account-section > header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 10px; border-bottom: 2px solid var(--ink); }
 .journal-summary header h2, .activity-section header h2, .management-section header h2, .account-section header h2 { margin: 0; }
 .journal-summary header p, .management-section header span, .account-section header p { margin: 0; color: var(--muted); font-size: 13px; }
-.summary-rail { display: grid; grid-template-columns: repeat(3, 1fr); }
+.summary-rail { display: grid; grid-template-columns: repeat(4, 1fr); }
 .summary-rail > div, .summary-rail > a { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; padding: 24px; border-bottom: 1px solid var(--rule); color: inherit; text-decoration: none; }
 .summary-rail > div + div, .summary-rail > a + a, .summary-rail > a + div { border-left: 1px solid var(--rule); }
 .summary-rail > a:hover { background: #f2f4ee; }
@@ -305,6 +305,7 @@ main { flex: 1; }
 .journal-total small { margin-top: 7px; color: var(--muted); font-family: inherit; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .visual-journal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 .visual-journal-grid--groceries { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.visual-journal-grid--takeout { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .visual-journal-card { min-width: 0; overflow: hidden; border: 1px solid #c7ccc6; border-radius: 6px; background: white; content-visibility: auto; contain-intrinsic-size: 410px; }
 .visual-journal-card__media, .visual-journal-card__fallback { display: block; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background: #e8ece6; }
 .visual-journal-card__media img { width: 100%; height: 100%; object-fit: cover; transition: transform 220ms ease; }
@@ -324,6 +325,12 @@ main { flex: 1; }
 .recipe-state--unknown { color: var(--muted); }
 .visual-journal-card__date { margin: 10px 0 0; color: var(--muted); font-size: 11px; }
 .grocery-kind { display: flex; align-items: center; gap: 6px; margin: 14px 0 0; color: var(--leaf-dark); font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.takeout-card__restaurant { margin: 0 0 8px; color: var(--ink); font-weight: 800; }
+.takeout-card__location { display: flex; align-items: flex-start; gap: 6px; margin: 0 0 5px; color: var(--leaf-dark); font-size: 13px; font-weight: 700; }
+.takeout-card__location svg { flex: 0 0 auto; margin-top: 2px; }
+.takeout-card__modifiers { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12px; }
+.takeout-card__meta { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+.takeout-card__meta span { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid var(--rule); border-radius: 999px; color: var(--leaf-dark); font-size: 11px; font-weight: 800; }
 .journal-loader { display: grid; place-items: center; gap: 12px; margin-top: 38px; padding: 28px 0 12px; border-top: 1px dashed #a8b0a9; text-align: center; }
 .journal-loader > p { margin: 0; color: var(--muted); font-size: 13px; font-weight: 700; }
 .journal-loader .is-loading { pointer-events: none; opacity: .65; }
@@ -410,14 +417,14 @@ main { flex: 1; }
   .sticky-action { align-items: stretch; flex-direction: column; bottom: 8px; }
   .privacy-band { padding: 30px 16px; }
   .duplicate-context { grid-template-columns: 1fr; }
-  .local-nav { overflow-x: auto; margin-bottom: 30px; }
+  .local-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); display: grid; overflow: visible; margin-bottom: 30px; }
   .meal-plan__header { margin-top: 28px; }
   .week-switcher .button { flex: 1; padding-inline: 8px; }
   .meal-add { padding: 20px 16px; }
   .meal-add__form { grid-template-columns: 1fr; }
   .meal-add__title, .meal-add__notes { grid-column: auto; }
   .meal-day__slots { grid-template-columns: 1fr; }
-  .local-nav a { white-space: nowrap; }
+  .local-nav a { padding-inline: 6px; font-size: 13px; text-align: center; white-space: normal; }
   .inline-create-form, .invite-form, .profile-form { grid-template-columns: 1fr; }
   .activity-list li { grid-template-columns: 34px 1fr; }
   .activity-list time { grid-column: 2; }
@@ -437,7 +444,9 @@ main { flex: 1; }
   .guide-install { align-items: flex-start; flex-direction: column; }
   .guide-install .button-row, .guide-install .button { width: 100%; }
   .visual-journal-page .page-header { display: grid; grid-template-columns: 1fr auto; }
-  .visual-journal-grid, .visual-journal-grid--groceries { grid-template-columns: 1fr; }
+  .visual-journal-page--takeout .page-header { display: block; }
+  .visual-journal-page--takeout .journal-total { display: flex; align-items: baseline; gap: 9px; width: fit-content; margin-top: 18px; padding-left: 0; border-left: 0; text-align: left; }
+  .visual-journal-grid, .visual-journal-grid--groceries, .visual-journal-grid--takeout { grid-template-columns: 1fr; }
   .journal-total { min-width: 78px; padding-left: 12px; font-size: 34px; }
 }
 

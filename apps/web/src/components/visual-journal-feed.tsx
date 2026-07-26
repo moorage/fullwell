@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bookmark, CheckCircle2, Heart, ImageOff, Leaf } from "lucide-react";
+import { Bookmark, CheckCircle2, Heart, ImageOff, Leaf, MapPin, ShoppingBag, Wine } from "lucide-react";
 import { parseVisualJournalPage } from "../context.js";
-import type { GroceryVisualItem, RecipeVisualItem, VisualJournalItem, VisualJournalPage } from "../types.js";
+import type { GroceryVisualItem, RecipeVisualItem, TakeoutVisualItem, VisualJournalItem, VisualJournalPage } from "../types.js";
 import { Button } from "./ui.js";
 
 const BATCH_SIZE = 12;
@@ -18,13 +18,22 @@ export function VisualJournalFeed({ initialPage, pageNumber }: { initialPage: Vi
     setLoading(true);
     setFailure(false);
     try {
-      const query = new URLSearchParams({ section: initialPage.section, cursor: nextCursor });
+      const query = new URLSearchParams({
+        section: initialPage.section,
+        cursor: nextCursor,
+        snapshotRevision: initialPage.snapshotRevision,
+      });
       const response = await fetch(`/households/${encodeURIComponent(initialPage.householdId)}/journal-items?${query}`, {
         headers: { accept: "application/json" },
       });
       if (!response.ok) throw new Error(`Journal page returned ${response.status}`);
       const page = parseVisualJournalPage(await response.json());
-      if (page === null || page.householdId !== initialPage.householdId || page.section !== initialPage.section) {
+      if (
+        page === null
+        || page.householdId !== initialPage.householdId
+        || page.section !== initialPage.section
+        || page.snapshotRevision !== initialPage.snapshotRevision
+      ) {
         throw new Error("Journal page did not match the requested household section");
       }
       setItems((current) => {
@@ -37,7 +46,7 @@ export function VisualJournalFeed({ initialPage, pageNumber }: { initialPage: Vi
     } finally {
       setLoading(false);
     }
-  }, [initialPage.householdId, initialPage.section, loading, nextCursor]);
+  }, [initialPage.householdId, initialPage.section, initialPage.snapshotRevision, loading, nextCursor]);
 
   useEffect(() => {
     const target = sentinel.current;
@@ -50,13 +59,17 @@ export function VisualJournalFeed({ initialPage, pageNumber }: { initialPage: Vi
   }, [loadMore, nextCursor]);
 
   const fallbackPage = Math.max(pageNumber, Math.ceil(items.length / BATCH_SIZE)) + 1;
-  const noun = initialPage.section === "recipes" ? "recipes" : "groceries";
+  const noun = initialPage.section === "recipes"
+    ? "recipes"
+    : initialPage.section === "groceries" ? "groceries" : "takeout items";
   return (
     <>
       <div className={`visual-journal-grid visual-journal-grid--${initialPage.section}`}>
         {items.map((item) => item.kind === "recipe"
           ? <RecipeCard item={item} key={item.id} />
-          : <GroceryCard item={item} key={item.id} />)}
+          : item.kind === "grocery"
+            ? <GroceryCard item={item} key={item.id} />
+            : <TakeoutCard item={item} key={item.id} />)}
       </div>
       <div className="journal-loader" ref={sentinel}>
         <p>Showing {items.length} of {initialPage.total} {noun}</p>
@@ -119,6 +132,37 @@ function GroceryCard({ item }: { item: GroceryVisualItem }) {
         {item.brand === null ? null : <p className="visual-journal-card__source">{item.brand}</p>}
         {item.detail === "" ? null : <p className="visual-journal-card__detail">{item.detail}</p>}
         <p className="grocery-kind"><Leaf aria-hidden="true" size={15} /> {groceryKindLabel(item.journalKind)}</p>
+      </div>
+    </article>
+  );
+}
+
+function TakeoutCard({ item }: { item: TakeoutVisualItem }) {
+  const source = item.provenance === "ordered_before"
+    ? `Ordered before${item.providerLabel === null ? "" : ` · ${item.providerLabel}`}`
+    : "Shared dish";
+  return (
+    <article className="visual-journal-card takeout-card">
+      <JournalImage item={item} />
+      <div className="visual-journal-card__body">
+        <p className="visual-journal-card__source">{source}</p>
+        <h2>{item.title}</h2>
+        <p className="takeout-card__restaurant">{item.restaurantName}</p>
+        <p className="takeout-card__location"><MapPin aria-hidden="true" size={15} /> <span>{item.locationLabel}</span></p>
+        {item.locationAddress === null ? null : <p className="visual-journal-card__detail">{item.locationAddress}</p>}
+        {item.modifierSummary === null ? null : <p className="takeout-card__modifiers">Most recent: {item.modifierSummary}</p>}
+        <div className="takeout-card__meta">
+          {item.fulfillmentModes.map((mode) => (
+            <span key={mode}><ShoppingBag aria-hidden="true" size={14} /> {mode === "delivery" ? "Delivery" : "Pickup"}</span>
+          ))}
+          {item.classification === "alcohol" ? <span><Wine aria-hidden="true" size={14} /> Alcohol</span> : null}
+        </div>
+        {item.occurrenceCount === 0 ? null : (
+          <p className="visual-journal-card__date">
+            {item.occurrenceCount} recorded {item.occurrenceCount === 1 ? "order" : "orders"}
+            {item.lastOrderedLabel === null ? "" : ` · Last ordered ${item.lastOrderedLabel}`}
+          </p>
+        )}
       </div>
     </article>
   );

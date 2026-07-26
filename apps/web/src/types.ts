@@ -7,6 +7,7 @@ export type HouseholdSummary = {
   members: number;
   recipes: number;
   groceries: number;
+  takeout: number;
   updatedLabel: string;
 };
 
@@ -135,11 +136,30 @@ export type GroceryVisualItem = {
   imagePageUrl: string | null;
 };
 
-export type VisualJournalItem = RecipeVisualItem | GroceryVisualItem;
+export type TakeoutVisualItem = {
+  kind: "takeout";
+  id: string;
+  title: string;
+  restaurantName: string;
+  locationLabel: string;
+  locationAddress: string | null;
+  providerLabel: string | null;
+  provenance: "ordered_before" | "shared_dish";
+  classification: "food" | "alcohol";
+  occurrenceCount: number;
+  lastOrderedLabel: string | null;
+  fulfillmentModes: readonly ("delivery" | "pickup")[];
+  modifierSummary: string | null;
+  imageUrl: string | null;
+  imagePageUrl: string | null;
+};
+
+export type VisualJournalItem = RecipeVisualItem | GroceryVisualItem | TakeoutVisualItem;
 
 export type VisualJournalPage = {
   householdId: string;
-  section: "recipes" | "groceries";
+  section: "recipes" | "groceries" | "takeout";
+  snapshotRevision: string;
   total: number;
   items: readonly VisualJournalItem[];
   nextCursor: string | null;
@@ -229,6 +249,7 @@ export type WebRoute =
   | { page: "meal-plan"; householdId: string }
   | { page: "recipes"; householdId: string; pageNumber: number }
   | { page: "groceries"; householdId: string; pageNumber: number }
+  | { page: "takeout"; householdId: string; pageNumber: number }
   | { page: "members"; householdId: string }
   | { page: "collections"; householdId: string }
   | { page: "account" }

@@ -13,6 +13,8 @@ import {
   MealProposalSchema,
   MondayDateSchema,
   type CondimentItem,
+  type DeliveryDishItem,
+  type DeliveryOrderLineEvidence,
   type IngredientItem,
   type OtherGroceryItem,
   type RecipeItem,
@@ -70,8 +72,9 @@ const MealPlanDataSchema = z.object({
 });
 const VisualJournalInputSchema = z.object({
   householdId: HouseholdIdSchema,
-  section: z.enum(["recipes", "groceries"]),
+  section: z.enum(["recipes", "groceries", "takeout"]),
   cursor: z.string().max(16).regex(/^v1_\d+$/).optional(),
+  snapshotRevision: GitObjectIdSchema.optional(),
 }).strict();
 const VisualJournalPageNumberSchema = z.coerce.number().int().min(1).max(17);
 const VISUAL_JOURNAL_BATCH_SIZE = 12;
@@ -181,6 +184,9 @@ export class WebViewModelService {
     const selected = (await this.store.listMemberships(principal.userId))
       .find(({ household }) => household.id === parsed.householdId);
     if (selected === undefined) throw new AppError("NOT_FOUND", "Household was not found");
+    if (parsed.snapshotRevision !== undefined && parsed.snapshotRevision !== selected.household.repositoryHead) {
+      throw new AppError("REVISION_CONFLICT", "The household journal changed. Refresh this page to continue.");
+    }
     return await this.visualJournalFor(selected, parsed.section, cursorOffset(parsed.cursor), VISUAL_JOURNAL_BATCH_SIZE);
   }
 
@@ -269,7 +275,9 @@ export class WebViewModelService {
       );
     const visualSection = pathname.endsWith("/recipes")
       ? "recipes" as const
-      : pathname.endsWith("/groceries") ? "groceries" as const : null;
+      : pathname.endsWith("/groceries")
+        ? "groceries" as const
+        : pathname.endsWith("/takeout") ? "takeout" as const : null;
     const visualPageNumber = visualSection === null
       ? 1
       : VisualJournalPageNumberSchema.parse(requestUrl.searchParams.get("page") ?? "1");
@@ -342,14 +350,13 @@ export class WebViewModelService {
       throw new AppError("PROJECTION_DRIFT", "The household snapshot does not match Git", true);
     }
     const projection = await this.store.projection(selected.household.id);
-    const entries: Array<{ readonly item: LegacyVisualJournalItem }> = [];
+    const entries: Array<{ readonly item: VisualJournalSourceItem }> = [];
     for (const entry of projection.items.values()) {
       if (section === "recipes" && entry.item.kind === "recipe") entries.push({ item: entry.item });
       if (section === "groceries" && isGroceryJournalItem(entry.item)) entries.push({ item: entry.item });
+      if (section === "takeout" && entry.item.kind === "delivery_dish") entries.push({ item: entry.item });
     }
-    entries.sort((left, right) =>
-      legacyVisualItemTitle(left.item).localeCompare(legacyVisualItemTitle(right.item), "en-US")
-      || left.item.id.localeCompare(right.item.id));
+    entries.sort((left, right) => compareVisualItems(left.item, right.item));
     const items = entries.slice(offset, offset + limit).map(({ item }) => {
       if (item.kind === "recipe") {
         return {
@@ -366,6 +373,7 @@ export class WebViewModelService {
           lastCookedLabel: item.last_cooked === null ? null : formatDate(item.last_cooked),
         };
       }
+      if (item.kind === "delivery_dish") return takeoutVisualItem(item, projection.evidence);
       return {
         kind: "grocery" as const,
         journalKind: item.kind,
@@ -384,6 +392,7 @@ export class WebViewModelService {
     return {
       householdId: selected.household.id,
       section,
+      snapshotRevision: selected.household.repositoryHead,
       total: entries.length,
       items,
       nextCursor: nextOffset < entries.length ? `v1_${nextOffset}` : null,
@@ -551,6 +560,7 @@ export class WebViewModelService {
         members: (await this.store.listHouseholdMemberships(household.id)).length,
         recipes: values.filter(({ item }) => item.kind === "recipe").length,
         groceries: values.filter(({ item }) => isGroceryJournalItem(item)).length,
+        takeout: values.filter(({ item }) => item.kind === "delivery_dish").length,
         updatedLabel: "Repository synchronized",
       };
     }));
@@ -644,7 +654,7 @@ export class WebViewModelService {
 }
 
 type GroceryJournalItem = SnackItem | IngredientItem | CondimentItem | OtherGroceryItem;
-type LegacyVisualJournalItem = RecipeItem | GroceryJournalItem;
+type VisualJournalSourceItem = RecipeItem | GroceryJournalItem | DeliveryDishItem;
 
 function isGroceryJournalItem(item: import("@hfj/contracts").JournalItem): item is GroceryJournalItem {
   return item.kind === "snack"
@@ -653,8 +663,106 @@ function isGroceryJournalItem(item: import("@hfj/contracts").JournalItem): item 
     || item.kind === "other_grocery";
 }
 
-function legacyVisualItemTitle(item: LegacyVisualJournalItem): string {
-  return item.kind === "recipe" ? item.title : item.display_name;
+function compareVisualItems(left: VisualJournalSourceItem, right: VisualJournalSourceItem): number {
+  if (left.kind === "delivery_dish" && right.kind === "delivery_dish") {
+    return left.restaurant_name.localeCompare(right.restaurant_name, "en-US")
+      || left.public_location_label.localeCompare(right.public_location_label, "en-US")
+      || left.dish_name.localeCompare(right.dish_name, "en-US")
+      || left.id.localeCompare(right.id);
+  }
+  const leftTitle = left.kind === "recipe" ? left.title : left.kind === "delivery_dish" ? left.dish_name : left.display_name;
+  const rightTitle = right.kind === "recipe" ? right.title : right.kind === "delivery_dish" ? right.dish_name : right.display_name;
+  return leftTitle.localeCompare(rightTitle, "en-US") || left.id.localeCompare(right.id);
+}
+
+function takeoutVisualItem(
+  item: DeliveryDishItem,
+  evidence: ReadonlyMap<string, import("@hfj/contracts").Evidence>,
+): Extract<VisualJournalPage["items"][number], { readonly kind: "takeout" }> {
+  const locationAddress = item.public_merchant_address === null
+    ? null
+    : publicAddressLabel(item.public_merchant_address);
+  if ("delivery_authority" in item) {
+    return {
+      kind: "takeout",
+      id: item.id,
+      title: item.dish_name,
+      restaurantName: item.restaurant_name,
+      locationLabel: item.public_location_label,
+      locationAddress,
+      providerLabel: null,
+      provenance: "shared_dish",
+      classification: item.classification.kind,
+      occurrenceCount: 0,
+      lastOrderedLabel: null,
+      fulfillmentModes: [],
+      modifierSummary: null,
+      imageUrl: item.image_url,
+      imagePageUrl: item.image_page_url,
+    };
+  }
+
+  const lines = item.evidence_ids.map((evidenceId) => {
+    const cited = evidence.get(evidenceId);
+    if (cited?.kind !== "delivery_order_line") {
+      throw new AppError("PROJECTION_DRIFT", "Takeout history cites unavailable delivery evidence", true);
+    }
+    assertDeliveryEvidenceMatchesItem(cited, item);
+    return cited.delivery_order_line;
+  });
+  const newest = [...lines].sort((left, right) =>
+    right.order_date.localeCompare(left.order_date)
+    || right.line_key.localeCompare(left.line_key))[0];
+  if (newest === undefined) throw new AppError("PROJECTION_DRIFT", "Takeout history has no completed order evidence", true);
+  const fulfillmentModes = [...new Set(lines.map(({ fulfillment_mode }) => fulfillment_mode))].sort();
+  const orderKeys = new Set(lines.map(({ provider_origin, provider_order_locator }) =>
+    `${provider_origin}\u0000${provider_order_locator}`));
+  return {
+    kind: "takeout",
+    id: item.id,
+    title: item.dish_name,
+    restaurantName: item.restaurant_name,
+    locationLabel: item.public_location_label,
+    locationAddress,
+    providerLabel: item.provider_label,
+    provenance: "ordered_before",
+    classification: item.classification.kind,
+    occurrenceCount: orderKeys.size,
+    lastOrderedLabel: formatDate(newest.order_date),
+    fulfillmentModes,
+    modifierSummary: newest.modifiers.length === 0
+      ? null
+      : newest.modifiers.map(({ group_name, option_name }) => `${group_name}: ${option_name}`).join(" · "),
+    imageUrl: null,
+    imagePageUrl: null,
+  };
+}
+
+function assertDeliveryEvidenceMatchesItem(
+  evidence: DeliveryOrderLineEvidence,
+  item: Exclude<DeliveryDishItem, { readonly delivery_authority: "public_import" }>,
+): void {
+  const line = evidence.delivery_order_line;
+  const occurrence = item.known_modifier_occurrences.find(({ evidence_id }) => evidence_id === evidence.id);
+  const addressMatches = line.restaurant.public_merchant_address === null
+    ? item.public_merchant_address === null
+    : item.public_merchant_address !== null
+      && publicAddressLabel(line.restaurant.public_merchant_address) === publicAddressLabel(item.public_merchant_address);
+  const modifiersMatch = occurrence !== undefined
+    && JSON.stringify(occurrence.modifiers) === JSON.stringify(line.modifiers);
+  if (
+    line.provider_label !== item.provider_label
+    || line.provider_origin !== item.provider_origin
+    || line.restaurant.restaurant_name !== item.restaurant_name
+    || line.restaurant.public_location_label !== item.public_location_label
+    || line.restaurant.merchant_locator !== item.merchant_locator
+    || line.dish_name !== item.dish_name
+    || line.classification.kind !== item.classification.kind
+    || !addressMatches
+    || !modifiersMatch
+  ) {
+    throw new AppError("PROJECTION_DRIFT", "Takeout history does not match its delivery evidence", true);
+  }
 }
 
 function messagingView(status: MessagingAccountStatus): WebRenderContext["messaging"] {

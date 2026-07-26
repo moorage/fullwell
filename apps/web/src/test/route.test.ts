@@ -20,6 +20,7 @@ describe("resolveWebRoute", () => {
     ["/households/home/meal-plan?week=2026-07-20", { page: "meal-plan", householdId: "home" }],
     ["/households/home/recipes?page=2", { page: "recipes", householdId: "home", pageNumber: 2 }],
     ["/households/home/groceries", { page: "groceries", householdId: "home", pageNumber: 1 }],
+    ["/households/home/takeout?page=3", { page: "takeout", householdId: "home", pageNumber: 3 }],
     ["/households/home/members", { page: "members", householdId: "home" }],
     ["/households/home/collections", { page: "collections", householdId: "home" }],
     ["/account", { page: "account" }],

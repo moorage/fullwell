@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { demoWebContext, groceryVisualJournalFixture, recipeVisualJournalFixture } from "../../apps/web/src/fixtures.js";
+import {
+  demoWebContext,
+  groceryVisualJournalFixture,
+  recipeVisualJournalFixture,
+  takeoutVisualJournalFixture,
+} from "../../apps/web/src/fixtures.js";
+import type { VisualJournalPage, WebRenderContext } from "../../apps/web/src/types.js";
 
 test("serves a responsive, keyboard-usable install experience", async ({ page }, testInfo) => {
   const response = await page.goto("/install");
@@ -174,6 +180,12 @@ test("renders visual journal prefixes with accessible load-more fallbacks", asyn
       heading: "Groceries in Alvarez home",
       loadMore: "Load more groceries",
     },
+    {
+      route: `/households/${takeoutVisualJournalFixture.householdId}/takeout`,
+      page: { ...takeoutVisualJournalFixture, items: takeoutVisualJournalFixture.items.slice(0, 12), nextCursor: "v1_12" },
+      heading: "Delivery & takeout in Alvarez home",
+      loadMore: "Load more takeout items",
+    },
   ] as const;
   for (const fixture of fixtures) {
     const rendered = renderWebRoute(fixture.route, { ...demoWebContext, visualJournal: fixture.page });
@@ -183,4 +195,52 @@ test("renders visual journal prefixes with accessible load-more fallbacks", asyn
     expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
     await page.screenshot({ path: testInfo.outputPath(`${fixture.page.section}.png`), fullPage: true });
   }
+});
+
+test("automatically appends snapshot-bound takeout pages without collapsing locations", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-webkit", "One hydrated browser proves automatic continuation across two batches");
+  const [{ renderWebRoute }, manifest] = await Promise.all([
+    import("../../apps/web/dist/server/server.js"),
+    readFile(new URL("../../apps/web/dist/.vite/manifest.json", import.meta.url), "utf8").then((value) =>
+      JSON.parse(value) as Record<string, { file: string; css?: string[] }>),
+  ]);
+  const entry = manifest["index.html"];
+  if (entry === undefined) throw new Error("web manifest entry missing");
+  const initial: VisualJournalPage = {
+    ...takeoutVisualJournalFixture,
+    items: takeoutVisualJournalFixture.items.slice(0, 12),
+    nextCursor: "v1_12",
+  };
+  const renderContext: WebRenderContext = { ...demoWebContext, visualJournal: initial };
+  const routePath = `/households/${initial.householdId}/takeout`;
+  const rendered = renderWebRoute(routePath, renderContext);
+  const serializedContext = JSON.stringify(renderContext).replace(/</g, "\\u003c");
+  const links = (entry.css ?? []).map((href) => `<link rel="stylesheet" href="/${href}">`).join("");
+  const requestedCursors: string[] = [];
+  await page.route(`**${routePath}`, async (route) => {
+    await route.fulfill({
+      contentType: "text/html",
+      body: `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1">${links}</head><body><div id="root">${rendered.appHtml}</div><script id="web-context" type="application/json">${serializedContext}</script><script type="module" src="/${entry.file}"></script></body></html>`,
+    });
+  });
+  await page.route("**/journal-items?*", async (route) => {
+    const url = new URL(route.request().url());
+    const cursor = url.searchParams.get("cursor") ?? "";
+    requestedCursors.push(cursor);
+    const pageBody = cursor === "v1_12"
+      ? { ...takeoutVisualJournalFixture, items: takeoutVisualJournalFixture.items.slice(12, 24), nextCursor: "v1_24" }
+      : { ...takeoutVisualJournalFixture, items: takeoutVisualJournalFixture.items.slice(24), nextCursor: null };
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(pageBody) });
+  });
+
+  await page.goto(routePath);
+  await expect(page.getByRole("heading", { name: "Delivery & takeout in Alvarez home" })).toBeVisible();
+  await expect(page.getByText("Palo Alto, CA")).toBeVisible();
+  await expect(page.getByText("Cupertino, CA")).toBeVisible();
+  await page.locator(".journal-loader").scrollIntoViewIfNeeded();
+  await expect(page.getByRole("heading", { name: "Truffle fries" })).toBeVisible();
+  await page.locator(".journal-loader").scrollIntoViewIfNeeded();
+  await expect(page.getByRole("heading", { name: "Canned citrus spritz" })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("reached the end");
+  expect(requestedCursors).toEqual(["v1_12", "v1_24"]);
 });

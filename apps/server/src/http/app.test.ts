@@ -374,6 +374,17 @@ describe("Fastify application", () => {
     expect(emptyRecipes.statusCode).toBe(200);
     expect(emptyRecipes.headers["x-robots-tag"]).toBe("noindex, nofollow");
     expect(emptyRecipes.body).toContain("No recipes recorded yet");
+    const anonymousTakeout = await app.inject({ method: "GET", url: `/households/${householdId}/takeout` });
+    expect(anonymousTakeout.statusCode).toBe(303);
+    expect(anonymousTakeout.headers.location).toBe(`/sign-in?returnTo=${encodeURIComponent(`/households/${householdId}/takeout`)}`);
+    const emptyTakeout = await app.inject({
+      method: "GET",
+      url: `/households/${householdId}/takeout`,
+      headers: { "x-test-browser-session": "owner" },
+    });
+    expect(emptyTakeout.statusCode).toBe(200);
+    expect(emptyTakeout.headers["x-robots-tag"]).toBe("noindex, nofollow");
+    expect(emptyTakeout.body).toContain("No takeout items yet");
     const anonymousJournalBatch = await app.inject({
       method: "GET",
       url: `/households/${householdId}/journal-items?section=recipes`,
@@ -395,6 +406,25 @@ describe("Fastify application", () => {
     });
     expect(cursorJournalBatch.statusCode).toBe(200);
     expect(cursorJournalBatch.json()).toMatchObject({ householdId, section: "recipes", items: [] });
+    const emptyTakeoutBatch = await app.inject({
+      method: "GET",
+      url: `/households/${householdId}/journal-items?section=takeout&snapshotRevision=${createdHousehold.repositoryHead}`,
+      headers: { "x-test-browser-session": "owner" },
+    });
+    expect(emptyTakeoutBatch.statusCode).toBe(200);
+    expect(emptyTakeoutBatch.json()).toMatchObject({
+      householdId,
+      section: "takeout",
+      snapshotRevision: createdHousehold.repositoryHead,
+      total: 0,
+      items: [],
+    });
+    const staleTakeoutBatch = await app.inject({
+      method: "GET",
+      url: `/households/${householdId}/journal-items?section=takeout&snapshotRevision=${"0".repeat(40)}`,
+      headers: { "x-test-browser-session": "owner" },
+    });
+    expect(staleTakeoutBatch.statusCode).toBe(409);
     const invalidJournalCursor = await app.inject({
       method: "GET",
       url: `/households/${householdId}/journal-items?section=recipes&cursor=not-a-cursor`,

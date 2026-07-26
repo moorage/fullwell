@@ -768,7 +768,7 @@ The commit is one editor-authorized household mutation. Every submitted evidence
 
 The meal-planning server is a bounded storage and authorization boundary, not a recipe search engine or food-safety classifier. A meal slot is an unordered set of immutable proposals. Appending a proposal never replaces another proposal in the same date and slot.
 
-Cloud meal-planning tool discovery, calls, browser navigation, and browser mutations are part of every server deployment. The five tools are always present in authenticated MCP discovery, the household Meals navigation is always rendered for an authenticated household context, and the authenticated route and form actions are always registered. Membership, OAuth scope, CSRF, role, validation, and idempotency checks remain authoritative. Local agent planning and private recipe boards remain independent. Application rollback must preserve append-only Git data and use a reader compatible with meal-plan paths and projection fields.
+Cloud meal-planning tool discovery, calls, browser navigation, and browser mutations are part of every server deployment. The five tools are always present in authenticated MCP discovery, the household `Meal plans` navigation is always rendered for an authenticated household context, and the authenticated route and form actions are always registered. Membership, OAuth scope, CSRF, role, validation, and idempotency checks remain authoritative. Local agent planning and private recipe boards remain independent. Application rollback must preserve append-only Git data and use a reader compatible with meal-plan paths and projection fields.
 
 #### `hfj_get_meal_plan`
 
@@ -901,7 +901,8 @@ Output: short-lived authenticated download URL, content hash, source HEAD, and e
 | `GET /households/:id` | Minimal authenticated household/member/collection management UI. |
 | `GET /households/:id/recipes` | Membership-authorized visual recipe journal with bounded progressive loading. |
 | `GET /households/:id/groceries` | Membership-authorized visual grocery journal with bounded progressive loading. |
-| `GET /households/:id/journal-items?section=<section>&cursor=<cursor>` | Membership-authorized, no-store continuation projection for a recipe or grocery browser. |
+| `GET /households/:id/takeout` | Membership-authorized visual delivery-dish journal with exact public restaurant locations. |
+| `GET /households/:id/journal-items?section=<section>&cursor=<cursor>&snapshotRevision=<head>` | Membership-authorized, no-store continuation projection for a recipe, grocery, or Takeout browser. |
 | `GET /households/:id/meal-plan?week=<monday-date>` | Membership-authorized seven-day meal proposal view. |
 | `POST /households/:id/meal-plan/review` | CSRF-protected weekly constraint review. |
 | `POST /households/:id/meal-plan/proposals` | CSRF-protected append-only free-form proposal. |
@@ -909,7 +910,9 @@ Output: short-lived authenticated download URL, content hash, source HEAD, and e
 
 The public guide routes contain examples only and never receive credentials, access codes, or mutation confirmations. Contextual install, account, members, collection, and household links target the narrowest relevant guide.
 
-The recipe and grocery document routes are server rendered and then progressively enhanced. They use the same deterministic, display-only server projection as the continuation endpoint, return recorded fields without semantic merging, and expose a normal page link when JavaScript or automatic loading is unavailable. Every document and continuation request re-resolves the browser principal, current membership, and Git-synchronized projection; anonymous, removed, cross-household, or stale callers receive no item data. Responses are private, no-store, and noindex. Client continuation parsing is strict, failures remain visible and retryable, duplicate item IDs do not render twice, and the end of the bounded list is announced.
+The recipe, grocery, and Takeout document routes are server rendered and then progressively enhanced. They use the same deterministic, display-only server projection as the continuation endpoint, return recorded fields without semantic merging, and expose a normal page link when JavaScript or automatic loading is unavailable. Takeout sorts by restaurant, exact public location, dish, and item ID; history-backed cards resolve only allowlisted display fields from cited completed-order evidence, while public imports remain labeled `Shared dish` without history or reorder authority. Provider origins and order, group, merchant, menu, evidence, actor, destination, and complete-order data are never serialized.
+
+Every document and continuation request re-resolves the browser principal, current membership, and Git-synchronized projection; anonymous, removed, cross-household, or stale callers receive no item data. Responses are private, no-store, and noindex. JavaScript continuations bind the initial repository HEAD through `snapshotRevision` and fail with a refresh-required conflict if the household changes; ordinary `?page=N` no-JavaScript requests intentionally render a fresh bounded prefix from the current HEAD. Client continuation parsing is strict, failures remain visible and retryable, duplicate item IDs do not render twice, and the end of the bounded list is announced.
 
 The four meal-plan routes are always registered. Unauthenticated reads use the normal sign-in redirect, and every read or mutation still applies the authorization and CSRF behavior defined above.
 
@@ -1192,7 +1195,7 @@ Cover:
 11. Account deletion and final-owner protection.
 12. Connected meal-plan authorization, all seven dates, concurrent same-slot proposals, stale-review warnings, exact retry/conflict behavior, ordinary no-JavaScript forms, and 320 CSS-pixel rendering.
 13. Direct public guide routes and contextual links for WhatsApp, household invitations, collection creation, and collection sharing.
-14. Recipe and grocery browsers on desktop, mobile, keyboard, reduced-motion, and no-JavaScript paths, including automatic and explicit continuation, retry, deduplication, image fallback, and end-of-list states.
+14. Recipe, grocery, and Takeout browsers on desktop, mobile, keyboard, reduced-motion, and no-JavaScript paths, including automatic and explicit continuation, retry, snapshot binding, deduplication, image fallback, and end-of-list states.
 15. Anonymous, removed-member, stale-projection, and cross-household visual-journal denial without private item serialization.
 
 ### 22.6 Security tests
@@ -1271,7 +1274,7 @@ The server is complete when:
 - imported snacks do not become purchases and imported recipes do not become cooked/liked;
 - the public site identifies ChatGPT, Claude, and Apple actions with recognizable decorative marks and visible accessible names;
 - advanced-agent guides have stable task-specific routes, safe examples, and correct contextual links;
-- authorized household members can browse recorded recipes and groceries through bounded, progressively loaded visual projections with a no-JavaScript path;
+- authorized household members can browse recorded recipes, groceries, and exact-location Takeout dishes through bounded, progressively loaded visual projections with a no-JavaScript path;
 - household ZIP and Git bundle exports work and verify;
 - backup and isolated restore drills pass;
 - deterministic tests meet the coverage target and all integration, browser, client-contract, security, and accessibility gates pass;

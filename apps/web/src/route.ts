@@ -64,6 +64,9 @@ export function resolveWebRoute(input: string): WebRoute {
   if (parts[0] === "households" && parts[1] && parts[2] === "groceries" && parts.length === 3) {
     return { page: "groceries", householdId: parts[1], pageNumber: visualPageNumber(url) };
   }
+  if (parts[0] === "households" && parts[1] && parts[2] === "takeout" && parts.length === 3) {
+    return { page: "takeout", householdId: parts[1], pageNumber: visualPageNumber(url) };
+  }
   if (parts[0] === "households" && parts[1] && parts[2] === "members") {
     return { page: "members", householdId: parts[1] };
   }

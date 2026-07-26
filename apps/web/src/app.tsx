@@ -7,6 +7,7 @@ import { HouseholdMembersRoute } from "./routes/household-members.js";
 import { HouseholdMealPlanRoute } from "./routes/household-meal-plan.js";
 import { HouseholdGroceriesRoute } from "./routes/household-groceries.js";
 import { HouseholdRecipesRoute } from "./routes/household-recipes.js";
+import { HouseholdTakeoutRoute } from "./routes/household-takeout.js";
 import { HouseholdOverviewRoute } from "./routes/household-overview.js";
 import { HouseholdsRoute } from "./routes/households.js";
 import { GuideDetailRoute, GuidesRoute } from "./routes/guides.js";
@@ -38,6 +39,7 @@ export function App({ url, context }: { url: string; context: WebRenderContext }
       case "meal-plan": return <HouseholdMealPlanRoute householdId={route.householdId} />;
       case "recipes": return <HouseholdRecipesRoute householdId={route.householdId} pageNumber={route.pageNumber} />;
       case "groceries": return <HouseholdGroceriesRoute householdId={route.householdId} pageNumber={route.pageNumber} />;
+      case "takeout": return <HouseholdTakeoutRoute householdId={route.householdId} pageNumber={route.pageNumber} />;
       case "members": return <HouseholdMembersRoute householdId={route.householdId} />;
       case "collections": return <HouseholdCollectionsRoute householdId={route.householdId} />;
       case "account": return <AccountRoute />;

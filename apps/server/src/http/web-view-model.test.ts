@@ -4,6 +4,7 @@ import Fastify from "fastify";
 import { z } from "zod";
 import {
   CollectionSnapshotSchema,
+  DeliveryOrderLineEvidenceSchema,
   GitObjectIdSchema,
   HouseholdIdSchema,
   InvitationIdSchema,
@@ -158,9 +159,10 @@ describe("WebViewModelService", () => {
       }).passthrough().nullable(),
       visualJournal: z.object({
         householdId: z.string(),
-        section: z.enum(["recipes", "groceries"]),
+        section: z.enum(["recipes", "groceries", "takeout"]),
+        snapshotRevision: GitObjectIdSchema,
         total: z.number(),
-        items: z.array(z.object({ id: z.string(), kind: z.enum(["recipe", "grocery"]), title: z.string() }).passthrough()),
+        items: z.array(z.object({ id: z.string(), kind: z.enum(["recipe", "grocery", "takeout"]), title: z.string() }).passthrough()),
         nextCursor: z.string().nullable(),
       }).nullable(),
     }).passthrough().parse(responseBody);
@@ -773,8 +775,34 @@ describe("WebViewModelService", () => {
       nextCursor: "v1_12",
     });
     expect(groceries.visualJournal?.items[0]).toMatchObject({ kind: "grocery", title: "Grocery 01" });
+    const takeout = await context(`/households/${householdId}/takeout`, true);
+    expect(takeout.visualJournal).toMatchObject({
+      householdId,
+      section: "takeout",
+      total: 2,
+      items: [
+        {
+          kind: "takeout",
+          title: "Coconut boba",
+          restaurantName: "Wanpo",
+          locationLabel: "Cupertino",
+          provenance: "shared_dish",
+        },
+        {
+          kind: "takeout",
+          title: "Wintermelon boba",
+          restaurantName: "Wanpo",
+          locationLabel: "Palo Alto",
+          providerLabel: "DoorDash",
+          provenance: "ordered_before",
+          occurrenceCount: 1,
+          modifierSummary: "Sweetness: Half sweet",
+        },
+      ],
+    });
     expect(JSON.stringify(recipes.visualJournal)).not.toContain("private-delivery");
     expect(JSON.stringify(groceries.visualJournal)).not.toContain("private-delivery");
+    expect(JSON.stringify(takeout.visualJournal)).not.toContain("private-delivery");
 
     const app = Fastify();
     app.get("/batch", async (request) => await viewModels.journalItems(request, {
@@ -807,7 +835,7 @@ describe("WebViewModelService", () => {
 
     const result = await context(`/households/${householdId}/groceries`, true);
 
-    expect(result.households[0]).toMatchObject({ recipes: 1, groceries: 1 });
+    expect(result.households[0]).toMatchObject({ recipes: 1, groceries: 1, takeout: 2 });
   });
 });
 
@@ -893,8 +921,78 @@ async function addDeliveryVisualExclusionFixture(
     schema_version: 1,
     body_markdown: "",
   });
-  (await store.projection(householdId)).items.set(item.id, {
+  const evidence = DeliveryOrderLineEvidenceSchema.parse({
+    id: "evd_0000000000000799",
+    kind: "delivery_order_line",
+    observed_at: "2026-07-15T12:00:00.000Z",
+    evidence_date: "2026-07-14",
+    date_precision: "day",
+    source_type: "delivery_provider",
+    source_label: "DoorDash",
+    stable_locator: "delivery/private-delivery-order",
+    summary: "Wintermelon boba",
+    actor_id: "act_0000000000000799",
+    limitations: [],
+    schema_version: 1,
+    delivery_order_line: {
+      provider_label: "DoorDash",
+      provider_origin: "https://delivery.example.test",
+      provider_order_locator: "private-delivery-order",
+      order_group_locator: "private-delivery-group",
+      order_date: "2026-07-14",
+      completion_status: "completed",
+      fulfillment_mode: "delivery",
+      group_complete: true,
+      declared_line_count: 1,
+      line_key: "wintermelon-boba",
+      restaurant: {
+        restaurant_name: "Wanpo",
+        public_location_label: "Palo Alto",
+        public_merchant_address: { locality: "Palo Alto", region: "CA" },
+        merchant_locator: "private-delivery-merchant",
+      },
+      dish_name: "Wintermelon boba",
+      quantity: 1,
+      modifiers_complete: true,
+      modifiers: [{ group_name: "Sweetness", option_name: "Half sweet" }],
+      historical_menu_item_locator: "private-delivery-menu",
+      classification: { kind: "food", authored_by: "agent" },
+    },
+  });
+  const imported = JournalItemSchema.parse({
+    id: "itm_0000000000000800",
+    kind: "delivery_dish",
+    delivery_authority: "public_import",
+    dish_name: "Coconut boba",
+    restaurant_name: "Wanpo",
+    public_location_label: "Cupertino",
+    public_merchant_address: { locality: "Cupertino", region: "CA" },
+    image_url: null,
+    image_page_url: null,
+    source_display_attribution: "Family favorites",
+    classification: { kind: "food", authored_by: "agent" },
+    import_provenance: {
+      source_collection_id: "col_0000000000000800",
+      source_snapshot_id: "snp_0000000000000800",
+      source_collection_item_id: "collection-item-0800",
+      published_revision: household.repositoryHead,
+      source_display_attribution: "Family favorites",
+      imported_at: "2026-07-15T12:00:00.000Z",
+    },
+    evidence_ids: ["evd_0000000000000800"],
+    created_at: "2026-07-15T12:00:00.000Z",
+    updated_at: "2026-07-15T12:00:00.000Z",
+    schema_version: 1,
+    body_markdown: "",
+  });
+  const projection = await store.projection(householdId);
+  projection.evidence.set(evidence.id, evidence);
+  projection.items.set(item.id, {
     item,
+    revision: household.repositoryHead,
+  });
+  projection.items.set(imported.id, {
+    item: imported,
     revision: household.repositoryHead,
   });
 }

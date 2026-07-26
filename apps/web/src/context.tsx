@@ -7,6 +7,7 @@ const safeHttpUrlSchema = z.url().refine((value) => {
   const protocol = new URL(value).protocol;
   return protocol === "http:" || protocol === "https:";
 }, "Only http and https URLs are accepted");
+const gitObjectIdSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
 
 export function WebContextProvider({ context, children }: { context: WebRenderContext; children: ReactNode }) {
   return <WebContext.Provider value={context}>{children}</WebContext.Provider>;
@@ -149,11 +150,29 @@ const visualJournalItemSchema = z.discriminatedUnion("kind", [
     imageUrl: safeHttpUrlSchema.nullable(),
     imagePageUrl: safeHttpUrlSchema.nullable(),
   }),
+  z.object({
+    kind: z.literal("takeout"),
+    id: z.string().min(1),
+    title: z.string().min(1),
+    restaurantName: z.string().min(1),
+    locationLabel: z.string().min(1),
+    locationAddress: z.string().min(1).nullable(),
+    providerLabel: z.string().min(1).nullable(),
+    provenance: z.enum(["ordered_before", "shared_dish"]),
+    classification: z.enum(["food", "alcohol"]),
+    occurrenceCount: z.number().int().nonnegative(),
+    lastOrderedLabel: z.string().min(1).nullable(),
+    fulfillmentModes: z.array(z.enum(["delivery", "pickup"])),
+    modifierSummary: z.string().min(1).nullable(),
+    imageUrl: safeHttpUrlSchema.nullable(),
+    imagePageUrl: safeHttpUrlSchema.nullable(),
+  }),
 ]);
 
 const visualJournalPageSchema = z.object({
   householdId: z.string().min(1),
-  section: z.enum(["recipes", "groceries"]),
+  section: z.enum(["recipes", "groceries", "takeout"]),
+  snapshotRevision: gitObjectIdSchema,
   total: z.number().int().nonnegative(),
   items: z.array(visualJournalItemSchema),
   nextCursor: z.string().max(16).regex(/^v1_\d+$/).nullable(),
@@ -179,7 +198,8 @@ const webRenderContextSchema: z.ZodType<WebRenderContext> = z.object({
   viewer: z.object({ displayName: z.string(), email: z.string() }),
   households: z.array(z.object({
     id: z.string().min(1), name: z.string().min(1), role: householdRoleSchema, members: z.number().int().nonnegative(),
-    recipes: z.number().int().nonnegative(), groceries: z.number().int().nonnegative(), updatedLabel: z.string(),
+    recipes: z.number().int().nonnegative(), groceries: z.number().int().nonnegative(),
+    takeout: z.number().int().nonnegative(), updatedLabel: z.string(),
   })),
   members: z.array(z.object({
     id: z.string().min(1), name: z.string().min(1), detail: z.string(), role: householdRoleSchema, isCurrentUser: z.boolean().optional(),

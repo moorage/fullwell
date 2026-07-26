@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  DeliveryIndexReportSchema,
+  HistoryBackedDeliveryDishItemSchema,
+  ImportedDeliveryDishItemSchema,
+  DeliveryOrderLineEvidenceSchema,
   EvidenceIdSchema,
   EvidenceSchema,
   GitObjectIdSchema,
@@ -8,6 +12,7 @@ import {
   MealPlanEventSchema,
   MealProposalSchema,
   ReportSchema,
+  type Evidence,
 } from "@hfj/contracts";
 import {
   journalEvidencePath,
@@ -18,6 +23,9 @@ import {
   mealProposalNeedsRecheck,
   mealProposalPath,
   validateItemEvidence,
+  validateDeliveryEvidenceGroups,
+  validateDeliveryImportEvidenceScope,
+  validateDeliveryIndexReport,
   validateMealProposalReview,
   validateMealProposalSource,
   validateReport,
@@ -65,6 +73,79 @@ const purchase = EvidenceSchema.parse({
   kind: "purchase",
   purchase: { store: "Market", order_reference: "order-1", line_item_title: "Apple", order_date: "2026-07-15" },
 });
+
+function deliveryEvidence(id: string, lineKey: string, dishName: string, menuLocator: string) {
+  return DeliveryOrderLineEvidenceSchema.parse({
+    id,
+    kind: "delivery_order_line",
+    observed_at: "2026-07-15T12:00:00.000Z",
+    evidence_date: "2026-07-14",
+    date_precision: "day",
+    source_type: "delivery_provider",
+    source_label: "DoorDash",
+    stable_locator: `delivery/${lineKey}`,
+    summary: dishName,
+    actor_id: actorId,
+    limitations: [],
+    schema_version: 1,
+    delivery_order_line: {
+      provider_label: "DoorDash",
+      provider_origin: "https://delivery.example.test",
+      provider_order_locator: "private-order-0301",
+      order_group_locator: "private-group-0301",
+      order_date: "2026-07-14",
+      completion_status: "completed",
+      fulfillment_mode: "delivery",
+      group_complete: true,
+      declared_line_count: 2,
+      line_key: lineKey,
+      restaurant: {
+        restaurant_name: "Wanpo",
+        public_location_label: "Palo Alto",
+        public_merchant_address: {
+          locality: "Palo Alto",
+          region: "CA",
+        },
+        merchant_locator: "private-merchant-0301",
+      },
+      dish_name: dishName,
+      quantity: 1,
+      modifiers_complete: true,
+      modifiers: [{ group_name: "Sweetness", option_name: "Half sweet" }],
+      historical_menu_item_locator: menuLocator,
+      classification: { kind: "food", authored_by: "agent" },
+    },
+  });
+}
+
+function deliveryDish(lines: readonly ReturnType<typeof deliveryEvidence>[]) {
+  return HistoryBackedDeliveryDishItemSchema.parse({
+    id: "itm_0000000000000310",
+    kind: "delivery_dish",
+    dish_name: "Wintermelon boba",
+    provider_label: "DoorDash",
+    provider_origin: "https://delivery.example.test",
+    restaurant_name: "Wanpo",
+    public_location_label: "Palo Alto",
+    public_merchant_address: { locality: "Palo Alto", region: "CA" },
+    merchant_locator: "private-merchant-0301",
+    known_menu_item_locators: lines.flatMap(({ delivery_order_line }) =>
+      delivery_order_line.historical_menu_item_locator === null
+        ? []
+        : [delivery_order_line.historical_menu_item_locator]),
+    known_modifier_occurrences: lines.map((line) => ({
+      evidence_id: line.id,
+      modifiers_complete: true,
+      modifiers: line.delivery_order_line.modifiers,
+    })),
+    classification: { kind: "food", authored_by: "agent" },
+    evidence_ids: lines.map(({ id }) => id),
+    created_at: "2026-07-15T12:00:00.000Z",
+    updated_at: "2026-07-15T12:00:00.000Z",
+    schema_version: 1,
+    body_markdown: "A familiar order.",
+  });
+}
 
 function recipe(evidenceIds: string[], statuses = { saved: "yes", cooked: "yes", liked: "yes" }) {
   return JournalItemSchema.parse({
@@ -170,6 +251,279 @@ describe("journal validation", () => {
     }
     expect(journalEvidencePath(purchase)).toBe(`groceries/evidence/2026/${purchase.id}.json`);
     expect(journalEvidencePath(discovery)).toBe(`recipes/evidence/2026/${discovery.id}.json`);
+  });
+
+  it("validates complete delivery groups, exact dish evidence, report assertions, and canonical paths", () => {
+    const first = deliveryEvidence("evd_0000000000000310", "line-1", "Wintermelon boba", "menu-1");
+    const second = deliveryEvidence("evd_0000000000000311", "line-2", "Wintermelon boba", "menu-2");
+    const evidence = new Map([first, second].map((entry) => [entry.id, entry]));
+    const item = deliveryDish([first, second]);
+    const report = DeliveryIndexReportSchema.parse({
+      report_type: "delivery_index",
+      markdown: "# Delivery",
+      assertions: [{
+        row_id: "wanpo-wintermelon",
+        item_ids: [item.id],
+        evidence_ids: [first.id, second.id],
+        distinct_order_count: 1,
+        last_date: "2026-07-14",
+      }],
+      schema_version: 1,
+    });
+
+    expect(() => validateDeliveryEvidenceGroups(evidence)).not.toThrow();
+    expect(() => validateItemEvidence(item, evidence)).not.toThrow();
+    expect(() => validateDeliveryIndexReport(
+      report,
+      evidence,
+      new Map([[item.id, item]]),
+    )).not.toThrow();
+    const proposal = mealProposal({
+      kind: "journal_delivery_dish",
+      item_id: item.id,
+      item_revision: "a".repeat(40),
+      evidence_ids: [first.id],
+    });
+    expect(() => validateMealProposalSource(
+      proposal,
+      new Map([[item.id, item]]),
+      evidence,
+      new Map([[item.id, "a".repeat(40)]]),
+    )).not.toThrow();
+    expect(() => validateMealProposalSource(
+      mealProposal({ ...proposal.source, evidence_ids: [purchase.id] }),
+      new Map([[item.id, item]]),
+      new Map([[purchase.id, purchase]]),
+      new Map([[item.id, "a".repeat(40)]]),
+    )).toThrow("ordered-before");
+    expect(journalEvidencePath(first)).toBe(`delivery/evidence/2026/${first.id}.json`);
+    expect(journalItemArea(item.kind)).toBe("delivery");
+    expect(journalItemPath(item)).toBe(`delivery/items/${item.id}.md`);
+  });
+
+  it("accepts only import evidence for public-import delivery dishes", () => {
+    const importedAt = "2026-07-15T12:00:00.000Z";
+    const importEvidence = EvidenceSchema.parse({
+      id: "evd_0000000000000319",
+      kind: "import",
+      observed_at: importedAt,
+      evidence_date: "2026-07-15",
+      date_precision: "day",
+      source_type: "shared_collection",
+      source_label: "Shared collection",
+      stable_locator: "snp_0000000000000319/collection-item-0319",
+      summary: "Imported Wintermelon boba",
+      actor_id: "act_0000000000000319",
+      limitations: ["No prior-order or reorder authority"],
+      schema_version: 1,
+    });
+    const imported = ImportedDeliveryDishItemSchema.parse({
+      id: "itm_0000000000000319",
+      kind: "delivery_dish",
+      delivery_authority: "public_import",
+      dish_name: "Wintermelon boba",
+      restaurant_name: "Wanpo",
+      public_location_label: "Stanford",
+      public_merchant_address: null,
+      image_url: null,
+      image_page_url: null,
+      source_display_attribution: "Shared collection",
+      classification: { kind: "food", authored_by: "agent" },
+      import_provenance: {
+        source_collection_id: "col_0000000000000319",
+        source_snapshot_id: "snp_0000000000000319",
+        source_collection_item_id: "collection-item-0319",
+        published_revision: "a".repeat(40),
+        source_display_attribution: "Shared collection",
+        imported_at: importedAt,
+      },
+      evidence_ids: [importEvidence.id],
+      created_at: importedAt,
+      updated_at: importedAt,
+      schema_version: 1,
+      body_markdown: "",
+    });
+    expect(() => validateItemEvidence(
+      imported,
+      new Map([[importEvidence.id, importEvidence]]),
+    )).not.toThrow();
+    expect(() => validateDeliveryImportEvidenceScope(
+      new Map([[imported.id, imported]]),
+      new Map([[importEvidence.id, importEvidence]]),
+      new Set([importEvidence.id]),
+    )).not.toThrow();
+    const proposal = mealProposal({
+      kind: "journal_delivery_dish",
+      item_id: imported.id,
+      item_revision: "a".repeat(40),
+      evidence_ids: [importEvidence.id],
+    });
+    expect(() => validateMealProposalSource(
+      proposal,
+      new Map([[imported.id, imported]]),
+      new Map([[importEvidence.id, importEvidence]]),
+      new Map([[imported.id, "a".repeat(40)]]),
+    )).not.toThrow();
+    expect(mealProposalNeedsRecheck(proposal, GitObjectIdSchema.parse("a".repeat(40)), "b".repeat(40))).toBe(true);
+    expect(() => validateItemEvidence(
+      imported,
+      new Map([[importEvidence.id, purchase]]),
+    )).toThrow("only import evidence");
+    expect(() => validateDeliveryImportEvidenceScope(
+      new Map([[imported.id, imported]]),
+      new Map([[importEvidence.id, importEvidence]]),
+      new Set(),
+    )).toThrow("canonical delivery import evidence");
+    expect(() => validateDeliveryImportEvidenceScope(
+      new Map(),
+      new Map([[importEvidence.id, importEvidence]]),
+      new Set([importEvidence.id]),
+    )).toThrow("exactly one public-import delivery dish");
+  });
+
+  it("fails closed when delivery groups, dishes, or reports disagree with their exact evidence", () => {
+    const first = deliveryEvidence("evd_0000000000000310", "line-1", "Wintermelon boba", "menu-1");
+    const incompleteBase = deliveryEvidence(
+      "evd_0000000000000311",
+      "line-2",
+      "Wintermelon boba",
+      "menu-2",
+    );
+    const incomplete = DeliveryOrderLineEvidenceSchema.parse({
+      ...incompleteBase,
+      delivery_order_line: {
+        ...incompleteBase.delivery_order_line,
+        declared_line_count: 3,
+      },
+    });
+    expect(() => validateDeliveryEvidenceGroups(
+      new Map([first, incomplete].map((entry) => [entry.id, entry])),
+    )).toThrow("complete order group");
+
+    const second = deliveryEvidence("evd_0000000000000311", "line-2", "Wintermelon boba", "menu-2");
+    const evidence = new Map([first, second].map((entry) => [entry.id, entry]));
+    const conflictingDish = JournalItemSchema.parse({
+      ...deliveryDish([first, second]),
+      restaurant_name: "Different restaurant",
+    });
+    expect(() => validateItemEvidence(conflictingDish, evidence)).toThrow("conflicts with its cited order evidence");
+
+    const item = deliveryDish([first, second]);
+    const incompleteReport = DeliveryIndexReportSchema.parse({
+      report_type: "delivery_index",
+      markdown: "# Delivery",
+      assertions: [{
+        row_id: "incomplete",
+        item_ids: [item.id],
+        evidence_ids: [first.id],
+        distinct_order_count: 1,
+        last_date: "2026-07-14",
+      }],
+      schema_version: 1,
+    });
+    expect(() => validateDeliveryIndexReport(
+      incompleteReport,
+      evidence,
+      new Map([[item.id, item]]),
+    )).toThrow("exact item evidence");
+
+    const mixedEvidence = new Map<string, Evidence>(evidence);
+    mixedEvidence.set(second.id, purchase);
+    expect(() => validateItemEvidence(item, mixedEvidence))
+      .toThrow("must cite only delivery order evidence");
+
+    const missingOccurrence = JournalItemSchema.parse({
+      ...item,
+      known_modifier_occurrences: item.known_modifier_occurrences.slice(0, 1),
+    });
+    expect(() => validateItemEvidence(missingOccurrence, evidence))
+      .toThrow("preserve modifiers for every cited order line");
+
+    const conflictingModifiers = JournalItemSchema.parse({
+      ...item,
+      known_modifier_occurrences: item.known_modifier_occurrences.map((occurrence, index) => ({
+        ...occurrence,
+        modifiers: index === 0
+          ? [{ group_name: "Sweetness", option_name: "Full sweet" }]
+          : occurrence.modifiers,
+      })),
+    });
+    expect(() => validateItemEvidence(conflictingModifiers, evidence))
+      .toThrow("modifier occurrence conflicts");
+
+    const unsupportedMenuLocator = JournalItemSchema.parse({
+      ...item,
+      known_menu_item_locators: ["different-menu"],
+    });
+    expect(() => validateItemEvidence(unsupportedMenuLocator, evidence))
+      .toThrow("menu locators must match");
+
+    const wrongCount = DeliveryIndexReportSchema.parse({
+      ...incompleteReport,
+      assertions: [{
+        ...incompleteReport.assertions[0],
+        evidence_ids: [first.id, second.id],
+        distinct_order_count: 2,
+      }],
+    });
+    expect(() => validateDeliveryIndexReport(
+      wrongCount,
+      evidence,
+      new Map([[item.id, item]]),
+    )).toThrow("incorrect distinct-order count");
+
+    const wrongDate = DeliveryIndexReportSchema.parse({
+      ...wrongCount,
+      assertions: [{
+        ...wrongCount.assertions[0],
+        distinct_order_count: 1,
+        last_date: "2026-07-13",
+      }],
+    });
+    expect(() => validateDeliveryIndexReport(
+      wrongDate,
+      evidence,
+      new Map([[item.id, item]]),
+    )).toThrow("incorrect last date");
+
+    const recipeItem = recipe(
+      [discovery.id],
+      { saved: "unknown", cooked: "unknown", liked: "unknown" },
+    );
+    const recipeReport = DeliveryIndexReportSchema.parse({
+      report_type: "delivery_index",
+      markdown: "# Wrong kind",
+      assertions: [{
+        row_id: "recipe",
+        item_ids: [recipeItem.id],
+        evidence_ids: [discovery.id],
+      }],
+      schema_version: 1,
+    });
+    expect(() => validateDeliveryIndexReport(
+      recipeReport,
+      new Map([[discovery.id, discovery]]),
+      new Map([[recipeItem.id, recipeItem]]),
+    )).toThrow("must cite only delivery dishes");
+
+    const nonDeliveryEvidenceReport = DeliveryIndexReportSchema.parse({
+      report_type: "delivery_index",
+      markdown: "# Wrong evidence",
+      assertions: [{
+        row_id: "purchase",
+        item_ids: [item.id],
+        evidence_ids: item.evidence_ids,
+      }],
+      schema_version: 1,
+    });
+    const purchaseByDeliveryId = new Map<string, Evidence>(
+      item.evidence_ids.map((id) => [id, purchase]),
+    );
+    expect(() => validateDeliveryIndexReport(
+      nonDeliveryEvidenceReport,
+      purchaseByDeliveryId,
+      new Map([[item.id, item]]),
+    )).toThrow("must cite only delivery order evidence");
   });
 
   it("validates report item, evidence, distinct-order, and date assertions", () => {

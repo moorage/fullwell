@@ -204,6 +204,14 @@ function ProposalCard({
           <a href={proposal.sourceHref} target="_blank" rel="noreferrer">{proposal.sourceDetail}</a>
         )}
       </p>
+      {proposal.deliveryContext == null ? null : (
+        <p className="meal-card__delivery">
+          <strong>{proposal.deliveryContext.restaurantName}</strong>
+          {" · "}{proposal.deliveryContext.locationLabel}
+          {proposal.deliveryContext.providerLabel === null ? "" : ` · ${proposal.deliveryContext.providerLabel}`}
+          <br />{proposal.deliveryContext.familiarityBasis}
+        </p>
+      )}
       <p className="meal-card__meta">Suggested by {proposal.proposedBy}{proposal.servings === null ? "" : ` · Serves ${proposal.servings}`}</p>
       {proposal.notes === null ? null : <p className="meal-card__notes">{proposal.notes}</p>}
       {proposal.needsRecheck ? (

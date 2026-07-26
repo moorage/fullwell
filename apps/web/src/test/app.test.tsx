@@ -80,15 +80,20 @@ describe("web experience", () => {
     expect(join.closest("form")).toHaveAttribute("action", "/invite/family/join-alvarez/accept");
   });
 
-  it("selects recipes independently from snacks", async () => {
+  it("selects recipes, snacks, and delivery dishes independently", async () => {
     const user = userEvent.setup();
     renderApp("/c/summer-table-7Qc9");
-    expect(screen.getByText("2 items selected")).toBeVisible();
-    await user.click(screen.getByRole("checkbox", { name: "Select all recipes" }));
     expect(screen.getByText("3 items selected")).toBeVisible();
+    expect(screen.getByText("Wanpo")).toBeVisible();
+    expect(screen.getByText("Stanford")).toBeVisible();
+    expect(screen.getByText("Alcohol")).toBeVisible();
+    await user.click(screen.getByRole("checkbox", { name: "Select all recipes" }));
+    expect(screen.getByText("4 items selected")).toBeVisible();
     expect(screen.getByRole("checkbox", { name: /Salt & vinegar almonds/ })).not.toBeChecked();
     await user.click(screen.getByRole("checkbox", { name: "Select all snacks" }));
-    expect(screen.getByText("5 items selected")).toBeVisible();
+    expect(screen.getByText("6 items selected")).toBeVisible();
+    await user.click(screen.getByRole("checkbox", { name: "Select all delivery dishes" }));
+    expect(screen.getByText("7 items selected")).toBeVisible();
   });
 
   it("disables import when no collection items are selected", async () => {
@@ -100,6 +105,9 @@ describe("web experience", () => {
     const snacks = screen.getByRole("checkbox", { name: "Select all snacks" });
     await user.click(snacks);
     await user.click(snacks);
+    const delivery = screen.getByRole("checkbox", { name: "Select all delivery dishes" });
+    await user.click(delivery);
+    await user.click(delivery);
     expect(screen.getByRole("button", { name: /Import selected/ })).toBeDisabled();
   });
 
@@ -107,9 +115,9 @@ describe("web experience", () => {
     renderApp("/c/summer-table-7Qc9/import/plan");
     const form = screen.getByRole("button", { name: "Confirm import" }).closest("form");
     expect(form).toHaveAttribute("action", "/c/summer-table-7Qc9/import");
-    expect(form?.querySelectorAll('input[name="itemIds"]')).toHaveLength(2);
+    expect(form?.querySelectorAll('input[name="itemIds"]')).toHaveLength(3);
     expect(within(form as HTMLFormElement).getByText("Tomato, mustard & thyme tart")).toBeVisible();
-    expect(within(form as HTMLFormElement).getByText(/not marked Cooked or Liked/)).toBeVisible();
+    expect(within(form as HTMLFormElement).getByText(/recommendations, not prior orders/)).toBeVisible();
   });
 
   it.each([
@@ -354,6 +362,8 @@ describe("web experience", () => {
       renderApp(url);
     }
     expect(screen.getAllByRole("heading", { name: "Page not found" })).toHaveLength(3);
+    renderApp("/households/missing/meal-plan");
+    expect(screen.getByRole("heading", { name: "Household not found" })).toBeVisible();
   });
 
   it("hides owner-only member controls from non-owners and renders collection status actions", () => {
@@ -469,6 +479,51 @@ describe("web experience", () => {
     const revoke = within(messagingSection).getByRole("button", { name: "Revoke" }).closest("form");
     expect(revoke).toHaveAttribute("action", "/account/messaging/whatsapp/revoke");
     expect(revoke?.querySelector('input[name="confirmation"]')).not.toBeInTheDocument();
+  });
+
+  it("renders empty account access and disabled, expired, and active messaging details", () => {
+    const rendered = renderApp("/account", {
+      ...demoWebContext,
+      auth: {
+        ...demoWebContext.auth,
+        passkeysEnabled: true,
+        passkeys: [],
+        grants: [],
+      },
+      messaging: { kind: "disabled", availableThroughLabel: "Sep 30, 2026" },
+    });
+    expect(screen.getByText("No passkeys are enrolled.")).toBeVisible();
+    expect(screen.getByText("No agents currently have access.")).toBeVisible();
+    expect(screen.getByText("WhatsApp restocking is disabled.")).toBeVisible();
+
+    rendered.rerender(<App url="/account" context={{
+      ...demoWebContext,
+      messaging: {
+        kind: "expired",
+        availableThroughLabel: "Sep 30, 2026",
+        linkId: "lnk_0000000000000002",
+        deviceId: "dev_0000000000000002",
+        householdId: demoWebContext.households[0]?.id ?? "hsh_0000000000000001",
+        deviceName: "Hallway Mac",
+        confirmationExpiresLabel: "Jul 19, 2026",
+      },
+    }} />);
+    expect(screen.getByRole("heading", { name: "Link expired" })).toBeVisible();
+    expect(screen.getByText(/confirmation for Hallway Mac expired Jul 19, 2026/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Clear" })).toBeVisible();
+
+    rendered.rerender(<App url="/account" context={{
+      ...demoWebContext,
+      messaging: {
+        kind: "linked",
+        availableThroughLabel: "Sep 30, 2026",
+        deviceId: "dev_0000000000000003",
+        householdId: demoWebContext.households[0]?.id ?? "hsh_0000000000000001",
+        deviceName: "Kitchen Mac",
+        lastSeenLabel: "Jul 20, 2026",
+      },
+    }} />);
+    expect(screen.getByText("Kitchen Mac · Last runner check-in Jul 20, 2026")).toBeVisible();
   });
 
   it("renders enrolled passkeys with CSRF-bound removal and enrollment controls", () => {

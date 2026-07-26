@@ -290,6 +290,10 @@ const ToolDescriptions: Partial<Record<ToolName, string>> = {
   hfj_update_household_name: "Rename a household as an owner at an exact repository revision.",
   hfj_update_onboarding: "Start, skip, or resume the current user's snack or recipe onboarding section; completion is derived from canonical reports.",
   hfj_commit_onboarding: "Atomically commit a confirmed snack-and-recipe onboarding draft, including profiles, evidence, items, reports, and skip outcomes.",
+  hfj_search_delivery_history: "Search bounded household delivery history using public provider, restaurant, location, and dish fields.",
+  hfj_get_delivery_order: "Read one complete household delivery order group selected by an opaque search handle.",
+  hfj_get_delivery_index: "Read the canonical household delivery index and its exact Git revision.",
+  hfj_commit_delivery_index: "Commit one explicitly confirmed provider's delivery history, items, profile section, and aggregate index at exact revisions.",
   hfj_get_meal_plan: "Read one bounded Monday-start household meal-plan week, including current constraints, proposals, review events, withdrawals, and recheck status.",
   hfj_update_meal_planning_constraints: "Replace the shared household allergy and food-sensitivity labels at an exact repository revision after explicit user confirmation.",
   hfj_review_meal_constraints: "Record that an editor reviewed the current shared meal constraints for one week before planning.",
@@ -323,7 +327,7 @@ function toolCatalog(): Array<{ name: ToolName; description: string; inputSchema
     return {
       name: toolName,
       description: ToolDescriptions[toolName] ?? name.replaceAll("_", " "),
-      inputSchema: z.toJSONSchema(schema),
+      inputSchema: z.toJSONSchema(schema, { io: "input" }),
       annotations: annotations(toolName),
     };
   });

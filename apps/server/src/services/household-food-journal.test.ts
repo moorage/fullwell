@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   ActorIdSchema,
+  CollectionSnapshotSchema,
   GitObjectIdSchema,
   HouseholdIdSchema,
   ItemIdSchema,
@@ -15,6 +16,7 @@ import {
   ONBOARDING_COMMIT_MAX_EVIDENCE,
   ONBOARDING_COMMIT_MAX_ITEMS,
   OnboardingStatusSchema,
+  ShareIdSchema,
   UserIdSchema,
   type GitObjectId,
   type HouseholdId,
@@ -24,6 +26,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { MemoryHouseholdRepository, MemoryOperationalStore } from "../adapters/memory.js";
 import { DeterministicRandomSource, FixedClock, HmacTokenHasher, NoopTelemetry } from "../adapters/providers.js";
 import type { JsonValue, Principal } from "../core/types.js";
+import { rebuildRepositoryState } from "../domain/repository-projection.js";
+import { ReconciliationWorker } from "../workers/reconciliation-worker.js";
 import { HouseholdFoodJournalService } from "./household-food-journal.js";
 
 const owner: Principal = {
@@ -289,6 +293,65 @@ describe("HouseholdFoodJournalService", () => {
     expect((await call("hfj_search_items", { household_id: householdId, query: "apple", kind: "snack", limit: 10 })).data.items).toHaveLength(1);
     expect((await call("hfj_search_items", { household_id: householdId, query: "example.test", kind: "recipe", limit: 10 })).data.items).toHaveLength(1);
     expect((await call("hfj_get_item", { household_id: householdId, item_id: recipeId })).data.revision).toBe(changeSet.head);
+    const deliveryDish = deliveryDishFixture();
+    const alcoholDish = JournalItemSchema.parse({
+      ...deliveryDish,
+      id: "itm_0000000000000298",
+      dish_name: "Canned citrus spritz",
+      restaurant_name: "Corner Table",
+      public_location_label: "University Avenue",
+      public_merchant_address: { locality: "Palo Alto", region: "CA" },
+      classification: { kind: "alcohol", authored_by: "agent" },
+      evidence_ids: ["evd_0000000000000298"],
+      known_modifier_occurrences: [{
+        evidence_id: "evd_0000000000000298",
+        modifiers_complete: true,
+        modifiers: [],
+      }],
+    });
+    const deliveryProjection = await store.projection(householdId);
+    deliveryProjection.items.set(deliveryDish.id, {
+      item: deliveryDish,
+      revision: GitObjectIdSchema.parse(changeSet.head),
+    });
+    deliveryProjection.items.set(alcoholDish.id, {
+      item: alcoholDish,
+      revision: GitObjectIdSchema.parse(changeSet.head),
+    });
+    const deliverySearch = await call("hfj_search_items", {
+      household_id: householdId,
+      query: "Wintermelon",
+      kind: "delivery_dish",
+      limit: 10,
+    });
+    expect(deliverySearch.data.items).toEqual([expect.objectContaining({
+      kind: "delivery_dish",
+      title: "Wintermelon boba",
+      distinguishing_fields: expect.objectContaining({
+        provider_label: "DoorDash",
+        restaurant_name: "Wanpo",
+        public_location_label: "Palo Alto",
+      }),
+    })]);
+    expect(JSON.stringify(deliverySearch.data)).not.toContain("private-delivery");
+
+    const commitsBeforePrivateCollection = repository.commitCount(householdId);
+    expect(await service.call("hfj_create_collection", {
+      household_id: householdId,
+      expected_head: head,
+      idempotency_key: "collection-private-delivery-rejected-0201",
+      title: "Unsafe delivery fields",
+      items: [{
+        ...deliveryCollectionItem(
+          "collection-item-delivery-private-0201",
+          deliveryDish.id,
+          changeSet.head,
+          deliveryDish,
+        ),
+        provider_origin: "https://delivery.example.test/",
+      }],
+    }, owner)).toMatchObject({ ok: false, error: { code: "VALIDATION_FAILED" } });
+    expect(repository.commitCount(householdId)).toBe(commitsBeforePrivateCollection);
 
     const collection = await call("hfj_create_collection", {
       household_id: householdId,
@@ -299,6 +362,18 @@ describe("HouseholdFoodJournalService", () => {
         collectionItem("collection-item-0201", snackId, "snack", "Honeycrisp apple", changeSet.head),
         collectionItem("collection-item-0202", recipeId, "recipe", "Tomato soup", changeSet.head),
         collectionItem("collection-item-0203", snackId, "snack", "Honeycrisp apple", changeSet.head),
+        deliveryCollectionItem(
+          "collection-item-delivery-0201",
+          deliveryDish.id,
+          changeSet.head,
+          deliveryDish,
+        ),
+        deliveryCollectionItem(
+          "collection-item-delivery-alcohol-0201",
+          alcoholDish.id,
+          changeSet.head,
+          alcoholDish,
+        ),
       ],
     });
     head = collection.head;
@@ -316,13 +391,44 @@ describe("HouseholdFoodJournalService", () => {
     expect((await service.preview(shareToken)).ok).toBe(true);
     const directPreview = await service.call("hfj_preview_shared_collection", { token: shareToken }, owner);
     expect(directPreview.ok).toBe(true);
-    if (directPreview.ok) expect(objectDataSchema.parse(directPreview.data).snapshot).toBeDefined();
+    if (directPreview.ok) {
+      const publicSnapshot = JSON.stringify(objectDataSchema.parse(directPreview.data).snapshot);
+      expect(publicSnapshot).toContain("Wintermelon boba");
+      expect(publicSnapshot).toContain("\"classification\":\"alcohol\"");
+      expect(publicSnapshot).not.toMatch(/age.eligib|safe to drink|healthy|checkout/i);
+      for (const privateValue of [
+        "private-delivery-merchant",
+        "private-delivery-menu",
+        "https://delivery.example.test/",
+        "Half sweet",
+        "evd_0000000000000299",
+      ]) {
+        expect(publicSnapshot).not.toContain(privateValue);
+      }
+    }
     const plan = await call("hfj_plan_collection_import", {
       token: shareToken,
       destination_household_id: householdId,
-      selected_collection_item_ids: ["collection-item-0201", "collection-item-0202"],
+      selected_collection_item_ids: [
+        "collection-item-0201",
+        "collection-item-0202",
+        "collection-item-delivery-0201",
+        "collection-item-delivery-alcohol-0201",
+      ],
     });
-    expect(plan.data.items).toHaveLength(2);
+    expect(plan.data.items).toHaveLength(4);
+    const commitsBeforeRejectedMerge = repository.commitCount(householdId);
+    expect(await service.call("hfj_import_collection_items", {
+      household_id: householdId,
+      expected_head: head,
+      idempotency_key: "import-delivery-merge-rejected-0201",
+      token: shareToken,
+      selections: [{
+        collection_item_id: "collection-item-0201",
+        resolution: { action: "merge", destination_item_id: deliveryDish.id },
+      }],
+    }, owner)).toMatchObject({ ok: false, error: { code: "VALIDATION_FAILED" } });
+    expect(repository.commitCount(householdId)).toBe(commitsBeforeRejectedMerge);
 
     const imported = await call("hfj_import_collection_items", {
       household_id: householdId,
@@ -333,10 +439,132 @@ describe("HouseholdFoodJournalService", () => {
         { collection_item_id: "collection-item-0201", resolution: { action: "create_separate" } },
         { collection_item_id: "collection-item-0202", resolution: { action: "merge", destination_item_id: recipeId } },
         { collection_item_id: "collection-item-0203", resolution: { action: "skip" } },
+        { collection_item_id: "collection-item-delivery-0201", resolution: { action: "create_separate" } },
+        { collection_item_id: "collection-item-delivery-alcohol-0201", resolution: { action: "create_separate" } },
       ],
     });
     head = imported.head;
     expect(imported.data.skipped_count).toBe(1);
+    const importedItemIds = z.array(ItemIdSchema).parse(imported.data.imported_item_ids);
+    expect(importedItemIds).toHaveLength(3);
+    const projectedItems = await store.projection(householdId);
+    const copiedDelivery = importedItemIds
+      .map((itemId) => projectedItems.items.get(itemId)?.item)
+      .find((item) => item?.kind === "delivery_dish");
+    expect(copiedDelivery).toMatchObject({
+      kind: "delivery_dish",
+      delivery_authority: "public_import",
+      dish_name: "Wintermelon boba",
+      restaurant_name: "Wanpo",
+      public_location_label: "Palo Alto",
+      classification: { kind: "food", authored_by: "agent" },
+    });
+    const copiedDeliveryJson = JSON.stringify(copiedDelivery);
+    expect(copiedDeliveryJson).not.toMatch(/provider|merchant_locator|menu_item|modifier|reorder/i);
+    const copiedAlcohol = importedItemIds
+      .map((itemId) => projectedItems.items.get(itemId)?.item)
+      .find((item) => item?.kind === "delivery_dish"
+        && item.classification.kind === "alcohol");
+    expect(copiedAlcohol).toMatchObject({
+      delivery_authority: "public_import",
+      dish_name: "Canned citrus spritz",
+      classification: { kind: "alcohol", authored_by: "agent" },
+    });
+    if (copiedDelivery?.kind !== "delivery_dish" || !("delivery_authority" in copiedDelivery)
+      || copiedAlcohol?.kind !== "delivery_dish" || !("delivery_authority" in copiedAlcohol)) {
+      throw new Error("Expected imported delivery dishes");
+    }
+    const deliveryConstraints = await call("hfj_update_meal_planning_constraints", {
+      household_id: householdId,
+      expected_head: head,
+      idempotency_key: "delivery-meal-constraints-0201",
+      constraints: {
+        status: "confirmed_none",
+        time_zone: "America/Los_Angeles",
+        reviewed_at: "2026-07-20T16:00:00.000Z",
+      },
+    });
+    head = deliveryConstraints.head;
+    const deliveryConstraintRevision = GitObjectIdSchema.parse(deliveryConstraints.data.constraint_revision);
+    const deliveryReview = await call("hfj_review_meal_constraints", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      constraint_revision: deliveryConstraintRevision,
+      idempotency_key: "delivery-meal-review-0201",
+    });
+    head = deliveryReview.head;
+    const deliveryReviewEventId = z.string().parse(deliveryReview.data.event_id);
+    const deliveryProposalInput = {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      meal_date: "2026-07-21",
+      slot: { kind: "dinner" as const },
+      source: {
+        kind: "journal_delivery_dish" as const,
+        item_id: copiedDelivery.id,
+        item_revision: imported.head,
+        evidence_ids: copiedDelivery.evidence_ids,
+      },
+      servings: 2,
+      notes: "Shared dish",
+      constraint_revision: deliveryConstraintRevision,
+      constraint_review_event_id: deliveryReviewEventId,
+      compatibility: "incomplete_evidence" as const,
+      compatibility_caveat: "Ingredients and cross-contact details are not known.",
+      idempotency_key: "delivery-meal-proposal-0201",
+    };
+    const alcoholProposalInput = {
+      ...deliveryProposalInput,
+      source: {
+        kind: "journal_delivery_dish" as const,
+        item_id: copiedAlcohol.id,
+        item_revision: imported.head,
+        evidence_ids: copiedAlcohol.evidence_ids,
+      },
+      notes: "Explicitly selected alcohol item",
+      compatibility_caveat: "No ingredient, age-eligibility, health, or safety claim is available.",
+      idempotency_key: "delivery-meal-alcohol-0201",
+    };
+    const [deliveryProposal, alcoholProposal] = await Promise.all([
+      call("hfj_add_meal_proposal", deliveryProposalInput),
+      call("hfj_add_meal_proposal", alcoholProposalInput),
+    ]);
+    head = await repository.head(householdId);
+    expect(await call("hfj_add_meal_proposal", deliveryProposalInput)).toEqual(deliveryProposal);
+    const deliveryWeek = z.object({
+      proposals: z.array(z.object({
+        proposal: MealProposalSchema,
+        active: z.boolean(),
+        effective_compatibility: z.string(),
+      })),
+    }).passthrough().parse((await call("hfj_get_meal_plan", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+    })).data);
+    expect(deliveryWeek.proposals).toHaveLength(2);
+    expect(deliveryWeek.proposals.every(({ proposal }) =>
+      proposal.source.kind === "journal_delivery_dish"
+      && proposal.compatibility === "incomplete_evidence")).toBe(true);
+    const alcoholProposalId = z.string().parse(alcoholProposal.data.proposal_id);
+    const deliveryWithdrawal = await call("hfj_withdraw_meal_proposal", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+      proposal_id: alcoholProposalId,
+      reason: "Changed plans",
+      idempotency_key: "delivery-meal-withdraw-0201",
+    });
+    head = deliveryWithdrawal.head;
+    expect((await call("hfj_get_meal_plan", {
+      household_id: householdId,
+      week_start: "2026-07-20",
+    })).data).toMatchObject({
+      proposals: expect.arrayContaining([
+        expect.objectContaining({
+          proposal: expect.objectContaining({ id: alcoholProposalId }),
+          active: false,
+        }),
+      ]),
+    });
 
     const bundle = await call("hfj_export_household", { household_id: householdId, format: "git_bundle", idempotency_key: "export-0201" });
     expect(z.url().parse(bundle.data.download_url)).toContain("/exports/");
@@ -367,6 +595,115 @@ describe("HouseholdFoodJournalService", () => {
       confirm: true,
     });
     expect(removed.data.actor_id).toBe(member.actorId);
+  });
+
+  it("cumulatively merges multiple collection selections into one public-import delivery dish", async () => {
+    const created = await call("hfj_create_household", {
+      name: "Shared delivery picks",
+      idempotency_key: "delivery-merge-create-0201",
+    });
+    const householdId = HouseholdIdSchema.parse(created.data.household_id);
+    const token = "v".repeat(43);
+    const snapshot = CollectionSnapshotSchema.parse({
+      id: "snp_0000000000000210",
+      collection_id: "col_0000000000000210",
+      title: "Wanpo favorites",
+      sharer_display_name: "Kitchen Friend",
+      items: [
+        sharedDeliveryDish("collection-item-delivery-0210", created.head),
+        sharedDeliveryDish("collection-item-delivery-0211", created.head),
+      ],
+      created_at: "2026-07-15T12:00:00.000Z",
+      schema_version: 1,
+    });
+    await store.saveShare({
+      id: ShareIdSchema.parse("shr_0000000000000210"),
+      collectionId: snapshot.collection_id,
+      householdId,
+      tokenHash: new HmacTokenHasher("journal-service-test-pepper").hash(token),
+      snapshot,
+      expiresAt: "2026-08-15T12:00:00.000Z",
+      revokedAt: null,
+    });
+
+    const createdImport = await call("hfj_import_collection_items", {
+      household_id: householdId,
+      expected_head: created.head,
+      idempotency_key: "delivery-merge-seed-0201",
+      token,
+      selections: [{
+        collection_item_id: "collection-item-delivery-0210",
+        resolution: { action: "create_separate" },
+      }],
+    });
+    const destinationItemId = ItemIdSchema.parse(
+      z.array(ItemIdSchema).length(1).parse(createdImport.data.imported_item_ids)[0],
+    );
+    const beforeMerge = (await store.projection(householdId)).items.get(destinationItemId)?.item;
+    if (beforeMerge?.kind !== "delivery_dish" || !("delivery_authority" in beforeMerge)) {
+      throw new Error("Expected a public-import delivery destination");
+    }
+
+    const mergeInput = {
+      household_id: householdId,
+      expected_head: createdImport.head,
+      idempotency_key: "delivery-merge-two-selections-0201",
+      token,
+      selections: [
+        {
+          collection_item_id: "collection-item-delivery-0210",
+          resolution: { action: "merge" as const, destination_item_id: destinationItemId },
+        },
+        {
+          collection_item_id: "collection-item-delivery-0211",
+          resolution: { action: "merge" as const, destination_item_id: destinationItemId },
+        },
+      ],
+    };
+    const merged = await call("hfj_import_collection_items", mergeInput);
+    expect(merged.data.merged_item_ids).toEqual([destinationItemId]);
+    const afterMerge = (await store.projection(householdId)).items.get(destinationItemId)?.item;
+    if (afterMerge?.kind !== "delivery_dish" || !("delivery_authority" in afterMerge)) {
+      throw new Error("Expected the merged public-import delivery destination");
+    }
+    const originalEvidenceIds = new Set(beforeMerge.evidence_ids);
+    const addedEvidenceIds = afterMerge.evidence_ids.filter((id) => !originalEvidenceIds.has(id));
+    expect(addedEvidenceIds).toHaveLength(2);
+    expect(new Set(afterMerge.evidence_ids).size).toBe(afterMerge.evidence_ids.length);
+    const projection = await store.projection(householdId);
+    expect(addedEvidenceIds.map((id) => projection.evidence.get(id)?.kind)).toEqual(["import", "import"]);
+
+    const repositorySnapshot = await repository.snapshot(householdId);
+    const destinationPath = `delivery/items/${destinationItemId}.md`;
+    const mergeAudit = repositorySnapshot.files
+      .filter(({ path }) => /^audit\/\d{4}\/req_[0-9a-z]{16,64}\.json$/.test(path))
+      .map(({ content }) => z.object({
+        operation: z.string(),
+        affected_paths: z.array(z.string()),
+      }).passthrough().parse(JSON.parse(content) as unknown))
+      .find(({ operation, affected_paths: affectedPaths }) =>
+        operation === "hfj_import_collection_items"
+        && affectedPaths.filter((path) => path.startsWith("delivery/evidence/")).length === 2);
+    expect(mergeAudit?.affected_paths.filter((path) => path === destinationPath)).toEqual([destinationPath]);
+
+    const rebuilt = rebuildRepositoryState(repositorySnapshot, new Map());
+    expect(rebuilt.projection.items.get(destinationItemId)?.item).toEqual(afterMerge);
+    expect(addedEvidenceIds.map((id) => rebuilt.projection.evidence.get(id)?.kind)).toEqual(["import", "import"]);
+
+    projection.items.set(destinationItemId, {
+      item: beforeMerge,
+      revision: GitObjectIdSchema.parse(merged.head),
+    });
+    expect(await new ReconciliationWorker(store, repository, new NoopTelemetry()).run()).toEqual({
+      checked: 1,
+      rebuilt: 1,
+      quarantined: 0,
+    });
+    expect((await store.projection(householdId)).items.get(destinationItemId)?.item).toEqual(afterMerge);
+
+    const commitsBeforeReplay = repository.commitCount(householdId);
+    expect(await call("hfj_import_collection_items", mergeInput)).toEqual(merged);
+    expect(repository.commitCount(householdId)).toBe(commitsBeforeReplay);
   });
 
   it("maps validation, authorization, conflict, and internal failures to stable envelopes", async () => {
@@ -1306,4 +1643,94 @@ function collectionItem(collectionItemId: string, sourceItemId: string, kind: "r
     source_display_attribution: "Kitchen Owner",
     source_item_revision: revision,
   };
+}
+
+function deliveryCollectionItem(
+  collectionItemId: string,
+  sourceItemId: string,
+  revision: string,
+  source: ReturnType<typeof deliveryDishFixture>,
+): Record<string, JsonValue> {
+  if (source.kind !== "delivery_dish" || "delivery_authority" in source) {
+    throw new Error("Delivery collection fixture requires history-backed source");
+  }
+  return {
+    collection_item_id: collectionItemId,
+    source_item_id: sourceItemId,
+    kind: "delivery_dish",
+    title: source.dish_name,
+    restaurant_name: source.restaurant_name,
+    public_location_label: source.public_location_label,
+    public_merchant_address: source.public_merchant_address === null ? null : {
+      ...(source.public_merchant_address.address_lines === undefined
+        ? {}
+        : { address_lines: [...source.public_merchant_address.address_lines] }),
+      ...(source.public_merchant_address.locality === undefined
+        ? {}
+        : { locality: source.public_merchant_address.locality }),
+      ...(source.public_merchant_address.region === undefined
+        ? {}
+        : { region: source.public_merchant_address.region }),
+      ...(source.public_merchant_address.postal_code === undefined
+        ? {}
+        : { postal_code: source.public_merchant_address.postal_code }),
+      ...(source.public_merchant_address.country === undefined
+        ? {}
+        : { country: source.public_merchant_address.country }),
+    },
+    public_description: null,
+    public_note: null,
+    image_url: null,
+    image_page_url: null,
+    source_display_attribution: null,
+    source_item_revision: revision,
+    ...(source.classification.kind === "alcohol" ? { classification: "alcohol" } : {}),
+  };
+}
+
+function sharedDeliveryDish(collectionItemId: string, revision: string) {
+  return {
+    collection_item_id: collectionItemId,
+    kind: "delivery_dish" as const,
+    title: "Wintermelon boba",
+    restaurant_name: "Wanpo",
+    public_location_label: "Palo Alto",
+    public_merchant_address: { locality: "Palo Alto", region: "CA" },
+    public_description: "A familiar tea order.",
+    public_note: null,
+    image_url: null,
+    image_page_url: null,
+    source_display_attribution: "Kitchen Friend",
+    source_item_revision: revision,
+  };
+}
+
+function deliveryDishFixture() {
+  return JournalItemSchema.parse({
+    id: "itm_0000000000000299",
+    kind: "delivery_dish",
+    dish_name: "Wintermelon boba",
+    provider_label: "DoorDash",
+    provider_origin: "https://delivery.example.test",
+    restaurant_name: "Wanpo",
+    public_location_label: "Palo Alto",
+    public_merchant_address: {
+      address_lines: ["123 University Ave"],
+      locality: "Palo Alto",
+      region: "CA",
+    },
+    merchant_locator: "private-delivery-merchant",
+    known_menu_item_locators: ["private-delivery-menu"],
+    known_modifier_occurrences: [{
+      evidence_id: "evd_0000000000000299",
+      modifiers_complete: true,
+      modifiers: [{ group_name: "Sweetness", option_name: "Half sweet" }],
+    }],
+    classification: { kind: "food", authored_by: "agent" },
+    evidence_ids: ["evd_0000000000000299"],
+    created_at: "2026-07-15T12:00:00.000Z",
+    updated_at: "2026-07-15T12:00:00.000Z",
+    schema_version: 1,
+    body_markdown: "",
+  });
 }

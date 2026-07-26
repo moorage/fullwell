@@ -26,6 +26,7 @@ import {
   UserIdSchema,
   type GitObjectId,
   type HouseholdId,
+  type JournalItem,
   type MutationState,
   type OnboardingRecord,
   type RequestId,
@@ -476,6 +477,7 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
       SET display_name = ${name}, repository_head = ${head}, provisioning_state = 'ready', updated_at = now()
       WHERE id = ${householdId}
     `;
+    await this.replaceSearchItems(sql, householdId, projection);
     for (const membership of memberships) {
       const existing = await sql<{ user_id: string; role: string }[]>`
         SELECT user_id, role FROM memberships WHERE household_id = ${householdId} AND actor_id = ${membership.actorId}
@@ -634,6 +636,12 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
         (SELECT succeeded FROM restore_drill_checkpoints WHERE singleton) AS last_restore_drill_succeeded,
         CASE
           WHEN EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'search_items_kind_check'
+              AND pg_get_constraintdef(oid) LIKE '%delivery_dish%'
+          ) THEN '0008'
+          WHEN EXISTS (
             SELECT 1 FROM information_schema.tables
             WHERE table_schema = 'public' AND table_name = 'onboarding_preferences'
           ) THEN '0007'
@@ -755,6 +763,28 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
         SET repository_head = ${commitId}, projection = ${active.sql.json(this.projectionDocument(projection))}, rebuilt_at = now()
         WHERE household_id = ${householdId}
       `;
+      await this.replaceSearchItems(active.sql, householdId, projection);
+    }
+  }
+
+  private async replaceSearchItems(
+    sql: Queryable,
+    householdId: HouseholdId,
+    projection: HouseholdProjection,
+  ): Promise<void> {
+    await sql`DELETE FROM search_items WHERE household_id = ${householdId}`;
+    for (const { item, revision } of projection.items.values()) {
+      const search = searchProjection(item);
+      await sql`
+        INSERT INTO search_items (
+          household_id, item_id, kind, repository_revision,
+          distinguishing_fields, search_document
+        ) VALUES (
+          ${householdId}, ${item.id}, ${item.kind}, ${revision},
+          ${sql.json(search.distinguishingFields)},
+          to_tsvector('simple', ${search.document})
+        )
+      `;
     }
   }
 
@@ -872,6 +902,83 @@ function emptyProjection(): HouseholdProjection {
     mealProposals: new Map(),
     mealPlanEvents: new Map(),
   };
+}
+
+function searchProjection(item: JournalItem): {
+  readonly distinguishingFields: Record<string, JsonValue>;
+  readonly document: string;
+} {
+  switch (item.kind) {
+    case "recipe":
+      return {
+        distinguishingFields: {
+          canonical_url: item.canonical_url,
+          author_or_publisher: item.author_or_publisher,
+        },
+        document: searchableDocument([
+          item.title,
+          item.author_or_publisher,
+          item.canonical_url,
+        ]),
+      };
+    case "delivery_dish":
+      return {
+        distinguishingFields: {
+          ...("delivery_authority" in item ? {} : { provider_label: item.provider_label }),
+          restaurant_name: item.restaurant_name,
+          public_location_label: item.public_location_label,
+          public_merchant_address: publicMerchantAddressJson(item.public_merchant_address),
+        },
+        document: searchableDocument([
+          item.dish_name,
+          ...("delivery_authority" in item ? [] : [item.provider_label]),
+          item.restaurant_name,
+          item.public_location_label,
+          ...(item.public_merchant_address?.address_lines ?? []),
+          item.public_merchant_address?.locality,
+          item.public_merchant_address?.region,
+          item.public_merchant_address?.postal_code,
+          item.public_merchant_address?.country,
+        ]),
+      };
+    case "snack":
+    case "ingredient":
+    case "condiment":
+    case "other_grocery":
+      return {
+        distinguishingFields: {
+          brand: item.brand,
+          flavor: item.flavor,
+          formulation: item.formulation,
+          format: item.format,
+        },
+        document: searchableDocument([
+          item.display_name,
+          item.brand,
+          item.product_line,
+          item.flavor,
+          item.formulation,
+          item.format,
+        ]),
+      };
+  }
+}
+
+function publicMerchantAddressJson(
+  address: import("@hfj/contracts").RestaurantPublicAddress | null,
+): JsonValue {
+  if (address === null) return null;
+  return {
+    ...(address.address_lines === undefined ? {} : { address_lines: [...address.address_lines] }),
+    ...(address.locality === undefined ? {} : { locality: address.locality }),
+    ...(address.region === undefined ? {} : { region: address.region }),
+    ...(address.postal_code === undefined ? {} : { postal_code: address.postal_code }),
+    ...(address.country === undefined ? {} : { country: address.country }),
+  };
+}
+
+function searchableDocument(fields: ReadonlyArray<string | null | undefined>): string {
+  return fields.filter((field): field is string => field !== null && field !== undefined).join(" ");
 }
 
 function toJsonValue(input: unknown): JsonValue {

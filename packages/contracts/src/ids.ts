@@ -2,6 +2,18 @@ import { z } from "zod";
 
 const opaqueId = (prefix: string) =>
   z.string().regex(new RegExp(`^${prefix}_[0-9a-z]{16,64}$`));
+const privateProviderLocator = (maximumLength: number) =>
+  z.string().min(1).max(maximumLength).superRefine((value, context) => {
+    if ([...value].some((character) => {
+      const code = character.codePointAt(0);
+      return code !== undefined && (code <= 31 || code === 127);
+    })) {
+      context.addIssue({ code: "custom", message: "Provider locators cannot contain ASCII control characters" });
+    }
+    if (value !== value.trim()) {
+      context.addIssue({ code: "custom", message: "Provider locators cannot contain leading or trailing whitespace" });
+    }
+  });
 
 export const UserIdSchema = opaqueId("usr").brand<"UserId">();
 export const HouseholdIdSchema = opaqueId("hsh").brand<"HouseholdId">();
@@ -22,6 +34,11 @@ export const MessageEnvelopeIdSchema = opaqueId("msg").brand<"MessageEnvelopeId"
 export const MessageLeaseIdSchema = opaqueId("lse").brand<"MessageLeaseId">();
 export const MealProposalIdSchema = opaqueId("mlp").brand<"MealProposalId">();
 export const MealPlanEventIdSchema = opaqueId("mle").brand<"MealPlanEventId">();
+export const ProviderOrderLocatorSchema = privateProviderLocator(512).brand<"ProviderOrderLocator">();
+export const DeliveryOrderGroupLocatorSchema = privateProviderLocator(512).brand<"DeliveryOrderGroupLocator">();
+export const ProviderMerchantLocatorSchema = privateProviderLocator(512).brand<"ProviderMerchantLocator">();
+export const ProviderMenuItemLocatorSchema = privateProviderLocator(512).brand<"ProviderMenuItemLocator">();
+export const DeliveryOrderLineKeySchema = privateProviderLocator(256).brand<"DeliveryOrderLineKey">();
 export const GitObjectIdSchema = z.string().regex(/^[0-9a-f]{40,64}$/).brand<"GitObjectId">();
 export const LocalRecipeContentDigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/).brand<"LocalRecipeContentDigest">();
 
@@ -44,5 +61,10 @@ export type MessageEnvelopeId = z.infer<typeof MessageEnvelopeIdSchema>;
 export type MessageLeaseId = z.infer<typeof MessageLeaseIdSchema>;
 export type MealProposalId = z.infer<typeof MealProposalIdSchema>;
 export type MealPlanEventId = z.infer<typeof MealPlanEventIdSchema>;
+export type ProviderOrderLocator = z.infer<typeof ProviderOrderLocatorSchema>;
+export type DeliveryOrderGroupLocator = z.infer<typeof DeliveryOrderGroupLocatorSchema>;
+export type ProviderMerchantLocator = z.infer<typeof ProviderMerchantLocatorSchema>;
+export type ProviderMenuItemLocator = z.infer<typeof ProviderMenuItemLocatorSchema>;
+export type DeliveryOrderLineKey = z.infer<typeof DeliveryOrderLineKeySchema>;
 export type GitObjectId = z.infer<typeof GitObjectIdSchema>;
 export type LocalRecipeContentDigest = z.infer<typeof LocalRecipeContentDigestSchema>;

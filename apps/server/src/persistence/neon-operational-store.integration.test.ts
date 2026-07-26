@@ -5,7 +5,9 @@ import {
   CollectionSnapshotSchema,
   GitObjectIdSchema,
   HouseholdIdSchema,
+  ImportedDeliveryDishItemSchema,
   InvitationIdSchema,
+  JournalItemSchema,
   MealPlanEventSchema,
   MealPlanningProfileSchema,
   MealProposalSchema,
@@ -214,9 +216,61 @@ describeDatabase("NeonOperationalStore", () => {
       created_at: "2026-07-20T16:02:00.000Z",
       schema_version: 1,
     });
+    const deliveryDish = JournalItemSchema.parse({
+      id: "itm_0000000000000109",
+      kind: "delivery_dish",
+      dish_name: "Wintermelon boba",
+      provider_label: "DoorDash",
+      provider_origin: "https://delivery.example.test",
+      restaurant_name: "Wanpo",
+      public_location_label: "Palo Alto",
+      public_merchant_address: { locality: "Palo Alto", region: "CA" },
+      merchant_locator: "private-delivery-merchant",
+      known_menu_item_locators: ["private-delivery-menu"],
+      known_modifier_occurrences: [{
+        evidence_id: "evd_0000000000000109",
+        modifiers_complete: true,
+        modifiers: [{ group_name: "Sweetness", option_name: "Half sweet" }],
+      }],
+      classification: { kind: "food", authored_by: "agent" },
+      evidence_ids: ["evd_0000000000000109"],
+      created_at: "2026-07-15T12:00:00.000Z",
+      updated_at: "2026-07-15T12:00:00.000Z",
+      schema_version: 1,
+      body_markdown: "",
+    });
+    const importedDeliveryDish = ImportedDeliveryDishItemSchema.parse({
+      id: "itm_0000000000000110",
+      kind: "delivery_dish",
+      delivery_authority: "public_import",
+      dish_name: "Citrus spritz",
+      restaurant_name: "Corner Table",
+      public_location_label: "University Avenue",
+      public_merchant_address: { locality: "Palo Alto", region: "CA" },
+      image_url: null,
+      image_page_url: null,
+      source_display_attribution: "Shared collection",
+      classification: { kind: "alcohol", authored_by: "agent" },
+      import_provenance: {
+        source_collection_id: "col_0000000000000110",
+        source_snapshot_id: "snp_0000000000000110",
+        source_collection_item_id: "collection-item-0110",
+        published_revision: rebuiltHead,
+        source_display_attribution: "Shared collection",
+        imported_at: "2026-07-15T12:00:00.000Z",
+      },
+      evidence_ids: ["evd_0000000000000110"],
+      created_at: "2026-07-15T12:00:00.000Z",
+      updated_at: "2026-07-15T12:00:00.000Z",
+      schema_version: 1,
+      body_markdown: "",
+    });
     const rebuilt: HouseholdProjection = {
       evidence: new Map(),
-      items: new Map(),
+      items: new Map([
+        [deliveryDish.id, { item: deliveryDish, revision: rebuiltHead }],
+        [importedDeliveryDish.id, { item: importedDeliveryDish, revision: rebuiltHead }],
+      ]),
       profiles: new Map([["household", { markdown: "# Rebuilt", revision: rebuiltHead }]]),
       collections: new Map(),
       mealPlanningProfile,
@@ -228,6 +282,33 @@ describeDatabase("NeonOperationalStore", () => {
     });
     expect((await store.projection(householdId)).profiles.get("household")).toEqual({ markdown: "# Rebuilt", revision: rebuiltHead });
     expect((await store.projection(householdId)).mealProposals.get(mealProposal.id)?.proposal.source).toEqual({ kind: "freeform", title: "Soup" });
+    const searchRows = await connection.direct<Record<string, unknown>[]>`
+      SELECT kind, distinguishing_fields, search_document::text AS search_document
+      FROM search_items
+      WHERE household_id = ${householdId} AND item_id = ${deliveryDish.id}
+    `;
+    expect(searchRows).toEqual([expect.objectContaining({
+      kind: "delivery_dish",
+      distinguishing_fields: expect.objectContaining({
+        provider_label: "DoorDash",
+        restaurant_name: "Wanpo",
+        public_location_label: "Palo Alto",
+      }),
+    })]);
+    expect(JSON.stringify(searchRows)).not.toContain("private-delivery");
+    const importedSearchRows = await connection.direct<Record<string, unknown>[]>`
+      SELECT kind, distinguishing_fields, search_document::text AS search_document
+      FROM search_items
+      WHERE household_id = ${householdId} AND item_id = ${importedDeliveryDish.id}
+    `;
+    expect(importedSearchRows).toEqual([expect.objectContaining({
+      kind: "delivery_dish",
+      distinguishing_fields: expect.objectContaining({
+        restaurant_name: "Corner Table",
+        public_location_label: "University Avenue",
+      }),
+    })]);
+    expect(JSON.stringify(importedSearchRows)).not.toContain("provider_label");
     expect((await store.getHousehold(householdId))?.name).toBe("Rebuilt Household");
     expect(await store.getMembership(householdId, ownerId)).toMatchObject({ role: "owner", projectionHead: rebuiltHead });
   });
@@ -312,7 +393,7 @@ describeDatabase("NeonOperationalStore", () => {
       signatureFailureCount: 0,
       lastRestoreDrillAt: "2026-07-15T12:07:00.000Z",
       lastRestoreDrillSucceeded: true,
-      schemaVersion: "0007",
+      schemaVersion: "0008",
     });
     await store.transitionMutation(pending.requestId, "failed_before_commit", { failure: "test_cleanup" });
     expect((await store.operatorHealth()).incompleteMutationCount).toBe(0);

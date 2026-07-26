@@ -36,7 +36,7 @@ Version 1 deploys one containerized application process on one DigitalOcean Drop
 
 `Dockerfile` is the portable OCI build recipe. Apple silicon macOS development uses Apple's `container` CLI for local image builds and an isolated PostgreSQL 17 verification database. The DigitalOcean Ubuntu host uses Docker Compose under systemd for the production process and mounted-volume contract; Apple Container is not a production dependency. This separation keeps the local harness native to the development host without changing the Linux deployment boundary.
 
-Neon PostgreSQL stores accounts, sessions, OAuth grants, membership authorization projections, mutation records, idempotency responses, per-user onboarding progress, token hashes, jobs, search projections, rebuildable meal-plan projections, and reconciliation checkpoints. It is not authoritative for journal content, meal plans, or onboarding completion. Git owns exportable household content, audit history, meal-planning constraints and append-only proposal/events, and the canonical reports from which completion is derived.
+Neon PostgreSQL stores accounts, sessions, OAuth grants, membership authorization projections, mutation records, idempotency responses, per-user onboarding progress, token hashes, jobs, rebuildable full-journal and search projections, rebuildable meal-plan projections, and reconciliation checkpoints. It is not authoritative for journal content, meal plans, or onboarding completion. Git owns exportable household content, audit history, meal-planning constraints and append-only proposal/events, and the canonical reports from which completion is derived.
 
 ## Implemented modules
 
@@ -103,6 +103,16 @@ The runner revalidates the allowlisted snapshot files and serializes them into t
 Local-only meal planning remains inside the revisioned guest journal and uses purpose-specific append operations so concurrent proposals do not replace one another. Connected households store one shared constraint profile plus immutable weekly reviews, proposals, and withdrawals in Git; Neon holds only rebuildable projections and durable mutation state. `append_to_current_head` is restricted to one validated server-derived append-only path under the household transaction lock. Profile changes retain strict expected revisions.
 
 Codex or Claude owns recipe interpretation, separately approved internet research, and the personal weekly scheduled task. The server performs no recipe search or safety classification and stores no scheduler receipt. The optional image-forward board is a private static local file with no login, script, listener, or mutation authority. The authenticated React week view is presentation only; the server owns membership, CSRF, idempotency, validation, and role-aware mutations. Connected meal-planning tools, routes, and navigation are part of the normal server surface, while local planning remains independently available without an account.
+
+### Food-delivery history and cart preparation
+
+The agent client, not the central server, performs bounded user-directed navigation in an installed browser already signed in to a user-selected delivery provider. This is ordinary account-holder order review, not public crawling, unattended scraping, credential handling, or provider API integration. Exact approved HTTPS origins and the current browser session bound the interaction; sign-in, MFA, CAPTCHA, unsupported UI, and user-controlled age/identity steps stop Fullwell.
+
+The local journal or household Git stores provider-neutral complete order-line evidence and `delivery_dish` items. Provider, exact restaurant location, fulfillment mode, dish, modifiers, quantities, and private provider/order locators remain distinct typed fields. A connected contribution is one consented provider source per idempotent mutation. Git remains authoritative; Neon stores the rebuildable full household journal projection, the `search_items` delivery projection, and durable mutation state.
+
+Collections serialize a public allowlist for individual delivery dishes only. Imported dishes gain public import provenance but no history, recurrence, or reorder authority. Local and cloud meal proposals cite an exact dish revision plus ordered-before or shared-dish evidence and default to incomplete ingredient compatibility.
+
+Direct computer use resolves a complete prior delivery order by provider and then restaurant location. Its ephemeral session binds source lines, current menu mappings, quantities, modifiers, fulfillment, full-cart baseline and target, replacement confirmation, subtotal, maximum, and current local revision or cloud HEAD. It can prepare and verify a cart only. Checkout, order placement, payment, tips, address or schedule changes, memberships, and subscriptions are absent from contracts and tools. Alcohol may be selected under the ordinary maximum, but age/identity UI is user-controlled and no ID data enters Fullwell.
 
 ### Operational persistence
 

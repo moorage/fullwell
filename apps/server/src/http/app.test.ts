@@ -84,6 +84,13 @@ describe("Fastify application", () => {
       idempotentHint: true,
       openWorldHint: false,
     });
+    expect(tools.find(({ name }) => name === "hfj_search_delivery_history")?.description).toContain("bounded household delivery history");
+    expect(tools.find(({ name }) => name === "hfj_commit_delivery_index")?.annotations).toEqual({
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    });
 
     const create = await app.inject({ method: "POST", url: "/mcp", headers: { authorization: "Bearer test-owner-token" }, payload: { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "hfj_create_household", arguments: { name: "Our Kitchen", idempotency_key: "household-key-1" } } } });
     expect(create.statusCode).toBe(200);
@@ -381,6 +388,13 @@ describe("Fastify application", () => {
     expect(emptyJournalBatch.headers["cache-control"]).toBe("private, no-store");
     expect(emptyJournalBatch.headers["x-robots-tag"]).toBe("noindex, nofollow");
     expect(emptyJournalBatch.json()).toMatchObject({ householdId, section: "recipes", total: 0, items: [], nextCursor: null });
+    const cursorJournalBatch = await app.inject({
+      method: "GET",
+      url: `/households/${householdId}/journal-items?section=recipes&cursor=v1_0`,
+      headers: { "x-test-browser-session": "owner" },
+    });
+    expect(cursorJournalBatch.statusCode).toBe(200);
+    expect(cursorJournalBatch.json()).toMatchObject({ householdId, section: "recipes", items: [] });
     const invalidJournalCursor = await app.inject({
       method: "GET",
       url: `/households/${householdId}/journal-items?section=recipes&cursor=not-a-cursor`,
@@ -435,6 +449,14 @@ describe("Fastify application", () => {
       csrf: "c".repeat(32),
       idempotencyKey: "web-meal-review-0001",
     }).toString();
+    const unauthenticatedReview = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/meal-plan/review`,
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: reviewPayload,
+    });
+    expect(unauthenticatedReview.statusCode).toBe(401);
+    expect(unauthenticatedReview.body).toContain("Sign in before changing this meal plan.");
     const rejectedReview = await app.inject({
       method: "POST",
       url: `/households/${householdId}/meal-plan/review`,
@@ -472,8 +494,13 @@ describe("Fastify application", () => {
     }).toString();
     const proposalHeaders = { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "owner" };
     const editorProposalHeaders = { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "editor" };
+    const detailedProposal = new URLSearchParams({
+      ...Object.fromEntries(new URLSearchParams(proposalPayload("Egg salad sandwich", "web-meal-proposal-egg-0001"))),
+      servings: "3",
+      notes: "Use the fresh loaf",
+    }).toString();
     const [firstProposal, secondProposal] = await Promise.all([
-      app.inject({ method: "POST", url: `/households/${householdId}/meal-plan/proposals`, headers: proposalHeaders, payload: proposalPayload("Egg salad sandwich", "web-meal-proposal-egg-0001") }),
+      app.inject({ method: "POST", url: `/households/${householdId}/meal-plan/proposals`, headers: proposalHeaders, payload: detailedProposal }),
       app.inject({ method: "POST", url: `/households/${householdId}/meal-plan/proposals`, headers: editorProposalHeaders, payload: proposalPayload("Pizza", "web-meal-proposal-pizza-0001") }),
     ]);
     expect(firstProposal.statusCode).toBe(303);
@@ -483,7 +510,7 @@ describe("Fastify application", () => {
       method: "POST",
       url: `/households/${householdId}/meal-plan/proposals`,
       headers: proposalHeaders,
-      payload: proposalPayload("Egg salad sandwich", "web-meal-proposal-egg-0001"),
+      payload: detailedProposal,
     });
     expect(replayedProposal.statusCode).toBe(303);
     const conflictingRetry = await app.inject({
@@ -508,6 +535,15 @@ describe("Fastify application", () => {
     expect(malformedProposal.statusCode).toBe(400);
     expect(malformedProposal.headers["content-type"]).toContain("text/html");
     expect(malformedProposal.body).toContain("submitted meal details were not valid");
+    const unreadableProposal = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/meal-plan/proposals`,
+      headers: { "content-type": "application/json", "x-test-browser-session": "owner" },
+      payload: "{",
+    });
+    expect(unreadableProposal.statusCode).toBe(400);
+    expect(unreadableProposal.headers["content-type"]).toContain("text/html");
+    expect(unreadableProposal.body).toContain("submitted meal details could not be read");
     const populatedMealPlan = await app.inject({ method: "GET", url: mealPlanUrl, headers: { "x-test-browser-session": "owner" } });
     expect(populatedMealPlan.body).toContain("Egg salad sandwich");
     expect(populatedMealPlan.body).toContain("Pizza");
@@ -575,6 +611,7 @@ describe("Fastify application", () => {
       headers: proposalHeaders,
       payload: new URLSearchParams({
         week: "2026-07-13",
+        reason: "Choosing a different lunch",
         csrf: "c".repeat(32),
         idempotencyKey: "web-meal-withdraw-egg-owner-0001",
       }).toString(),
@@ -689,6 +726,89 @@ describe("Fastify application", () => {
     expect(unauthorizedMcp.headers["www-authenticate"]).toContain("resource_metadata");
     await app.close();
 
+  });
+
+  it("returns explicit unavailable responses for omitted browser capabilities", async () => {
+    const base = await fixture();
+    await base.app.close();
+    const viewModels = await WebViewModelService.create({
+      service: base.service,
+      store: base.store,
+      authentication: base.authentication,
+      hasher: base.hasher,
+      random: base.random,
+      clock: base.clock,
+      publicOrigin: base.publicOrigin,
+      installMetadataPath: resolve(import.meta.dirname, "../../../../packages/agent-client/install-metadata.json"),
+    });
+    const app = await buildApp({
+      service: base.service,
+      authentication: base.authentication,
+      store: base.store,
+      repository: base.repository,
+      mail: new UnconfiguredMailProvider(),
+      identity: new UnconfiguredAppleIdentityProvider(),
+      random: base.random,
+      publicOrigin: base.publicOrigin,
+      web: {
+        assetsRoot: resolve(import.meta.dirname, "../../../web/dist"),
+        contextFor: (request) => viewModels.contextFor(request),
+      },
+    });
+    const householdId = "hsh_0000000000000901";
+    const responses = await Promise.all([
+      app.inject({ method: "POST", url: "/households" }),
+      app.inject({ method: "POST", url: `/households/${householdId}/meal-plan/review` }),
+      app.inject({ method: "POST", url: `/households/${householdId}/meal-plan/proposals` }),
+      app.inject({ method: "POST", url: `/households/${householdId}/meal-plan/proposals/mlp_0000000000000901/withdraw` }),
+      app.inject({ method: "GET", url: `/households/${householdId}/journal-items?section=recipes` }),
+    ]);
+    expect(responses.map(({ statusCode }) => statusCode)).toEqual([501, 501, 501, 501, 501]);
+    expect(responses.every(({ json }) => json().error.code === "PROVIDER_UNAVAILABLE")).toBe(true);
+    await app.close();
+  });
+
+  it("handles MCP initialization and rejects malformed HTTP content at the boundary", async () => {
+    const observability = new ServiceObservability({ runtimeMetrics: false, stdout: () => undefined, stderr: () => undefined });
+    const { app } = await fixture({ observability });
+    const initialized = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      headers: { authorization: "Bearer test-owner-token" },
+      payload: { jsonrpc: "2.0", id: 99, method: "initialize" },
+    });
+    expect(initialized.json().result).toMatchObject({
+      protocolVersion: "2025-06-18",
+      serverInfo: { name: "household-food-journal" },
+    });
+
+    const unsupported = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_get_context",
+      headers: { authorization: "Bearer test-owner-token", "content-type": "application/xml" },
+      payload: "not-json",
+    });
+    expect(unsupported.statusCode).toBe(415);
+    const malformed = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_get_context",
+      headers: { authorization: "Bearer test-owner-token", "content-type": "application/json" },
+      payload: "{",
+    });
+    expect(malformed.statusCode).toBe(400);
+    const oversized = await app.inject({
+      method: "POST",
+      url: "/api/tools/hfj_get_context",
+      headers: { authorization: "Bearer test-owner-token", "content-type": "application/json" },
+      payload: JSON.stringify({ padding: "x".repeat(1_100_000) }),
+    });
+    expect(oversized.statusCode).toBe(413);
+    const invalidNativeRedirect = await app.inject({
+      method: "GET",
+      url: "/authorize?redirect_uri=not-a-url",
+    });
+    expect(invalidNativeRedirect.headers["content-security-policy"]).not.toContain("not-a-url");
+    await app.close();
   });
 
   it("maps tool and public-preview failures to stable HTTP statuses", async () => {

@@ -205,6 +205,20 @@ Preserve the existing evidence-first recipe workflow. The agent must:
 
 Do not infer liked from cooked, cooked from saved, or saved from mere discoverability.
 
+### 5.4a Index and reuse food-delivery history
+
+When food-delivery history is absent or the user asks to update it, Fullwell asks which provider sites they use and which installed browser is already signed in. DoorDash, Uber Eats, and other common providers are examples until an authorized current installed-host matrix records a support label. Fullwell follows a bounded history window through the same visible order-detail navigation the account holder could perform manually. It does not crawl public pages, run unattended, ask for credentials, bypass sign-in/MFA/CAPTCHA, or use undocumented provider interfaces.
+
+For every completed order whose full line and modifier list can be exposed, record the exact provider, restaurant display name, human-readable location, private merchant locator, delivery or pickup mode, date, private order group, dish, modifiers, quantity, and declared complete line count. An incomplete, canceled, or hidden-line group is identified to the user but is not stored as canonical delivery evidence and cannot authorize reorder. Same-name locations stay separate unless exact provider/location evidence proves identity.
+
+The local delivery index remains on the current computer unless the user chooses a household and approves a provider-specific preview explaining member visibility, retained modifiers/order dates/grouping, lack of per-provider erasure, and backup expiry after household deletion. Commit one provider per idempotent cloud mutation; a failed or uncertain result leaves local authority and linkage unchanged.
+
+A delivery dish may be deliberately selected for a shared collection. Publish only the dish plus public restaurant/location and provenance fields; never publish order/group/menu/merchant locators, dates, recurrence, account data, or reorder authority. Import creates a public `shared dish` provenance record only. Local and cloud meal plans may cite the exact current dish revision as `ordered before` or `shared dish`, but neither means Liked or proves ingredient compatibility.
+
+For `reorder`, `start a new order from a previous order`, or a requested swap, resolve the provider first and then the exact restaurant location. Ask only when actual history is ambiguous, for example: `You've ordered from two Wanpo locations. Did you mean Palo Alto or Cupertino?` Bind one complete prior delivery order, exact source quantities/modifiers, the current full cart, fulfillment mode, subtotal, profile maximum, and current authority. Preserve unrelated same-location lines. Replacing a different-location cart requires a second confirmation that names its visible lines. After uncertainty, re-read the entire cart and add only proven missing deltas.
+
+Terminal success requires exact full-cart proof and says the cart is prepared for the user to review. Fullwell never checks out, places an order, pays, tips, schedules, changes an address, or accepts a membership or subscription. A requested alcohol line follows the ordinary maximum; any age/identity UI is completed by the user while Fullwell neither views, enters, captures, stores, nor relays ID data. Tobacco, cannabis, prescriptions, gift cards, and other excluded goods remain unsupported.
+
 ### 5.5 Share a curated collection
 
 The agent must support requests such as:
@@ -357,6 +371,10 @@ packages/agent-client/
 |   |   `-- SKILL.md
 |   |-- audit-grocery-purchases/
 |   |   `-- SKILL.md
+|   |-- audit-food-delivery-orders/
+|   |   `-- SKILL.md
+|   |-- reorder-food-delivery/
+|   |   `-- SKILL.md
 |   |-- track-recipe-history/
 |   |   `-- SKILL.md
 |   |-- share-food-collection/
@@ -364,6 +382,7 @@ packages/agent-client/
 |   `-- import-food-collection/
 |       `-- SKILL.md
 |-- references/
+|   |-- food-delivery-and-cart-safety.md
 |   |-- mcp-tool-contract.md
 |   |-- privacy-and-sharing.md
 |   `-- semantic-food-rules.md
@@ -390,6 +409,14 @@ Trigger for every Fullwell greeting, including a bare `@Fullwell hi`, or setup s
 ### `audit-grocery-purchases`
 
 Trigger for purchase-history audits, recurring grocery reports, pantry comparisons, store changes, and recurrence recalculation. In one order-detail traversal, learn snacks, ingredients, condiments, and other groceries, including identities below the report threshold. Carry forward the full identity safeguards. When operating an authorized browser, treat order-history listings as discovery only: traverse the complete date window, open every qualifying delivered or completed order detail, expand every complete-item control, and verify exact line items through the subtotal or order-total boundary. If hidden items cannot be exposed, identify the incomplete order and do not claim the audit or affected recurrence result is complete.
+
+### `audit-food-delivery-orders`
+
+Trigger for learning, refreshing, searching, contributing, or reporting delivery history. Ask for providers and browser permission, collect complete exact order lines through user-directed signed-in navigation, preserve provider/location/fulfillment distinctions, and stage cloud contribution one consented provider at a time.
+
+### `reorder-food-delivery`
+
+Trigger for previous-order lookup, reorder, swap, and start-order requests. Resolve provider then location, prepare and verify only the bounded full cart through direct computer use, honor the ordinary maximum and user-controlled age UI, and keep checkout and every payment/account mutation structurally unavailable.
 
 ### `restock-groceries`
 
@@ -432,17 +459,21 @@ The client is coded against these stable tool names. Complete schemas and author
 | `hfj_list_members` | Read members, roles, and pending invitations. |
 | `hfj_update_member` | Change a member's role with owner authorization. |
 | `hfj_remove_member` | Remove a member or leave a household without violating final-owner protection. |
-| `hfj_get_profile` | Read source, browser, store, and audit preferences. |
-| `hfj_update_profile` | Commit user-confirmed profile changes. |
+| `hfj_get_profile` | Read household, grocery, recipe, or delivery source/audit preferences. |
+| `hfj_update_profile` | Commit user-confirmed non-delivery profile changes; delivery updates use the provider-scoped delivery commit. |
 | `hfj_get_meal_plan` | Read a bounded week, constraints, proposals, events, and effective recheck state. |
 | `hfj_update_meal_planning_constraints` | Record explicit household food-constraint state. |
 | `hfj_review_meal_constraints` | Append a review of the current constraint revision for one week. |
 | `hfj_add_meal_proposal` | Append one proposal without replacing another idea in its slot. |
 | `hfj_withdraw_meal_proposal` | Append an authorized attributed withdrawal without deleting history. |
-| `hfj_search_items` | Find recipes and snack, ingredient, condiment, or other-grocery items in the active household. |
+| `hfj_search_items` | Find recipes, delivery dishes, and snack, ingredient, condiment, or other-grocery items in the active household. |
 | `hfj_get_item` | Read a complete item, evidence references, and revision. |
-| `hfj_append_evidence` | Append immutable purchase, recipe discovery, cooking, or import evidence. |
-| `hfj_commit_change_set` | Commit agent-authored entries, reports, and corrections with expected revisions. |
+| `hfj_append_evidence` | Append immutable non-delivery purchase, recipe discovery, cooking, or import evidence. |
+| `hfj_commit_change_set` | Commit non-delivery entries, reports, and corrections with expected revisions. |
+| `hfj_search_delivery_history` | Search public-safe provider/restaurant/location fields and receive opaque complete-order handles. |
+| `hfj_get_delivery_order` | Resolve one opaque handle to one exact complete delivery or pickup order at the current revision. |
+| `hfj_get_delivery_index` | Read the canonical delivery index and exact document revision. |
+| `hfj_commit_delivery_index` | Commit one consented provider's completed evidence, dishes, and aggregate profile/report without widening generic writes. |
 | `hfj_commit_onboarding` | Atomically commit one explicitly confirmed guided-first-run draft. |
 | `hfj_create_collection` | Create a private collection snapshot draft. |
 | `hfj_create_collection_share` | Publish a snapshot and return a revocable URL. |

@@ -746,6 +746,10 @@
                   "children": [
                     {
                       "type": "file",
+                      "name": "delivery-history.test.ts"
+                    },
+                    {
+                      "type": "file",
                       "name": "household-food-journal.test.ts"
                     },
                     {
@@ -1126,6 +1130,14 @@
             },
             {
               "type": "file",
+              "name": "food-delivery-computer-use-feasibility.md"
+            },
+            {
+              "type": "file",
+              "name": "food-delivery-state-matrix.md"
+            },
+            {
+              "type": "file",
               "name": "information-architecture.md"
             },
             {
@@ -1203,6 +1215,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-24-agent-guides-and-visual-journal-browsing.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-24-food-delivery-history-and-cart-preparation.md"
                 }
               ]
             }
@@ -1249,6 +1265,10 @@
                 {
                   "type": "file",
                   "name": "evidence-backed-grocery-restocking.md"
+                },
+                {
+                  "type": "file",
+                  "name": "food-delivery-history-and-cart-preparation.md"
                 }
               ]
             },
@@ -1479,6 +1499,14 @@
         {
           "type": "file",
           "name": "0007_conversational_onboarding.sql"
+        },
+        {
+          "type": "file",
+          "name": "0008_delivery_search_projection.down.sql"
+        },
+        {
+          "type": "file",
+          "name": "0008_delivery_search_projection.sql"
         }
       ]
     },
@@ -1574,6 +1602,10 @@
               "children": [
                 {
                   "type": "file",
+                  "name": "food-delivery-and-cart-safety.md"
+                },
+                {
+                  "type": "file",
                   "name": "mcp-tool-contract.md"
                 },
                 {
@@ -1648,6 +1680,26 @@
               "children": [
                 {
                   "type": "dir",
+                  "name": "audit-food-delivery-orders",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "SKILL.md"
+                    },
+                    {
+                      "type": "dir",
+                      "name": "agents",
+                      "children": [
+                        {
+                          "type": "file",
+                          "name": "openai.yaml"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
                   "name": "audit-grocery-purchases",
                   "children": [
                     {
@@ -1683,6 +1735,26 @@
                     {
                       "type": "file",
                       "name": "SKILL.md"
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "reorder-food-delivery",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "SKILL.md"
+                    },
+                    {
+                      "type": "dir",
+                      "name": "agents",
+                      "children": [
+                        {
+                          "type": "file",
+                          "name": "openai.yaml"
+                        }
+                      ]
                     }
                   ]
                 },
@@ -2187,6 +2259,10 @@
           "children": [
             {
               "type": "file",
+              "name": "verify-food-delivery-hosts.mjs"
+            },
+            {
+              "type": "file",
               "name": "verify-local-agent-hosts.mjs"
             }
           ]
@@ -2211,6 +2287,10 @@
             },
             {
               "type": "file",
+              "name": "food-delivery.spec.ts"
+            },
+            {
+              "type": "file",
               "name": "local-recipe-board.spec.ts"
             },
             {
@@ -2227,6 +2307,16 @@
           "type": "dir",
           "name": "fixtures",
           "children": [
+            {
+              "type": "dir",
+              "name": "fake-delivery-provider",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "server.mjs"
+                }
+              ]
+            },
             {
               "type": "dir",
               "name": "fake-retailer",
@@ -2266,6 +2356,10 @@
             {
               "type": "file",
               "name": "boundaries.test.ts"
+            },
+            {
+              "type": "file",
+              "name": "food-delivery.test.ts"
             }
           ]
         }

@@ -64,11 +64,32 @@ test("the local MCP server exposes stable, truthful tool identities", async () =
   assert.ok(listed.result.tools.every((tool) => tool.annotations.openWorldHint === false));
   assert.ok(listed.result.tools.every((tool) => tool.inputSchema.type === "object"));
   const updateVariants = listed.result.tools[3].inputSchema.oneOf;
-  assert.equal(updateVariants.length, 9);
+  assert.equal(updateVariants.length, 11);
   const profileVariant = updateVariants.find((schema) =>
     schema.properties.operation.const === "save_meal_planning_profile");
   assert.ok(profileVariant.required.includes("idempotency_key"));
   assert.equal(profileVariant.additionalProperties, false);
+  const stagedDelivery = updateVariants.find((schema) =>
+    schema.properties.operation.const === "stage_delivery_promotion");
+  assert.deepEqual(stagedDelivery.required, [
+    "operation",
+    "expected_revision",
+    "provider_origin",
+    "payload_fingerprint",
+    "cloud_user_id",
+    "cloud_household_id",
+    "expected_repository_head",
+  ]);
+  const recordedDelivery = updateVariants.find((schema) =>
+    schema.properties.operation.const === "record_delivery_promotion");
+  assert.ok(recordedDelivery.required.includes("promotion_idempotency_key"));
+  assert.equal(recordedDelivery.additionalProperties, false);
+  const proposalVariant = updateVariants.find((schema) =>
+    schema.properties.operation.const === "append_meal_proposal");
+  const deliverySource = proposalVariant.properties.source.oneOf.find((schema) =>
+    schema.properties.kind.const === "journal_delivery_dish");
+  assert.deepEqual(deliverySource.required, ["kind", "item_id", "item_revision", "evidence_ids"]);
+  assert.equal(deliverySource.properties.evidence_ids.uniqueItems, true);
 });
 
 test("local profile, household naming, and runner control are available through chat-safe tools", async () => {

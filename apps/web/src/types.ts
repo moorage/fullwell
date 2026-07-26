@@ -10,9 +10,8 @@ export type HouseholdSummary = {
   updatedLabel: string;
 };
 
-export type CollectionItem = {
+type CollectionItemBase = {
   id: string;
-  kind: "recipe" | "snack";
   title: string;
   source: string;
   imageUrl?: string | undefined;
@@ -20,6 +19,16 @@ export type CollectionItem = {
   note?: string | undefined;
   selected: boolean;
 };
+
+export type CollectionItem =
+  | CollectionItemBase & { kind: "recipe" | "snack" }
+  | CollectionItemBase & {
+      kind: "delivery_dish";
+      restaurantName: string;
+      locationLabel: string;
+      locationAddress?: string | undefined;
+      classification?: "alcohol" | undefined;
+    };
 
 export type PublicCollection = {
   token: string;
@@ -50,8 +59,15 @@ export type PublishedCollection = {
 export type MealPlanProposalSummary = {
   id: string;
   title: string;
-  sourceKind: "freeform" | "journal_recipe" | "external_recipe";
+  sourceKind: "freeform" | "journal_recipe" | "journal_delivery_dish" | "external_recipe";
   sourceDetail: string;
+  deliveryContext?: {
+    authority: "history" | "public_import";
+    providerLabel: string | null;
+    restaurantName: string;
+    locationLabel: string;
+    familiarityBasis: "Ordered before" | "Shared dish";
+  } | null | undefined;
   sourceHref?: string | undefined;
   proposedBy: string;
   servings: number | null;

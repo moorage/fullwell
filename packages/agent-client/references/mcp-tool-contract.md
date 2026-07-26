@@ -22,7 +22,7 @@ Local tool names and their approval meanings stay stable across compatible Fullw
 | `fullwell_local_profile_load` | Read the remembered private member name and deterministic first-household name. | Read only and closed-world. |
 | `fullwell_local_profile_update` | Create or revision-check a private local member name. | Exact local profile revision; never grants household authority. |
 | `fullwell_local_household_load` | Read the bounded guest household under the active Codex home without contacting Fullwell's cloud service. | Read only and closed-world. |
-| `fullwell_local_household_update` | Initialize or rename the household, revision-check and save, finalize, record cloud linkage, or mutate the bounded meal-planning profile/proposal ledger. | Exact operation-specific fields, current references, and stable idempotency keys; legacy saves cannot rewrite reserved household or meal-planning state. |
+| `fullwell_local_household_update` | Initialize or rename the household, revision-check and save, finalize, record cloud linkage, stage provider-scoped delivery promotion, or mutate the bounded meal-planning ledger. | Exact operation-specific fields, current references, and stable idempotency keys; staged delivery promotion persists only a target-binding digest, while validated cloud linkage IDs appear only after confirmed success; legacy saves cannot rewrite reserved household, promotion, or meal-planning state. |
 | `fullwell_local_household_delete_collecting` | Delete only an unfinished guest household after the user cancels the whole flow. | Explicit confirmation and exact current local revision; destructive. |
 | `fullwell_local_recipe_board_create` | Create one private static recipe-board snapshot under the fixed local view directory. | Exact idempotency key and bounded cards; creates no journal state and opens no browser. |
 | `fullwell_local_whatsapp_runner_stop` | Stop and remove only the local macOS Fullwell LaunchAgent. | Preserves connection credentials, snapshots, receipts, and journal; idempotent. |
@@ -45,7 +45,7 @@ Remote cloud tools remain stable separately:
 | `hfj_list_members` | Read roles and pending invitations. | Read only. |
 | `hfj_update_member` | Change a member role without removing the final owner. | `expected_head`, `idempotency_key`. |
 | `hfj_remove_member` | Remove a member or leave a household. | Explicit confirmation, `expected_head`, `idempotency_key`. |
-| `hfj_get_profile` | Read household, snack, or recipe source settings. | Read only. |
+| `hfj_get_profile` | Read household, grocery, recipe, or delivery source settings. | Read only. |
 | `hfj_update_profile` | Save user-confirmed source and audit settings. | Blob revision, evidence when relevant, `idempotency_key`. |
 | `hfj_get_meal_plan` | Read one bounded Monday-start week, shared constraints, proposals, events, and effective recheck state. | Read only with household membership. |
 | `hfj_update_meal_planning_constraints` | Record explicit none or bounded household allergy and sensitivity labels. | Current profile/head reference and `idempotency_key`; exact replay only. |
@@ -57,6 +57,10 @@ Remote cloud tools remain stable separately:
 | `hfj_append_evidence` | Append one to 100 immutable evidence records. | `expected_head`, `idempotency_key`; migration ID when applicable. |
 | `hfj_commit_change_set` | Commit up to 50 agent-authored item, correction, report, or index changes. | `expected_head`, per-item blob revisions, evidence IDs, `idempotency_key`. |
 | `hfj_commit_onboarding` | Atomically save a confirmed snack-and-recipe draft with up to 10,000 evidence records and 10,000 items in a complete MCP request of at most 16 MiB. | Explicit final confirmation, snapshot `expected_head`, section and item revisions, `idempotency_key`. |
+| `hfj_search_delivery_history` | Search one household's delivery dishes by bounded public provider, restaurant, and location fields with opaque group handles and deterministic pagination. | Read only; never returns private order/group locators, dates, counts, fulfillment mode, or account fields. |
+| `hfj_get_delivery_order` | Resolve one opaque handle to one exact complete delivery or pickup order group at the current household revision. | Read only; household membership required and cross-line completeness revalidated. |
+| `hfj_get_delivery_index` | Read the one canonical Git delivery-index report and its exact document revision. | Read only; report prose is not projected into operational search state. |
+| `hfj_commit_delivery_index` | Commit one provider's completed order evidence, delivery dishes, and agent-authored aggregate profile/report in `connected_audit_checkpoint` or `local_promotion` mode. | Editor, current HEAD/document/item revisions, literal provider visibility confirmation, one canonical provider origin, at most 100 evidence and 100 items, and one provider-scoped idempotency key; every other provider section/citation remains exact. |
 | `hfj_create_collection` | Create a reviewed private collection and resolved snapshot. | Explicit items/fields, `expected_head`, `idempotency_key`. |
 | `hfj_create_collection_share` | Publish an immutable snapshot for 1, 7, 30, or 90 days. | `idempotency_key`; default 30 days. |
 | `hfj_revoke_collection_share` | Immediately revoke a share. | Explicit confirmation, `idempotency_key`. |

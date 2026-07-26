@@ -25,6 +25,8 @@ const UPDATE_OPERATIONS = new Set([
   "review_meal_constraints",
   "append_meal_proposal",
   "record_meal_plan_event",
+  "stage_delivery_promotion",
+  "record_delivery_promotion",
 ]);
 
 const emptyObjectSchema = {
@@ -96,6 +98,17 @@ const localMealSourceSchema = {
     },
     {
       type: "object",
+      required: ["kind", "item_id", "item_revision", "evidence_ids"],
+      properties: {
+        kind: { const: "journal_delivery_dish" },
+        item_id: { type: "string" },
+        item_revision: { type: "string" },
+        evidence_ids: { type: "array", minItems: 1, maxItems: 100, uniqueItems: true, items: { type: "string" } },
+      },
+      additionalProperties: false,
+    },
+    {
+      type: "object",
       required: ["kind", "title", "canonical_url", "site_name", "discovered_at"],
       properties: {
         kind: { const: "external_recipe" },
@@ -135,6 +148,16 @@ const mealConstraintsSchema = {
   ],
 };
 const idempotencyKeySchema = { type: "string", minLength: 8, maxLength: 128 };
+const providerOriginSchema = {
+  type: "string",
+  format: "uri",
+  maxLength: 2_048,
+  pattern: "^https://[^/?#]+/$",
+};
+const payloadFingerprintSchema = {
+  type: "string",
+  pattern: "^sha256:[0-9a-f]{64}$",
+};
 const actorLabelSchema = { type: "string", minLength: 1, maxLength: 80 };
 const weekStartSchema = { type: "string", format: "date" };
 const withdrawalEventSchema = {
@@ -215,6 +238,22 @@ const householdUpdateSchema = {
       week_start: weekStartSchema,
       event: withdrawalEventSchema,
     }),
+    updateOperationSchema("stage_delivery_promotion", {
+      expected_revision: revisionSchema,
+      provider_origin: providerOriginSchema,
+      payload_fingerprint: payloadFingerprintSchema,
+      cloud_user_id: { type: "string" },
+      cloud_household_id: { type: "string" },
+      expected_repository_head: { type: "string" },
+    }),
+    updateOperationSchema("record_delivery_promotion", {
+      expected_revision: revisionSchema,
+      provider_origin: providerOriginSchema,
+      promotion_idempotency_key: idempotencyKeySchema,
+      user_id: { type: "string" },
+      household_id: { type: "string" },
+      repository_head: { type: "string" },
+    }),
   ],
 };
 
@@ -269,7 +308,7 @@ const localTools = [
   {
     name: "fullwell_local_household_update",
     title: "Update Fullwell's private local household journal",
-    description: "Initializes, revision-checks, saves, finalizes, records cloud linkage, or appends validated meal-planning state for the bounded local Fullwell guest household.",
+    description: "Initializes, revision-checks, saves, finalizes, records confirmed cloud linkage, stages delivery promotion authority with a one-way target digest, or appends validated meal-planning state for the bounded local Fullwell guest household.",
     inputSchema: householdUpdateSchema,
     annotations: {
       title: "Update local Fullwell household",

@@ -1,13 +1,13 @@
 ---
 name: manage-household-food-journal
-description: Handle every Fullwell greeting or setup request through local-first grocery-and-recipe onboarding, optional account connection and cloud backup, weekly meal-planning follow-up, hosted household selection, family access, profiles, and exports.
+description: Handle every Fullwell greeting or setup request through local-first grocery, recipe, and food-delivery history, optional account connection and provider-scoped household contribution, weekly meal-planning follow-up, hosted household selection, family access, profiles, and exports.
 ---
 
 # Manage Household Food Journal
 
 Fullwell has two explicit authority modes:
 
-- A **local guest household** works without a Fullwell account and is the default for a new installation. It supports grocery-history collection, recipe collection, direct restocking, recipe recall, and household meal planning on this computer.
+- A **local guest household** works without a Fullwell account and is the default for a new installation. It supports grocery-history collection, recipe collection, food-delivery indexing, direct restocking, recipe recall, and household meal planning on this computer.
 - A **cloud household** uses the hosted MCP service and is required for cloud backup, WhatsApp, collection sharing, invitations, and multiplayer access.
 
 Use the plugin-provided `fullwell-local` tools for guest data and the bundled [local onboarding draft helper](../../runtime/onboarding-draft.mjs) for unconfirmed work tied to an authenticated cloud household. Never execute the versioned `runtime/local-household.mjs` cache path directly. Pass draft-helper JSON only through standard input; never put draft contents in command arguments. Follow [voice and identity](../../references/voice-and-identity.md), [the MCP contract](../../references/mcp-tool-contract.md), and [privacy rules](../../references/privacy-and-sharing.md).
@@ -38,6 +38,8 @@ The local tools store a private member profile at `fullwell/local/profile.json` 
 - `fullwell_local_household_update` with `rename_household` adds `expected_revision` and `household_name`.
 - `fullwell_local_household_update` with `finalize` adds `expected_revision` and makes collected data ready for direct local use.
 - `fullwell_local_household_update` with `record_cloud_backup` adds `expected_revision`, the successful hosted `user_id`, `household_id`, and `repository_head`.
+- `fullwell_local_household_update` with `stage_delivery_promotion` records one provider, reconciled payload digest, one-way cloud target-binding digest, expected HEAD, and stable provider key before a hosted attempt. It does not persist the raw cloud user or household ID.
+- `fullwell_local_household_update` with `record_delivery_promotion` verifies that target-binding digest and adds the returned cloud user, household, provider, and repository HEAD only after `hfj_commit_delivery_index` succeeds.
 - Meal-planning profile, review, proposal, and withdrawal operations use their operation-discriminated fields, current references, and exact idempotency keys. They preserve concurrent proposals instead of accepting a replacement journal.
 - `fullwell_local_household_delete_collecting` takes `expected_revision` and may remove only an unfinished guest household.
 - `fullwell_local_recipe_board_create` creates a bounded private visual snapshot after explicit user interest; it never opens a browser or changes the journal.
@@ -45,7 +47,7 @@ The local tools store a private member profile at `fullwell/local/profile.json` 
 
 If the `fullwell-local` server or any of these tools is unavailable, stop local setup and ask the user to reload or reinstall the Fullwell plugin. Do not fall back to a version-specific shell command, edit the user's Codex rules, or call the hosted service without account or cloud-backup consent.
 
-The journal contains only bounded source scope, completed-source cursors, typed grocery or recipe evidence, agent-authored semantic decisions, profiles, items, reports, section outcomes, and finalization metadata. It must never contain credentials, passwords, authorization headers, access or refresh tokens, cookies, browser state, screenshots, raw HTML, raw page captures, or one-time codes.
+The journal contains only bounded source scope, completed-source cursors, typed grocery, recipe, or delivery evidence, agent-authored semantic decisions, profiles, items, reports, section outcomes, and finalization metadata. It must never contain credentials, passwords, authorization headers, access or refresh tokens, cookies, browser state, screenshots, raw HTML, raw page captures, delivery destinations, payment state, account identifiers, or one-time codes.
 
 Use this local guided flow:
 
@@ -60,6 +62,16 @@ Use this local guided flow:
 9. Only after `finalize` succeeds, and only when the journal contains at least one evidence-backed grocery item, ask: "Want to try this now? Tell me something you're out of - for example, 'We're out of cashews; restock them.' I'll use your shopping history to identify the usual product and store. I'll add requests under your $50 automatic cart maximum and ask you first at or above it." Omit this invitation when no restockable grocery was learned rather than implying you can identify one. If the user accepts this invitation before answering the cloud question, complete the restock first; the restocking skill must carry the unconnected local state forward and resume the cloud offer after a verified add instead of ending the onboarding conversation.
 10. Then ask: "Would you like to create or connect a Fullwell account to back this up? You only need an account for cloud backup, WhatsApp, sharing, or family access." When the first restock completes before this question, the equivalent handoff is `(P.S. You can use WhatsApp, collaborate, and share with others by connecting to Fullwell cloud.) Would you like to connect now?` A decline ends successfully with no Fullwell call. Do not describe the local file as cloud-backed.
 11. After the primary setup and any chosen cloud handoff finish, offer the personal weekly meal-planning check-in through the meal-planning skill. Inspect native tasks first. Offer Sunday at 9:00 AM in the user-confirmed IANA time zone, accept another exact day and time, and create nothing after a decline or silence. This optional question never changes the successful setup result.
+
+## Food-delivery history
+
+Route requests to learn, index, refresh, search, or compare delivery history through `audit-food-delivery-orders`. Delivery setup is optional and does not reopen or block the grocery-then-recipe first run.
+
+1. Reuse the loaded local household and ask which delivery providers and installed signed-in browser the user wants to use. Do not require a Fullwell account for local indexing.
+2. Save the complete canonical local journal at the exact revision after every complete order. Preserve existing delivery evidence, dishes, profile, report, meal-planning state, and provider promotion receipts across unrelated operations.
+3. If a local user asks to collaborate, authenticate and select the destination household, then reconcile with `hfj_search_delivery_history`, `hfj_get_delivery_order`, `hfj_get_delivery_index`, and current item/profile reads. Present the exact provider-specific copy/merge and retention notice.
+4. For each confirmed provider, call local `stage_delivery_promotion`; the selected user and household IDs are transient inputs and only their one-way target-binding digest is retained while pending. Then call `hfj_commit_delivery_index` once in `local_promotion` mode with that stable key and literal `household_visibility_confirmed: true`. Call local `record_delivery_promotion` only after the hosted response confirms the returned user, household, provider, and HEAD.
+5. A decline makes no hosted write. A failed or uncertain result keeps the exact pending provider digest, authority, and key for retry without storing raw cloud linkage IDs. A conflict rereads and reconfirms that provider without undoing already committed providers.
 
 ## Optional cloud backup of a local household
 
@@ -110,5 +122,7 @@ When cloud onboarding has produced at least one item, another useful chat-native
 Outside guided first run, cloud profile reads and edits use `hfj_get_profile` and `hfj_update_profile`; cloud evidence and ordinary journal changes use `hfj_append_evidence` and `hfj_commit_change_set`. Keep the local guest authority unchanged until a separate confirmed promotion succeeds. Use `hfj_export_household` only for a cloud household and explain that its download URL expires.
 
 Route requests to organize a week of household meals, suggest recipes for slots, preserve competing meal ideas, inspect or withdraw meal proposals, open a visual recipe board, or manage the weekly planning reminder through the `plan-household-meals` skill.
+
+Do not route delivery dishes into local or cloud meal proposals yet; that source remains closed until its owning meal-planning milestone.
 
 Handle conflicts by rereading the applicable local or hosted authority and reconstructing the intended change. Finish with a precise local, cloud-backed, partial, blocked, or cancelled state.

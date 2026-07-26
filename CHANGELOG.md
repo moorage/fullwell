@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add provider-neutral food-delivery history, household contribution, public-safe delivery-dish collections/import, and local or collaborative meal-plan sources from bounded user-directed navigation in an already signed-in browser.
+- Add exact provider, restaurant-location, fulfillment, dish, modifier, quantity, and complete-order evidence plus provider-then-location ambiguity handling for same-name restaurants.
+- Add previous-order cart preparation with full-cart verification, exact quantity/swap recovery, explicit different-location replacement confirmation, ordinary-maximum alcohol support, and a structural stop before checkout, payment, tips, address, schedule, membership, or subscription changes.
+- Keep DoorDash, Uber Eats, and other named-provider support unverified until authorized installed-host validation; current release evidence is provider-neutral and fixture-backed only.
 - Serve `fullwell.ai` and `www.fullwell.ai` with gateway-managed HTTPS and permanent path-preserving redirects to the unchanged canonical application and login origin.
 - Replace visible `LEAVE`, `DELETE`, and `REVOKE` Account confirmation fields with plain-language cancellable dialogs while retaining the server checks and a no-JavaScript typed fallback.
 - Correct Claude local-tool discovery by requiring an object-typed household-update schema, and replace Claude's setup-style handoff with the conversational `Hi Fullwell.` name-first greeting.

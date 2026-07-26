@@ -12,7 +12,7 @@ export function HouseholdCollectionsRoute({ householdId }: { householdId: string
     <AppShell context="workspace" active="collections">
       <section className="workspace-page page-band">
         <PageHeader title={`Collections from ${household.name}`}>
-          <p>Collections are intentional snapshots. Later journal changes do not alter a link that is already shared.</p>
+          <p>Collections are intentional snapshots of selected recipes, snacks, and delivery dishes. Later journal changes do not alter a link that is already shared.</p>
         </PageHeader>
         <HouseholdNav householdId={householdId} active="collections" />
         <div className="management-list collection-management-list">

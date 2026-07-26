@@ -149,6 +149,221 @@ describe("rebuildRepositoryState", () => {
     expect(legacy.projection.evidence.get(purchase.id)).toMatchObject({ kind: "purchase" });
   });
 
+  it("rebuilds validated delivery evidence, items, profile, and report from canonical Git paths", () => {
+    const delivery = deliveryDocuments();
+    const rebuilt = rebuildRepositoryState({
+      head,
+      files: [
+        file(`delivery/evidence/2026/${delivery.evidence.id}.json`, stableJson(delivery.evidence), earlier),
+        file(`delivery/items/${delivery.item.id}.md`, markdownDocument(delivery.item, "A familiar order."), earlier),
+        file("profiles/delivery.md", markdownDocument(delivery.profile, "Private provider setup."), earlier),
+        file("delivery/reports/delivery-index.md", markdownDocument({
+          report_type: delivery.report.report_type,
+          assertions: delivery.report.assertions,
+          schema_version: delivery.report.schema_version,
+        }, delivery.report.markdown), earlier),
+      ],
+    }, new Map());
+
+    expect(rebuilt.projection.evidence.get(delivery.evidence.id)).toMatchObject({
+      kind: "delivery_order_line",
+      delivery_order_line: { restaurant: { public_location_label: "Palo Alto" } },
+    });
+    expect(rebuilt.projection.items.get(delivery.item.id)).toMatchObject({
+      item: { kind: "delivery_dish", dish_name: "Wintermelon boba" },
+      revision: earlier,
+    });
+    expect(rebuilt.projection.profiles.get("delivery")?.markdown).toContain("provider_origin");
+  });
+
+  it("rebuilds a public-import delivery dish from its committed canonical tree", () => {
+    const imported = importedDeliveryDocuments();
+    const review = {
+      id: "mle_0000000000000911",
+      kind: "constraints_reviewed",
+      week_start: "2026-07-20",
+      constraint_revision: earlier,
+      actor: actorId,
+      occurred_at: "2026-07-20T16:00:00.000Z",
+      schema_version: 1,
+    };
+    const proposal = {
+      id: "mlp_0000000000000911",
+      week_start: "2026-07-20",
+      meal_date: "2026-07-20",
+      slot: { kind: "dinner" },
+      proposed_by: actorId,
+      source: {
+        kind: "journal_delivery_dish",
+        item_id: imported.item.id,
+        item_revision: earlier,
+        evidence_ids: [imported.evidence.id],
+      },
+      servings: 2,
+      notes: null,
+      constraint_revision: earlier,
+      constraint_review_event_id: review.id,
+      compatibility: "incomplete_evidence",
+      compatibility_caveat: "Ingredients and cross-contact details are not known.",
+      created_at: "2026-07-20T16:01:00.000Z",
+      schema_version: 1,
+    };
+    const rebuilt = rebuildRepositoryState({
+      head,
+      files: [
+        file(`delivery/evidence/2026/${imported.evidence.id}.json`, stableJson(imported.evidence), earlier),
+        file(`delivery/items/${imported.item.id}.md`, markdownDocument(imported.item, "Shared without private order authority."), earlier),
+        file("profiles/meal-planning.md", markdownDocument({
+          constraints: {
+            status: "confirmed_none",
+            time_zone: "America/Los_Angeles",
+            reviewed_at: "2026-07-20T15:59:00.000Z",
+          },
+          updated_at: "2026-07-20T15:59:00.000Z",
+          schema_version: 1,
+        }, ""), earlier),
+        file(`meal-plans/weeks/2026-07-20/events/${review.id}.json`, stableJson(review), head),
+        file(`meal-plans/weeks/2026-07-20/proposals/${proposal.id}.json`, stableJson(proposal), head),
+      ],
+    }, new Map());
+
+    expect(rebuilt.projection.evidence.get(imported.evidence.id)).toMatchObject({
+      kind: "import",
+      source_type: "shared_collection",
+    });
+    expect(rebuilt.projection.items.get(imported.item.id)).toMatchObject({
+      item: {
+        kind: "delivery_dish",
+        delivery_authority: "public_import",
+        restaurant_name: "Wanpo",
+        public_location_label: "Stanford",
+      },
+      revision: earlier,
+    });
+    expect(rebuilt.projection.mealProposals.get(proposal.id)).toMatchObject({
+      proposal: {
+        source: {
+          kind: "journal_delivery_dish",
+          item_revision: earlier,
+          evidence_ids: [imported.evidence.id],
+        },
+        compatibility: "incomplete_evidence",
+      },
+    });
+  });
+
+  it.each([
+    ["import evidence outside the canonical delivery area", (imported: ReturnType<typeof importedDeliveryDocuments>) => [
+      file(`recipes/evidence/2026/${imported.evidence.id}.json`, stableJson(imported.evidence), earlier),
+      file(`delivery/items/${imported.item.id}.md`, markdownDocument(imported.item, ""), earlier),
+    ]],
+    ["orphan delivery import evidence", (imported: ReturnType<typeof importedDeliveryDocuments>) => [
+      file(`delivery/evidence/2026/${imported.evidence.id}.json`, stableJson(imported.evidence), earlier),
+    ]],
+    ["history evidence cited by a public-import dish", (imported: ReturnType<typeof importedDeliveryDocuments>) => {
+      const history = deliveryDocuments().evidence;
+      return [
+        file(`delivery/evidence/2026/${history.id}.json`, stableJson(history), earlier),
+        file(`delivery/items/${imported.item.id}.md`, markdownDocument({
+          ...imported.item,
+          evidence_ids: [history.id],
+        }, ""), earlier),
+      ];
+    }],
+    ["import evidence cited by a history-backed dish", (imported: ReturnType<typeof importedDeliveryDocuments>) => {
+      const history = deliveryDocuments().item;
+      return [
+        file(`delivery/evidence/2026/${imported.evidence.id}.json`, stableJson(imported.evidence), earlier),
+        file(`delivery/items/${history.id}.md`, markdownDocument({
+          ...history,
+          evidence_ids: [imported.evidence.id],
+        }, ""), earlier),
+      ];
+    }],
+  ])("fails closed for %s", (_case, filesFor) => {
+    const imported = importedDeliveryDocuments();
+    expect(() => rebuildRepositoryState({
+      head,
+      files: filesFor(imported),
+    }, new Map())).toThrowError();
+  });
+
+  it.each([
+    ["mismatched delivery evidence path", (delivery: ReturnType<typeof deliveryDocuments>) => [
+      file("delivery/evidence/2026/evd_0000000000000999.json", stableJson(delivery.evidence), earlier),
+    ]],
+    ["non-delivery evidence in the delivery evidence area", () => {
+      const evidence = confirmationEvidence();
+      return [file(`delivery/evidence/2026/${evidence.id}.json`, stableJson(evidence), earlier)];
+    }],
+    ["delivery evidence outside the delivery evidence area", (delivery: ReturnType<typeof deliveryDocuments>) => [
+      file(`groceries/evidence/2026/${delivery.evidence.id}.json`, stableJson(delivery.evidence), earlier),
+    ]],
+    ["incomplete delivery group", (delivery: ReturnType<typeof deliveryDocuments>) => [
+      file(`delivery/evidence/2026/${delivery.evidence.id}.json`, stableJson({
+        ...delivery.evidence,
+        delivery_order_line: { ...delivery.evidence.delivery_order_line, declared_line_count: 2 },
+      }), earlier),
+    ]],
+    ["dish and evidence conflict", (delivery: ReturnType<typeof deliveryDocuments>) => [
+      file(`delivery/evidence/2026/${delivery.evidence.id}.json`, stableJson(delivery.evidence), earlier),
+      file(`delivery/items/${delivery.item.id}.md`, markdownDocument({
+        ...delivery.item,
+        restaurant_name: "Different restaurant",
+      }, ""), earlier),
+    ]],
+    ["report omits exact item evidence", (delivery: ReturnType<typeof deliveryDocuments>) => [
+      file(`delivery/evidence/2026/${delivery.evidence.id}.json`, stableJson(delivery.evidence), earlier),
+      file(`delivery/items/${delivery.item.id}.md`, markdownDocument(delivery.item, ""), earlier),
+      file("delivery/reports/delivery-index.md", markdownDocument({
+        report_type: "delivery_index",
+        assertions: [{
+          row_id: "wrong",
+          item_ids: [delivery.item.id],
+          evidence_ids: ["evd_0000000000000999"],
+        }],
+        schema_version: 1,
+      }, "# Delivery"), earlier),
+    ]],
+    ["malformed delivery profile", () => [
+      file("profiles/delivery.md", markdownDocument({
+        providers: [{ provider_label: "DoorDash", provider_origin: "http://delivery.example.test" }],
+        schema_version: 1,
+      }, ""), earlier),
+    ]],
+    ["duplicate delivery evidence ID", (delivery: ReturnType<typeof deliveryDocuments>) => [
+      file(`delivery/evidence/2026/${delivery.evidence.id}.json`, stableJson(delivery.evidence), earlier),
+      file(`delivery/evidence/2026/${delivery.evidence.id}.json`, stableJson(delivery.evidence), earlier),
+    ]],
+    ["duplicate delivery item ID", (delivery: ReturnType<typeof deliveryDocuments>) => [
+      file(`delivery/evidence/2026/${delivery.evidence.id}.json`, stableJson(delivery.evidence), earlier),
+      file(`delivery/items/${delivery.item.id}.md`, markdownDocument(delivery.item, ""), earlier),
+      file(`delivery/items/${delivery.item.id}.md`, markdownDocument(delivery.item, ""), earlier),
+    ]],
+    ["duplicate delivery report", (delivery: ReturnType<typeof deliveryDocuments>) => {
+      const report = file("delivery/reports/delivery-index.md", markdownDocument({
+        report_type: delivery.report.report_type,
+        assertions: delivery.report.assertions,
+        schema_version: delivery.report.schema_version,
+      }, delivery.report.markdown), earlier);
+      return [
+        file(`delivery/evidence/2026/${delivery.evidence.id}.json`, stableJson(delivery.evidence), earlier),
+        file(`delivery/items/${delivery.item.id}.md`, markdownDocument(delivery.item, ""), earlier),
+        report,
+        report,
+      ];
+    }],
+    ["unsupported delivery document", () => [
+      file("delivery/private-provider-dump.json", "{}", earlier),
+    ]],
+  ])("fails closed for %s", (_case, filesFor) => {
+    const delivery = deliveryDocuments();
+    expect(() => rebuildRepositoryState({
+      head,
+      files: filesFor(delivery),
+    }, new Map())).toThrowError();
+  });
+
   it("rebuilds meal-planning profile, proposals, and append-only events", () => {
     const review = {
       id: "mle_0000000000000901",
@@ -260,4 +475,158 @@ describe("rebuildRepositoryState", () => {
 
 function file(path: string, content: string, revision: typeof head): RepositorySnapshot["files"][number] {
   return { path, content, revision };
+}
+
+function confirmationEvidence() {
+  return {
+    id: "evd_0000000000000921",
+    kind: "user_confirmation" as const,
+    observed_at: "2026-07-15T12:00:00.000Z",
+    evidence_date: "2026-07-15",
+    date_precision: "day" as const,
+    source_type: "conversation" as const,
+    source_label: "Owner",
+    stable_locator: "confirmation-0921",
+    summary: "Keep the familiar order",
+    actor_id: actorId,
+    limitations: [],
+    schema_version: 1 as const,
+  };
+}
+
+function importedDeliveryDocuments() {
+  const importedAt = "2026-07-15T12:00:00.000Z";
+  const evidence = {
+    id: "evd_0000000000000930",
+    kind: "import" as const,
+    observed_at: importedAt,
+    evidence_date: "2026-07-15",
+    date_precision: "day" as const,
+    source_type: "shared_collection" as const,
+    source_label: "Shared collection",
+    stable_locator: "snp_0000000000000930/collection-item-0930",
+    summary: "Imported Wintermelon boba",
+    actor_id: actorId,
+    limitations: ["No prior-order or reorder authority"],
+    schema_version: 1 as const,
+  };
+  const item = {
+    id: "itm_0000000000000930",
+    kind: "delivery_dish" as const,
+    delivery_authority: "public_import" as const,
+    dish_name: "Wintermelon boba",
+    restaurant_name: "Wanpo",
+    public_location_label: "Stanford",
+    public_merchant_address: null,
+    image_url: null,
+    image_page_url: null,
+    source_display_attribution: "Shared collection",
+    classification: { kind: "food" as const, authored_by: "agent" as const },
+    import_provenance: {
+      source_collection_id: "col_0000000000000930",
+      source_snapshot_id: "snp_0000000000000930",
+      source_collection_item_id: "collection-item-0930",
+      published_revision: earlier,
+      source_display_attribution: "Shared collection",
+      imported_at: importedAt,
+    },
+    evidence_ids: [evidence.id],
+    created_at: importedAt,
+    updated_at: importedAt,
+    schema_version: 1 as const,
+  };
+  return { evidence, item };
+}
+
+function deliveryDocuments() {
+  const evidence = {
+    id: "evd_0000000000000920",
+    kind: "delivery_order_line" as const,
+    observed_at: "2026-07-15T12:00:00.000Z",
+    evidence_date: "2026-07-14",
+    date_precision: "day" as const,
+    source_type: "delivery_provider" as const,
+    source_label: "DoorDash",
+    stable_locator: "delivery/line-0920",
+    summary: "Wintermelon boba",
+    actor_id: actorId,
+    limitations: [],
+    schema_version: 1 as const,
+    delivery_order_line: {
+      provider_label: "DoorDash",
+      provider_origin: "https://delivery.example.test",
+      provider_order_locator: "private-order-0920",
+      order_group_locator: "private-group-0920",
+      order_date: "2026-07-14",
+      completion_status: "completed" as const,
+      fulfillment_mode: "delivery" as const,
+      group_complete: true as const,
+      declared_line_count: 1,
+      line_key: "line-1",
+      restaurant: {
+        restaurant_name: "Wanpo",
+        public_location_label: "Palo Alto",
+        public_merchant_address: { locality: "Palo Alto", region: "CA" },
+        merchant_locator: "private-merchant-0920",
+      },
+      dish_name: "Wintermelon boba",
+      quantity: 1,
+      modifiers_complete: true as const,
+      modifiers: [{ group_name: "Sweetness", option_name: "Half sweet" }],
+      historical_menu_item_locator: "private-menu-0920",
+      classification: { kind: "food" as const, authored_by: "agent" as const },
+    },
+  };
+  const item = {
+    id: "itm_0000000000000920",
+    kind: "delivery_dish" as const,
+    dish_name: "Wintermelon boba",
+    provider_label: "DoorDash",
+    provider_origin: "https://delivery.example.test",
+    restaurant_name: "Wanpo",
+    public_location_label: "Palo Alto",
+    public_merchant_address: { locality: "Palo Alto", region: "CA" },
+    merchant_locator: "private-merchant-0920",
+    known_menu_item_locators: ["private-menu-0920"],
+    known_modifier_occurrences: [{
+      evidence_id: evidence.id,
+      modifiers_complete: true as const,
+      modifiers: [{ group_name: "Sweetness", option_name: "Half sweet" }],
+    }],
+    classification: { kind: "food" as const, authored_by: "agent" as const },
+    evidence_ids: [evidence.id],
+    created_at: "2026-07-15T12:00:00.000Z",
+    updated_at: "2026-07-15T12:00:00.000Z",
+    schema_version: 1 as const,
+  };
+  return {
+    evidence,
+    item,
+    profile: {
+      providers: [{
+        provider_label: "DoorDash",
+        provider_origin: "https://delivery.example.test",
+        history_start: "2026-01-01",
+        history_end: "2026-07-15",
+        completed_history_cursor: {
+          completed_order_date: "2026-07-14",
+          provider_order_locator: "private-order-0920",
+        },
+      }],
+      interpretation_preferences: [],
+      schema_version: 1,
+    },
+    report: {
+      report_type: "delivery_index" as const,
+      markdown: "# Delivery",
+      assertions: [{
+        row_id: "wanpo-wintermelon",
+        item_ids: [item.id],
+        evidence_ids: [evidence.id],
+        distinct_order_count: 1,
+        last_date: "2026-07-14",
+      }],
+      schema_version: 1,
+    },
+  };
 }

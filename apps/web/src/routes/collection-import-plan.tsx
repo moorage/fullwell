@@ -30,11 +30,21 @@ export function CollectionImportPlanRoute({ token }: { token: string }) {
             <section className="duplicate-section" aria-labelledby="selected-items-heading">
               <h2 id="selected-items-heading">Selected items</h2>
               <div className="management-list">
-                {selected.map((item) => <div className="duplicate-row" key={item.id}><div><strong>{item.title}</strong><small>{item.source}</small></div></div>)}
+                {selected.map((item) => (
+                  <div className="duplicate-row" key={item.id}>
+                    <div>
+                      <strong>{item.title}</strong>
+                      <small>{item.source}</small>
+                      {item.kind === "delivery_dish"
+                        ? <small>{item.restaurantName} · {item.locationLabel}</small>
+                        : null}
+                    </div>
+                  </div>
+                ))}
               </div>
             </section>
             <StatusNotice tone="info" title="What importing records">
-              <p>Recipes may be marked Saved. They are not marked Cooked or Liked. Fullwell records where each copied item came from.</p>
+              <p>Recipes may be marked Saved. Delivery dishes are copied as recommendations, not prior orders, and cannot authorize a reorder. Fullwell records where each copied item came from.</p>
             </StatusNotice>
             <div className="button-row">
               <Button type="submit" disabled={selected.length === 0}>Confirm import</Button>

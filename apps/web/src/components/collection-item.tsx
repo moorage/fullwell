@@ -43,6 +43,14 @@ export function CollectionItem({ item, checked, onChange }: CollectionItemProps)
             <span>{item.source}</span>
           </span>
         </label>
+        {item.kind === "delivery_dish" ? (
+          <p className="collection-item__location">
+            <strong>{item.restaurantName}</strong>
+            <span>{item.locationLabel}</span>
+            {item.locationAddress ? <span>{item.locationAddress}</span> : null}
+            {item.classification === "alcohol" ? <span className="collection-item__alcohol">Alcohol</span> : null}
+          </p>
+        ) : null}
         {item.note ? <p className="collection-item__note">{item.note}</p> : null}
       </div>
     </article>

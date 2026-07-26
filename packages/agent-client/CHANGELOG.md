@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.14 - 2026-07-25
+
+- Add a local and connected food-delivery history audit for user-selected signed-in providers with complete order/modifier capture, delivery-versus-pickup evidence, exact restaurant locations, alcohol indexing, regulated-line exclusions, and no raw-page or credential storage.
+- Add strict revisioned local delivery evidence, dish, profile, and report validation plus provider-scoped promotion staging, stable retry keys, post-success cloud linkage, and independent provider recovery.
+- Add the four bounded delivery-history MCP tools, provider-specific household visibility and retention guidance, shared Codex/Claude metadata, and cross-host semantic eval coverage.
+- Add public-safe delivery dishes to shared collections and selective import without copying order history, private provider locators, recurrence, or reorder authority.
+- Add revision- and evidence-bound delivery-dish sources to local and collaborative meal plans with ordered-before/shared-dish provenance, conservative ingredient compatibility, and explicit alcohol selection.
+- Add provider-then-location previous-order resolution and direct computer-use cart preparation with complete-cart proof, exact quantities and modifier swaps, preservation/replacement controls, uncertain-action recovery, and no checkout, payment, tip, address, schedule, membership, or subscription authority.
+- Treat DoorDash, Uber Eats, and other provider names as examples until current authorized installed-host validation records an evidence-backed support label.
+
 ## 1.1.13 - 2026-07-24
 
 - Add the required top-level object type to the local household-update tool schema so Claude can fetch every Fullwell local tool after connecting.

@@ -27,9 +27,8 @@ export function parseVisualJournalPage(input: unknown): WebRenderContext["visual
 }
 
 const householdRoleSchema = z.enum(["owner", "editor", "viewer"]);
-const collectionItemSchema = z.object({
+const collectionItemBaseSchema = z.object({
   id: z.string().min(1),
-  kind: z.enum(["recipe", "snack"]),
   title: z.string().min(1),
   source: z.string(),
   imageUrl: safeHttpUrlSchema.optional(),
@@ -37,6 +36,17 @@ const collectionItemSchema = z.object({
   note: z.string().optional(),
   selected: z.boolean(),
 });
+const collectionItemSchema = z.discriminatedUnion("kind", [
+  collectionItemBaseSchema.extend({ kind: z.literal("recipe") }),
+  collectionItemBaseSchema.extend({ kind: z.literal("snack") }),
+  collectionItemBaseSchema.extend({
+    kind: z.literal("delivery_dish"),
+    restaurantName: z.string().min(1),
+    locationLabel: z.string().min(1),
+    locationAddress: z.string().min(1).optional(),
+    classification: z.literal("alcohol").optional(),
+  }),
+]);
 
 const codexSetupUrlSchema = z.url().refine((value) => {
   const url = new URL(value);
@@ -93,8 +103,15 @@ const mealPlanSchema = z.object({
       proposals: z.array(z.object({
         id: z.string().min(1),
         title: z.string().min(1),
-        sourceKind: z.enum(["freeform", "journal_recipe", "external_recipe"]),
+        sourceKind: z.enum(["freeform", "journal_recipe", "journal_delivery_dish", "external_recipe"]),
         sourceDetail: z.string().min(1),
+        deliveryContext: z.object({
+          authority: z.enum(["history", "public_import"]),
+          providerLabel: z.string().min(1).nullable(),
+          restaurantName: z.string().min(1),
+          locationLabel: z.string().min(1),
+          familiarityBasis: z.enum(["Ordered before", "Shared dish"]),
+        }).nullable().optional(),
         sourceHref: safeHttpUrlSchema.optional(),
         proposedBy: z.string().min(1),
         servings: z.number().int().positive().nullable(),

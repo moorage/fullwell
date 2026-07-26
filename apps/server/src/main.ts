@@ -80,7 +80,7 @@ const backupCryptography = config.BACKUP_ENCRYPTION_KEY === undefined || config.
   : new BackupCryptography(config.BACKUP_ENCRYPTION_KEY, config.BACKUP_MANIFEST_PRIVATE_KEY, config.BACKUP_MANIFEST_PUBLIC_KEY, config.BACKUP_KEY_ID);
 const health = new HealthService(store, repository, {
   clock,
-  expectedSchemaVersion: "0007",
+  expectedSchemaVersion: "0008",
   repositoryRoot: config.HOUSEHOLD_REPOSITORY_ROOT,
   signingConfigured: config.GIT_SIGNING_KEY !== undefined && config.GIT_ALLOWED_SIGNERS_FILE !== undefined && backupCryptography !== null,
 });

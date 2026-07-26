@@ -81,6 +81,28 @@ export const publicCollection: PublicCollection = {
       note: "Freezer aisle. Steam from frozen for the softest texture.",
       selected: false,
     },
+    {
+      id: "delivery-wintermelon-boba",
+      kind: "delivery_dish",
+      title: "Wintermelon boba",
+      source: "Shared collection",
+      restaurantName: "Wanpo",
+      locationLabel: "Stanford",
+      locationAddress: "Palo Alto, CA",
+      note: "A familiar tea to consider for a future meal.",
+      selected: true,
+    },
+    {
+      id: "delivery-canned-spritz",
+      kind: "delivery_dish",
+      title: "Canned citrus spritz",
+      source: "Shared collection",
+      restaurantName: "Corner Table",
+      locationLabel: "University Avenue",
+      locationAddress: "Palo Alto, CA",
+      classification: "alcohol",
+      selected: false,
+    },
   ],
 };
 

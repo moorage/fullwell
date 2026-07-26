@@ -1,0 +1,4 @@
+interface:
+  display_name: "Audit Food Delivery Orders"
+  short_description: "Index signed-in delivery order history safely"
+  default_prompt: "Use $audit-food-delivery-orders to build a resumable, location-aware index from my signed-in food-delivery history without changing a cart."

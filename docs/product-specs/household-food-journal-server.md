@@ -333,6 +333,7 @@ profiles/
   household.md
   snacks.md
   recipes.md
+  delivery.md
   meal-planning.md
 snacks/
   evidence/<year>/<evidence-id>.json  # legacy read compatibility
@@ -349,6 +350,10 @@ recipes/
   evidence/<year>/<evidence-id>.json
   items/<recipe-id>.md
   reports/recipe-index.md
+delivery/
+  evidence/<year>/<evidence-id>.json
+  items/<delivery-dish-id>.md
+  reports/delivery-index.md
 meal-plans/
   weeks/<monday-date>/proposals/<proposal-id>.json
   weeks/<monday-date>/events/<event-id>.json
@@ -378,6 +383,7 @@ Files under these paths may be created but never modified or deleted by ordinary
 - `snacks/evidence/` for legacy purchase evidence
 - `groceries/evidence/`
 - `recipes/evidence/`
+- `delivery/evidence/`
 - `imports/`
 - `audit/`
 - `collections/*/snapshots/`
@@ -388,7 +394,7 @@ A correction is a new event that references the superseded event. Repository val
 
 ### 9.5 Mutable current-state paths
 
-`household.md`, profiles, item entries, reports, member projections, and private collection definitions may change. Git history preserves their earlier versions. Household names are trimmed text of at most 120 characters and are never used as filesystem paths. Every update must use an expected blob object ID or expected repository HEAD and cite relevant evidence when the domain change requires it.
+`household.md`, profiles, item entries, reports, member projections, and private collection definitions may change. Delivery mutable paths are `profiles/delivery.md`, `delivery/items/`, and `delivery/reports/delivery-index.md`. Git history preserves their earlier versions. Household names are trimmed text of at most 120 characters and are never used as filesystem paths. Every update must use an expected blob object ID or expected repository HEAD and cite relevant evidence when the domain change requires it.
 
 ## 10. Domain contracts
 
@@ -399,7 +405,7 @@ Define semantic TypeScript types and runtime schemas for every boundary. The fol
 Common fields:
 
 - `id`
-- `kind`: `purchase`, `recipe_discovery`, `cooking`, `user_confirmation`, `import`, or `correction`
+- `kind`: `purchase`, `recipe_discovery`, `cooking`, `user_confirmation`, `import`, `correction`, or `delivery_order_line`
 - `observed_at`
 - `evidence_date` and `date_precision`
 - `source_type`
@@ -416,6 +422,8 @@ Purchase evidence additionally includes private store, order reference, exact li
 Recipe discovery evidence may include canonical recipe URL, audited page URL, displayed image URL, author/publisher, and source-scope semantics.
 
 Cooking evidence includes recipe candidate or ID, date, result, changes, and whether each change is one-time or confirmed typical.
+
+Delivery-order-line evidence is accepted only through `hfj_commit_delivery_index`. It stores the exact canonical HTTPS provider origin/label, private provider order/group locator, completed order date, `delivery | pickup`, literal complete-group and complete-modifier assertions, declared line count, stable line key, exact restaurant name/public location/public merchant address plus private merchant locator, dish, quantity, modifiers, optional historical menu locator, and agent-authored `food | alcohol` classification. The schema has no delivery-destination, account-address, payment, credential, or identity-document field. Only completed, fully exposed groups are canonical evidence; an incomplete or hidden-line order is reported as incomplete and is not submitted.
 
 ### 10.2 Grocery item
 
@@ -482,7 +490,9 @@ The server verifies referential integrity and deterministic arithmetic. It store
 
 ### 10.5 Collection snapshot
 
-A snapshot contains only public-safe fields:
+A snapshot is a strict union of `recipe`, compatibility `snack`, and `delivery_dish` public items. A delivery dish contains its collection-local ID, title, restaurant name, public location label/address, optional public description/note, image provenance, source display attribution, source item revision, and optional explicit `alcohol` classification. It never reuses private journal/order fields.
+
+Recipe and snack snapshots contain only public-safe fields:
 
 - collection-local item ID;
 - kind: `recipe` or `snack`;
@@ -497,6 +507,16 @@ A snapshot contains only public-safe fields:
 - snapshot creation timestamp and schema version.
 
 It must not contain household IDs, actor IDs, order data, counts, private evidence IDs, private source labels, message/notes locators, or unselected private notes.
+
+### 10.6 Food-delivery history, dishes, and cart authority
+
+`delivery_order_line` evidence records provider origin, private provider/order-group and merchant/menu locators, exact restaurant display/location, `delivery | pickup`, date, dish, modifiers, quantity, declared group line count, and completeness. A complete group requires the exact declared line set. `delivery_dish` items cite canonical evidence and keep provider/location identities distinct; deterministic code validates locators and counts but does not merge same-name restaurants or dishes.
+
+The local runtime stores provider-neutral delivery evidence, dishes, per-provider audit profiles, and indexes. Connected `hfj_commit_delivery_index` accepts exactly one provider origin, explicit household visibility/retention consent, complete aggregate replacements, expected revisions/HEAD, and an idempotency key. Git is authoritative; `search_items` is a public-safe rebuildable projection.
+
+Delivery dishes may enter immutable collection snapshots only through a delivery-specific public allowlist. Import produces a destination dish plus import provenance, never private order evidence, recurrence, fulfillment history, or reorder authority. `journal_delivery_dish` meal proposals cite an exact current item revision plus ordered-before or import evidence. They preserve append-only proposal history, default compatibility to incomplete evidence, and become `needs_recheck` after item or constraint revision changes.
+
+The server does not control providers or carts. The agent's ephemeral `delivery_cart_plan` and session contract bind a complete prior delivery order, provider origin, exact location, fulfillment, source lines, quantities, modifiers, full current-cart baseline, requested/preserved/full subtotals, ordinary maximum, current local revision or Git HEAD, and any different-location replacement confirmation. A terminal prepared result requires complete post-action cart proof. Checkout, payment, tips, address/schedule changes, memberships, and subscriptions have no tool, route, schema, or durable action authority. Alcohol may be selected under the ordinary maximum; age/identity UI remains user-controlled and no ID data is accepted.
 
 ## 11. Git mutation pipeline
 
@@ -670,27 +690,27 @@ Output: removed member ID and commit. Reject removal of the final owner.
 
 #### `hfj_get_profile`
 
-Input: `household_id`, profile type (`household`, `snacks`, or `recipes`).
+Input: `household_id`, profile type (`household`, `snacks`, `recipes`, or read-only `delivery`).
 
 Output: typed fields, Markdown, blob revision, and repository HEAD.
 
 #### `hfj_update_profile`
 
-Input: `household_id`, profile type, typed fields, agent-authored Markdown, expected blob revision, evidence IDs where relevant, `idempotency_key`.
+Input: `household_id`, profile type (`household`, `snacks`, or `recipes`), typed fields, agent-authored Markdown, expected blob revision, evidence IDs where relevant, `idempotency_key`. Delivery profiles cannot use this generic writer; `hfj_commit_delivery_index` is their only write path.
 
 Output: new blob revision and commit.
 
 #### `hfj_search_items`
 
-Input: `household_id`, query, optional kind (`snack`, `ingredient`, `condiment`, `other_grocery`, or `recipe`), cursor, limit no greater than 100.
+Input: `household_id`, query, optional kind (`snack`, `ingredient`, `condiment`, `other_grocery`, `recipe`, or `delivery_dish`), cursor, limit no greater than 100.
 
 Output: bounded summaries with IDs, kind, title, distinguishing fields, image, updated time, and blob revision. Search is a rebuildable projection and must not decide semantic identity.
 
 #### `hfj_get_item`
 
-Input: `household_id`, item kind, item ID, optional evidence cursor.
+Input: `household_id` and item ID.
 
-Output: typed frontmatter, full Markdown, cited evidence summaries, blob revision, and repository HEAD.
+Output: the current item variant, typed frontmatter, full Markdown, cited evidence summaries, blob revision, and repository HEAD. A history-backed delivery dish may resolve its private canonical evidence only for an authorized member; a public-import delivery dish returns import provenance and has no provider/order history.
 
 #### `hfj_append_evidence`
 
@@ -698,7 +718,7 @@ Input: `household_id`, one to 100 typed evidence records, migration ID when appl
 
 Output: evidence IDs, duplicate/replayed IDs, commit, and updated HEAD.
 
-Reject any evidence record that contains credentials, session cookies, raw message bodies beyond allowed minimal summaries, or unknown fields. Stable locators are private by default.
+Reject any evidence record that contains credentials, session cookies, raw message bodies beyond allowed minimal summaries, or unknown fields. Stable locators are private by default. This generic tool accepts only non-delivery evidence; delivery-order evidence must use the provider-scoped delivery commit.
 
 #### `hfj_commit_change_set`
 
@@ -712,7 +732,37 @@ Input:
 
 Output: commit, new HEAD, per-entity blob revisions, validation results, and projection checkpoint.
 
-Allowed operations are create item, update item, append correction, update report, and update index. The server maps entity kinds to paths; callers never provide arbitrary paths.
+Allowed operations are create item, update item, append correction, update report, and update index for non-delivery items/reports only. `delivery_dish` and `delivery_index` are excluded from this generic writer. The server maps entity kinds to paths; callers never provide arbitrary paths.
+
+### 12.2a Food-delivery history
+
+These four tools are always discoverable but remain provider-neutral. They authorize household journal reads/writes, not browser control or cart mutation.
+
+#### `hfj_search_delivery_history`
+
+Input: `household_id`, bounded query, optional exact provider origin, opaque cursor, and limit no greater than 50 (default 25).
+
+Output: deterministic candidate pages containing an opaque order-group handle, dish name, public provider label, restaurant name, public location label/address, and current item revision. It never returns order/group/merchant/menu locators, dates, counts, fulfillment, account fields, or report prose.
+
+#### `hfj_get_delivery_order`
+
+Input: `household_id` and one opaque group handle returned by delivery search.
+
+Output: one exact complete delivery or pickup order group and current repository revision. The server revalidates membership, every line's provider/order/group/location/fulfillment identity, unique line/evidence keys, declared line count, complete modifiers, and canonical evidence references. A stale, incomplete, cross-household, or invented handle fails closed.
+
+#### `hfj_get_delivery_index`
+
+Input: `household_id`.
+
+Output: the canonical agent-authored `delivery_index` report and its exact document revision. Report prose is read from Git and is not copied into operational search.
+
+#### `hfj_commit_delivery_index`
+
+Input: `connected_audit_checkpoint | local_promotion`, one exact provider label/origin and literal provider visibility confirmation, expected household HEAD and delivery profile/report revisions, exact expected and next aggregate delivery profile/report documents, zero to 100 new completed delivery evidence records, zero to 100 history-backed delivery dishes, expected item revisions, and one provider-scoped idempotency key.
+
+Output: completed mode/provider, evidence and item IDs, and exact profile/report revisions.
+
+The commit is one editor-authorized household mutation. Every submitted evidence/item uses the approved origin, every cited history record is complete, and expected/next aggregate documents preserve every unselected provider and citation exactly. Exact retries return the prior result; changed reuse conflicts; uncertain local promotion does not mark cloud linkage until the response is confirmed.
 
 ### 12.3 Household meal planning
 
@@ -742,9 +792,11 @@ Output: one immutable attributed weekly-review event. Owners and editors may app
 
 #### `hfj_add_meal_proposal`
 
-Input: `household_id`, week/date/slot, bounded free-form, journal-recipe, or credential-free HTTPS external-recipe source, servings, notes, current constraint revision, matching weekly-review event, evidence-based compatibility status and caveat, and `idempotency_key`.
+Input: `household_id`, week/date/slot, bounded free-form, journal-recipe, `journal_delivery_dish`, or credential-free HTTPS external-recipe source, servings, notes, current constraint revision, matching weekly-review event, evidence-based compatibility status and caveat, and `idempotency_key`.
 
-Output: one deterministic immutable proposal ID. Journal recipes must cite the exact current item revision and structured Liked confirmation evidence for that same recipe. The mutation uses the current locked Git HEAD only after rechecking editor membership, but it accepts exactly one server-generated append-only path. Exact retries return the same proposal and commit; changed reuse of the key conflicts. Independent same-slot additions both survive.
+Output: one deterministic immutable proposal ID. Journal recipes must cite the exact current item revision and structured Liked confirmation evidence for that same recipe. A `journal_delivery_dish` source must cite the exact current dish revision and evidence IDs already owned by that item: `delivery_order_line` evidence for a history-backed `ordered before` dish, or import evidence for a public-import `shared dish`. The wrong evidence kind, stale revision, or evidence not cited by the item fails closed. Delivery-dish compatibility is always `incomplete_evidence`; menu titles and history cannot justify `appears_compatible`. Later item or constraint revisions produce effective `needs_recheck` without rewriting the proposal.
+
+The mutation uses the current locked Git HEAD only after rechecking editor membership, but it accepts exactly one server-generated append-only path. Exact retries return the same proposal and commit; changed reuse of the key conflicts. Independent same-slot additions both survive.
 
 #### `hfj_withdraw_meal_proposal`
 
@@ -907,6 +959,7 @@ Do not copy the source household ID or private actor IDs.
 - Recipe import may create `Saved: yes` because selective import is direct evidence of intentional saving.
 - Recipe import leaves `Cooked` and `Liked` unknown unless destination evidence already supports another value.
 - Snack import creates a remembered/recommended item only. It does not create purchase evidence, recurrence, liked status, or a pantry-restock assertion.
+- Delivery-dish import creates a public-import `delivery_dish` plus one import evidence record. It does not copy provider/order/group/merchant/menu locators, order dates, modifiers, fulfillment, recurrence, or reorder authority and cannot satisfy `hfj_get_delivery_order`.
 - Merge decisions preserve destination evidence and append imported provenance. They never replace newer destination facts silently.
 
 ### 14.3 Duplicate behavior

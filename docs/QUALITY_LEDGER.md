@@ -9,7 +9,7 @@ Scoring scale:
 - 2 = fragile or mostly unproven
 - 1 = absent or high risk
 
-Last refreshed: 2026-07-24
+Last refreshed: 2026-07-25
 Refresh owner: knowledge automation plus reviewer of affected changes
 
 ## Scorecard
@@ -34,6 +34,7 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 - `apps/`, `packages/`, `migrations/`, `infra/`, and `deploy/` contain the coordinated React 19.2, Fastify, Neon, Git, agent-package, and DigitalOcean foundation.
 - Direct WhatsApp transport, schema `0006`, the fixed-path runner snapshot, macOS Keychain/LaunchAgent lifecycle, Codex/Claude host adapters, closed-history restocking evals, fake-retailer WebKit tests, aggregate messaging operator metrics, and the dedicated Codex project/preflight are implemented. Encrypted provider credentials, publication, callback verification, the `messages` v25.0 subscription, one real signed inbound, and two-sided sender/device linking passed before every rollout gate was returned to disabled.
 - Conversational Fullwell onboarding, schema `0007`, one-read/local-checkpoint drafting, atomic finalization, per-user skip recovery, report-derived completion, the 24-tool contract, and truthful MCP annotations pass focused server, dual-host package, and eval gates. Public `@fullwell/fullwell@1.1.5` is npm `latest`, current Codex and Claude use it, the deployed server exposes the stable authenticated user ID, and fresh-session save/resume/delete/cleanup verification passes with zero Fullwell mutations.
+- Provider-neutral delivery Milestones 1-6 pass contract, package, server, web, security, eval, browser, type, build, lint, coverage, migration, PostgreSQL integration, production-audit, image-build, and fixture-screencast gates for complete history, exact location/fulfillment/modifiers, provider-scoped promotion, public-safe collection/import, revisioned meal sources, full-cart proof/recovery, alcohol selection, and structural no-checkout behavior. These are deterministic fixture claims, not live DoorDash/Uber Eats or installed-host evidence.
 
 ## Structural debt register
 
@@ -41,6 +42,7 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 - Public npm installation, isolated Codex/Claude lifecycle behavior, and real host OAuth revocation/reconnect pass; public marketplace discovery plus setup, invitation, collection sharing, and selective-import workflows still need external compatibility evidence. Apple, email, and passkey authentication pass native Safari staging ceremonies.
 - Manual VoiceOver, authenticated keyboard/zoom accessibility, iPhone hardware and non-Apple screen-reader coverage, provisioned load/soak and OAuth/import/Neon race coverage, privacy, secret-rotation, and manual release reviews remain no-go gates.
 - Schema `0006`, the corrected image, HTTP/MCP smokes, encrypted Meta credentials, WhatsApp-aware unit, verified callback, subscribed `messages` v25.0 field, publication, a real provider-identity inbound, two-sided linking, maintenance, and operator health pass on staging. The keyring-backed isolated Codex host and exact-origin noninteractive fake-retailer quantity/replay proof also pass. Actual Claude fake-retailer control, one authorized no-checkout retailer proof, in-window reply/delivery/deduplication, and messaging rotation evidence remain blockers; all five rollout gates stay off.
+- Food-delivery support remains fixture/provider-neutral: local schema `0008` migration/rollback, 11 PostgreSQL integrations, the full WebKit matrix, a pinned Node 24 image build, a zero-production-vulnerability audit, and a fixture-only screencast pass. Authorized live DoorDash/Uber Eats matrices, exact installed Codex/Claude host behavior, additional-provider evidence, live alcohol age-step behavior, deployment/staging, package publication, and manual accessibility/privacy review are still missing. Named providers are unsupported for release until those claims are proved.
 
 ## Maintenance rule
 

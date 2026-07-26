@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reorder Food Delivery"
+  short_description: "Prepare prior delivery carts without checkout"
+  default_prompt: "Use $reorder-food-delivery to prepare a previous restaurant order in my cart and stop before checkout."

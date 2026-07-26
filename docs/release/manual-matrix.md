@@ -21,6 +21,17 @@ Status values: `Not run`, `Pass`, `Fail`, `Blocked`, or `Not available`. A relea
 | Claude Code local runner | Record CLI/Chrome and macOS at run | OAuth/Keychain/LaunchAgent deterministic tests pass | Gateway client deterministic tests pass | Shared evals pass | Fake host protocol and WebKit cart pass; actual `--chrome` pending | Purge/timeout/revision-conflict tests pass | `packages/local-runner/README.md` | Blocked |
 | Claude Cowork | Current supported product | N/A | No supported Fullwell inbound API proven | N/A | N/A | Use Dispatch manually only | `docs/design/whatsapp-local-restocking-feasibility.md` | Not available |
 
+## Food-Delivery Matrix
+
+Named providers remain examples until an authorized current installed-host run records an evidence-backed label. Fixture success must never be copied into a DoorDash, Uber Eats, or additional-provider claim.
+
+| Provider/surface | Exact version/date | History index | Exact location/modifiers | Cart/recovery | Alcohol age step | No-checkout proof | Evidence | Status |
+|---|---|---|---|---|---|---|---|---|
+| Provider-neutral fixture / WebKit | Repository fixture, 2026-07-26 | Complete/incomplete groups pass | Provider then location, quantities, and modifiers pass | Full-cart proof, preservation, replacement confirmation, and missing-delta recovery pass | Ordinary maximum and user-controlled pause pass | Checkout/payment/tip/address/schedule/membership/subscription controls are absent | `verification-evidence.md` | Pass |
+| DoorDash / Codex and Claude | No authorized current run | Unsupported for release | Unsupported for release | Unsupported for release | Unsupported for release | Required before support | No live evidence | Blocked |
+| Uber Eats / Codex and Claude | No authorized current run | Unsupported for release | Unsupported for release | Unsupported for release | Unsupported for release | Required before support | No live evidence | Blocked |
+| Additional browser provider | No authorized current run; do not advertise | Unsupported for release | Unsupported for release | Unsupported for release | Unsupported for release | Required before support | No live evidence | Blocked |
+
 For every agent surface, test first install, reconnect, expired authorization, refresh rotation, grant revocation, upgrade, disable, re-enable, and uninstall. Verify canonical server data remains intact throughout. Confirm both hosts load the same shared skill source, MCP URL, and compatible errors; the local runner adds the fixed restocking skill without expanding the server gateway into an agent.
 
 For every browser, test 320x568, 390x844, 1024x768, and 1440x900 where applicable; keyboard-only flow; screen-reader labels; no-JavaScript invite/import baseline; expired/revoked capabilities; rate limit; conflict; focus recovery; and preservation of selected imports through sign-in and recoverable errors.

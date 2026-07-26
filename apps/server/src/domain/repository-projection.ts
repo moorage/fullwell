@@ -5,6 +5,8 @@ import {
   CollectionIdSchema,
   CollectionSnapshotSchema,
   ConfirmedMealPlanningConstraintsSchema,
+  DeliveryIndexReportSchema,
+  DeliveryProfileSchema,
   EvidenceSchema,
   JournalItemSchema,
   MealPlanEventSchema,
@@ -19,9 +21,16 @@ import {
 } from "@hfj/contracts";
 import { AppError } from "../core/errors.js";
 import {
+  deliveryIndexReportPath,
+  deliveryProfilePath,
+  journalEvidencePath,
   journalItemPath,
   mealPlanEventPath,
   mealProposalPath,
+  validateDeliveryEvidenceGroups,
+  validateDeliveryImportEvidenceScope,
+  validateDeliveryIndexReport,
+  validateItemEvidence,
   validateMealProposalReview,
   validateMealProposalSource,
 } from "./journal-validation.js";
@@ -73,6 +82,7 @@ export function rebuildRepositoryState(
   }
 
   const evidence = new Map<string, z.infer<typeof EvidenceSchema>>();
+  const deliveryImportEvidenceIds = new Set<string>();
   const items = new Map<string, { item: z.infer<typeof JournalItemSchema>; revision: typeof snapshot.head }>();
   const profiles = new Map<string, { markdown: string; revision: typeof snapshot.head }>();
   const snapshots = new Map<string, { snapshot: z.infer<typeof CollectionSnapshotSchema>; revision: typeof snapshot.head }>();
@@ -81,6 +91,7 @@ export function rebuildRepositoryState(
   const mealPlanEvents = new Map<string, { event: z.infer<typeof MealPlanEventSchema>; revision: typeof snapshot.head }>();
   const collectionDocuments: Array<{ collectionId: string; snapshotId?: string }> = [];
   const memberships: RepositoryMembershipState[] = [];
+  let deliveryReport: z.infer<typeof DeliveryIndexReportSchema> | null = null;
   let householdName: string | null = null;
 
   for (const file of snapshot.files) {
@@ -93,16 +104,37 @@ export function rebuildRepositoryState(
       ).name;
       continue;
     }
-    if (/^(snacks|groceries|recipes)\/evidence\/\d{4}\/evd_[0-9a-z]{16,64}\.json$/.test(file.path)) {
+    if (/^(snacks|groceries|recipes|delivery)\/evidence\/\d{4}\/evd_[0-9a-z]{16,64}\.json$/.test(file.path)) {
       const parsed = parseJson(EvidenceSchema, file.content, file.path);
+      const deliveryEvidencePath = file.path.startsWith("delivery/evidence/");
+      const historyEvidence = parsed.kind === "delivery_order_line";
+      const importEvidence = parsed.kind === "import";
+      const expectedDeliveryPath = `delivery/evidence/${parsed.observed_at.slice(0, 4)}/${parsed.id}.json`;
+      if ((deliveryEvidencePath && (!historyEvidence && !importEvidence))
+        || (!deliveryEvidencePath && historyEvidence)
+        || (deliveryEvidencePath && expectedDeliveryPath !== file.path)
+        || (historyEvidence && journalEvidencePath(parsed) !== file.path)
+        || evidence.has(parsed.id)) {
+        throw projectionError(file.path);
+      }
+      if (deliveryEvidencePath && importEvidence) deliveryImportEvidenceIds.add(parsed.id);
       evidence.set(parsed.id, parsed);
       continue;
     }
-    if (/^(snacks|ingredients|condiments|groceries|recipes)\/items\/itm_[0-9a-z]{16,64}\.md$/.test(file.path)) {
+    if (/^(snacks|ingredients|condiments|groceries|recipes|delivery)\/items\/itm_[0-9a-z]{16,64}\.md$/.test(file.path)) {
       const document = parseMarkdownDocument(file.content, file.path);
       const item = parseValue(JournalItemSchema, { ...document.frontmatter, body_markdown: document.body }, file.path);
-      if (journalItemPath(item) !== file.path) throw projectionError(file.path);
+      if (journalItemPath(item) !== file.path || items.has(item.id)) throw projectionError(file.path);
       items.set(item.id, { item, revision: file.revision });
+      continue;
+    }
+    if (file.path === deliveryIndexReportPath()) {
+      if (deliveryReport !== null) throw projectionError(file.path);
+      const document = parseMarkdownDocument(file.content, file.path);
+      deliveryReport = parseValue(DeliveryIndexReportSchema, {
+        ...document.frontmatter,
+        markdown: document.body,
+      }, file.path);
       continue;
     }
     if (file.path === "profiles/meal-planning.md") {
@@ -111,6 +143,15 @@ export function rebuildRepositoryState(
         ...document,
         revision: file.revision,
       }, file.path);
+      continue;
+    }
+    if (file.path === deliveryProfilePath()) {
+      const document = parseMarkdownDocument(file.content, file.path);
+      parseValue(DeliveryProfileSchema, document.frontmatter, file.path);
+      profiles.set("delivery", {
+        markdown: removeDocumentTerminator(file.content),
+        revision: file.revision,
+      });
       continue;
     }
     const profile = /^profiles\/([a-zA-Z0-9._-]+)\.md$/.exec(file.path);
@@ -165,7 +206,9 @@ export function rebuildRepositoryState(
         if (document.role === undefined) throw projectionError(file.path);
         memberships.push({ actorId, role: document.role, removedAt: null, userId: userByActor.get(actorId) ?? null });
       }
+      continue;
     }
+    if (file.path.startsWith("delivery/")) throw projectionError(file.path);
   }
 
   const collections = new Map<string, { snapshot: z.infer<typeof CollectionSnapshotSchema>; revision: typeof snapshot.head }>();
@@ -181,9 +224,14 @@ export function rebuildRepositoryState(
   const events = new Map([...mealPlanEvents].map(([id, entry]) => [id, entry.event]));
   const itemValues = new Map([...items].map(([id, entry]) => [id, entry.item]));
   const itemRevisions = new Map([...items].map(([id, entry]) => [id, entry.revision]));
+  for (const { item } of items.values()) validateItemEvidence(item, evidence);
+  validateDeliveryImportEvidenceScope(itemValues, evidence, deliveryImportEvidenceIds);
+  validateDeliveryEvidenceGroups(evidence);
+  if (deliveryReport !== null) validateDeliveryIndexReport(deliveryReport, evidence, itemValues);
   for (const { proposal } of mealProposals.values()) {
     validateMealProposalReview(proposal, events);
-    if (proposal.source.kind === "journal_recipe" && itemRevisions.get(proposal.source.item_id) === proposal.source.item_revision) {
+    if ((proposal.source.kind === "journal_recipe" || proposal.source.kind === "journal_delivery_dish")
+      && itemRevisions.get(proposal.source.item_id) === proposal.source.item_revision) {
       validateMealProposalSource(proposal, itemValues, evidence, itemRevisions);
     }
   }
@@ -208,7 +256,7 @@ export function rebuildRepositoryState(
   };
 }
 
-function parseMarkdownDocument(content: string, path: string): { frontmatter: Record<string, unknown>; body: string } {
+export function parseMarkdownDocument(content: string, path: string): { frontmatter: Record<string, unknown>; body: string } {
   const lines = content.replaceAll("\r\n", "\n").split("\n");
   if (lines[0] !== "---") throw projectionError(path);
   const end = lines.indexOf("---", 1);

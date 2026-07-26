@@ -5,11 +5,18 @@
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
 - completed ExecPlans:
+  - `docs/exec-plans/completed/2026-07-24-food-delivery-history-and-cart-preparation.md`
   - `docs/exec-plans/completed/2026-07-24-agent-guides-and-visual-journal-browsing.md`
   - `docs/exec-plans/completed/2026-07-23-collaborative-household-meal-planning.md`
   - `docs/exec-plans/completed/2026-07-15-specialize-household-food-journal-harness.md`
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
+
+- 2026-07-26 food-delivery Milestones 1-6 are implemented locally: provider-neutral complete delivery history and exact location/fulfillment/modifier indexing; provider-scoped household contribution; public-safe collection/import authority; revisioned local/cloud meal-plan sources; and provider-then-location previous-order cart preparation with full-cart proof, exact quantity/swap recovery, ordinary-maximum alcohol selection, user-controlled age UI, and structural no checkout/payment/tip/address/schedule/membership/subscription authority
+- food-delivery history cataloging is bounded user-directed navigation in an already signed-in browser, equivalent to the account holder reviewing purchases manually; it is not public crawling, unattended scraping, credential handling, access-control bypass, or a provider-data service
+- deterministic WU-06 through WU-10 evidence passes the recorded contract, package, server, web, security, eval, browser, accessibility, type, build, lint, coverage, migration, PostgreSQL integration, production-audit, and Apple Container image gates; the full browser matrix passes 135 checks with 13 intentional skips
+- `artifacts/screencasts/food-delivery-cart-preparation.mp4` is a verified 6.68-second fixture-only H.264 capture showing provider/location ambiguity, Stanford selection with the prior coconut line, the resulting wintermelon cart, explicit manual checkout, public collection, and delivery meal-plan states; Playwright-native recording replaced the repository helper's unavailable Linux X11/PulseAudio inputs on this macOS host
+- DoorDash, Uber Eats, additional-provider, installed Codex/Claude host, live alcohol age-step, deployment/staging, package publication, and manual privacy/accessibility evidence remain release blockers; named providers are unsupported for release and no checkout proof is fabricated
 
 - current milestone: Namecheap A records for `fullwell.ai` and `www.fullwell.ai` point to the existing DigitalOcean gateway at `the application gateway address`; the email-forwarding TXT record remains untouched, Caddy 2.10 obtained valid certificates for both aliases, HTTP returns an HTTPS-preserving `308`, and HTTPS returns a canonical path-and-query-preserving `301`
 - gateway-only rollout evidence: `/opt/household-food-journal/deploy/Caddyfile.pre-fullwell-ai-20260724-1` remains the rollback; `PUBLIC_DOMAIN`, the app image, browser sessions, Apple, passkeys, OAuth, and MCP remain on `https://fullwell.souschefstudio.com`, whose deployment smoke, `/account` sign-in handoff, and OAuth issuer/endpoint metadata pass

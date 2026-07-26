@@ -1,10 +1,11 @@
 import { ActorIdSchema, GitObjectIdSchema, HouseholdIdSchema, RequestIdSchema, UserIdSchema } from "@hfj/contracts";
 import { z } from "zod";
 import { describe, expect, it, vi } from "vitest";
-import { MemoryHouseholdRepository, MemoryOperationalStore } from "../adapters/memory.js";
+import { MemoryHouseholdRepository, MemoryOperationalStore, stableJson } from "../adapters/memory.js";
 import { DeterministicRandomSource, FixedClock, HmacTokenHasher, NoopTelemetry } from "../adapters/providers.js";
 import type { TelemetryPort } from "../core/ports.js";
 import type { Principal } from "../core/types.js";
+import { markdownDocument } from "../domain/journal-validation.js";
 import { HouseholdFoodJournalService } from "../services/household-food-journal.js";
 import { ReconciliationWorker } from "./reconciliation-worker.js";
 
@@ -243,6 +244,57 @@ describe("ReconciliationWorker", () => {
     expect(rebuilt.mealPlanEvents.get(reviewEventId)?.event.kind).toBe("constraints_reviewed");
   });
 
+  it("rebuilds validated delivery history from Git and quarantines malformed delivery state", async () => {
+    const store = new MemoryOperationalStore();
+    const repository = new MemoryHouseholdRepository();
+    const created = await createService(store, repository).call("hfj_create_household", {
+      name: "Delivery rebuild",
+      idempotency_key: "delivery-rebuild-create-0801",
+    }, principal);
+    if (!created.ok) throw new Error(created.error.code);
+    const householdId = HouseholdIdSchema.parse(z.object({
+      household_id: z.string(),
+    }).parse(created.data).household_id);
+    const head = GitObjectIdSchema.parse(created.repository_head);
+    await repository.commit(householdId, head, deliveryRepositoryChanges(), {
+      requestId: RequestIdSchema.parse("req_0000000000000810"),
+      householdId,
+      actorId: principal.actorId,
+      tool: "hfj_commit_delivery_index",
+      client: "test",
+      summary: "delivery: recovery fixture",
+      occurredAt: "2026-07-15T12:00:00.000Z",
+    });
+
+    expect(await new ReconciliationWorker(store, repository, new NoopTelemetry()).run()).toEqual({
+      checked: 1,
+      rebuilt: 1,
+      quarantined: 0,
+    });
+    expect((await store.projection(householdId)).items.get("itm_0000000000000810"))
+      .toMatchObject({ item: { kind: "delivery_dish", dish_name: "Wintermelon boba" } });
+
+    const rebuiltHead = await repository.head(householdId);
+    await repository.commit(householdId, rebuiltHead, [{
+      path: "delivery/evidence/2026/evd_0000000000000810.json",
+      content: "{}",
+      appendOnly: false,
+    }], {
+      requestId: RequestIdSchema.parse("req_0000000000000811"),
+      householdId,
+      actorId: principal.actorId,
+      tool: "hfj_commit_delivery_index",
+      client: "test",
+      summary: "delivery: corrupt recovery fixture",
+      occurredAt: "2026-07-15T12:01:00.000Z",
+    });
+    expect(await new ReconciliationWorker(store, repository, new NoopTelemetry()).run()).toEqual({
+      checked: 1,
+      rebuilt: 0,
+      quarantined: 1,
+    });
+  });
+
   it("quarantines a database membership that has no Git authority", async () => {
     const store = new MemoryOperationalStore();
     const repository = new MemoryHouseholdRepository();
@@ -314,4 +366,113 @@ function createService(store: MemoryOperationalStore, repository: MemoryHousehol
     new NoopTelemetry(),
     new URL("https://journal.example.test"),
   );
+}
+
+function deliveryRepositoryChanges() {
+  const evidence = {
+    id: "evd_0000000000000810",
+    kind: "delivery_order_line",
+    observed_at: "2026-07-15T12:00:00.000Z",
+    evidence_date: "2026-07-14",
+    date_precision: "day",
+    source_type: "delivery_provider",
+    source_label: "DoorDash",
+    stable_locator: "delivery/line-0810",
+    summary: "Wintermelon boba",
+    actor_id: principal.actorId,
+    limitations: [],
+    schema_version: 1,
+    delivery_order_line: {
+      provider_label: "DoorDash",
+      provider_origin: "https://delivery.example.test",
+      provider_order_locator: "private-order-0810",
+      order_group_locator: "private-group-0810",
+      order_date: "2026-07-14",
+      completion_status: "completed",
+      fulfillment_mode: "delivery",
+      group_complete: true,
+      declared_line_count: 1,
+      line_key: "line-1",
+      restaurant: {
+        restaurant_name: "Wanpo",
+        public_location_label: "Palo Alto",
+        public_merchant_address: { locality: "Palo Alto", region: "CA" },
+        merchant_locator: "private-merchant-0810",
+      },
+      dish_name: "Wintermelon boba",
+      quantity: 1,
+      modifiers_complete: true,
+      modifiers: [{ group_name: "Sweetness", option_name: "Half sweet" }],
+      historical_menu_item_locator: "private-menu-0810",
+      classification: { kind: "food", authored_by: "agent" },
+    },
+  };
+  const item = {
+    id: "itm_0000000000000810",
+    kind: "delivery_dish",
+    dish_name: "Wintermelon boba",
+    provider_label: "DoorDash",
+    provider_origin: "https://delivery.example.test",
+    restaurant_name: "Wanpo",
+    public_location_label: "Palo Alto",
+    public_merchant_address: { locality: "Palo Alto", region: "CA" },
+    merchant_locator: "private-merchant-0810",
+    known_menu_item_locators: ["private-menu-0810"],
+    known_modifier_occurrences: [{
+      evidence_id: evidence.id,
+      modifiers_complete: true,
+      modifiers: [{ group_name: "Sweetness", option_name: "Half sweet" }],
+    }],
+    classification: { kind: "food", authored_by: "agent" },
+    evidence_ids: [evidence.id],
+    created_at: "2026-07-15T12:00:00.000Z",
+    updated_at: "2026-07-15T12:00:00.000Z",
+    schema_version: 1,
+  };
+  const report = {
+    report_type: "delivery_index",
+    assertions: [{
+      row_id: "wanpo-wintermelon",
+      item_ids: [item.id],
+      evidence_ids: [evidence.id],
+      distinct_order_count: 1,
+      last_date: "2026-07-14",
+    }],
+    schema_version: 1,
+  };
+  return [
+    {
+      path: `delivery/evidence/2026/${evidence.id}.json`,
+      content: stableJson(evidence),
+      appendOnly: true,
+    },
+    {
+      path: `delivery/items/${item.id}.md`,
+      content: markdownDocument(item, "A familiar order."),
+      appendOnly: false,
+    },
+    {
+      path: "profiles/delivery.md",
+      content: markdownDocument({
+        providers: [{
+          provider_label: "DoorDash",
+          provider_origin: "https://delivery.example.test",
+          history_start: "2026-01-01",
+          history_end: "2026-07-15",
+          completed_history_cursor: {
+            completed_order_date: "2026-07-14",
+            provider_order_locator: "private-order-0810",
+          },
+        }],
+        interpretation_preferences: [],
+        schema_version: 1,
+      }, "Private provider setup."),
+      appendOnly: false,
+    },
+    {
+      path: "delivery/reports/delivery-index.md",
+      content: markdownDocument(report, "# Delivery"),
+      appendOnly: false,
+    },
+  ];
 }

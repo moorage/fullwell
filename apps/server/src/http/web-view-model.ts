@@ -12,6 +12,11 @@ import {
   MealProposalIdSchema,
   MealProposalSchema,
   MondayDateSchema,
+  type CondimentItem,
+  type IngredientItem,
+  type OtherGroceryItem,
+  type RecipeItem,
+  type SnackItem,
 } from "@hfj/contracts";
 import type { VisualJournalPage, WebRenderContext } from "@hfj/web/types";
 import { z } from "zod";
@@ -337,13 +342,14 @@ export class WebViewModelService {
       throw new AppError("PROJECTION_DRIFT", "The household snapshot does not match Git", true);
     }
     const projection = await this.store.projection(selected.household.id);
-    const entries = [...projection.items.values()]
-      .filter(({ item }) => section === "recipes" ? item.kind === "recipe" : item.kind !== "recipe")
-      .sort((left, right) => {
-        const leftTitle = left.item.kind === "recipe" ? left.item.title : left.item.display_name;
-        const rightTitle = right.item.kind === "recipe" ? right.item.title : right.item.display_name;
-        return leftTitle.localeCompare(rightTitle, "en-US") || left.item.id.localeCompare(right.item.id);
-      });
+    const entries: Array<{ readonly item: LegacyVisualJournalItem }> = [];
+    for (const entry of projection.items.values()) {
+      if (section === "recipes" && entry.item.kind === "recipe") entries.push({ item: entry.item });
+      if (section === "groceries" && isGroceryJournalItem(entry.item)) entries.push({ item: entry.item });
+    }
+    entries.sort((left, right) =>
+      legacyVisualItemTitle(left.item).localeCompare(legacyVisualItemTitle(right.item), "en-US")
+      || left.item.id.localeCompare(right.item.id));
     const items = entries.slice(offset, offset + limit).map(({ item }) => {
       if (item.kind === "recipe") {
         return {
@@ -463,6 +469,10 @@ export class WebViewModelService {
         proposals: (proposalsBySlot.get(`${date}:${slot.key}`) ?? []).map(({ proposal, effective_compatibility: compatibility }) => ({
           id: proposal.id,
           title: (() => {
+            if (proposal.source.kind === "journal_delivery_dish") {
+              const item = journalItems.get(proposal.source.item_id)?.item;
+              return item?.kind === "delivery_dish" ? item.dish_name : "Journal delivery dish";
+            }
             if (proposal.source.kind !== "journal_recipe") return proposal.source.title;
             const item = journalItems.get(proposal.source.item_id)?.item;
             return item?.kind === "recipe" ? item.title : "Journal recipe";
@@ -470,7 +480,29 @@ export class WebViewModelService {
           sourceKind: proposal.source.kind,
           sourceDetail: proposal.source.kind === "external_recipe"
             ? proposal.source.site_name
-            : proposal.source.kind === "journal_recipe" ? "Liked recipe from your journal" : "Household idea",
+            : proposal.source.kind === "journal_recipe"
+              ? "Liked recipe from your journal"
+              : proposal.source.kind === "journal_delivery_dish"
+                ? (() => {
+                    const item = journalItems.get(proposal.source.item_id)?.item;
+                    return item?.kind === "delivery_dish" && "delivery_authority" in item
+                      ? "Shared dish"
+                      : "Ordered before";
+                  })()
+                : "Household idea",
+          deliveryContext: proposal.source.kind === "journal_delivery_dish"
+            ? (() => {
+                const item = journalItems.get(proposal.source.item_id)?.item;
+                if (item?.kind !== "delivery_dish") return null;
+                return {
+                  authority: "delivery_authority" in item ? "public_import" as const : "history" as const,
+                  providerLabel: "delivery_authority" in item ? null : item.provider_label,
+                  restaurantName: item.restaurant_name,
+                  locationLabel: item.public_location_label,
+                  familiarityBasis: "delivery_authority" in item ? "Shared dish" as const : "Ordered before" as const,
+                };
+              })()
+            : null,
           ...(proposal.source.kind === "external_recipe" ? { sourceHref: proposal.source.canonical_url } : {}),
           proposedBy: typeof proposal.proposed_by === "string"
             ? actorNames.get(proposal.proposed_by) ?? "Household member"
@@ -518,7 +550,7 @@ export class WebViewModelService {
         role: membership.role,
         members: (await this.store.listHouseholdMemberships(household.id)).length,
         recipes: values.filter(({ item }) => item.kind === "recipe").length,
-        groceries: values.filter(({ item }) => item.kind !== "recipe").length,
+        groceries: values.filter(({ item }) => isGroceryJournalItem(item)).length,
         updatedLabel: "Repository synchronized",
       };
     }));
@@ -565,15 +597,33 @@ export class WebViewModelService {
         sharedBy: snapshot.sharer_display_name ?? "A Fullwell household",
         expiresLabel: `Available through ${new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(expiresAt))}`,
         description: "A private household published this collection snapshot for you.",
-        items: snapshot.items.map((item) => ({
-          id: item.collection_item_id,
-          kind: item.kind,
-          title: item.title,
-          source: item.source_display_attribution ?? item.author_or_publisher ?? item.brand ?? "Shared collection",
-          ...(item.image_url === null ? {} : { imageUrl: item.image_url, imageAlt: item.title }),
-          ...(item.public_description === null ? {} : { note: item.public_description }),
-          selected: false,
-        })),
+        items: snapshot.items.map((item) => {
+          const common = {
+            id: item.collection_item_id,
+            title: item.title,
+            ...(item.image_url === null ? {} : { imageUrl: item.image_url, imageAlt: item.title }),
+            ...(item.public_description === null ? {} : { note: item.public_description }),
+            selected: false,
+          };
+          if (item.kind === "delivery_dish") {
+            return {
+              ...common,
+              kind: item.kind,
+              source: item.source_display_attribution ?? "Shared collection",
+              restaurantName: item.restaurant_name,
+              locationLabel: item.public_location_label,
+              ...(item.public_merchant_address === null
+                ? {}
+                : { locationAddress: publicAddressLabel(item.public_merchant_address) }),
+              ...(item.classification === undefined ? {} : { classification: item.classification }),
+            };
+          }
+          return {
+            ...common,
+            kind: item.kind,
+            source: item.source_display_attribution ?? item.author_or_publisher ?? item.brand ?? "Shared collection",
+          };
+        }),
       },
     };
   }
@@ -593,6 +643,20 @@ export class WebViewModelService {
   }
 }
 
+type GroceryJournalItem = SnackItem | IngredientItem | CondimentItem | OtherGroceryItem;
+type LegacyVisualJournalItem = RecipeItem | GroceryJournalItem;
+
+function isGroceryJournalItem(item: import("@hfj/contracts").JournalItem): item is GroceryJournalItem {
+  return item.kind === "snack"
+    || item.kind === "ingredient"
+    || item.kind === "condiment"
+    || item.kind === "other_grocery";
+}
+
+function legacyVisualItemTitle(item: LegacyVisualJournalItem): string {
+  return item.kind === "recipe" ? item.title : item.display_name;
+}
+
 function messagingView(status: MessagingAccountStatus): WebRenderContext["messaging"] {
   const availableThroughLabel = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "America/Los_Angeles" })
     .format(new Date(Date.parse(status.availableThrough) - 1));
@@ -606,6 +670,16 @@ function messagingView(status: MessagingAccountStatus): WebRenderContext["messag
 
 function emptyCollection(token: string): WebRenderContext["publicCollection"] {
   return { token: token || "unavailable", title: "Collection unavailable", sharedBy: "Fullwell", expiresLabel: "", description: "", items: [] };
+}
+
+function publicAddressLabel(address: import("@hfj/contracts").RestaurantPublicAddress): string {
+  return [
+    ...(address.address_lines ?? []),
+    address.locality,
+    address.region,
+    address.postal_code,
+    address.country,
+  ].filter((part): part is string => part !== undefined).join(", ");
 }
 
 function defaultInvite(): WebRenderContext["invite"] {

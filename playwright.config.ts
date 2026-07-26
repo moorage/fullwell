@@ -23,6 +23,12 @@ export default defineConfig({
       timeout: 30_000,
       url: "http://127.0.0.1:4289/health",
     },
+    {
+      command: "node tests/fixtures/fake-delivery-provider/server.mjs",
+      reuseExistingServer: true,
+      timeout: 30_000,
+      url: "http://127.0.0.1:4290/health",
+    },
   ],
   projects: [
     { name: "desktop-webkit", use: { ...devices["Desktop Safari"] } },

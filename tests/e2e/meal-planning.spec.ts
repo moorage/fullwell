@@ -8,15 +8,72 @@ test("the connected week keeps every same-slot proposal visible at responsive wi
     import("../../apps/web/dist/server/server.js"),
     readFile(new URL("../../apps/web/src/styles.css", import.meta.url), "utf8"),
   ]);
+  const mealPlan = demoWebContext.mealPlan;
   const householdId = demoWebContext.households[0]?.id;
-  if (householdId === undefined) throw new Error("meal-planning household fixture missing");
+  if (mealPlan === null || householdId === undefined) throw new Error("meal-planning household fixture missing");
+  type Proposal = (typeof mealPlan.days)[number]["slots"][number]["proposals"][number];
+  const historyDeliveryProposal = {
+    id: "proposal-delivery-history",
+    title: "Wintermelon boba",
+    sourceKind: "journal_delivery_dish",
+    sourceDetail: "Ordered before",
+    deliveryContext: {
+      authority: "history",
+      providerLabel: "DoorDash",
+      restaurantName: "Wanpo",
+      locationLabel: "Palo Alto",
+      familiarityBasis: "Ordered before",
+    },
+    proposedBy: "Maya Alvarez",
+    servings: 2,
+    notes: null,
+    compatibilityLabel: "Compatibility evidence is incomplete",
+    compatibilityCaveat: "Ingredients and cross-contact details are not known.",
+    needsRecheck: false,
+    canWithdraw: true,
+  } satisfies Proposal;
+  const importedDeliveryProposal = {
+    ...historyDeliveryProposal,
+    id: "proposal-delivery-imported",
+    sourceDetail: "Shared dish",
+    deliveryContext: {
+      authority: "public_import",
+      providerLabel: null,
+      restaurantName: "Wanpo",
+      locationLabel: "Cupertino",
+      familiarityBasis: "Shared dish",
+    },
+    proposedBy: "Household member 2",
+  } satisfies Proposal;
+  const context = {
+    ...demoWebContext,
+    mealPlan: {
+      ...mealPlan,
+      proposalCount: mealPlan.proposalCount + 2,
+      days: mealPlan.days.map((day, dayIndex) => ({
+        ...day,
+        slots: day.slots.map((slot) => ({
+          ...slot,
+          proposals: dayIndex === 0 && slot.key === "dinner"
+            ? [...slot.proposals, historyDeliveryProposal, importedDeliveryProposal]
+            : slot.proposals,
+        })),
+      })),
+    },
+  };
   const route = `/households/${householdId}/meal-plan?week=2026-07-20`;
-  const rendered = renderWebRoute(route, demoWebContext);
+  const rendered = renderWebRoute(route, context);
   await page.setContent(`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${styles}</style></head><body>${rendered.appHtml}</body></html>`);
 
   const mondayLunch = page.getByRole("region", { name: "Monday, July 20 lunch" });
   await expect(mondayLunch.getByRole("heading", { name: "Egg salad sandwich" })).toBeVisible();
   await expect(mondayLunch.getByRole("heading", { name: "Pizza" })).toBeVisible();
+  const mondayDinner = page.getByRole("region", { name: "Monday, July 20 dinner" });
+  await expect(mondayDinner.getByText(/Wanpo · Palo Alto · DoorDash/)).toBeVisible();
+  await expect(mondayDinner.getByText(/Wanpo · Cupertino/)).toBeVisible();
+  await expect(mondayDinner.getByText("Ordered before", { exact: true })).toBeVisible();
+  await expect(mondayDinner.getByText("Shared dish", { exact: true })).toBeVisible();
+  await expect(mondayDinner).not.toContainText(/order locator|modifier|half sweet/i);
   await expect(page.getByRole("heading", { level: 2, name: /day,/ })).toHaveCount(7);
   await expect(page.getByText("Needs review against the current household constraints")).toBeVisible();
   await expect(page.getByRole("button", { name: "Add meal idea" })).toBeVisible();

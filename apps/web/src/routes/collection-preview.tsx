@@ -41,6 +41,7 @@ function ReadyCollection({ token }: { token: string }) {
   const [selected, setSelected] = useState(initialSelection);
   const recipes = publicCollection.items.filter((item) => item.kind === "recipe");
   const snacks = publicCollection.items.filter((item) => item.kind === "snack");
+  const deliveryDishes = publicCollection.items.filter((item) => item.kind === "delivery_dish");
 
   function changeSelection(itemId: string, checked: boolean) {
     setSelected((current) => {
@@ -85,6 +86,13 @@ function ReadyCollection({ token }: { token: string }) {
           onChange={changeSelection}
           onGroupChange={selectGroup}
         />
+        <CollectionGroup
+          title="Delivery dishes"
+          items={deliveryDishes}
+          selected={selected}
+          onChange={changeSelection}
+          onGroupChange={selectGroup}
+        />
         <div className="sticky-action">
           <div>
             <strong>{selected.size} {selected.size === 1 ? "item" : "items"} selected</strong>
@@ -110,7 +118,7 @@ function ReadyCollection({ token }: { token: string }) {
 }
 
 type CollectionGroupProps = {
-  title: "Recipes" | "Snacks";
+  title: "Recipes" | "Snacks" | "Delivery dishes";
   items: readonly CollectionItemModel[];
   selected: ReadonlySet<string>;
   onChange: (itemId: string, checked: boolean) => void;

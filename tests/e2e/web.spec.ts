@@ -61,6 +61,32 @@ test("renders unknown capability links without private fixture data", async ({ p
   await expect(page.getByText("Alvarez home")).toHaveCount(0);
 });
 
+test("renders public delivery dishes with accessible location and no private order authority", async ({ page }, testInfo) => {
+  const [{ renderWebRoute }, styles] = await Promise.all([
+    import("../../apps/web/dist/server/server.js"),
+    readFile(new URL("../../apps/web/src/styles.css", import.meta.url), "utf8"),
+  ]);
+  const rendered = renderWebRoute("/c/summer-table-7Qc9", demoWebContext);
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.setContent(`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${styles}</style></head><body>${rendered.appHtml}</body></html>`);
+  await expect(page.getByRole("heading", { name: "Delivery dishes" })).toBeVisible();
+  await expect(page.getByText("Wanpo")).toBeVisible();
+  await expect(page.getByText("Stanford")).toBeVisible();
+  const publicAddress = page.getByText("Palo Alto, CA");
+  await expect(publicAddress).toHaveCount(2);
+  await expect(publicAddress.first()).toBeVisible();
+  await expect(page.getByText("Alcohol")).toBeVisible();
+  const wintermelon = page.getByRole("checkbox", { name: /Wintermelon boba/ });
+  await wintermelon.focus();
+  await expect(wintermelon).toBeFocused();
+  await expect(page.locator("body")).not.toContainText(/provider origin|order locator|merchant locator|menu locator|reorder authority/i);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+  await page.screenshot({ path: testInfo.outputPath("collection-delivery-320.png"), fullPage: true });
+  if (testInfo.project.name !== "no-js-webkit") {
+    await page.getByRole("heading", { name: "Delivery dishes" }).scrollIntoViewIfNeeded();
+  }
+});
+
 test("renders account exports without overflow and exposes the advanced bundle option", async ({ page }, testInfo) => {
   const [{ renderWebRoute }, styles] = await Promise.all([
     import("../../apps/web/dist/server/server.js"),

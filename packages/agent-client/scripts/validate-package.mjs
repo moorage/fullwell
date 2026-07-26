@@ -6,10 +6,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workspaceRoot = path.resolve(root, "../..");
 
 export const requiredSkills = [
+  "audit-food-delivery-orders",
   "audit-grocery-purchases",
   "import-food-collection",
   "manage-household-food-journal",
   "plan-household-meals",
+  "reorder-food-delivery",
   "restock-groceries",
   "share-food-collection",
   "track-recipe-history"
@@ -20,6 +22,7 @@ export const requiredTools = [
   "hfj_add_meal_proposal",
   "hfj_append_evidence",
   "hfj_commit_change_set",
+  "hfj_commit_delivery_index",
   "hfj_commit_onboarding",
   "hfj_create_collection",
   "hfj_create_collection_share",
@@ -27,6 +30,8 @@ export const requiredTools = [
   "hfj_create_household",
   "hfj_export_household",
   "hfj_get_context",
+  "hfj_get_delivery_index",
+  "hfj_get_delivery_order",
   "hfj_get_item",
   "hfj_get_meal_plan",
   "hfj_get_profile",
@@ -38,6 +43,7 @@ export const requiredTools = [
   "hfj_review_meal_constraints",
   "hfj_revoke_collection_share",
   "hfj_revoke_family_invite",
+  "hfj_search_delivery_history",
   "hfj_search_items",
   "hfj_select_household",
   "hfj_update_household_name",
@@ -157,7 +163,54 @@ const requiredEvalIds = [
   "stop-local-whatsapp-runner",
   "stop-weekly-meal-reminder",
   "cloud-household-invite-next-step",
-  "cloud-items-collection-next-step"
+  "cloud-items-collection-next-step",
+  "delivery-no-providers",
+  "delivery-provider-set-changed",
+  "delivery-household-visibility-declined",
+  "delivery-local-promotion-success",
+  "delivery-local-promotion-retry",
+  "delivery-local-promotion-conflict",
+  "delivery-local-promotion-declined",
+  "delivery-history-pagination",
+  "delivery-history-cross-household-denial",
+  "delivery-provider-origin-revoked",
+  "delivery-member-departure",
+  "delivery-sign-in-block",
+  "delivery-partial-order",
+  "delivery-completed-order",
+  "delivery-versus-pickup",
+  "delivery-two-providers-one-restaurant",
+  "delivery-same-name-locations",
+  "delivery-location-alias",
+  "delivery-renamed-merchant",
+  "delivery-same-dish-two-locations",
+  "delivery-modifier-variants",
+  "delivery-duplicate-lines",
+  "delivery-one-off-dish",
+  "delivery-alcohol-indexing",
+  "delivery-excluded-goods",
+  "delivery-user-refusal",
+  "delivery-prompt-injection",
+  "delivery-uncertain-commit-recovery",
+  "delivery-reorder-provider-ambiguity",
+  "delivery-reorder-location-ambiguity",
+  "delivery-reorder-stanford-swap",
+  "delivery-reorder-most-recent",
+  "delivery-reorder-usual-ambiguity",
+  "delivery-reorder-pickup-block",
+  "delivery-reorder-preserve-cart",
+  "delivery-reorder-source-line-in-cart",
+  "delivery-reorder-excess-source-quantity",
+  "delivery-reorder-replacement-confirmation",
+  "delivery-reorder-retry-reread",
+  "delivery-reorder-later-session",
+  "delivery-reorder-price-confirmation",
+  "delivery-reorder-alcohol-maximum",
+  "delivery-reorder-age-ui",
+  "delivery-reorder-excluded-line",
+  "delivery-reorder-signin-captcha-drift",
+  "delivery-reorder-prompt-injection",
+  "delivery-reorder-completion-no-checkout"
 ];
 
 const readJson = async (relativePath) =>
@@ -317,6 +370,23 @@ export const validatePackage = async () => {
     }
     combinedSkills.push(content);
   }
+  const deliveryAgentMetadata = await readFile(
+    path.join(root, "skills/audit-food-delivery-orders/agents/openai.yaml"),
+    "utf8",
+  );
+  assert(
+    deliveryAgentMetadata.includes("$audit-food-delivery-orders"),
+    "Delivery audit OpenAI metadata must invoke its packaged skill",
+  );
+  const reorderAgentMetadata = await readFile(
+    path.join(root, "skills/reorder-food-delivery/agents/openai.yaml"),
+    "utf8",
+  );
+  assert(
+    reorderAgentMetadata.includes("Prepare prior delivery carts without checkout")
+      && reorderAgentMetadata.includes("$reorder-food-delivery"),
+    "Delivery reorder OpenAI metadata must describe and invoke its packaged skill",
+  );
 
   const contract = await readFile(path.join(root, "references/mcp-tool-contract.md"), "utf8");
   for (const tool of requiredTools) {

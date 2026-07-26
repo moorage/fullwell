@@ -16,7 +16,10 @@ dist
 .env.sh
 .pw-browsers
 seccomp_profile.json
-artifacts/
+artifacts/*
+!artifacts/screencasts/
+artifacts/screencasts/*
+!artifacts/screencasts/food-delivery-cart-preparation.mp4
 __pycache__/
 *.pyc
 client_secret.apps.googleusercontent.com.json

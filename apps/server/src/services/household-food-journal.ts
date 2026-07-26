@@ -11,7 +11,12 @@ import type {
 } from "@hfj/contracts";
 import {
   CollectionIdSchema,
+  CollectionItemSchema,
   CollectionSnapshotSchema,
+  DeliveryIndexReportSchema,
+  DeliveryOrderGroupSchema,
+  DeliveryProfileSchema,
+  DeliveryToolOutputSchemas,
   EvidenceIdSchema,
   HouseholdIdSchema,
   ImportIdSchema,
@@ -41,23 +46,38 @@ import {
   type MealPlanEvent,
   type MealProposal,
   type MealSlot,
+  type DeliveryIndexReport,
+  type DeliveryOrderGroup,
+  type DeliveryOrderLineEvidence,
+  type DeliveryProfile,
+  type CollectionItem,
+  type CollectionSelectionItem,
+  type DeliveryDishItem,
+  type ImportedDeliveryDishItem,
+  type ProviderOrigin,
+  type RestaurantPublicAddress,
 } from "@hfj/contracts";
 import { AppError } from "../core/errors.js";
-import type { Clock, ExportArtifactPort, HouseholdRepositoryPort, OperationalStorePort, RandomSource, RepositoryChange, TelemetryPort, TokenHasher, UserProfilePort } from "../core/ports.js";
-import type { JsonValue, MembershipRecord, MutationRecord, Principal } from "../core/types.js";
+import type { Clock, ExportArtifactPort, HouseholdRepositoryPort, OperationalStorePort, RandomSource, RepositoryChange, RepositorySnapshot, TelemetryPort, TokenHasher, UserProfilePort } from "../core/ports.js";
+import type { HouseholdProjection, JsonValue, MembershipRecord, MutationRecord, Principal } from "../core/types.js";
 import { requireMembership, requireScope } from "../domain/authorization.js";
 import {
   journalEvidencePath,
   journalItemPath,
   markdownDocument,
+  deliveryIndexReportPath,
+  deliveryProfilePath,
   mealPlanEventPath,
   mealProposalNeedsRecheck,
   mealProposalPath,
+  validateDeliveryEvidenceGroups,
+  validateDeliveryIndexReport,
   validateItemEvidence,
   validateMealProposalReview,
   validateMealProposalSource,
   validateReport,
 } from "../domain/journal-validation.js";
+import { parseMarkdownDocument } from "../domain/repository-projection.js";
 import { nextOnboardingSkip, transitionOnboarding } from "../domain/onboarding.js";
 import { stableJson } from "../adapters/memory.js";
 import { MutationRunner } from "./mutation-runner.js";
@@ -101,6 +121,10 @@ export class HouseholdFoodJournalService {
         case "hfj_update_profile": return this.write(await this.updateProfile(input, principal));
         case "hfj_search_items": return this.read(await this.searchItems(input, principal));
         case "hfj_get_item": return this.read(await this.getItem(input, principal));
+        case "hfj_search_delivery_history": return this.read(await this.searchDeliveryHistory(input, principal));
+        case "hfj_get_delivery_order": return this.read(await this.getDeliveryOrder(input, principal));
+        case "hfj_get_delivery_index": return this.read(await this.getDeliveryIndex(input, principal));
+        case "hfj_commit_delivery_index": return this.write(await this.commitDeliveryIndex(input, principal));
         case "hfj_append_evidence": return this.write(await this.appendEvidence(input, principal));
         case "hfj_commit_change_set": return this.write(await this.commitChangeSet(input, principal));
         case "hfj_create_collection": return this.write(await this.createCollection(input, principal));
@@ -646,6 +670,7 @@ export class HouseholdFoodJournalService {
       const currentConstraintRevision = projection.mealPlanningProfile?.revision ?? null;
       const visibleProposals = page.map((proposal) => {
         const itemRevision = proposal.source.kind === "journal_recipe"
+          || proposal.source.kind === "journal_delivery_dish"
           ? projection.items.get(proposal.source.item_id)?.revision ?? null
           : null;
         const needsRecheck = currentConstraintRevision === null
@@ -870,12 +895,9 @@ export class HouseholdFoodJournalService {
     const query = parsed.query.trim().toLocaleLowerCase("en-US");
     const entries = [...(await this.store.projection(parsed.household_id)).items.values()].filter(({ item }) => {
       if (parsed.kind !== undefined && item.kind !== parsed.kind) return false;
-      const fields = item.kind === "recipe" ? [item.title, item.author_or_publisher, item.canonical_url] : [item.display_name, item.brand, item.product_line, item.flavor, item.formulation, item.format];
-      return fields.some((field) => field?.toLocaleLowerCase("en-US").includes(query));
-    }).slice(0, parsed.limit).map(({ item, revision }) => ({
-      id: item.id, kind: item.kind, title: item.kind === "recipe" ? item.title : item.display_name, revision,
-      distinguishing_fields: item.kind === "recipe" ? { canonical_url: item.canonical_url, author_or_publisher: item.author_or_publisher } : { brand: item.brand, flavor: item.flavor, formulation: item.formulation, format: item.format },
-    }));
+      return searchableItemFields(item).some((field) =>
+        field.toLocaleLowerCase("en-US").includes(query));
+    }).slice(0, parsed.limit).map(({ item, revision }) => itemSummary(item, revision));
     return { data: { items: entries, next_cursor: null }, head: household.repositoryHead };
   }
 
@@ -887,6 +909,130 @@ export class HouseholdFoodJournalService {
     const entry = (await this.store.projection(parsed.household_id)).items.get(parsed.item_id);
     if (entry === undefined) throw new AppError("NOT_FOUND", "Journal item was not found");
     return { data: { item: jsonRoundTrip(entry.item), revision: entry.revision }, head: household.repositoryHead };
+  }
+
+  private async searchDeliveryHistory(input: unknown, principal: Principal): Promise<ReadResult> {
+    const parsed = ToolInputSchemas.hfj_search_delivery_history.parse(input);
+    const { head, projection } = await this.authorizedDeliveryProjection(parsed.household_id, principal);
+    const query = parsed.query.toLocaleLowerCase("en-US");
+    const candidates = deliveryGroups(projection.evidence, parsed.household_id, this.hasher)
+      .filter(({ group }) => parsed.provider_origin === undefined
+        || group.lines[0]?.delivery_order_line.provider_origin === parsed.provider_origin)
+      .flatMap(({ group, handle }) => {
+        const first = group.lines[0];
+        if (first === undefined) return [];
+        const line = first.delivery_order_line;
+        const dishNames = [...new Set(group.lines.map((entry) => entry.delivery_order_line.dish_name))];
+        return dishNames.map((dishName) => ({
+          group_handle: handle,
+          dish_name: dishName,
+          provider_label: line.provider_label,
+          restaurant_name: line.restaurant.restaurant_name,
+          public_location_label: line.restaurant.public_location_label,
+          public_merchant_address: line.restaurant.public_merchant_address,
+          revision: head,
+        }));
+      })
+      .filter((candidate) => query === "" || deliveryCandidateSearchFields(candidate)
+        .some((field) => field.toLocaleLowerCase("en-US").includes(query)))
+      .sort((left, right) => deliveryCandidateSortKey(left).localeCompare(deliveryCandidateSortKey(right), "en-US"));
+    const offset = parsed.cursor === undefined ? 0 : Number(parsed.cursor.slice(3));
+    const page = candidates.slice(offset, offset + parsed.limit);
+    const nextOffset = offset + page.length;
+    const result = DeliveryToolOutputSchemas.hfj_search_delivery_history.parse({
+      candidates: page,
+      next_cursor: nextOffset < candidates.length ? `v1_${nextOffset}` : null,
+    });
+    return { data: jsonRoundTrip(result), head };
+  }
+
+  private async getDeliveryOrder(input: unknown, principal: Principal): Promise<ReadResult> {
+    const parsed = ToolInputSchemas.hfj_get_delivery_order.parse(input);
+    const { head, projection } = await this.authorizedDeliveryProjection(parsed.household_id, principal);
+    const selected = deliveryGroups(projection.evidence, parsed.household_id, this.hasher)
+      .find(({ handle }) => handle === parsed.group_handle);
+    if (selected === undefined) throw new AppError("NOT_FOUND", "Delivery order was not found");
+    const result = DeliveryToolOutputSchemas.hfj_get_delivery_order.parse({
+      group: selected.group,
+      revision: head,
+    });
+    return { data: jsonRoundTrip(result), head };
+  }
+
+  private async getDeliveryIndex(input: unknown, principal: Principal): Promise<ReadResult> {
+    const parsed = ToolInputSchemas.hfj_get_delivery_index.parse(input);
+    const { head, projection } = await this.authorizedDeliveryProjection(parsed.household_id, principal);
+    const state = deliveryCanonicalState(await this.repository.snapshot(parsed.household_id));
+    if (state.report === null) throw new AppError("NOT_FOUND", "Delivery index was not found");
+    validateDeliveryIndexReport(state.report.document, projection.evidence, journalItems(projection));
+    const result = DeliveryToolOutputSchemas.hfj_get_delivery_index.parse({
+      report: state.report.document,
+      revision: state.report.revision,
+    });
+    return { data: jsonRoundTrip(result), head };
+  }
+
+  private async commitDeliveryIndex(input: unknown, principal: Principal): Promise<WriteResult> {
+    const parsed = ToolInputSchemas.hfj_commit_delivery_index.parse(input);
+    const canonicalProfile = markdownDocument(
+      parsed.next_profile.profile,
+      parsed.next_profile.markdown,
+    );
+    const canonicalReport = deliveryReportDocument(parsed.next_report);
+    const providerIdempotencyKey = `delivery.${this.hasher.hash(parsed.provider_origin).slice(0, 16)}.${parsed.provider_idempotency_key}`;
+    return await this.mutations.run({
+      principal,
+      tool: "hfj_commit_delivery_index",
+      householdId: parsed.household_id,
+      idempotencyKey: providerIdempotencyKey,
+      requestFingerprint: this.mutationFingerprint("hfj_commit_delivery_index", parsed),
+      enforceFingerprintOnReplay: true,
+      expectedHead: parsed.expected_head,
+      minimumRole: "editor",
+      requiredScope: "journal:write",
+      summary: "delivery: commit provider history",
+      buildChanges: async () => {
+        const projection = await this.store.projection(parsed.household_id);
+        const state = deliveryCanonicalState(await this.repository.snapshot(parsed.household_id));
+        validateExpectedDeliveryState(parsed, state);
+        validateDeliveryCommit(parsed, projection, state, principal);
+        return [
+          ...parsed.evidence.map(evidenceChange),
+          ...parsed.items.map(itemChange),
+          { path: deliveryProfilePath(), content: canonicalProfile, appendOnly: false },
+          { path: deliveryIndexReportPath(), content: canonicalReport, appendOnly: false },
+        ];
+      },
+      applyProjection: async (head) => {
+        const projection = await this.store.projection(parsed.household_id);
+        for (const evidence of parsed.evidence) projection.evidence.set(evidence.id, evidence);
+        for (const item of parsed.items) projection.items.set(item.id, { item, revision: head });
+        projection.profiles.set("delivery", { markdown: removeFinalNewline(canonicalProfile), revision: head });
+        return jsonObjectRoundTrip(DeliveryToolOutputSchemas.hfj_commit_delivery_index.parse({
+          status: "completed",
+          mode: parsed.mode,
+          provider_origin: parsed.provider_origin,
+          evidence_ids: parsed.evidence.map(({ id }) => id),
+          item_ids: parsed.items.map(({ id }) => id),
+          profile_revision: head,
+          report_revision: head,
+        }));
+      },
+    });
+  }
+
+  private async authorizedDeliveryProjection(
+    householdId: HouseholdId,
+    principal: Principal,
+  ): Promise<{ readonly head: GitObjectId; readonly projection: HouseholdProjection }> {
+    requireScope(principal, "journal:read");
+    await requireMembership(this.store, principal, householdId, "viewer");
+    const household = await this.requiredHousehold(householdId);
+    const repositoryHead = await this.repository.head(householdId);
+    if (repositoryHead !== household.repositoryHead) {
+      throw new AppError("PROJECTION_DRIFT", "Delivery history is unavailable while the household is reconciled", true);
+    }
+    return { head: repositoryHead, projection: await this.store.projection(householdId) };
   }
 
   private async appendEvidence(input: unknown, principal: Principal): Promise<WriteResult> {
@@ -938,11 +1084,22 @@ export class HouseholdFoodJournalService {
     for (const candidate of parsed.items) {
       const source = projection.items.get(candidate.source_item_id);
       if (source === undefined || source.revision !== candidate.source_item_revision) throw new AppError("REVISION_CONFLICT", `Collection source changed: ${candidate.source_item_id}`);
+      if (!collectionSelectionMatchesSource(candidate, source.item)) {
+        throw new AppError("VALIDATION_FAILED", `Collection public fields do not match source: ${candidate.source_item_id}`);
+      }
     }
     const collection = (requestId: RequestId, occurredAt: string) => {
       const collectionId = CollectionIdSchema.parse(this.mutationId("col", requestId, "collection"));
       const snapshotId = SnapshotIdSchema.parse(this.mutationId("snp", requestId, "snapshot"));
-      const snapshot = CollectionSnapshotSchema.parse({ id: snapshotId, collection_id: collectionId, title: parsed.title, sharer_display_name: principal.displayName, items: parsed.items, created_at: occurredAt, schema_version: 1 });
+      const snapshot = CollectionSnapshotSchema.parse({
+        id: snapshotId,
+        collection_id: collectionId,
+        title: parsed.title,
+        sharer_display_name: principal.displayName,
+        items: parsed.items.map(publicCollectionItem),
+        created_at: occurredAt,
+        schema_version: 1,
+      });
       return { collectionId, snapshotId, snapshot };
     };
     return await this.mutations.run({
@@ -1020,39 +1177,109 @@ export class HouseholdFoodJournalService {
     const projection = await this.store.projection(parsed.household_id);
     const plan = (requestId: RequestId, importedAt: string) => {
       const importId = ImportIdSchema.parse(this.mutationId("imp", requestId, "import"));
-      const newItems: Array<{ item: import("@hfj/contracts").JournalItem; evidence: import("@hfj/contracts").Evidence }> = [];
-      const mergedItems: Array<{ item: import("@hfj/contracts").JournalItem; evidence: import("@hfj/contracts").Evidence }> = [];
+      const newItems: import("@hfj/contracts").JournalItem[] = [];
+      const mergedItems = new Map<string, import("@hfj/contracts").JournalItem>();
+      const workingItems = new Map([...projection.items].map(([id, entry]) => [id, entry.item]));
+      const importedEvidence: Array<{
+        kind: "recipe" | "snack" | "delivery_dish";
+        evidence: import("@hfj/contracts").Evidence;
+      }> = [];
       parsed.selections.forEach((selection, index) => {
         const source = byId.get(selection.collection_item_id);
         if (source === undefined) throw new AppError("VALIDATION_FAILED", `Collection item does not exist: ${selection.collection_item_id}`);
         if (selection.resolution.action === "skip") return;
         const evidenceId = EvidenceIdSchema.parse(this.mutationId("evd", requestId, `evidence-${index}`));
         const evidence = importEvidence(evidenceId, source, share.snapshot.id, principal.actorId, importedAt);
+        importedEvidence.push({ kind: source.kind, evidence });
         if (selection.resolution.action === "merge") {
-          const destination = projection.items.get(selection.resolution.destination_item_id);
+          const destination = workingItems.get(selection.resolution.destination_item_id);
           if (destination === undefined) throw new AppError("VALIDATION_FAILED", "Merge destination does not exist");
-          const evidenceIds = destination.item.evidence_ids.includes(evidenceId) ? destination.item.evidence_ids : [...destination.item.evidence_ids, evidenceId];
-          mergedItems.push({ item: { ...destination.item, evidence_ids: evidenceIds, updated_at: importedAt }, evidence });
+          if (destination.kind !== source.kind) {
+            throw new AppError("VALIDATION_FAILED", "Merge destination must match the shared collection item kind");
+          }
+          if (source.kind === "delivery_dish"
+            && (destination.kind !== "delivery_dish"
+              || !isImportedDeliveryDish(destination))) {
+            throw new AppError("VALIDATION_FAILED", "Delivery merge destination must be a public-import delivery dish");
+          }
+          const evidenceIds = [...destination.evidence_ids];
+          if (!evidenceIds.includes(evidenceId)) evidenceIds.push(evidenceId);
+          const merged: import("@hfj/contracts").JournalItem = {
+            ...destination,
+            evidence_ids: evidenceIds,
+            updated_at: importedAt,
+          };
+          workingItems.set(merged.id, merged);
+          mergedItems.set(merged.id, merged);
           return;
         }
         const itemId = ItemIdSchema.parse(this.mutationId("itm", requestId, `item-${index}`));
-        const base = { id: itemId, evidence_ids: [evidenceId], created_at: importedAt, updated_at: importedAt, schema_version: 1 as const, body_markdown: source.public_description ?? "" };
-        const item = source.kind === "recipe" ? {
-          ...base, kind: "recipe" as const, title: source.title, canonical_url: source.canonical_recipe_url, audited_page_url: source.image_page_url,
-          author_or_publisher: source.author_or_publisher, saved: "yes" as const, cooked: "unknown" as const, liked: "unknown" as const,
-          last_cooked: null, date_precision: "unknown" as const, image_url: source.image_url, image_page_url: source.image_page_url,
-        } : {
-          ...base, kind: "snack" as const, display_name: source.title, brand: source.brand, product_line: null, flavor: source.flavor,
-          formulation: source.formulation, format: source.format, category: "imported", produce_variety: null, known_size_variants: [], image_page_url: source.image_page_url, image_url: source.image_url,
+        const base = {
+          id: itemId,
+          evidence_ids: [evidenceId],
+          created_at: importedAt,
+          updated_at: importedAt,
+          schema_version: 1 as const,
+          body_markdown: source.kind === "delivery_dish"
+            ? [source.public_description, source.public_note].filter((value): value is string => value !== null).join("\n\n")
+            : source.public_description ?? "",
         };
-        newItems.push({ item, evidence });
+        const item = source.kind === "recipe"
+          ? {
+              ...base, kind: "recipe" as const, title: source.title, canonical_url: source.canonical_recipe_url, audited_page_url: source.image_page_url,
+              author_or_publisher: source.author_or_publisher, saved: "yes" as const, cooked: "unknown" as const, liked: "unknown" as const,
+              last_cooked: null, date_precision: "unknown" as const, image_url: source.image_url, image_page_url: source.image_page_url,
+            }
+          : source.kind === "snack"
+            ? {
+                ...base, kind: "snack" as const, display_name: source.title, brand: source.brand, product_line: null, flavor: source.flavor,
+                formulation: source.formulation, format: source.format, category: "imported", produce_variety: null, known_size_variants: [], image_page_url: source.image_page_url, image_url: source.image_url,
+              }
+            : {
+                ...base,
+                kind: "delivery_dish" as const,
+                delivery_authority: "public_import" as const,
+                dish_name: source.title,
+                restaurant_name: source.restaurant_name,
+                public_location_label: source.public_location_label,
+                public_merchant_address: source.public_merchant_address,
+                image_url: source.image_url,
+                image_page_url: source.image_page_url,
+                source_display_attribution: source.source_display_attribution,
+                classification: {
+                  kind: source.classification === "alcohol" ? "alcohol" as const : "food" as const,
+                  authored_by: "agent" as const,
+                },
+                import_provenance: {
+                  source_collection_id: share.snapshot.collection_id,
+                  source_snapshot_id: share.snapshot.id,
+                  source_collection_item_id: source.collection_item_id,
+                  published_revision: source.source_item_revision,
+                  source_display_attribution: source.source_display_attribution,
+                  imported_at: importedAt,
+                },
+              };
+        newItems.push(item);
       });
-      const changes: RepositoryChange[] = [...newItems, ...mergedItems].flatMap(({ item, evidence }) => [
-        { path: `${item.kind === "recipe" ? "recipes" : "snacks"}/evidence/${importedAt.slice(0, 4)}/${evidence.id}.json`, content: stableJson(evidence), appendOnly: true },
-        { path: journalItemPath(item), content: markdownDocument(itemFrontmatter(item), item.body_markdown), appendOnly: false },
-      ]);
+      const finalItems = [...newItems, ...mergedItems.values()];
+      const changes: RepositoryChange[] = importedEvidence.map(({ kind, evidence }) => ({
+        path: `${kind === "recipe" ? "recipes" : kind === "delivery_dish" ? "delivery" : "snacks"}/evidence/${importedAt.slice(0, 4)}/${evidence.id}.json`,
+        content: stableJson(evidence),
+        appendOnly: true,
+      }));
+      changes.push(...finalItems.map((item) => ({
+        path: journalItemPath(item),
+        content: markdownDocument(itemFrontmatter(item), item.body_markdown),
+        appendOnly: false,
+      })));
       changes.push({ path: `imports/${importedAt.slice(0, 4)}/${importId}.json`, content: stableJson({ import_id: importId, source_collection_id: share.snapshot.collection_id, source_snapshot_id: share.snapshot.id, imported_at: importedAt, selections: parsed.selections, schema_version: 1 }), appendOnly: true });
-      return { importId, newItems, mergedItems, changes };
+      return {
+        importId,
+        newItems,
+        mergedItems: [...mergedItems.values()],
+        importedEvidence: importedEvidence.map(({ evidence }) => evidence),
+        changes,
+      };
     };
     return await this.mutations.run({
       principal, tool: "hfj_import_collection_items", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_import_collection_items", parsed),
@@ -1060,15 +1287,15 @@ export class HouseholdFoodJournalService {
       buildChanges: async (requestId, occurredAt) => plan(requestId, occurredAt).changes,
       applyProjection: async (head, requestId, occurredAt) => {
         const planned = plan(requestId, occurredAt);
-        for (const entry of [...planned.newItems, ...planned.mergedItems]) {
-          projection.evidence.set(entry.evidence.id, entry.evidence);
-          projection.items.set(entry.item.id, { item: entry.item, revision: head });
+        for (const evidence of planned.importedEvidence) projection.evidence.set(evidence.id, evidence);
+        for (const item of [...planned.newItems, ...planned.mergedItems]) {
+          projection.items.set(item.id, { item, revision: head });
         }
         return {
           status: "completed",
           import_id: planned.importId,
-          imported_item_ids: planned.newItems.map((entry) => entry.item.id),
-          merged_item_ids: planned.mergedItems.map((entry) => entry.item.id),
+          imported_item_ids: planned.newItems.map((item) => item.id),
+          merged_item_ids: planned.mergedItems.map((item) => item.id),
           skipped_count: parsed.selections.filter(({ resolution }) => resolution.action === "skip").length,
         };
       },
@@ -1313,17 +1540,98 @@ function itemFrontmatter(item: import("@hfj/contracts").JournalItem): object {
   return frontmatter;
 }
 
-function itemTitle(item: import("@hfj/contracts").JournalItem): string { return item.kind === "recipe" ? item.title : item.display_name; }
+function itemTitle(item: import("@hfj/contracts").JournalItem): string {
+  switch (item.kind) {
+    case "recipe": return item.title;
+    case "delivery_dish": return item.dish_name;
+    case "snack":
+    case "ingredient":
+    case "condiment":
+    case "other_grocery":
+      return item.display_name;
+  }
+}
+
 function itemSummary(item: import("@hfj/contracts").JournalItem, revision: GitObjectId): Record<string, JsonValue> {
   return {
     id: item.id,
     kind: item.kind,
     title: itemTitle(item),
     revision,
-    distinguishing_fields: item.kind === "recipe"
-      ? { canonical_url: item.canonical_url, author_or_publisher: item.author_or_publisher }
-      : { brand: item.brand, flavor: item.flavor, formulation: item.formulation, format: item.format },
+    distinguishing_fields: itemDistinguishingFields(item),
   };
+}
+
+function itemDistinguishingFields(item: import("@hfj/contracts").JournalItem): Record<string, JsonValue> {
+  switch (item.kind) {
+    case "recipe":
+      return {
+        canonical_url: item.canonical_url,
+        author_or_publisher: item.author_or_publisher,
+      };
+    case "delivery_dish":
+      return {
+        ...("delivery_authority" in item ? {} : { provider_label: item.provider_label }),
+        restaurant_name: item.restaurant_name,
+        public_location_label: item.public_location_label,
+        public_merchant_address: publicMerchantAddressJson(item.public_merchant_address),
+      };
+    case "snack":
+    case "ingredient":
+    case "condiment":
+    case "other_grocery":
+      return {
+        brand: item.brand,
+        flavor: item.flavor,
+        formulation: item.formulation,
+        format: item.format,
+      };
+  }
+}
+
+function publicMerchantAddressJson(
+  address: import("@hfj/contracts").RestaurantPublicAddress | null,
+): JsonValue {
+  if (address === null) return null;
+  return {
+    ...(address.address_lines === undefined ? {} : { address_lines: [...address.address_lines] }),
+    ...(address.locality === undefined ? {} : { locality: address.locality }),
+    ...(address.region === undefined ? {} : { region: address.region }),
+    ...(address.postal_code === undefined ? {} : { postal_code: address.postal_code }),
+    ...(address.country === undefined ? {} : { country: address.country }),
+  };
+}
+
+function searchableItemFields(item: import("@hfj/contracts").JournalItem): readonly string[] {
+  switch (item.kind) {
+    case "recipe":
+      return [item.title, item.author_or_publisher, item.canonical_url]
+        .filter((field): field is string => field !== null);
+    case "delivery_dish":
+      return [
+        item.dish_name,
+        ...("delivery_authority" in item ? [] : [item.provider_label]),
+        item.restaurant_name,
+        item.public_location_label,
+        ...(item.public_merchant_address?.address_lines ?? []),
+        item.public_merchant_address?.locality,
+        item.public_merchant_address?.region,
+        item.public_merchant_address?.postal_code,
+        item.public_merchant_address?.country,
+      ].filter((field): field is string => field !== undefined);
+    case "snack":
+    case "ingredient":
+    case "condiment":
+    case "other_grocery":
+      return [
+        item.display_name,
+        item.brand,
+        item.product_line,
+        item.flavor,
+        item.formulation,
+        item.format,
+      ].filter((field): field is string => field !== null);
+  }
 }
 function profileSnapshot(profile: { readonly markdown: string; readonly revision: GitObjectId } | undefined): Record<string, JsonValue> {
   return { markdown: profile?.markdown ?? "", revision: profile?.revision ?? null };
@@ -1352,11 +1660,61 @@ function reportChange(report: import("@hfj/contracts").Report): RepositoryChange
     appendOnly: false,
   };
 }
+
+function isImportedDeliveryDish(item: DeliveryDishItem): item is ImportedDeliveryDishItem {
+  return "delivery_authority" in item;
+}
+
+function publicCollectionItem(selection: CollectionSelectionItem): CollectionItem {
+  if (selection.kind !== "delivery_dish") return selection;
+  const { source_item_id: _sourceItemId, ...publicItem } = selection;
+  void _sourceItemId;
+  return CollectionItemSchema.parse(publicItem);
+}
+
+function collectionSelectionMatchesSource(
+  selection: CollectionSelectionItem,
+  source: import("@hfj/contracts").JournalItem,
+): boolean {
+  if (selection.kind === "recipe") {
+    return source.kind === "recipe";
+  }
+  if (selection.kind === "snack") {
+    return source.kind === "snack";
+  }
+  if (source.kind !== "delivery_dish") return false;
+  const sourceImageUrl = isImportedDeliveryDish(source) ? source.image_url : null;
+  const sourceImagePageUrl = isImportedDeliveryDish(source) ? source.image_page_url : null;
+  const sourceAttribution = isImportedDeliveryDish(source) ? source.source_display_attribution : null;
+  return selection.title === source.dish_name
+    && selection.restaurant_name === source.restaurant_name
+    && selection.public_location_label === source.public_location_label
+    && (selection.public_merchant_address === null
+      || sameJson(selection.public_merchant_address, source.public_merchant_address))
+    && (selection.public_description === null || selection.public_description === source.body_markdown)
+    && (selection.public_note === null || selection.public_note === source.body_markdown)
+    && (selection.image_url === null || selection.image_url === sourceImageUrl)
+    && (selection.image_page_url === null || selection.image_page_url === sourceImagePageUrl)
+    && (selection.source_display_attribution === null
+      || selection.source_display_attribution === sourceAttribution)
+    && (selection.classification === "alcohol") === (source.classification.kind === "alcohol");
+}
+
 function exactDuplicate(source: import("@hfj/contracts").CollectionItem, item: import("@hfj/contracts").JournalItem): boolean {
   if (source.kind === "recipe") return item.kind === "recipe" && source.canonical_recipe_url !== null && item.canonical_url === source.canonical_recipe_url;
+  if (source.kind === "delivery_dish") {
+    return item.kind === "delivery_dish"
+      && isImportedDeliveryDish(item)
+      && source.title === item.dish_name
+      && source.restaurant_name === item.restaurant_name
+      && source.public_location_label === item.public_location_label
+      && sameJson(source.public_merchant_address, item.public_merchant_address)
+      && (source.classification === "alcohol") === (item.classification.kind === "alcohol");
+  }
   if (item.kind !== "snack") return false;
   return source.title === item.display_name && source.brand === item.brand && source.flavor === item.flavor && source.formulation === item.formulation && source.format === item.format;
 }
+
 function importEvidence(
   id: import("@hfj/contracts").Evidence["id"],
   source: import("@hfj/contracts").CollectionItem,
@@ -1375,9 +1733,307 @@ function importEvidence(
     stable_locator: `${snapshotId}/${source.collection_item_id}`,
     summary: `Imported ${source.title}`,
     actor_id: actorId,
-    limitations: ["Import does not establish purchase, cooked, or liked status"],
+    limitations: source.kind === "delivery_dish"
+      ? ["Import does not establish a prior order, reorder authority, recurrence, liking, or eligibility"]
+      : ["Import does not establish purchase, cooked, or liked status"],
     schema_version: 1,
   };
 }
+
+interface DeliveryCanonicalState {
+  readonly profile: {
+    readonly document: { readonly profile: DeliveryProfile; readonly markdown: string };
+    readonly revision: GitObjectId;
+  } | null;
+  readonly report: {
+    readonly document: DeliveryIndexReport;
+    readonly revision: GitObjectId;
+  } | null;
+}
+
+interface DeliveryHistoryCandidate {
+  readonly group_handle: string;
+  readonly dish_name: string;
+  readonly provider_label: string;
+  readonly restaurant_name: string;
+  readonly public_location_label: string;
+  readonly public_merchant_address: RestaurantPublicAddress | null;
+  readonly revision: GitObjectId;
+}
+
+function deliveryGroups(
+  evidence: ReadonlyMap<string, import("@hfj/contracts").Evidence>,
+  householdId: HouseholdId,
+  hasher: TokenHasher,
+): ReadonlyArray<{ readonly group: DeliveryOrderGroup; readonly handle: string }> {
+  const grouped = new Map<string, DeliveryOrderLineEvidence[]>();
+  for (const entry of evidence.values()) {
+    if (entry.kind !== "delivery_order_line") continue;
+    const line = entry.delivery_order_line;
+    const key = stableJson({
+      provider_origin: line.provider_origin,
+      provider_order_locator: line.provider_order_locator,
+      order_group_locator: line.order_group_locator,
+    });
+    const lines = grouped.get(key) ?? [];
+    lines.push(entry);
+    grouped.set(key, lines);
+  }
+  return [...grouped].map(([key, lines]) => {
+    const parsed = DeliveryOrderGroupSchema.safeParse({ lines });
+    if (!parsed.success) {
+      throw new AppError("PROJECTION_DRIFT", "Delivery history contains an incomplete order group", false);
+    }
+    return {
+      group: parsed.data,
+      handle: `dgrp_${hasher.hash(`${householdId}\0${key}`).slice(0, 48)}`,
+    };
+  });
+}
+
+function deliveryCandidateSearchFields(candidate: DeliveryHistoryCandidate): readonly string[] {
+  return [
+    candidate.dish_name,
+    candidate.provider_label,
+    candidate.restaurant_name,
+    candidate.public_location_label,
+    ...(candidate.public_merchant_address?.address_lines ?? []),
+    candidate.public_merchant_address?.locality,
+    candidate.public_merchant_address?.region,
+    candidate.public_merchant_address?.postal_code,
+    candidate.public_merchant_address?.country,
+  ].filter((field): field is string => field !== undefined);
+}
+
+function deliveryCandidateSortKey(candidate: DeliveryHistoryCandidate): string {
+  return [
+    candidate.provider_label,
+    candidate.restaurant_name,
+    candidate.public_location_label,
+    candidate.dish_name,
+    candidate.group_handle,
+  ].join("\0");
+}
+
+function deliveryCanonicalState(snapshot: RepositorySnapshot): DeliveryCanonicalState {
+  const profileFiles = snapshot.files.filter(({ path }) => path === deliveryProfilePath());
+  const reportFiles = snapshot.files.filter(({ path }) => path === deliveryIndexReportPath());
+  if (profileFiles.length > 1 || reportFiles.length > 1) {
+    throw new AppError("PROJECTION_DRIFT", "Canonical delivery documents are duplicated", false);
+  }
+  const profileFile = profileFiles[0];
+  const reportFile = reportFiles[0];
+  let profile: DeliveryCanonicalState["profile"] = null;
+  let report: DeliveryCanonicalState["report"] = null;
+  if (profileFile !== undefined) {
+    const parsed = parseMarkdownDocument(profileFile.content, profileFile.path);
+    const profileValue = DeliveryProfileSchema.safeParse(parsed.frontmatter);
+    if (!profileValue.success) throw new AppError("PROJECTION_DRIFT", "The canonical delivery profile is malformed", false);
+    profile = {
+      document: { profile: profileValue.data, markdown: parsed.body },
+      revision: profileFile.revision,
+    };
+  }
+  if (reportFile !== undefined) {
+    const parsed = parseMarkdownDocument(reportFile.content, reportFile.path);
+    const reportValue = DeliveryIndexReportSchema.safeParse({ ...parsed.frontmatter, markdown: parsed.body });
+    if (!reportValue.success) throw new AppError("PROJECTION_DRIFT", "The canonical delivery index is malformed", false);
+    report = { document: reportValue.data, revision: reportFile.revision };
+  }
+  return { profile, report };
+}
+
+function validateExpectedDeliveryState(
+  parsed: ReturnType<typeof ToolInputSchemas.hfj_commit_delivery_index.parse>,
+  state: DeliveryCanonicalState,
+): void {
+  if ((state.profile?.revision ?? null) !== parsed.expected_delivery_profile_revision
+    || (state.report?.revision ?? null) !== parsed.expected_delivery_report_revision) {
+    throw new AppError("REVISION_CONFLICT", "The canonical delivery documents changed");
+  }
+  if (!sameJson(state.profile?.document ?? null, parsed.expected_profile)
+    || !sameJson(state.report?.document ?? null, parsed.expected_report)) {
+    throw new AppError("REVISION_CONFLICT", "The expected delivery documents do not match Git");
+  }
+}
+
+function validateDeliveryCommit(
+  parsed: ReturnType<typeof ToolInputSchemas.hfj_commit_delivery_index.parse>,
+  projection: HouseholdProjection,
+  state: DeliveryCanonicalState,
+  principal: Principal,
+): void {
+  const submittedItemIds = new Set<string>(parsed.items.map(({ id }) => id));
+  if (Object.keys(parsed.expected_item_revisions).some((id) => !submittedItemIds.has(id))) {
+    throw new AppError("VALIDATION_FAILED", "Item revision expectations must name submitted delivery items");
+  }
+  for (const evidence of parsed.evidence) {
+    if (projection.evidence.has(evidence.id)) {
+      throw new AppError("REVISION_CONFLICT", "Submitted delivery evidence already exists");
+    }
+    if (evidence.actor_id !== principal.actorId) {
+      throw new AppError("VALIDATION_FAILED", "Delivery evidence must be attributed to the authenticated contributor");
+    }
+  }
+  for (const item of parsed.items) {
+    const current = projection.items.get(item.id);
+    const expectedRevision = parsed.expected_item_revisions[item.id];
+    if (current === undefined && expectedRevision !== undefined) {
+      throw new AppError("REVISION_CONFLICT", "A new delivery item has an unexpected revision");
+    }
+    if (current !== undefined
+      && (current.item.kind !== "delivery_dish"
+        || isImportedDeliveryDish(current.item)
+        || current.item.provider_origin !== parsed.provider_origin
+        || current.revision !== expectedRevision)) {
+      throw new AppError("REVISION_CONFLICT", "A submitted delivery item changed");
+    }
+  }
+
+  const nextEvidence = new Map(projection.evidence);
+  for (const evidence of parsed.evidence) nextEvidence.set(evidence.id, evidence);
+  validateDeliveryEvidenceGroups(nextEvidence);
+  const nextItems = journalItems(projection);
+  for (const item of parsed.items) {
+    validateItemEvidence(item, nextEvidence);
+    nextItems.set(item.id, item);
+  }
+  if (state.report !== null) {
+    validateDeliveryIndexReport(state.report.document, projection.evidence, journalItems(projection));
+  }
+  validateDeliveryIndexReport(parsed.next_report, nextEvidence, nextItems);
+  validateProviderScopedProfileChange(
+    state.profile?.document ?? null,
+    parsed.next_profile,
+    parsed.provider_origin,
+  );
+  validateProviderScopedReportChange(
+    state.report?.document ?? null,
+    parsed.next_report,
+    parsed.provider_origin,
+    state.profile?.document.profile ?? null,
+    projection,
+    nextEvidence,
+    nextItems,
+  );
+}
+
+function validateProviderScopedProfileChange(
+  expected: { readonly profile: DeliveryProfile; readonly markdown: string } | null,
+  next: { readonly profile: DeliveryProfile; readonly markdown: string },
+  providerOrigin: ProviderOrigin,
+): void {
+  const before = new Map((expected?.profile.providers ?? []).map((provider) => [provider.provider_origin, provider]));
+  const after = new Map(next.profile.providers.map((provider) => [provider.provider_origin, provider]));
+  const origins = new Set([...before.keys(), ...after.keys()]);
+  for (const origin of origins) {
+    if (origin === providerOrigin) continue;
+    if (!sameJson(before.get(origin) ?? null, after.get(origin) ?? null)) {
+      throw new AppError("VALIDATION_FAILED", "A delivery commit may change only one provider profile section");
+    }
+  }
+  if (!sameJson(expected?.profile.interpretation_preferences ?? [], next.profile.interpretation_preferences)) {
+    throw new AppError("VALIDATION_FAILED", "Provider-scoped commits cannot rewrite aggregate interpretation preferences");
+  }
+  if ([...before.keys()].some((origin) => origin !== providerOrigin)
+    && expected?.markdown !== next.markdown) {
+    throw new AppError("VALIDATION_FAILED", "Provider-scoped commits cannot rewrite shared delivery profile prose");
+  }
+}
+
+function validateProviderScopedReportChange(
+  expected: DeliveryIndexReport | null,
+  next: DeliveryIndexReport,
+  providerOrigin: ProviderOrigin,
+  currentProfile: DeliveryProfile | null,
+  currentProjection: HouseholdProjection,
+  nextEvidence: ReadonlyMap<string, import("@hfj/contracts").Evidence>,
+  nextItems: ReadonlyMap<string, import("@hfj/contracts").JournalItem>,
+): void {
+  assertUniqueReportRows(expected);
+  assertUniqueReportRows(next);
+  const expectedRows = new Map((expected?.assertions ?? []).map((assertion) => [assertion.row_id, assertion]));
+  const nextRows = new Map(next.assertions.map((assertion) => [assertion.row_id, assertion]));
+  const currentItems = journalItems(currentProjection);
+  for (const assertion of expected?.assertions ?? []) {
+    const origins = reportAssertionOrigins(assertion, currentProjection.evidence, currentItems);
+    if (origins.size === 0 || [...origins].some((origin) => origin !== providerOrigin)) {
+      if (!sameJson(assertion, nextRows.get(assertion.row_id) ?? null)) {
+        throw new AppError("VALIDATION_FAILED", "A delivery commit changed another provider's report row");
+      }
+    }
+  }
+  for (const assertion of next.assertions) {
+    if (sameJson(assertion, expectedRows.get(assertion.row_id) ?? null)) continue;
+    const origins = reportAssertionOrigins(assertion, nextEvidence, nextItems);
+    if (origins.size !== 1 || !origins.has(providerOrigin)) {
+      throw new AppError("VALIDATION_FAILED", "Changed delivery report rows must cite only the authorized provider");
+    }
+  }
+  const priorOrigins = new Set<string>(
+    currentProfile?.providers.map(({ provider_origin }) => provider_origin) ?? [],
+  );
+  for (const evidence of currentProjection.evidence.values()) {
+    if (evidence.kind === "delivery_order_line") priorOrigins.add(evidence.delivery_order_line.provider_origin);
+  }
+  for (const { item } of currentProjection.items.values()) {
+    if (item.kind === "delivery_dish" && !isImportedDeliveryDish(item)) priorOrigins.add(item.provider_origin);
+  }
+  if ([...priorOrigins].some((origin) => origin !== providerOrigin)
+    && expected?.markdown !== next.markdown) {
+    throw new AppError("VALIDATION_FAILED", "Provider-scoped commits cannot rewrite shared delivery report prose");
+  }
+}
+
+function reportAssertionOrigins(
+  assertion: DeliveryIndexReport["assertions"][number],
+  evidence: ReadonlyMap<string, import("@hfj/contracts").Evidence>,
+  items: ReadonlyMap<string, import("@hfj/contracts").JournalItem>,
+): ReadonlySet<ProviderOrigin> {
+  const origins = new Set<ProviderOrigin>();
+  for (const id of assertion.evidence_ids) {
+    const entry = evidence.get(id);
+    if (entry?.kind === "delivery_order_line") origins.add(entry.delivery_order_line.provider_origin);
+  }
+  for (const id of assertion.item_ids) {
+    const item = items.get(id);
+    if (item?.kind === "delivery_dish" && !isImportedDeliveryDish(item)) origins.add(item.provider_origin);
+  }
+  return origins;
+}
+
+function assertUniqueReportRows(report: DeliveryIndexReport | null): void {
+  if (report === null) return;
+  const rows = report.assertions.map(({ row_id }) => row_id);
+  if (new Set(rows).size !== rows.length) {
+    throw new AppError("VALIDATION_FAILED", "Delivery report row IDs must be unique");
+  }
+}
+
+function journalItems(projection: HouseholdProjection): Map<string, import("@hfj/contracts").JournalItem> {
+  return new Map([...projection.items].map(([id, { item }]) => [id, item]));
+}
+
+function deliveryReportDocument(report: DeliveryIndexReport): string {
+  const { markdown, ...frontmatter } = report;
+  return markdownDocument(frontmatter, markdown);
+}
+
+function sameJson(left: object | null, right: object | null): boolean {
+  return stableJson({ value: left }) === stableJson({ value: right });
+}
+
+function removeFinalNewline(value: string): string {
+  return value.endsWith("\n") ? value.slice(0, -1) : value;
+}
+
+function jsonObjectRoundTrip(value: object): Record<string, JsonValue> {
+  const parsed = jsonRoundTrip(value);
+  if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object") {
+    throw new AppError("INTERNAL_ERROR", "Expected an object-shaped tool result");
+  }
+  return parsed;
+}
+
 function jsonRoundTrip(value: object): JsonValue { return JSON.parse(JSON.stringify(value)) as JsonValue; }
 function errorName(error: unknown): string { return error instanceof Error ? error.name : "NonErrorFailure"; }

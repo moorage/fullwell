@@ -16,17 +16,24 @@ import {
   RoleSchema,
 } from "./common.js";
 import {
-  CollectionItemSchema,
+  CollectionSelectionItemSchema,
   CloudMealSourceSchema,
   ConfirmedMealPlanningConstraintsSchema,
-  EvidenceSchema,
-  JournalItemSchema,
+  HistoryBackedDeliveryDishItemSchema,
+  DeliveryIndexReportSchema,
+  DeliveryOrderGroupSchema,
+  DeliveryOrderLineEvidenceSchema,
+  DeliveryProfileSchema,
   JournalItemKindSchema,
   MealCompatibilitySchema,
   MealSlotSchema,
   MondayDateSchema,
   mealDateFallsWithinWeek,
-  ReportSchema,
+  NonDeliveryEvidenceSchema,
+  NonDeliveryJournalItemSchema,
+  NonDeliveryReportSchema,
+  ProviderOriginSchema,
+  RestaurantPublicAddressSchema,
 } from "./domain.js";
 import {
   OnboardingActionSchema,
@@ -52,6 +59,113 @@ const BoundedNameSchema = z.string()
 
 export const ONBOARDING_COMMIT_MAX_EVIDENCE = 10_000;
 export const ONBOARDING_COMMIT_MAX_ITEMS = 10_000;
+export const DELIVERY_HISTORY_MAX_RESULTS = 50;
+export const DELIVERY_COMMIT_MAX_EVIDENCE = 100;
+export const DELIVERY_COMMIT_MAX_ITEMS = 100;
+
+export const DeliveryOrderGroupHandleSchema = z.string()
+  .regex(/^dgrp_[0-9a-f]{48}$/)
+  .brand<"DeliveryOrderGroupHandle">();
+export const DeliveryHistoryCursorSchema = z.string().regex(/^v1_[0-9]{1,6}$/);
+export const DeliveryProfileDocumentSchema = z.object({
+  profile: DeliveryProfileSchema,
+  markdown: z.string().max(100_000),
+}).strict().readonly();
+
+const DeliveryCommitFieldsSchema = RevisionedHouseholdMutationSchema.omit({
+  idempotency_key: true,
+}).extend({
+  provider_idempotency_key: IdempotencyKeySchema,
+  household_visibility_confirmed: z.literal(true),
+  provider_origin: ProviderOriginSchema,
+  expected_delivery_profile_revision: GitObjectIdSchema.nullable(),
+  expected_delivery_report_revision: GitObjectIdSchema.nullable(),
+  expected_profile: DeliveryProfileDocumentSchema.nullable(),
+  next_profile: DeliveryProfileDocumentSchema,
+  expected_report: DeliveryIndexReportSchema.nullable(),
+  next_report: DeliveryIndexReportSchema,
+  evidence: z.array(DeliveryOrderLineEvidenceSchema).max(DELIVERY_COMMIT_MAX_EVIDENCE).default([]),
+  items: z.array(HistoryBackedDeliveryDishItemSchema).max(DELIVERY_COMMIT_MAX_ITEMS).default([]),
+  expected_item_revisions: z.record(ItemIdSchema, GitObjectIdSchema)
+    .refine((revisions) => Object.keys(revisions).length <= DELIVERY_COMMIT_MAX_ITEMS, {
+      message: `Expected item revisions cannot exceed ${DELIVERY_COMMIT_MAX_ITEMS}`,
+    })
+    .default({}),
+});
+
+const DeliveryCommitSchema = (mode: "connected_audit_checkpoint" | "local_promotion") =>
+  DeliveryCommitFieldsSchema.extend({ mode: z.literal(mode) }).strict();
+
+export const DeliveryToolInputSchemas = {
+  hfj_search_delivery_history: z.object({
+    household_id: HouseholdIdSchema,
+    query: z.string().trim().max(300).default(""),
+    provider_origin: ProviderOriginSchema.optional(),
+    cursor: DeliveryHistoryCursorSchema.optional(),
+    limit: z.number().int().min(1).max(DELIVERY_HISTORY_MAX_RESULTS).default(25),
+  }).strict(),
+  hfj_get_delivery_order: z.object({
+    household_id: HouseholdIdSchema,
+    group_handle: DeliveryOrderGroupHandleSchema,
+  }).strict(),
+  hfj_get_delivery_index: z.object({
+    household_id: HouseholdIdSchema,
+  }).strict(),
+  hfj_commit_delivery_index: z.discriminatedUnion("mode", [
+    DeliveryCommitSchema("connected_audit_checkpoint"),
+    DeliveryCommitSchema("local_promotion"),
+  ]).superRefine((value, context) => {
+    if (new Set(value.evidence.map(({ id }) => id)).size !== value.evidence.length) {
+      context.addIssue({ code: "custom", path: ["evidence"], message: "Delivery evidence IDs must be unique" });
+    }
+    if (new Set(value.items.map(({ id }) => id)).size !== value.items.length) {
+      context.addIssue({ code: "custom", path: ["items"], message: "Delivery item IDs must be unique" });
+    }
+    if (value.evidence.some(({ delivery_order_line }) =>
+      delivery_order_line.provider_origin !== value.provider_origin)) {
+      context.addIssue({ code: "custom", path: ["evidence"], message: "Delivery evidence must use the authorized provider origin" });
+    }
+    if (value.items.some(({ provider_origin }) => provider_origin !== value.provider_origin)) {
+      context.addIssue({ code: "custom", path: ["items"], message: "Delivery items must use the authorized provider origin" });
+    }
+    if (!value.next_profile.profile.providers.some(({ provider_origin }) =>
+      provider_origin === value.provider_origin)) {
+      context.addIssue({ code: "custom", path: ["next_profile"], message: "The next profile must retain the authorized provider origin" });
+    }
+  }),
+} as const;
+
+export const DeliveryToolOutputSchemas = {
+  hfj_search_delivery_history: z.object({
+    candidates: z.array(z.object({
+      group_handle: DeliveryOrderGroupHandleSchema,
+      dish_name: z.string().trim().min(1).max(500),
+      provider_label: z.string().trim().min(1).max(120),
+      restaurant_name: z.string().trim().min(1).max(300),
+      public_location_label: z.string().trim().min(1).max(500),
+      public_merchant_address: RestaurantPublicAddressSchema.nullable(),
+      revision: GitObjectIdSchema,
+    }).strict()).max(DELIVERY_HISTORY_MAX_RESULTS),
+    next_cursor: DeliveryHistoryCursorSchema.nullable(),
+  }).strict(),
+  hfj_get_delivery_order: z.object({
+    group: DeliveryOrderGroupSchema,
+    revision: GitObjectIdSchema,
+  }).strict(),
+  hfj_get_delivery_index: z.object({
+    report: DeliveryIndexReportSchema,
+    revision: GitObjectIdSchema,
+  }).strict(),
+  hfj_commit_delivery_index: z.object({
+    status: z.literal("completed"),
+    mode: z.enum(["connected_audit_checkpoint", "local_promotion"]),
+    provider_origin: ProviderOriginSchema,
+    evidence_ids: z.array(EvidenceIdSchema).max(DELIVERY_COMMIT_MAX_EVIDENCE),
+    item_ids: z.array(ItemIdSchema).max(DELIVERY_COMMIT_MAX_ITEMS),
+    profile_revision: GitObjectIdSchema,
+    report_revision: GitObjectIdSchema,
+  }).strict(),
+} as const;
 
 export const MealPlanningToolInputSchemas = {
   hfj_get_meal_plan: z.object({
@@ -81,6 +195,9 @@ export const MealPlanningToolInputSchemas = {
   }).strict().superRefine((value, context) => {
     if (!mealDateFallsWithinWeek(value.week_start, value.meal_date)) {
       context.addIssue({ code: "custom", path: ["meal_date"], message: "The meal date must fall within the proposal week" });
+    }
+    if (value.source.kind === "journal_delivery_dish" && value.compatibility !== "incomplete_evidence") {
+      context.addIssue({ code: "custom", path: ["compatibility"], message: "Delivery dishes require incomplete ingredient evidence" });
     }
   }),
   hfj_withdraw_meal_proposal: HouseholdMutationSchema.extend({
@@ -134,7 +251,7 @@ export const ToolInputSchemas = {
   }).strict(),
   hfj_get_profile: z.object({
     household_id: HouseholdIdSchema,
-    profile: z.enum(["household", "snacks", "recipes"]),
+    profile: z.enum(["household", "snacks", "recipes", "delivery"]),
   }).strict(),
   hfj_update_profile: RevisionedHouseholdMutationSchema.extend({
     profile: z.enum(["household", "snacks", "recipes"]),
@@ -149,11 +266,11 @@ export const ToolInputSchemas = {
   }).strict(),
   hfj_get_item: z.object({ household_id: HouseholdIdSchema, item_id: ItemIdSchema }).strict(),
   hfj_append_evidence: RevisionedHouseholdMutationSchema.extend({
-    evidence: z.array(EvidenceSchema).min(1).max(100),
+    evidence: z.array(NonDeliveryEvidenceSchema).min(1).max(100),
   }).strict(),
   hfj_commit_change_set: RevisionedHouseholdMutationSchema.extend({
-    items: z.array(JournalItemSchema).max(100).default([]),
-    reports: z.array(ReportSchema).max(20).default([]),
+    items: z.array(NonDeliveryJournalItemSchema).max(100).default([]),
+    reports: z.array(NonDeliveryReportSchema).max(20).default([]),
     expected_item_revisions: z.record(ItemIdSchema, GitObjectIdSchema).default({}),
   }).strict().refine((value) => value.items.length + value.reports.length > 0, {
     message: "At least one item or report is required",
@@ -164,9 +281,9 @@ export const ToolInputSchemas = {
       profile: z.enum(["snacks", "recipes"]),
       markdown: z.string().max(100_000),
     }).strict()).max(2).default([]),
-    evidence: z.array(EvidenceSchema).max(ONBOARDING_COMMIT_MAX_EVIDENCE).default([]),
-    items: z.array(JournalItemSchema).max(ONBOARDING_COMMIT_MAX_ITEMS).default([]),
-    reports: z.array(ReportSchema).max(2).default([]),
+    evidence: z.array(NonDeliveryEvidenceSchema).max(ONBOARDING_COMMIT_MAX_EVIDENCE).default([]),
+    items: z.array(NonDeliveryJournalItemSchema).max(ONBOARDING_COMMIT_MAX_ITEMS).default([]),
+    reports: z.array(NonDeliveryReportSchema).max(2).default([]),
     expected_item_revisions: z.record(ItemIdSchema, GitObjectIdSchema).default({}),
   }).strict().superRefine((value, context) => {
     if (value.sections.length + value.profiles.length + value.evidence.length + value.items.length + value.reports.length === 0) {
@@ -184,7 +301,7 @@ export const ToolInputSchemas = {
   }),
   hfj_create_collection: RevisionedHouseholdMutationSchema.extend({
     title: z.string().trim().min(1).max(300),
-    items: z.array(CollectionItemSchema).min(1).max(200),
+    items: z.array(CollectionSelectionItemSchema).min(1).max(200),
   }).strict(),
   hfj_create_collection_share: RevisionedHouseholdMutationSchema.extend({
     collection_id: CollectionIdSchema,
@@ -216,6 +333,7 @@ export const ToolInputSchemas = {
     format: z.enum(["readable_zip", "git_bundle"]),
     idempotency_key: IdempotencyKeySchema,
   }).strict(),
+  ...DeliveryToolInputSchemas,
   ...MealPlanningToolInputSchemas,
 } as const;
 
@@ -230,6 +348,7 @@ export const MutatingToolNames = new Set<ToolName>([
   "hfj_commit_onboarding",
   "hfj_create_collection", "hfj_create_collection_share", "hfj_revoke_collection_share",
   "hfj_import_collection_items", "hfj_export_household",
+  "hfj_commit_delivery_index",
   "hfj_update_meal_planning_constraints", "hfj_review_meal_constraints",
   "hfj_add_meal_proposal", "hfj_withdraw_meal_proposal",
 ]);

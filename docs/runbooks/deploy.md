@@ -45,10 +45,17 @@ For `fullwell.ai`, keep `PUBLIC_DOMAIN=fullwell.souschefstudio.com`. Configure N
 2. Pull the digest-pinned app and gateway images.
 3. Run `MIGRATION_TARGET=<staging|production> MIGRATION_EXPECTED_HOST=<exact-direct-host> npm run migrate` as an explicit one-shot operation with `DATABASE_DIRECT_URL` supplied through the service credential context. Production also requires `CONFIRM_PRODUCTION_MIGRATION=APPLY_PRODUCTION_MIGRATIONS`. The command rejects pooled endpoints, host mismatches, non-TLS connections, changed applied migrations, and concurrent ledger updates. Do not let application startup apply migrations.
 4. Start `household-food-journal.service`. Enable and start `household-food-journal-maintenance.timer` only after readiness is green.
-5. Verify `/health/live` and `/health/ready`, then call `/health/operator` and `/metrics` with `Authorization: Bearer <operator-token>`. Public readiness must show schema `0007`, pooled Neon, expected mount identity/writability, Git/signing, and single-writer leadership without counts or paths. Operator health must show reconciliation age/count, quarantine count, backup gaps/age, fsck/signature failures, restore-drill freshness, messaging queue age/depth, runner-online state, and capacity; OpenMetrics must expose the matching gauges. A normal OAuth token must receive `401` with `Bearer realm="operator"`.
+5. Verify `/health/live` and `/health/ready`, then call `/health/operator` and `/metrics` with `Authorization: Bearer <operator-token>`. Public readiness must show the release's expected schema, pooled Neon, expected mount identity/writability, Git/signing, and single-writer leadership without counts or paths. Operator health must show reconciliation age/count, quarantine count, backup gaps/age, fsck/signature failures, restore-drill freshness, messaging queue age/depth, runner-online state, and capacity; OpenMetrics must expose the matching gauges. A normal OAuth token must receive `401` with `Bearer realm="operator"`.
 6. Run non-destructive install, OAuth metadata, MCP health, public-policy, canary repository, container-restart persistence, and log-redaction smoke tests.
 7. Confirm the canary commit exists after container restart and that no token, email, title, food name, order ID, source URL, or body appears in logs.
 8. When brand aliases are configured, verify each hostname returns a permanent redirect to the canonical host with the original path and query, then rerun the canonical deployment smoke. Do not claim alias readiness until DNS resolves to the gateway and its TLS certificate validates publicly.
+
+The repository smoke scripts require an explicit non-local target. For staging, run:
+
+```sh
+STAGING_BASE_URL=https://fullwell.souschefstudio.com npm run test:deploy-smoke -- staging
+STAGING_BASE_URL=https://fullwell.souschefstudio.com npm run test:mcp-smoke -- staging
+```
 
 After WhatsApp credentials are installed but before linking a real sender, run `npm run test:messaging-smoke` with `STAGING_BASE_URL` and the four `MESSAGING_SMOKE_*_FILE` paths. The smoke validates the challenge, rejection, and signed empty-envelope boundaries only. It does not enqueue a message or call Meta's send API.
 

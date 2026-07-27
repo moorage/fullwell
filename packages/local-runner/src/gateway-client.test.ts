@@ -30,9 +30,13 @@ describe("FullwellGatewayClient", () => {
       return new Response(JSON.stringify({ kind: "empty" }), { status: 200 });
     });
     const client = new FullwellGatewayClient(new URL("https://fullwell.example.test"), tokens, fetcher);
-    await expect(client.claim(deviceId, 0)).resolves.toEqual({ kind: "empty" });
+    await expect(client.claim(deviceId, 0, true)).resolves.toEqual({ kind: "empty" });
     expect(invalidate).toHaveBeenCalledOnce();
     expect(fetcher).toHaveBeenCalledTimes(2);
+    const retryBody = fetcher.mock.calls[1]?.[1]?.body;
+    expect(typeof retryBody).toBe("string");
+    if (typeof retryBody !== "string") throw new Error("Expected a serialized claim request");
+    expect(JSON.parse(retryBody)).toMatchObject({ recover_saturated: true });
   });
 
   it("handles heartbeat, completion, snapshot caching, action authorization, and errors", async () => {

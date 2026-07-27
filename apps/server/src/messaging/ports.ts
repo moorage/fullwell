@@ -118,7 +118,7 @@ export interface MessageEnvelopeStorePort {
   confirmProviderLink(userId: UserId, linkId: ProviderLinkId, browserBindingHash: string, confirmedAt: string): Promise<ProviderIdentityLinkRecord | null>;
   revokeProviderLink(userId: UserId, revokedAt: string): Promise<boolean>;
   enqueueOrResume(input: MessageEnvelopeRecord, providerEventOccurredAt: string, capacity: MessageQueueCapacity): Promise<EnqueueResult>;
-  claim(deviceId: RunnerDeviceId, leaseId: MessageLeaseId, now: string, leaseExpiresAt: string): Promise<MessageEnvelopeRecord | null>;
+  claim(deviceId: RunnerDeviceId, leaseId: MessageLeaseId, now: string, leaseExpiresAt: string, recoverSaturated: boolean): Promise<MessageEnvelopeRecord | null>;
   heartbeat(envelopeId: MessageEnvelopeId, deviceId: RunnerDeviceId, leaseId: MessageLeaseId, now: string, leaseExpiresAt: string): Promise<MessageEnvelopeRecord | null>;
   completeLease(input: {
     readonly envelopeId: MessageEnvelopeId;

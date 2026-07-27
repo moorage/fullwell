@@ -29,7 +29,7 @@ export class GatewayRequestError extends Error {
 }
 
 export interface GatewayPort {
-  claim(deviceId: RunnerDeviceId, waitSeconds: number): Promise<RunnerClaimResponse>;
+  claim(deviceId: RunnerDeviceId, waitSeconds: number, recoverSaturated?: boolean): Promise<RunnerClaimResponse>;
   heartbeat(envelopeId: MessageEnvelopeId, deviceId: RunnerDeviceId, leaseId: MessageLeaseId): Promise<void>;
   complete(envelopeId: MessageEnvelopeId, deviceId: RunnerDeviceId, leaseId: MessageLeaseId, terminal: HostTerminal): Promise<void>;
   snapshot(householdId: HouseholdId, deviceId: RunnerDeviceId, currentHead: GitObjectId | null): Promise<HouseholdSnapshotResponse | null>;
@@ -55,11 +55,11 @@ export class FullwellGatewayClient implements GatewayPort {
     if (!response.ok) throw await gatewayFailure(response);
   }
 
-  async claim(deviceId: RunnerDeviceId, waitSeconds: number): Promise<RunnerClaimResponse> {
+  async claim(deviceId: RunnerDeviceId, waitSeconds: number, recoverSaturated = false): Promise<RunnerClaimResponse> {
     RunnerDeviceIdSchema.parse(deviceId);
     return await this.json("/api/runner/messages/claim", RunnerClaimResponseSchema, {
       method: "POST",
-      body: JSON.stringify({ device_id: deviceId, wait_seconds: waitSeconds }),
+      body: JSON.stringify({ device_id: deviceId, wait_seconds: waitSeconds, recover_saturated: recoverSaturated }),
     });
   }
 

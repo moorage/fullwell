@@ -1948,6 +1948,13 @@ describe("contract boundaries", () => {
   });
 
   it("rejects invalid runner leases and implicit terminal success", () => {
+    expect(RunnerClaimRequestSchema.parse({
+      device_id: "dev_0123456789abcdef",
+    })).toMatchObject({ wait_seconds: 20, recover_saturated: false });
+    expect(RunnerClaimRequestSchema.parse({
+      device_id: "dev_0123456789abcdef",
+      recover_saturated: true,
+    }).recover_saturated).toBe(true);
     expect(RunnerClaimRequestSchema.safeParse({
       device_id: "dev_0123456789abcdef",
       wait_seconds: 26,

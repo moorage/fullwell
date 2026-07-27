@@ -152,7 +152,7 @@ async function restockingFilePaths(root: string, directory = ""): Promise<string
       if (!isRestockingDirectory(path)) throw new Error("Snapshot prompt contained a directory outside the restocking allowlist");
       paths.push(...await restockingFilePaths(root, path));
     } else if (entry.isFile() && isRestockingPath(path)) {
-      paths.push(path);
+      if (!isPurchaseEvidencePath(path)) paths.push(path);
     } else {
       throw new Error("Snapshot prompt contained a path outside the restocking allowlist");
     }
@@ -165,6 +165,10 @@ function isRestockingDirectory(path: string): boolean {
     /^(?:snacks|ingredients|condiments|groceries)(?:\/items(?:\/[a-zA-Z0-9._-]+)*)?$/.test(path) ||
     /^(?:snacks|groceries)\/evidence(?:\/[a-zA-Z0-9._-]+)*$/.test(path) ||
     path === "snacks/reports";
+}
+
+function isPurchaseEvidencePath(path: string): boolean {
+  return /^(?:snacks|groceries)\/evidence\//.test(path);
 }
 
 function safeChild(root: string, path: string): string {

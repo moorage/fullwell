@@ -69,6 +69,7 @@ export const WhatsAppLinkResultSchema = z.object({
 export const RunnerClaimRequestSchema = z.object({
   device_id: RunnerDeviceIdSchema,
   wait_seconds: z.number().int().min(0).max(25).default(20),
+  recover_saturated: z.boolean().default(false),
 }).strict();
 
 const ClaimedEnvelopeSchema = z.object({

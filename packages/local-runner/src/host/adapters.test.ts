@@ -54,7 +54,9 @@ describe("agent host adapters", () => {
       expect(invocation.stdin).toContain("<provider-message>");
       expect(invocation.stdin).toContain("<snapshot-files>");
       expect(invocation.stdin).toContain("Browser Use skill through node_repl");
-      expect(invocation.stdin).toContain("snack, ingredient, condiment, and other-grocery items");
+      expect(invocation.stdin).toContain("snack, ingredient, condiment, and other-grocery item records");
+      expect(invocation.stdin).toContain("Raw purchase-evidence files remain locally validated but are not repeated in this prompt");
+      expect(invocation.stdin).toContain("Explain blocked outcomes in ordinary language");
       expect(invocation.stdin).toContain("not the Japanese one");
       expect(invocation.stdin).toContain("USD 50.00");
       expect(invocation.stdin).toContain("strictly below the maximum");

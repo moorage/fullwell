@@ -173,4 +173,14 @@ describe("MemoryMessageEnvelopeStore", () => {
     await expect(store.deleteExpired("2026-07-28T00:00:00.000Z")).resolves.toBe(1);
     await expect(store.operatorSnapshot(now)).resolves.toMatchObject({ openMessages: 0, oldestOpenReceivedAt: null });
   });
+
+  it("recovers a saturated queued request only when a fresh runner asks", async () => {
+    const store = new MemoryMessageEnvelopeStore();
+    await store.saveDevice(device());
+    await store.createProviderLink(link());
+    await store.enqueueOrResume(envelope({ attemptCount: 20 }), now, { perLink: 1, global: 1 });
+    await expect(store.claim(deviceId, leaseId, now, "2026-07-20T16:01:00.000Z")).resolves.toBeNull();
+    await expect(store.claim(deviceId, leaseId, now, "2026-07-20T16:01:00.000Z", true))
+      .resolves.toMatchObject({ state: "leased", attemptCount: 1 });
+  });
 });

@@ -125,7 +125,13 @@ export class MemoryMessageEnvelopeStore implements MessageEnvelopeStorePort {
     return { kind: "created", envelope: { ...input } };
   }
 
-  async claim(deviceId: RunnerDeviceId, leaseId: MessageLeaseId, now: string, leaseExpiresAt: string): Promise<MessageEnvelopeRecord | null> {
+  async claim(
+    deviceId: RunnerDeviceId,
+    leaseId: MessageLeaseId,
+    now: string,
+    leaseExpiresAt: string,
+    recoverSaturated = false,
+  ): Promise<MessageEnvelopeRecord | null> {
     const device = this.devices.get(deviceId);
     if (device === undefined || device.revokedAt !== null) return null;
     for (const envelope of this.envelopes.values()) {
@@ -134,6 +140,22 @@ export class MemoryMessageEnvelopeStore implements MessageEnvelopeStorePort {
         envelope.leaseId = null;
         envelope.leaseDeviceId = null;
         envelope.leaseExpiresAt = null;
+      }
+    }
+    if (recoverSaturated) {
+      for (const envelope of this.envelopes.values()) {
+        const link = this.links.get(envelope.providerLinkId);
+        if (
+          envelope.state === "queued"
+          && envelope.attemptCount >= 20
+          && link?.runnerDeviceId === deviceId
+          && link.confirmedAt !== null
+          && link.revokedAt === null
+        ) {
+          envelope.attemptCount = 0;
+          envelope.failureCode = null;
+          envelope.updatedAt = now;
+        }
       }
     }
     const queued = [...this.envelopes.values()]

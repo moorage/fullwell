@@ -153,6 +153,12 @@ describeDatabase("NeonMessageEnvelopeStore", () => {
       .resolves.toMatchObject({ kind: "resumed", envelope: { id: envelopeId, state: "queued" } });
     await expect(store.enqueueOrResume(followUp, "2026-07-20T16:07:00.000Z", { perLink: 1, global: 10 }))
       .resolves.toMatchObject({ kind: "duplicate", envelope: { id: envelopeId } });
+    await connection.direct`UPDATE message_envelopes SET attempt_count = 20 WHERE id = ${envelopeId}`;
+    const recoveryLeaseId = MessageLeaseIdSchema.parse("lse_0000000000000602");
+    await expect(store.claim(deviceId, recoveryLeaseId, "2026-07-20T16:08:00.000Z", "2026-07-20T16:09:00.000Z"))
+      .resolves.toBeNull();
+    await expect(store.claim(deviceId, recoveryLeaseId, "2026-07-20T16:08:00.000Z", "2026-07-20T16:09:00.000Z", true))
+      .resolves.toMatchObject({ state: "leased", attemptCount: 1 });
 
     expect(await store.deleteExpired("2026-07-27T16:08:00.000Z")).toBe(2);
     await expect(store.getResponseReadyForLink(linkId)).resolves.toBeNull();

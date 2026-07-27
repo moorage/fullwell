@@ -25,9 +25,12 @@ export class LocalRunner {
 
   async run(signal: AbortSignal): Promise<void> {
     let retryMilliseconds = 1_000;
+    let recoverSaturated = true;
     while (!signal.aborted) {
       try {
-        await this.drainOnce(signal);
+        const shouldRecoverSaturated = recoverSaturated;
+        recoverSaturated = false;
+        await this.drainOnce(signal, shouldRecoverSaturated);
         retryMilliseconds = 1_000;
       } catch (error) {
         if (signal.aborted) return;
@@ -41,8 +44,8 @@ export class LocalRunner {
     }
   }
 
-  async drainOnce(parentSignal: AbortSignal = new AbortController().signal): Promise<DrainResult> {
-    const claim = await this.gateway.claim(this.config.device_id, this.config.poll_wait_seconds);
+  async drainOnce(parentSignal: AbortSignal = new AbortController().signal, recoverSaturated = false): Promise<DrainResult> {
+    const claim = await this.gateway.claim(this.config.device_id, this.config.poll_wait_seconds, recoverSaturated);
     if (claim.kind === "empty") return "empty";
     return await this.withHeartbeat(claim.envelope.envelope_id, claim.envelope.lease_id, parentSignal, async (signal) => {
       const existing = await this.receipts.read(claim.envelope.request_id);

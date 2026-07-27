@@ -55,7 +55,7 @@ export async function runCli(argv: readonly string[]): Promise<void> {
     }
     case "drain-once": {
       const runtime = await createRuntime(await loadConfig(configPath));
-      process.stdout.write(`${JSON.stringify({ result: await runtime.drainOnce() })}\n`);
+      process.stdout.write(`${JSON.stringify({ result: await runtime.drainOnce(new AbortController().signal, true) })}\n`);
       return;
     }
     case "disconnect":

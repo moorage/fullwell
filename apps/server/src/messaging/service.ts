@@ -252,7 +252,13 @@ export class MessagingService {
         }
       }
       const leaseId = MessageLeaseIdSchema.parse(this.random.opaqueId("lse"));
-      const envelope = await this.store.claim(parsed.device_id, leaseId, now.toISOString(), new Date(now.getTime() + this.leaseMilliseconds).toISOString());
+      const envelope = await this.store.claim(
+        parsed.device_id,
+        leaseId,
+        now.toISOString(),
+        new Date(now.getTime() + this.leaseMilliseconds).toISOString(),
+        parsed.recover_saturated,
+      );
       if (envelope !== null) {
         const link = await this.requireActiveLink(envelope.providerLinkId);
         return {

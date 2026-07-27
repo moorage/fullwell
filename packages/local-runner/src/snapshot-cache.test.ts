@@ -19,13 +19,17 @@ describe("SnapshotCache", () => {
       expect(await readFile(join(first.directory, "snacks/items/cashews.md"), "utf8")).toBe("# Salted cashews\n");
       expect(await readFile(join(first.directory, "ingredients/items/parsley.md"), "utf8")).toBe("# Flat-leaf parsley\n");
       expect((await stat(join(first.directory, "snacks/items/cashews.md"))).mode & 0o777).toBe(0o600);
-      expect(JSON.parse(await restockingSnapshotPrompt(first.directory))).toEqual(expect.arrayContaining([
+      const promptFiles = JSON.parse(await restockingSnapshotPrompt(first.directory));
+      expect(promptFiles).toEqual(expect.arrayContaining([
         { path: "snacks/items/cashews.md", content: "# Salted cashews\n" },
         { path: "ingredients/items/parsley.md", content: "# Flat-leaf parsley\n" },
         { path: "condiments/items/mayonnaise.md", content: "# Standard mayonnaise\n" },
         { path: "groceries/items/dish-soap.md", content: "# Dish soap\n" },
+      ]));
+      expect(promptFiles).not.toEqual(expect.arrayContaining([
         { path: "groceries/evidence/2026/order-one.json", content: "{\"store\":\"Market\"}\n" },
       ]));
+      await expect(readFile(join(first.directory, "groceries/evidence/2026/order-one.json"), "utf8")).resolves.toBe("{\"store\":\"Market\"}\n");
       await mkdir(join(first.directory, "outside-allowlist"));
       await expect(restockingSnapshotPrompt(first.directory)).rejects.toThrow(/directory outside/);
       await rm(join(first.directory, "outside-allowlist"), { recursive: true });

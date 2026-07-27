@@ -1223,6 +1223,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-24-food-delivery-history-and-cart-preparation.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-26-local-delivery-journal-compatibility-repair.md"
                 }
               ]
             }

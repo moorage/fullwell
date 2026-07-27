@@ -80,7 +80,8 @@ describe("LocalRunner", () => {
       const resolve = vi.fn<AgentHostPort["resolve"]>();
       const host: AgentHostPort = { resolve, act: vi.fn() };
       const runner = new LocalRunner(runnerConfig(root), gatewayValue.value, new SnapshotCache(root), new ActionReceiptStore(join(root, "receipts")), host);
-      await expect(runner.drainOnce()).resolves.toBe("empty");
+      await expect(runner.drainOnce(new AbortController().signal, true)).resolves.toBe("empty");
+      expect(gatewayValue.claim).toHaveBeenCalledWith(deviceId, 0, true);
       expect(resolve).not.toHaveBeenCalled();
     } finally {
       await rm(root, { recursive: true, force: true });

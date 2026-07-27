@@ -260,12 +260,26 @@ export class NeonMessageEnvelopeStore implements MessageEnvelopeStorePort {
     });
   }
 
-  async claim(deviceId: RunnerDeviceRecord["id"], leaseId: MessageEnvelopeRecord["leaseId"] & string, now: string, leaseExpiresAt: string): Promise<MessageEnvelopeRecord | null> {
+  async claim(
+    deviceId: RunnerDeviceRecord["id"],
+    leaseId: MessageEnvelopeRecord["leaseId"] & string,
+    now: string,
+    leaseExpiresAt: string,
+    recoverSaturated = false,
+  ): Promise<MessageEnvelopeRecord | null> {
     return await this.connection.pooled.begin(async (sql): Promise<MessageEnvelopeRecord | null> => {
       await sql`
         UPDATE message_envelopes SET state = 'queued', lease_id = NULL, lease_device_id = NULL, lease_expires_at = NULL, updated_at = ${now}
         WHERE state = 'leased' AND lease_device_id = ${deviceId} AND lease_expires_at <= ${now}
       `;
+      if (recoverSaturated) {
+        await sql`
+          UPDATE message_envelopes e SET attempt_count = 0, failure_code = NULL, updated_at = ${now}
+          FROM provider_identity_links l
+          WHERE e.provider_link_id = l.id AND e.state = 'queued' AND e.attempt_count >= 20
+            AND l.runner_device_id = ${deviceId} AND l.confirmed_at IS NOT NULL AND l.revoked_at IS NULL
+        `;
+      }
       const rows = await sql<Record<string, unknown>[]>`
         SELECT e.id FROM message_envelopes e
         JOIN provider_identity_links l ON l.id = e.provider_link_id AND l.confirmed_at IS NOT NULL AND l.revoked_at IS NULL

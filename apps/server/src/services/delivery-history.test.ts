@@ -78,6 +78,11 @@ describe("connected delivery history tools", () => {
       item_ids: bundle.items.map(({ id }) => id),
     });
     expect(context.repository.commitCount(context.householdId)).toBe(1);
+    const committedProjection = await context.store.projection(context.householdId);
+    expect(committedProjection.items.get(bundle.items[0]!.id)?.item).toMatchObject({
+      image_url: "https://images.example.test/delivery-410-0.jpg",
+      image_page_url: "https://delivery.example/menu/410/0",
+    });
 
     const firstPage = await successful(context.service, "hfj_search_delivery_history", {
       household_id: context.householdId,
@@ -448,6 +453,8 @@ function deliveryBundle(
       restaurant_name: line.restaurant.restaurant_name,
       public_location_label: line.restaurant.public_location_label,
       public_merchant_address: line.restaurant.public_merchant_address,
+      image_url: `https://images.example.test/delivery-${seed}-${index}.jpg`,
+      image_page_url: `${providerOrigin}menu/${seed}/${index}`,
       merchant_locator: line.restaurant.merchant_locator,
       known_menu_item_locators: line.historical_menu_item_locator === null ? [] : [line.historical_menu_item_locator],
       known_modifier_occurrences: [{

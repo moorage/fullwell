@@ -263,6 +263,44 @@ describe("contract boundaries", () => {
     expect(Reflect.set(publicAddressLines, "0", "Different merchant address")).toBe(false);
     expect(publicAddressLines[0]).toBe("180 El Camino Real");
     expect(Object.isFrozen(group.lines[0]?.delivery_order_line.modifiers)).toBe(true);
+    const countryOnly = {
+      ...first,
+      delivery_order_line: {
+        ...first.delivery_order_line,
+        declared_line_count: 1,
+        restaurant: {
+          ...first.delivery_order_line.restaurant,
+          public_merchant_address: { country: "United States" },
+        },
+      },
+    };
+    expect(DeliveryOrderGroupSchema.safeParse({ lines: [countryOnly] }).success).toBe(true);
+    const nullAddressFirst = {
+      ...first,
+      delivery_order_line: {
+        ...first.delivery_order_line,
+        restaurant: {
+          ...first.delivery_order_line.restaurant,
+          public_merchant_address: null,
+        },
+      },
+    };
+    const nullAddressSecond = {
+      ...second,
+      delivery_order_line: {
+        ...second.delivery_order_line,
+        restaurant: {
+          ...second.delivery_order_line.restaurant,
+          public_merchant_address: null,
+        },
+      },
+    };
+    expect(DeliveryOrderGroupSchema.safeParse({
+      lines: [nullAddressFirst, nullAddressSecond],
+    }).success).toBe(true);
+    expect(DeliveryOrderGroupSchema.safeParse({
+      lines: [nullAddressFirst, second],
+    }).success).toBe(false);
     expect(EvidenceSchema.safeParse(first).success).toBe(true);
     expect(DeliveryOrderLineEvidenceSchema.safeParse({
       ...first,
@@ -321,6 +359,7 @@ describe("contract boundaries", () => {
   it("rejects incomplete, conflicting, or non-unique delivery order groups", () => {
     const first = deliveryEvidenceFixture(1);
     const second = deliveryEvidenceFixture(2);
+    expect(DeliveryOrderGroupSchema.safeParse({ lines: [] }).success).toBe(false);
     expect(DeliveryOrderGroupSchema.safeParse({
       lines: [
         first,
@@ -991,6 +1030,13 @@ describe("contract boundaries", () => {
       ...base,
       pricing: {
         ...base.pricing,
+        displayed_cart_food_subtotal_minor: base.pricing.displayed_cart_food_subtotal_minor + 1,
+      },
+    }).success).toBe(false);
+    expect(DeliveryCartPlanSchema.safeParse({
+      ...base,
+      pricing: {
+        ...base.pricing,
         requested_food_subtotal_minor: 1_701,
         displayed_cart_food_subtotal_minor: 2_276,
       },
@@ -1148,6 +1194,8 @@ describe("contract boundaries", () => {
       postal_code: "94304",
       country: "United States",
     });
+    expect(parsedDish.image_url).toBe("https://images.example.test/wintermelon.jpg");
+    expect(parsedDish.image_page_url).toBe("https://delivery.example/menu/wintermelon");
     expect(Object.isFrozen(parsedDish.evidence_ids)).toBe(true);
     expect(Object.isFrozen(parsedDish.public_merchant_address?.address_lines)).toBe(true);
     if ("delivery_authority" in parsedDish) throw new Error("History fixture parsed as a public import");
@@ -1169,6 +1217,40 @@ describe("contract boundaries", () => {
       ...dish,
       public_merchant_address: null,
     }).success).toBe(true);
+    const legacyDish = Object.fromEntries(
+      Object.entries(dish).filter(([key]) => key !== "image_url" && key !== "image_page_url"),
+    );
+    expect(DeliveryDishItemSchema.parse(legacyDish)).toMatchObject({
+      image_url: null,
+      image_page_url: null,
+    });
+    expect(DeliveryDishItemSchema.safeParse({
+      ...dish,
+      image_url: "https://images.example.test/wintermelon.jpg",
+      image_page_url: null,
+    }).success).toBe(false);
+    expect(DeliveryDishItemSchema.safeParse({
+      ...dish,
+      image_url: "http://images.example.test/wintermelon.jpg",
+    }).success).toBe(false);
+    expect(DeliveryDishItemSchema.safeParse({
+      ...dish,
+      image_url: "https://user:password@images.example.test/wintermelon.jpg",
+    }).success).toBe(false);
+    expect(DeliveryDishItemSchema.safeParse({
+      ...dish,
+      known_menu_item_locators: [
+        dish.known_menu_item_locators[0],
+        dish.known_menu_item_locators[0],
+      ],
+    }).success).toBe(false);
+    expect(DeliveryDishItemSchema.safeParse({
+      ...dish,
+      known_modifier_occurrences: [
+        dish.known_modifier_occurrences[0],
+        dish.known_modifier_occurrences[0],
+      ],
+    }).success).toBe(false);
     expect(DeliveryDishItemSchema.safeParse({
       ...dish,
       public_merchant_address: {
@@ -1735,6 +1817,13 @@ describe("contract boundaries", () => {
       sensitivity_labels: [],
       reviewed_at: "2026-07-23T12:00:00.000Z",
     }).success).toBe(false);
+    expect(MealPlanningConstraintsSchema.safeParse({
+      status: "recorded",
+      time_zone: "America/Los_Angeles",
+      allergy_labels: ["Peanuts"],
+      sensitivity_labels: ["peanuts"],
+      reviewed_at: "2026-07-23T12:00:00.000Z",
+    }).success).toBe(false);
     expect(() => parseMealPlanningToolInput("hfj_update_meal_planning_constraints", {
       household_id: "hsh_0123456789abcdef",
       expected_head: "a".repeat(40),
@@ -2202,6 +2291,8 @@ function deliveryDishFixture(index?: number) {
       postal_code: "94304",
       country: "United States",
     },
+    image_url: "https://images.example.test/wintermelon.jpg",
+    image_page_url: "https://delivery.example/menu/wintermelon",
     merchant_locator: "merchant-stanford",
     known_menu_item_locators: [`menu-item-${index ?? 1}`],
     known_modifier_occurrences: [{

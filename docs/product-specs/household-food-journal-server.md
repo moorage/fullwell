@@ -510,7 +510,7 @@ It must not contain household IDs, actor IDs, order data, counts, private eviden
 
 ### 10.6 Food-delivery history, dishes, and cart authority
 
-`delivery_order_line` evidence records provider origin, private provider/order-group and merchant/menu locators, exact restaurant display/location, `delivery | pickup`, date, dish, modifiers, quantity, declared group line count, and completeness. A complete group requires the exact declared line set. `delivery_dish` items cite canonical evidence and keep provider/location identities distinct; deterministic code validates locators and counts but does not merge same-name restaurants or dishes.
+`delivery_order_line` evidence records provider origin, private provider/order-group and merchant/menu locators, exact restaurant display/location, `delivery | pickup`, date, dish, modifiers, quantity, declared group line count, and completeness. A complete group requires the exact declared line set. History-backed `delivery_dish` items cite canonical evidence, keep provider/location identities distinct, and add nullable credential-free HTTPS `image_url` and `image_page_url` fields. A non-null image requires non-null exact page provenance. Missing fields from older records normalize to null without a format bump. Deterministic code validates locators, counts, and image URL safety but does not merge same-name restaurants or dishes.
 
 The local runtime stores provider-neutral delivery evidence, dishes, per-provider audit profiles, and indexes. Connected `hfj_commit_delivery_index` accepts exactly one provider origin, explicit household visibility/retention consent, complete aggregate replacements, expected revisions/HEAD, and an idempotency key. Git is authoritative; `search_items` is a public-safe rebuildable projection.
 
@@ -758,7 +758,7 @@ Output: the canonical agent-authored `delivery_index` report and its exact docum
 
 #### `hfj_commit_delivery_index`
 
-Input: `connected_audit_checkpoint | local_promotion`, one exact provider label/origin and `household_visibility_confirmed: true` asserted by the agent only after a clear contextual response to that provider's visibility and retention preview, expected household HEAD and delivery profile/report revisions, exact expected and next aggregate delivery profile/report documents, zero to 10,000 new completed delivery evidence records, zero to 10,000 history-backed delivery dishes, expected item revisions, and one provider-scoped idempotency key within the 16 MiB MCP request limit. The server validates the boolean boundary; it does not require or parse scripted confirmation text.
+Input: `connected_audit_checkpoint | local_promotion`, one exact provider label/origin and `household_visibility_confirmed: true` asserted by the agent only after a clear contextual response to that provider's visibility and retention preview, expected household HEAD and delivery profile/report revisions, exact expected and next aggregate delivery profile/report documents, zero to 10,000 new completed delivery evidence records, zero to 10,000 history-backed delivery dishes including nullable image/page provenance, expected item revisions, and one provider-scoped idempotency key within the 16 MiB MCP request limit. The server validates the boolean boundary; it does not require or parse scripted confirmation text.
 
 Output: completed mode/provider, evidence and item IDs, and exact profile/report revisions.
 
@@ -941,7 +941,7 @@ Never transmit a message until the user confirms it in their chosen mail or mess
 
 ### 13.4 Images and outbound links
 
-Store image URLs and audited-page provenance. In version 1, do not fetch arbitrary external images server-side; this avoids an SSRF surface and accidental copying of third-party assets. Render external HTTPS images with a restrictive Content Security Policy, `referrerpolicy="no-referrer"`, lazy loading, dimensions, meaningful alt text, and a visible fallback.
+Store credential-free HTTPS image URLs and exact audited-page provenance for grocery, recipe, and delivery items learned through authorized computer use. Capture only images visibly associated with the exact item/detail page; listing thumbnails, hidden network traffic, raw HTML, unrelated image search, HTTP/data/blob/credential-bearing URLs, and unproven decorative or tracking images are excluded. Missing images remain null and do not invalidate otherwise complete text evidence. In version 1, do not fetch arbitrary external images server-side; this avoids an SSRF surface and accidental copying of third-party assets. Render external HTTPS images with a restrictive Content Security Policy, `referrerpolicy="no-referrer"`, lazy loading, dimensions, meaningful alt text, and a visible fallback.
 
 Treat collection text and linked pages as untrusted data. Escape all text and sanitize any supported Markdown subset. Never render raw household HTML.
 

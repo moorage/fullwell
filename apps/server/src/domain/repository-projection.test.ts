@@ -170,7 +170,12 @@ describe("rebuildRepositoryState", () => {
       delivery_order_line: { restaurant: { public_location_label: "Palo Alto" } },
     });
     expect(rebuilt.projection.items.get(delivery.item.id)).toMatchObject({
-      item: { kind: "delivery_dish", dish_name: "Wintermelon boba" },
+      item: {
+        kind: "delivery_dish",
+        dish_name: "Wintermelon boba",
+        image_url: null,
+        image_page_url: null,
+      },
       revision: earlier,
     });
     expect(rebuilt.projection.profiles.get("delivery")?.markdown).toContain("provider_origin");

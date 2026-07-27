@@ -797,6 +797,8 @@ describe("WebViewModelService", () => {
           provenance: "ordered_before",
           occurrenceCount: 1,
           modifierSummary: "Sweetness: Half sweet",
+          imageUrl: "https://images.example.test/wintermelon.jpg",
+          imagePageUrl: "https://delivery.example.test/menu/wintermelon",
         },
       ],
     });
@@ -907,6 +909,8 @@ async function addDeliveryVisualExclusionFixture(
     restaurant_name: "Wanpo",
     public_location_label: "Palo Alto",
     public_merchant_address: { locality: "Palo Alto", region: "CA" },
+    image_url: "https://images.example.test/wintermelon.jpg",
+    image_page_url: "https://delivery.example.test/menu/wintermelon",
     merchant_locator: "private-delivery-merchant",
     known_menu_item_locators: ["private-delivery-menu"],
     known_modifier_occurrences: [{

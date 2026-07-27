@@ -282,6 +282,7 @@ test("automatically appends snapshot-bound takeout pages without collapsing loca
 
   await page.goto(routePath);
   await expect(page.getByRole("heading", { name: "Delivery & takeout in Alvarez home" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Wintermelon boba" })).toHaveAttribute("referrerpolicy", "no-referrer");
   await expect(page.getByText("Palo Alto, CA")).toBeVisible();
   await expect(page.getByText("Cupertino, CA")).toBeVisible();
   await page.locator(".journal-loader").scrollIntoViewIfNeeded();

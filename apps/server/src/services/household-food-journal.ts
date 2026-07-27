@@ -1683,8 +1683,8 @@ function collectionSelectionMatchesSource(
     return source.kind === "snack";
   }
   if (source.kind !== "delivery_dish") return false;
-  const sourceImageUrl = isImportedDeliveryDish(source) ? source.image_url : null;
-  const sourceImagePageUrl = isImportedDeliveryDish(source) ? source.image_page_url : null;
+  const sourceImageUrl = source.image_url;
+  const sourceImagePageUrl = source.image_page_url;
   const sourceAttribution = isImportedDeliveryDish(source) ? source.source_display_attribution : null;
   return selection.title === source.dish_name
     && selection.restaurant_name === source.restaurant_name

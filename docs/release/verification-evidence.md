@@ -1,5 +1,13 @@
 # Verification Evidence
 
+## Durable computer-use images
+
+Date: 2026-07-27
+
+- Authorized grocery, recipe, and delivery computer-use audits now retain exact visible image/page provenance when available and commit it through the existing local or hosted journal mutation. History-backed delivery dishes preserve those fields through strict contracts, local validation, Git reconstruction, Takeout, selected public-safe collections, and import; legacy delivery records default both fields to null without a format bump.
+- The image-capture change passes 416 deterministic application tests with 11 database-gated skips, 53 packaging tests, 14 eval tests, 14 security tests, 43 applicable focused WebKit checks with 9 intentional project skips, lint, typecheck, production build, and enforced coverage. The standard macOS screencast helper failed on unavailable `x11grab` with exit 234; the Playwright-native fallback produced a verified 4.12-second 1440x900 H.264 fixture recording at `artifacts/screencasts/durable-computer-use-images.mp4`.
+- No live provider, private household backfill, cloud sync, deployment, or package publication was part of this evidence. Existing journal records remain unchanged until the member authorizes their normal browser audit or refresh.
+
 ## Delivery cloud commit capacity
 
 Date: 2026-07-26

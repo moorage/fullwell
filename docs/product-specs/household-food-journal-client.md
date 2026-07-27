@@ -155,12 +155,12 @@ The agent must:
 3. ask which installed browser may be used in the background;
 4. verify the user is signed in to every store before collecting any store;
 5. inspect every qualifying order and expand all item lists;
-6. submit exact evidence with `hfj_append_evidence`;
+6. capture an exact visibly associated credential-free HTTPS product image and exact page URL when available, then submit exact evidence with `hfj_append_evidence`;
 7. classify every in-scope line as `snack`, `ingredient`, `condiment`, or `other_grocery` and make identity decisions itself;
 8. submit item and report changes through `hfj_commit_change_set` with cited evidence IDs;
 9. ask at the end of every update whether the user's shops have changed.
 
-The browser traverses every qualifying order detail once and collects all grocery areas together. It authors or updates an evidence-backed item for every in-scope identity, including a one-off or otherwise below-threshold purchase. The recurrence threshold controls report assertions only and must not discard an item needed for a later source-aware request.
+The browser traverses every qualifying order detail once and collects all grocery areas together. It authors or updates an evidence-backed item for every in-scope identity, including a one-off or otherwise below-threshold purchase. For each exact product row or visible exact product/detail link, it records the visibly associated credential-free HTTPS image plus the exact page URL when available. Listing thumbnails, hidden network traffic, raw HTML, unrelated image searches, HTTP/data/blob/credential-bearing URLs, and unproven decorative or tracking images are not provenance. A missing image never blocks complete textual evidence. Refresh preserves a prior valid image/page pair unless the newly inspected exact page proves a replacement. The recurrence threshold controls report assertions only and must not discard an item needed for a later source-aware request.
 
 #### Grocery identity rules
 
@@ -199,7 +199,7 @@ Preserve the existing evidence-first recipe workflow. The agent must:
 7. resolve recipe identity itself;
 8. keep Saved, Cooked, and Liked independent;
 9. track every supported cooking date and preparation change;
-10. use an image displayed by the audited recipe site and preserve both page and image provenance;
+10. use a visibly associated credential-free HTTPS image displayed by the exact audited recipe page and preserve both page and image provenance;
 11. commit the resulting entry and index updates through `hfj_commit_change_set`;
 12. ask at the end whether the places the user saves or discusses recipes have changed.
 
@@ -209,7 +209,7 @@ Do not infer liked from cooked, cooked from saved, or saved from mere discoverab
 
 When food-delivery history is absent or the user asks to update it, Fullwell asks which provider sites they use and which installed browser is already signed in. DoorDash, Uber Eats, and other common providers are examples until an authorized current installed-host matrix records a support label. Fullwell follows a bounded history window through the same visible order-detail navigation the account holder could perform manually. It does not crawl public pages, run unattended, ask for credentials, bypass sign-in/MFA/CAPTCHA, or use undocumented provider interfaces.
 
-For every completed order whose full line and modifier list can be exposed, record the exact provider, restaurant display name, human-readable location, private merchant locator, delivery or pickup mode, date, private order group, dish, modifiers, quantity, and declared complete line count. An incomplete, canceled, or hidden-line group is identified to the user but is not stored as canonical delivery evidence and cannot authorize reorder. Same-name locations stay separate unless exact provider/location evidence proves identity.
+For every completed order whose full line and modifier list can be exposed, record the exact provider, restaurant display name, human-readable location, private merchant locator, delivery or pickup mode, date, private order group, dish, modifiers, quantity, declared complete line count, and any visibly associated exact dish image/page provenance. The image pair belongs on the history-backed delivery dish and is included in local saves and `hfj_commit_delivery_index`. Listing thumbnails, hidden network traffic, raw HTML, unrelated image searches, and unsafe or unproven URLs are excluded. Missing images do not invalidate complete order evidence, and refresh preserves prior valid provenance unless the exact newly inspected dish/menu page proves a replacement. An incomplete, canceled, or hidden-line group is identified to the user but is not stored as canonical delivery evidence and cannot authorize reorder. Same-name locations stay separate unless exact provider/location evidence proves identity.
 
 The local delivery index remains on the current computer unless the user chooses a household and approves a provider-specific preview explaining member visibility, retained modifiers/order dates/grouping, lack of per-provider erasure, and backup expiry after household deletion. After every successful local-only delivery audit that saved new or refreshed history, the completion response briefly explains household collaboration, shared collections, and shared meal plans, then explicitly asks whether to connect and sync or sync to the already-linked household. Interpret clear contextual responses such as `yes`, `sync it`, or `go ahead` conversationally; never demand scripted confirmation text or use deterministic keyword matching. Ambiguous intent gets one natural clarification, while decline or silence makes no remote call. Acceptance starts household resolution and the separate provider-by-provider visibility preview; after that preview, another clear contextual affirmative authorizes its provider's boolean confirmation and write. Omit the offer when the same audit already committed the selected history or when the run failed, was cancelled, remained unfinished, or saved no new evidence. Commit one provider per idempotent cloud mutation; a failed or uncertain result leaves local authority and linkage unchanged.
 
@@ -412,11 +412,11 @@ Trigger for every Fullwell greeting, including a bare `@Fullwell hi`, or setup s
 
 ### `audit-grocery-purchases`
 
-Trigger for purchase-history audits, recurring grocery reports, pantry comparisons, store changes, and recurrence recalculation. In one order-detail traversal, learn snacks, ingredients, condiments, and other groceries, including identities below the report threshold. Carry forward the full identity safeguards. When operating an authorized browser, treat order-history listings as discovery only: traverse the complete date window, open every qualifying delivered or completed order detail, expand every complete-item control, and verify exact line items through the subtotal or order-total boundary. If hidden items cannot be exposed, identify the incomplete order and do not claim the audit or affected recurrence result is complete.
+Trigger for purchase-history audits, recurring grocery reports, pantry comparisons, store changes, recurrence recalculation, and authorized image refresh. In one order-detail traversal, learn snacks, ingredients, condiments, and other groceries, including identities below the report threshold. Carry forward the full identity safeguards. When operating an authorized browser, treat order-history listings as discovery only: traverse the complete date window, open every qualifying delivered or completed order detail, expand every complete-item control, verify exact line items through the subtotal or order-total boundary, and capture exact visible safe image/page provenance when available. If hidden items cannot be exposed, identify the incomplete order and do not claim the audit or affected recurrence result is complete.
 
 ### `audit-food-delivery-orders`
 
-Trigger for learning, refreshing, searching, contributing, or reporting delivery history. Ask for providers and browser permission, collect complete exact order lines through user-directed signed-in navigation, preserve provider/location/fulfillment distinctions, and stage cloud contribution one consented provider at a time.
+Trigger for learning, refreshing, searching, contributing, or reporting delivery history. Ask for providers and browser permission, collect complete exact order lines plus exact visible safe dish image/page provenance through user-directed signed-in navigation, preserve provider/location/fulfillment distinctions, and stage cloud contribution one consented provider at a time.
 
 ### `reorder-food-delivery`
 
@@ -428,7 +428,7 @@ Trigger for fixed-purpose requests to replenish a historically purchased grocery
 
 ### `track-recipe-history`
 
-Trigger for recipe discovery, saved/cooked/liked history, cooking dates, modifications, recipe-source changes, and recipe images.
+Trigger for recipe discovery, saved/cooked/liked history, cooking dates, modifications, recipe-source changes, and exact visible safe recipe image/page provenance.
 
 ### `share-food-collection`
 
@@ -636,6 +636,9 @@ At minimum, test these end-to-end prompts in both Codex and Claude:
 39. The fixed scheduled prompt contains no household identity or live content and waits before every search or mutation.
 40. Local-only scheduled work uses a host that can access the local directory without copying the journal into a remote task.
 41. A recognized older local delivery-ID format repairs through the stable local update tool, reloads, rebuilds any affected provider payload, and resumes automatically without direct file edits, cloud writes, internal jargon, or a dead-end request for the user to coordinate product maintenance.
+42. Grocery computer-use collection ignores listing thumbnails, stores an exact visible credential-free HTTPS image/page pair when available, and commits it with the grocery item.
+43. Recipe computer-use refresh rejects unsafe or unproven images, preserves a prior valid pair when no replacement is proven, and never blocks complete textual evidence for a missing image.
+44. Delivery computer-use refresh carries exact visible image/page provenance through local save and provider-scoped cloud commit without inspecting hidden network traffic or raw HTML.
 
 Maintain eval fixtures for LLM-involved identity, classification, privacy, and conflict-resolution paths. Target 100% coverage for deterministic packaging and adapter code.
 

@@ -12,6 +12,7 @@ test("each eval has a unique identity and targets both host matrices", async () 
   const managingSkill = await readFile(path.join(root, "skills/manage-household-food-journal/SKILL.md"), "utf8");
   const deliveryAuditSkill = await readFile(path.join(root, "skills/audit-food-delivery-orders/SKILL.md"), "utf8");
   const groceryAuditSkill = await readFile(path.join(root, "skills/audit-grocery-purchases/SKILL.md"), "utf8");
+  const recipeHistorySkill = await readFile(path.join(root, "skills/track-recipe-history/SKILL.md"), "utf8");
   const reorderDeliverySkill = await readFile(path.join(root, "skills/reorder-food-delivery/SKILL.md"), "utf8");
   const restockingSkill = await readFile(path.join(root, "skills/restock-groceries/SKILL.md"), "utf8");
   const shareCollectionSkill = await readFile(path.join(root, "skills/share-food-collection/SKILL.md"), "utf8");
@@ -92,6 +93,32 @@ test("each eval has a unique identity and targets both host matrices", async () 
   assert.ok(wholeGroceryAudit?.invariants.includes("learn_below_recurrence_threshold"));
   assert.ok(groceryAuditSkill.includes("never revisit the orders in a second pass"));
   assert.ok(groceryAuditSkill.includes("even when it appears in only one order"));
+  const groceryImage = matrix.cases.find((testCase) =>
+    testCase.id === "grocery-computer-use-image-provenance");
+  const recipeImage = matrix.cases.find((testCase) =>
+    testCase.id === "recipe-computer-use-image-provenance");
+  const deliveryImage = matrix.cases.find((testCase) =>
+    testCase.id === "delivery-computer-use-image-cloud-roundtrip");
+  assert.ok(groceryImage?.invariants.includes("commit_grocery_image_fields"));
+  assert.ok(recipeImage?.invariants.includes("preserve_prior_valid_image_when_no_replacement"));
+  assert.ok(deliveryImage?.required_tools.includes("hfj_commit_delivery_index"));
+  assert.ok(deliveryImage?.invariants.includes("preserve_image_provenance_through_cloud_commit"));
+  for (const skill of [groceryAuditSkill, recipeHistorySkill, deliveryAuditSkill]) {
+    assert.ok(skill.includes("credential-free HTTPS"));
+    assert.ok(skill.includes("hidden network traffic"));
+    assert.ok(skill.includes("captured"));
+    assert.ok(skill.includes("preserved"));
+    assert.ok(skill.includes("skipped"));
+  }
+  for (const behavior of [
+    "stores_computer_use_image_without_exact_page_provenance",
+    "stores_http_data_blob_credential_bearing_or_unrelated_image_url",
+    "uses_listing_thumbnail_hidden_network_traffic_or_raw_html_as_image_provenance",
+    "blocks_complete_textual_audit_only_because_image_is_unavailable",
+    "omits_recorded_image_fields_from_local_or_hosted_item_commit",
+  ]) {
+    assert.ok(expected.forbidden_behaviors.includes(behavior));
+  }
   const deliveryCollectionPreview = matrix.cases.find((testCase) =>
     testCase.id === "collection-delivery-public-preview");
   assert.ok(deliveryCollectionPreview?.invariants.includes("preview_only_public_delivery_fields"));

@@ -2,7 +2,10 @@
 
 ## Unreleased
 
+## 1.1.17 - 2026-07-27
+
 - Document the 10,000-record and 10,000-dish cloud delivery commit boundary, still bounded by the hosted 16 MiB MCP request limit.
+- Capture provenance-backed grocery, recipe, and delivery image URLs during authorized computer-use collection and carry history-backed delivery images through local and cloud journal commits.
 
 ## 1.1.16 - 2026-07-26
 

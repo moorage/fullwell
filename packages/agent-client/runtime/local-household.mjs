@@ -590,6 +590,8 @@ function assertHistoryBackedDeliveryDish(value, label, evidenceById) {
     "restaurant_name",
     "public_location_label",
     "public_merchant_address",
+    "image_url",
+    "image_page_url",
     "merchant_locator",
     "known_menu_item_locators",
     "known_modifier_occurrences",
@@ -609,6 +611,11 @@ function assertHistoryBackedDeliveryDish(value, label, evidenceById) {
   assertBoundedText(value.restaurant_name, `${label}.restaurant_name`, 300);
   assertBoundedText(value.public_location_label, `${label}.public_location_label`, 500);
   assertRestaurantPublicAddress(value.public_merchant_address, `${label}.public_merchant_address`);
+  value.image_url = assertHttpsUrl(value.image_url ?? null, `${label}.image_url`, { nullable: true });
+  value.image_page_url = assertHttpsUrl(value.image_page_url ?? null, `${label}.image_page_url`, { nullable: true });
+  if (value.image_url !== null && value.image_page_url === null) {
+    fail("VALIDATION_FAILED", `${label}.image_page_url is required when image_url is present`);
+  }
   assertPrivateProviderLocator(value.merchant_locator, `${label}.merchant_locator`, 512);
   const menuLocators = assertArrayBounds(value.known_menu_item_locators, `${label}.known_menu_item_locators`, 0, 20)
     .map((entry, index) => assertPrivateProviderLocator(entry, `${label}.known_menu_item_locators[${index}]`, 512));

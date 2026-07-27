@@ -293,8 +293,8 @@ export const takeoutVisualJournalFixture: VisualJournalPage = {
       lastOrderedLabel: shared ? null : "Jul 18, 2026",
       fulfillmentModes: shared ? [] : index % 3 === 0 ? ["pickup" as const] : ["delivery" as const],
       modifierSummary: index < 2 ? "Sweetness: Half sweet · Ice: Less ice" : null,
-      imageUrl: shared ? recipeImages[index % recipeImages.length] ?? null : null,
-      imagePageUrl: shared ? "https://unsplash.com" : null,
+      imageUrl: shared || index === 0 ? recipeImages[index % recipeImages.length] ?? null : null,
+      imagePageUrl: shared || index === 0 ? "https://unsplash.com" : null,
     };
   }),
   nextCursor: null,

@@ -267,6 +267,7 @@ describe("web experience", () => {
     expect(screen.getByRole("heading", { name: "Delivery & takeout in Alvarez home" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Meal plans" })).toHaveAttribute("href", "/households/alvarez-home/meal-plan");
     expect(screen.getAllByText("Wanpo")).toHaveLength(2);
+    expect(screen.getByRole("img", { name: /Wintermelon boba/ })).toHaveAttribute("referrerpolicy", "no-referrer");
     expect(screen.getByText("Palo Alto, CA")).toBeVisible();
     expect(screen.getByText("Cupertino, CA")).toBeVisible();
     expect(screen.getByText(/never checks out/)).toBeVisible();

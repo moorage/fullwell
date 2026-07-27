@@ -733,8 +733,8 @@ function takeoutVisualItem(
     modifierSummary: newest.modifiers.length === 0
       ? null
       : newest.modifiers.map(({ group_name, option_name }) => `${group_name}: ${option_name}`).join(" · "),
-    imageUrl: null,
-    imagePageUrl: null,
+    imageUrl: item.image_url,
+    imagePageUrl: item.image_page_url,
   };
 }
 

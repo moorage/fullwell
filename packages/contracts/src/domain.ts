@@ -364,6 +364,8 @@ export const HistoryBackedDeliveryDishItemSchema = ItemBaseSchema.extend({
   restaurant_name: z.string().trim().min(1).max(300),
   public_location_label: z.string().trim().min(1).max(500),
   public_merchant_address: RestaurantPublicAddressSchema.nullable().default(null),
+  image_url: SafeHttpsUrlSchema.nullable().default(null),
+  image_page_url: SafeHttpsUrlSchema.nullable().default(null),
   merchant_locator: ProviderMerchantLocatorSchema,
   known_menu_item_locators: z.array(ProviderMenuItemLocatorSchema).max(20).readonly(),
   known_modifier_occurrences: z.array(DeliveryModifierOccurrenceSchema).min(1).max(100).readonly(),
@@ -381,6 +383,9 @@ export const HistoryBackedDeliveryDishItemSchema = ItemBaseSchema.extend({
     if (!citedEvidenceIds.has(evidenceId)) {
       context.addIssue({ code: "custom", path: ["known_modifier_occurrences", index, "evidence_id"], message: "Modifier occurrences must cite item evidence" });
     }
+  }
+  if (value.image_url !== null && value.image_page_url === null) {
+    context.addIssue({ code: "custom", path: ["image_page_url"], message: "Delivery dish images require exact page provenance" });
   }
 }).readonly();
 

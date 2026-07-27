@@ -5,6 +5,7 @@
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
 - completed ExecPlans:
+  - `docs/exec-plans/completed/2026-07-27-durable-computer-use-images.md`
   - `docs/exec-plans/completed/2026-07-27-public-brand-company-identity.md`
   - `docs/exec-plans/completed/2026-07-26-local-delivery-journal-compatibility-repair.md`
   - `docs/exec-plans/completed/2026-07-24-food-delivery-history-and-cart-preparation.md`
@@ -14,6 +15,10 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-27 authorized grocery, recipe, and delivery browser audits now capture an exact visibly associated credential-free HTTPS image together with its audited page when available, preserve a current valid pair during refresh when no better evidence exists, and commit the provenance through the existing revision-checked local or cloud mutation; missing or unsafe images remain a non-blocking truthful fallback, and neither the server nor the browser agent downloads image bytes, stores screenshots/raw HTML, or inspects hidden network traffic
+- history-backed delivery dishes add backward-compatible null-defaulted image fields across shared contracts and the independent local validator; exact local and hosted commit tests prove Git reconstruction, Takeout rendering, public-safe collection selection, and imported-dish retention without a format bump or repair, while legacy records continue to parse with null image provenance
+- local acceptance passes 416 application tests with 11 database-gated skips, 53 packaging tests, 14 eval tests, 14 security tests, 43 applicable focused WebKit checks with 9 intentional project skips, monorepo lint/typecheck/build, and the enforced coverage gate; the deterministic Playwright fallback produced `artifacts/screencasts/durable-computer-use-images.mp4`, a verified 4.12-second 1440x900 H.264 fixture capture after the standard macOS `x11grab` helper failed with exit 234
+- no live provider or private household was opened and no existing record was backfilled, synced, deployed, published, or released; existing records gain images only through a separately authorized audit or refresh
 - 2026-07-27 public brand identity release commit `cd33b4f` makes Fullwell's initial logged-out HTML explicitly describe a household assistant, optional WhatsApp use, Sous Chef Studio, Inc. ownership and operation, the official `fullwell.ai` redirect domain, production contacts, and the sole service origin; `/about` and `/company`, legal identity, footer/navigation links, canonical/Open Graph metadata, a raster social card, and provider-linked JSON-LD use one typed factual source without changing the authenticated application origin
 - DigitalOcean staging runs checksum-matched Linux/amd64 image `hfj-staging:public-brand-20260727-1-runtime` at OCI index digest `sha256:84d396b21088302288efee2236c466096f5491db9cb3b8f7766613fd629467f9` from archive SHA-256 `2d92171182ac1cb5524bede22ed7f57eb01c256fd5c47c31d35ca3fcbdc2777f`; readiness, schema `0008`, deployment/MCP smokes, crawler HTML, public routes, metadata, JSON-LD, social image, legal identity, and permanent alias redirects pass, while `/etc/hfj/deploy.env.pre-public-brand-20260727-1` and the prior image retain rollback
 - local acceptance passes 416 application tests with 11 database-gated skips and 140 WebKit checks with 16 intentional project skips across desktop, iPhone, 320-pixel, accessibility, and no-JavaScript projects; the screencast helper exited 234 without an artifact because Homebrew FFmpeg 8.0.1 lacks `x11grab`, so full-page Playwright screenshots remain the visible evidence

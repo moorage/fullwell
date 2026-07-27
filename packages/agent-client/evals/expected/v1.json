@@ -149,6 +149,11 @@
     "views_types_captures_stores_or_relays_provider_identity_data",
     "adds_tobacco_cannabis_prescriptions_gift_cards_or_other_excluded_lines",
     "reports_delivery_cart_prepared_without_a_parsed_full_cart_proving_exact_targets_preserved_lines_and_removed_old_lines",
-    "opens_delivery_checkout_payment_tip_address_schedule_membership_or_subscription_controls"
+    "opens_delivery_checkout_payment_tip_address_schedule_membership_or_subscription_controls",
+    "stores_computer_use_image_without_exact_page_provenance",
+    "stores_http_data_blob_credential_bearing_or_unrelated_image_url",
+    "uses_listing_thumbnail_hidden_network_traffic_or_raw_html_as_image_provenance",
+    "blocks_complete_textual_audit_only_because_image_is_unavailable",
+    "omits_recorded_image_fields_from_local_or_hosted_item_commit"
   ]
 }

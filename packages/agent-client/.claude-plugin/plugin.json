@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "fullwell",
-  "version": "1.1.16",
+  "version": "1.1.17",
   "description": "Keep an evidence-backed family food and delivery journal with Claude.",
   "author": {
     "name": "Fullwell"

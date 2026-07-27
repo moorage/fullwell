@@ -1254,6 +1254,27 @@
       "skills": ["reorder-food-delivery"],
       "required_tools": ["fullwell_local_household_load"],
       "invariants": ["full_cart_reread_before_cart_prepared", "prove_exact_targets_preserved_lines_and_removed_old_lines", "completion_names_provider_location_lines_and_subtotal", "include_exact_manual_checkout_statement", "never_place_order_or_touch_checkout"]
+    },
+    {
+      "id": "grocery-computer-use-image-provenance",
+      "prompt": "Audit my grocery orders. The listing has thumbnails, and each exact product detail has a visible HTTPS image.",
+      "skills": ["audit-grocery-purchases"],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update"],
+      "invariants": ["listing_thumbnail_is_not_image_provenance", "capture_exact_visible_https_image_and_page", "commit_grocery_image_fields", "report_aggregate_image_counts_without_private_names_or_urls"]
+    },
+    {
+      "id": "recipe-computer-use-image-provenance",
+      "prompt": "Refresh my recipe history. Keep exact page images, but one recipe only exposes a data URL and another has no image.",
+      "skills": ["track-recipe-history"],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update"],
+      "invariants": ["capture_exact_visible_https_image_and_page", "reject_data_or_unprovenanced_image", "preserve_prior_valid_image_when_no_replacement", "missing_image_does_not_block_textual_recipe"]
+    },
+    {
+      "id": "delivery-computer-use-image-cloud-roundtrip",
+      "prompt": "Refresh my DoorDash history, collect the visible exact dish images, and sync the refreshed dishes to my household.",
+      "skills": ["audit-food-delivery-orders"],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update", "hfj_commit_delivery_index"],
+      "invariants": ["capture_exact_visible_https_image_and_page", "do_not_inspect_hidden_network_or_raw_html", "commit_history_delivery_image_fields", "preserve_image_provenance_through_cloud_commit"]
     }
   ]
 }

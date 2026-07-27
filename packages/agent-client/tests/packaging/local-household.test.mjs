@@ -272,6 +272,8 @@ test("general saves preserve delivery history and complete refreshes enrich dish
     const refreshedDish = refreshed.items.find(({ id }) => id === first.items[0].id);
     refreshedDish.evidence_ids.push(refreshOccurrence.evidence[0].id);
     refreshedDish.updated_at = "2026-07-23T00:00:00.000Z";
+    refreshedDish.image_url = "https://images.example.test/wintermelon.jpg";
+    refreshedDish.image_page_url = "https://delivery.example.test/menu/wintermelon";
     refreshedDish.known_menu_item_locators.push(
       refreshOccurrence.evidence[0].delivery_order_line.historical_menu_item_locator,
     );
@@ -308,6 +310,19 @@ test("general saves preserve delivery history and complete refreshes enrich dish
       evidence: second.evidence,
       items: second.items,
     });
+    const unsafeImage = structuredClone(refreshed);
+    unsafeImage.items.find(({ id }) => id === first.items[0].id).image_url =
+      "http://images.example.test/wintermelon.jpg";
+    await assert.rejects(saveLocalHousehold(root, {
+      expected_revision: unrelated.revision,
+      journal: unsafeImage,
+    }, now), (error) => error instanceof LocalHouseholdError && error.code === "VALIDATION_FAILED");
+    const missingImagePage = structuredClone(refreshed);
+    missingImagePage.items.find(({ id }) => id === first.items[0].id).image_page_url = null;
+    await assert.rejects(saveLocalHousehold(root, {
+      expected_revision: unrelated.revision,
+      journal: missingImagePage,
+    }, now), (error) => error instanceof LocalHouseholdError && error.code === "VALIDATION_FAILED");
     const updated = await saveLocalHousehold(root, {
       expected_revision: unrelated.revision,
       journal: refreshed,
@@ -315,6 +330,10 @@ test("general saves preserve delivery history and complete refreshes enrich dish
     assert.deepEqual(
       updated.journal.items.find(({ id }) => id === first.items[0].id).evidence_ids,
       [first.evidence[0].id, refreshOccurrence.evidence[0].id],
+    );
+    assert.equal(
+      updated.journal.items.find(({ id }) => id === first.items[0].id).image_url,
+      "https://images.example.test/wintermelon.jpg",
     );
     assert.equal(JSON.stringify({
       profile: updated.journal.delivery_profile.profile.providers[1],
@@ -324,6 +343,32 @@ test("general saves preserve delivery history and complete refreshes enrich dish
       items: updated.journal.items.filter(({ provider_origin }) =>
         provider_origin === "https://other-delivery.example/"),
     }), otherProviderBefore);
+  });
+});
+
+test("legacy local delivery dishes normalize absent image provenance to null", async () => {
+  await withLocalRoot(async (root) => {
+    await initializeLocalHousehold(root, now);
+    const delivery = deliveryJournalFixture({
+      seed: "0209",
+      providerOrigin: "https://delivery.example/",
+      providerLabel: "DoorDash",
+      locationLabel: "Palo Alto",
+    });
+    const saved = await saveLocalHousehold(root, {
+      expected_revision: 1,
+      journal: delivery,
+    }, now);
+    const filePath = localHouseholdPath(root);
+    const legacy = JSON.parse(await readFile(filePath, "utf8"));
+    delete legacy.journal.items[0].image_url;
+    delete legacy.journal.items[0].image_page_url;
+    await writeFile(filePath, `${JSON.stringify(legacy, null, 2)}\n`);
+
+    const loaded = await loadLocalHousehold(root);
+    assert.equal(loaded.revision, saved.revision);
+    assert.equal(loaded.journal.items[0].image_url, null);
+    assert.equal(loaded.journal.items[0].image_page_url, null);
   });
 });
 

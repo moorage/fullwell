@@ -394,6 +394,8 @@ describe("HouseholdFoodJournalService", () => {
     if (directPreview.ok) {
       const publicSnapshot = JSON.stringify(objectDataSchema.parse(directPreview.data).snapshot);
       expect(publicSnapshot).toContain("Wintermelon boba");
+      expect(publicSnapshot).toContain("https://images.example.test/wintermelon.jpg");
+      expect(publicSnapshot).toContain("https://menu.example.test/wintermelon");
       expect(publicSnapshot).toContain("\"classification\":\"alcohol\"");
       expect(publicSnapshot).not.toMatch(/age.eligib|safe to drink|healthy|checkout/i);
       for (const privateValue of [
@@ -457,6 +459,8 @@ describe("HouseholdFoodJournalService", () => {
       dish_name: "Wintermelon boba",
       restaurant_name: "Wanpo",
       public_location_label: "Palo Alto",
+      image_url: "https://images.example.test/wintermelon.jpg",
+      image_page_url: "https://menu.example.test/wintermelon",
       classification: { kind: "food", authored_by: "agent" },
     });
     const copiedDeliveryJson = JSON.stringify(copiedDelivery);
@@ -1680,8 +1684,8 @@ function deliveryCollectionItem(
     },
     public_description: null,
     public_note: null,
-    image_url: null,
-    image_page_url: null,
+    image_url: source.image_url,
+    image_page_url: source.image_page_url,
     source_display_attribution: null,
     source_item_revision: revision,
     ...(source.classification.kind === "alcohol" ? { classification: "alcohol" } : {}),
@@ -1719,6 +1723,8 @@ function deliveryDishFixture() {
       locality: "Palo Alto",
       region: "CA",
     },
+    image_url: "https://images.example.test/wintermelon.jpg",
+    image_page_url: "https://menu.example.test/wintermelon",
     merchant_locator: "private-delivery-merchant",
     known_menu_item_locators: ["private-delivery-menu"],
     known_modifier_occurrences: [{

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Document the 10,000-record and 10,000-dish cloud delivery commit boundary, still bounded by the hosted 16 MiB MCP request limit.
+
 ## 1.1.16 - 2026-07-26
 
 - Automatically repair recognized older local delivery-journal formats through the stable local update tool, including deterministic ID/reference updates, evidence-backed restaurant-name partitions, report-summary normalization, and obsolete browser-label removal; reload and resume the interrupted delivery sync without direct file edits, cloud writes, internal jargon, or a user-coordinated product fix.

@@ -12,6 +12,8 @@ import {
   DeliveryDishItemSchema,
   ImportedDeliveryDishItemSchema,
   DeliveryIndexReportSchema,
+  DELIVERY_COMMIT_MAX_EVIDENCE,
+  DELIVERY_COMMIT_MAX_ITEMS,
   DeliveryOrderGroupLocatorSchema,
   DeliveryOrderGroupSchema,
   DeliveryOrderLineKeySchema,
@@ -1585,7 +1587,7 @@ describe("contract boundaries", () => {
       expected_item_revisions: {},
     };
     const maximumExpectedItemRevisions = Object.fromEntries(Array.from(
-      { length: 100 },
+      { length: DELIVERY_COMMIT_MAX_ITEMS },
       (_, index) => [`itm_${index.toString(36).padStart(16, "0")}`, "b".repeat(40)],
     ));
     expect(DeliveryToolInputSchemas.hfj_commit_delivery_index.parse(input)).toMatchObject({
@@ -1596,7 +1598,7 @@ describe("contract boundaries", () => {
     expect(Object.keys(DeliveryToolInputSchemas.hfj_commit_delivery_index.parse({
       ...input,
       expected_item_revisions: maximumExpectedItemRevisions,
-    }).expected_item_revisions)).toHaveLength(100);
+    }).expected_item_revisions)).toHaveLength(DELIVERY_COMMIT_MAX_ITEMS);
     expect(() => DeliveryToolInputSchemas.hfj_commit_delivery_index.parse({
       ...input,
       expected_item_revisions: {
@@ -1626,10 +1628,34 @@ describe("contract boundaries", () => {
       household_id: "hsh_0123456789abcdef",
       group_handle: "private-order-reference",
     })).toThrow();
-    expect(() => DeliveryToolInputSchemas.hfj_commit_delivery_index.parse({
+    const maximumEvidence = Array.from(
+      { length: DELIVERY_COMMIT_MAX_EVIDENCE },
+      (_, index) => deliveryEvidenceFixture(index + 1),
+    );
+    expect(DeliveryToolInputSchemas.hfj_commit_delivery_index.safeParse({
       ...input,
-      evidence: Array.from({ length: 101 }, () => deliveryEvidenceFixture(1)),
-    })).toThrow();
+      evidence: maximumEvidence,
+      items: [],
+    }).success).toBe(true);
+    expect(DeliveryToolInputSchemas.hfj_commit_delivery_index.safeParse({
+      ...input,
+      evidence: [...maximumEvidence, deliveryEvidenceFixture(DELIVERY_COMMIT_MAX_EVIDENCE + 1)],
+      items: [],
+    }).success).toBe(false);
+    const maximumItems = Array.from(
+      { length: DELIVERY_COMMIT_MAX_ITEMS },
+      (_, index) => deliveryDishFixture(index + 1),
+    );
+    expect(DeliveryToolInputSchemas.hfj_commit_delivery_index.safeParse({
+      ...input,
+      evidence: [],
+      items: maximumItems,
+    }).success).toBe(true);
+    expect(DeliveryToolInputSchemas.hfj_commit_delivery_index.safeParse({
+      ...input,
+      evidence: [],
+      items: [...maximumItems, deliveryDishFixture(DELIVERY_COMMIT_MAX_ITEMS + 1)],
+    }).success).toBe(false);
     expect(() => DeliveryToolInputSchemas.hfj_commit_delivery_index.parse({
       ...input,
       items: [{ ...deliveryDishFixture(), provider_origin: "https://other.example/" }],
@@ -2135,9 +2161,14 @@ function deliveryEvidenceFixture(index: number) {
   };
 }
 
-function deliveryDishFixture() {
+function deliveryDishFixture(index?: number) {
+  const evidenceId = index === undefined
+    ? "evd_0000000000000001"
+    : `evd_${index.toString(16).padStart(16, "0")}`;
   return {
-    id: "itm_0123456789abcdee",
+    id: index === undefined
+      ? "itm_0123456789abcdee"
+      : `itm_${index.toString(16).padStart(16, "0")}`,
     kind: "delivery_dish",
     dish_name: "Wintermelon Boba",
     provider_label: "DoorDash",
@@ -2152,9 +2183,9 @@ function deliveryDishFixture() {
       country: "United States",
     },
     merchant_locator: "merchant-stanford",
-    known_menu_item_locators: ["menu-item-1"],
+    known_menu_item_locators: [`menu-item-${index ?? 1}`],
     known_modifier_occurrences: [{
-      evidence_id: "evd_0000000000000001",
+      evidence_id: evidenceId,
       modifiers_complete: true,
       modifiers: [
         { group_name: "Sweetness", option_name: "50%" },
@@ -2162,7 +2193,7 @@ function deliveryDishFixture() {
       ],
     }],
     classification: { kind: "food", authored_by: "agent" },
-    evidence_ids: ["evd_0000000000000001"],
+    evidence_ids: [evidenceId],
     created_at: "2026-07-22T12:00:00.000Z",
     updated_at: "2026-07-22T12:00:00.000Z",
     schema_version: 1,

@@ -60,8 +60,8 @@ const BoundedNameSchema = z.string()
 export const ONBOARDING_COMMIT_MAX_EVIDENCE = 10_000;
 export const ONBOARDING_COMMIT_MAX_ITEMS = 10_000;
 export const DELIVERY_HISTORY_MAX_RESULTS = 50;
-export const DELIVERY_COMMIT_MAX_EVIDENCE = 100;
-export const DELIVERY_COMMIT_MAX_ITEMS = 100;
+export const DELIVERY_COMMIT_MAX_EVIDENCE = 10_000;
+export const DELIVERY_COMMIT_MAX_ITEMS = 10_000;
 
 export const DeliveryOrderGroupHandleSchema = z.string()
   .regex(/^dgrp_[0-9a-f]{48}$/)

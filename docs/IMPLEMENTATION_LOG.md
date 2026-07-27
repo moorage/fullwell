@@ -1,6 +1,7 @@
 # Implementation Log
 
 - active ExecPlans:
+  - `docs/exec-plans/active/2026-07-27-public-brand-company-identity.md`
   - `docs/exec-plans/active/2026-07-15-household-food-journal-v1.md`
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
@@ -13,6 +14,7 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-27 public brand identity work makes Fullwell's initial logged-out HTML explicitly describe a household assistant, optional WhatsApp use, Sous Chef Studio, Inc. ownership and operation, the official `fullwell.ai` redirect domain, production contacts, and the sole service origin; `/about` and `/company`, legal identity, footer/navigation links, canonical/Open Graph metadata, a raster social card, and provider-linked JSON-LD use one typed factual source without changing the authenticated application origin
 - 2026-07-27 live WhatsApp recovery removed only the five-day-old stale response, preserved and claimed the new restocking request, renewed the existing local runner's OAuth grant, and traced its pre-cart failure to a valid 3,456-file journal exceeding an obsolete 2,000-file snapshot cap; no cart mutation or checkout occurred
 - runner snapshots now match the supported 10,000-item plus 10,000-evidence journal capacity and three fixed compatibility files, load blobs through one bounded Git batch instead of one process per file, and retain the independent 1 MiB/file and 5 MiB total limits; exact-limit contracts, the real 20,000-path Git test, runner tests, and server typecheck pass
 - the corrected live snapshot installed all 3,456 validated files, then exposed a 3.13 MiB model-prompt expansion from 2,616 raw evidence records; the runner now keeps those files local for manifest and traceability checks while giving the host the profile, report, and all 837 evidence-citing item records with exact product/store provenance

@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import fastifyStatic from "@fastify/static";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { renderWebRoute } from "@hfj/web/server";
+import { renderWebRoute, type RenderedWebRoute } from "@hfj/web/server";
 import type { VisualJournalPage, WebRenderContext } from "@hfj/web/types";
 import {
   DateSchema,
@@ -233,12 +233,12 @@ function sendWebPage(reply: import("fastify").FastifyReply, url: string, context
   reply.header("content-type", "text/html; charset=utf-8");
   reply.header("cache-control", "no-store");
   if (noIndex) reply.header("x-robots-tag", "noindex, nofollow");
-  return reply.send(htmlDocument(rendered.title, rendered.appHtml, context, script, styles));
+  return reply.send(htmlDocument(rendered, context, script, styles));
 }
 
 function isWebPath(rawUrl: string): boolean {
   const path = new URL(rawUrl, "https://local.invalid").pathname;
-  return path === "/" || ["/install", "/sign-in", "/authorize", "/households", "/account", "/privacy", "/terms", "/guides"].includes(path)
+  return path === "/" || ["/install", "/sign-in", "/authorize", "/households", "/account", "/about", "/company", "/privacy", "/terms", "/guides"].includes(path)
     || /^\/guides\/(?:whatsapp|household-invitations|collections\/(?:create|share))$/.test(path)
     || /^\/invite\/family\/[^/]+$/.test(path)
     || /^\/c\/[^/]+(?:\/import\/plan)?$/.test(path)
@@ -253,10 +253,34 @@ function slotAnchor(mealDate: string, slotKind: string): string {
   return `slot-${mealDate}-${slotKind}`;
 }
 
-function htmlDocument(title: string, appHtml: string, context: WebRenderContext, script: string, styles: readonly string[]): string {
+function htmlDocument(rendered: RenderedWebRoute, context: WebRenderContext, script: string, styles: readonly string[]): string {
   const serializedContext = JSON.stringify(context).replaceAll("<", "\\u003c");
   const links = styles.map((href) => `<link rel="stylesheet" href="/${escapeAttribute(href)}">`).join("");
-  return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#fbfaf6"><meta name="referrer" content="no-referrer"><title>${escapeText(title)}</title>${links}</head><body><div id="root">${appHtml}</div><script id="web-context" type="application/json">${serializedContext}</script><script type="module" src="/${escapeAttribute(script)}"></script></body></html>`;
+  const metadata = rendered.metadata === undefined ? "" : metadataHtml(rendered.metadata);
+  return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#fbfaf6"><meta name="referrer" content="no-referrer"><title>${escapeText(rendered.title)}</title>${metadata}${links}</head><body><div id="root">${rendered.appHtml}</div><script id="web-context" type="application/json">${serializedContext}</script><script type="module" src="/${escapeAttribute(script)}"></script></body></html>`;
+}
+
+function metadataHtml(metadata: RenderedWebRoute["metadata"]): string {
+  if (metadata === undefined) return "";
+  const openGraph = metadata.openGraph;
+  const structuredData = metadata.structuredDataJson === undefined
+    ? ""
+    : `<script type="application/ld+json">${metadata.structuredDataJson.replaceAll("<", "\\u003c")}</script>`;
+  return [
+    `<meta name="description" content="${escapeAttribute(metadata.description)}">`,
+    `<link rel="canonical" href="${escapeAttribute(metadata.canonicalUrl)}">`,
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:site_name" content="${escapeAttribute(openGraph.siteName)}">`,
+    `<meta property="og:title" content="${escapeAttribute(openGraph.title)}">`,
+    `<meta property="og:description" content="${escapeAttribute(openGraph.description)}">`,
+    `<meta property="og:url" content="${escapeAttribute(openGraph.url)}">`,
+    `<meta property="og:image" content="${escapeAttribute(openGraph.imageUrl)}">`,
+    `<meta property="og:image:type" content="image/png">`,
+    `<meta property="og:image:width" content="1200">`,
+    `<meta property="og:image:height" content="630">`,
+    `<meta property="og:image:alt" content="${escapeAttribute(openGraph.imageAlt)}">`,
+    structuredData,
+  ].join("");
 }
 
 function escapeText(value: string): string {

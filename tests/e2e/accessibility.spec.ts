@@ -10,7 +10,10 @@ import {
 
 const wcagTags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 const publicRoutes = [
+  "/",
   "/install",
+  "/about",
+  "/company",
   "/guides",
   "/guides/whatsapp",
   "/guides/household-invitations",

@@ -1,12 +1,12 @@
-# Household Food Journal Terms of Service
+# Fullwell Terms of Service
 
 Effective date: 2026-07-15
 
-These terms govern use of Household Food Journal, operated by Fullwell. Contact `support@fullwell.app` with questions.
+Fullwell is a product operated by Sous Chef Studio, Inc. In these terms, “Fullwell” refers to the service operated by Sous Chef Studio, Inc. Contact `support@fullwell.app` with questions.
 
 ## The service
 
-Household Food Journal lets individuals maintain a private, evidence-backed family food journal through a browser and supported Codex or Claude agent client. It includes household collaboration, recipe and grocery evidence, curated public collection snapshots, selective imports, and portable exports.
+Fullwell is a household assistant that lets individuals maintain a private, evidence-backed family food journal through a browser and supported Codex or Claude agent client. It includes household collaboration, recipe and grocery evidence, curated public collection snapshots, selective imports, and portable exports.
 
 You remain responsible for the sources you authorize, the conclusions or prose an agent proposes, the household roles you grant, and the fields and links you publish. Review proposed changes and public collection previews before confirming them.
 
@@ -32,7 +32,7 @@ We work to preserve signed history, backups, and portable exports, but the servi
 
 ## Disclaimers and liability
 
-Household Food Journal is an organizational tool, not medical, nutritional, allergy, food-safety, legal, or financial advice. Verify ingredients, allergens, dates, and preparation independently. To the extent permitted by law, the service is provided without warranties not expressly stated, and Fullwell is not liable for indirect, incidental, special, consequential, or punitive damages.
+Fullwell is an organizational tool, not medical, nutritional, allergy, food-safety, legal, or financial advice. Verify ingredients, allergens, dates, and preparation independently. To the extent permitted by law, the service is provided without warranties not expressly stated, and Fullwell is not liable for indirect, incidental, special, consequential, or punitive damages.
 
 Nothing in these terms limits rights or liability that cannot legally be limited. Any service-specific paid-plan, governing-law, dispute, refund, or liability-cap terms must be added and reviewed before accepting payment or public production users.
 

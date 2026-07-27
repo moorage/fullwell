@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
+import { House } from "lucide-react";
+import { PUBLIC_BRAND } from "../brand.js";
 import { useWebContext } from "../context.js";
 
 type AppShellProps = {
   children: ReactNode;
   context?: "public" | "workspace" | "focused";
-  active?: "households" | "collections" | "guides" | "account";
+  active?: "households" | "collections" | "guides" | "account" | "about" | "company";
 };
 
 export function AppShell({ children, context = "public", active }: AppShellProps) {
@@ -16,8 +18,8 @@ export function AppShell({ children, context = "public", active }: AppShellProps
         Skip to content
       </a>
       <header className="masthead">
-        <a className="wordmark" href={context === "workspace" ? "/households" : "/install"}>
-          <span className="wordmark__stamp" aria-hidden="true">F</span>
+        <a className="wordmark" href={context === "workspace" ? "/households" : "/"}>
+          <span className="wordmark__stamp" aria-hidden="true"><House size={18} strokeWidth={2.5} /></span>
           <span>Fullwell</span>
         </a>
         {context === "workspace" ? (
@@ -40,6 +42,8 @@ export function AppShell({ children, context = "public", active }: AppShellProps
           </nav>
         ) : context === "public" ? (
           <nav className="primary-nav" aria-label="Primary navigation">
+            <a aria-current={active === "about" ? "page" : undefined} href="/about">About</a>
+            <a href="/#whatsapp">WhatsApp</a>
             <a aria-current={active === "guides" ? "page" : undefined} href="/guides">Guides</a>
             <a className="masthead__action" href="/sign-in">Sign in</a>
           </nav>
@@ -47,10 +51,16 @@ export function AppShell({ children, context = "public", active }: AppShellProps
       </header>
       <main id="main-content" tabIndex={-1}>{children}</main>
       <footer className="site-footer">
-        <p>Fullwell keeps household journals private by default.</p>
-        <nav aria-label="Legal">
+        <div className="site-footer__identity">
+          <p>Fullwell is a product of Sous Chef Studio, Inc.</p>
+          <p>© 2026 Sous Chef Studio, Inc. Fullwell is a product of Sous Chef Studio, Inc.</p>
+        </div>
+        <nav aria-label="Company and legal">
+          <a href="/about">About Fullwell</a>
+          <a href="/#whatsapp">WhatsApp</a>
           <a href="/privacy">Privacy</a>
           <a href="/terms">Terms</a>
+          <a href={`mailto:${PUBLIC_BRAND.supportEmail}`}>Support</a>
         </nav>
       </footer>
     </div>

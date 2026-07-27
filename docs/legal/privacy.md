@@ -1,8 +1,8 @@
-# Household Food Journal Privacy Notice
+# Fullwell Privacy Notice
 
 Effective date: 2026-07-24
 
-This notice describes the Household Food Journal service operated by Fullwell. Contact `privacy@fullwell.app` for privacy requests and `support@fullwell.app` for product support.
+Fullwell is a product operated by Sous Chef Studio, Inc. In this notice, “Fullwell” refers to the service operated by Sous Chef Studio, Inc. Contact `privacy@fullwell.app` for privacy requests and `support@fullwell.app` for product support.
 
 ## Information we process
 

@@ -886,7 +886,12 @@ Output: short-lived authenticated download URL, content hash, source HEAD, and e
 
 | Route | Purpose |
 |---|---|
+| `GET /` | Server-rendered Fullwell household-assistant homepage with explicit Sous Chef Studio, Inc. ownership, optional WhatsApp functionality, official domains, production contacts, canonical metadata, Open Graph metadata, and provider-linked JSON-LD. |
 | `GET /install` | Branded ChatGPT/Claude platform chooser and current client installation instructions. |
+| `GET /about` | Indexable explanation of Fullwell as the consumer product and Sous Chef Studio, Inc. as its owner and operator. |
+| `GET /company` | Indexable product/operator/domain/contact verification page with Fullwell WhatsApp functionality. |
+| `GET /privacy` | Fullwell privacy notice with the legal operator and production contacts. |
+| `GET /terms` | Fullwell terms with the legal operator and production support contact. |
 | `GET /guides` | Public advanced-agent guide index. |
 | `GET /guides/whatsapp` | WhatsApp connection instructions and safe chat example. |
 | `GET /guides/household-invitations` | Household invitation instructions and role-aware chat example. |
@@ -909,6 +914,8 @@ Output: short-lived authenticated download URL, content hash, source HEAD, and e
 | `POST /households/:id/meal-plan/proposals/:proposalId/withdraw` | Authorized append-only proposal withdrawal. |
 
 The public guide routes contain examples only and never receive credentials, access codes, or mutation confirmations. Contextual install, account, members, collection, and household links target the narrowest relevant guide.
+
+Public identity metadata is derived from fixed route data and the configured `PUBLIC_ORIGIN`, never the request host. The canonical origin remains `https://fullwell.souschefstudio.com`; `https://fullwell.ai` and `https://www.fullwell.ai` remain official permanent redirect aliases. Only indexable public pages receive this metadata. JSON-LD identifies Sous Chef Studio, Inc. as an `Organization` and Fullwell as a `WebApplication` provided by that organization; it does not claim partnership, ratings, awards, pricing, registration, or customer counts.
 
 The recipe, grocery, and Takeout document routes are server rendered and then progressively enhanced. They use the same deterministic, display-only server projection as the continuation endpoint, return recorded fields without semantic merging, and expose a normal page link when JavaScript or automatic loading is unavailable. Takeout sorts by restaurant, exact public location, dish, and item ID; history-backed cards resolve only allowlisted display fields from cited completed-order evidence, while public imports remain labeled `Shared dish` without history or reorder authority. Provider origins and order, group, merchant, menu, evidence, actor, destination, and complete-order data are never serialized.
 

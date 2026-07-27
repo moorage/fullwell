@@ -24,6 +24,8 @@ describe("resolveWebRoute", () => {
     ["/households/home/members", { page: "members", householdId: "home" }],
     ["/households/home/collections", { page: "collections", householdId: "home" }],
     ["/account", { page: "account" }],
+    ["/about", { page: "about" }],
+    ["/company", { page: "company" }],
     ["/privacy", { page: "privacy" }],
     ["/terms", { page: "terms" }],
     ["/missing", { page: "not-found" }],

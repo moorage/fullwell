@@ -532,7 +532,11 @@ Every operation ends in one of these user-visible states:
 
 ## 10. Public installation and handoff UX
 
-The server hosts a stable landing page such as `/install`, public advanced-agent guides under `/guides`, and collection pages under `/c/<opaque-token>`.
+The server hosts a stable logged-out homepage at `/`, installation at `/install`, company identity pages at `/about` and `/company`, public advanced-agent guides under `/guides`, and collection pages under `/c/<opaque-token>`.
+
+The homepage keeps Fullwell as the primary visible brand and identifies it as a household assistant developed and operated by Sous Chef Studio, Inc. Its initial server-rendered HTML explains that WhatsApp is an optional Fullwell communication channel and that `fullwell.ai` is an official product domain which redirects to the sole application origin at `fullwell.souschefstudio.com`. The same product, operator, domain, and contact facts remain visible on `/about`, `/company`, Privacy, Terms, navigation, and the shared footer without implying that Fullwell is a separate corporation or that Meta or WhatsApp owns, sponsors, or partners with Fullwell.
+
+Every indexable public identity page receives one configured-origin canonical link plus a route-specific title, description, and Open Graph record. The homepage also emits parseable Schema.org JSON-LD for Sous Chef Studio, Inc. as the provider organization and Fullwell as a household-assistant web application. Authenticated, invitation-token, collection-token, and household pages do not inherit public identity canonical or structured-data output.
 
 The client repository must publish enough metadata for those pages to show current installation instructions. Do not hardcode old commands into collection snapshots.
 

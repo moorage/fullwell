@@ -816,11 +816,35 @@
             },
             {
               "type": "dir",
+              "name": "public",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "assets",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "fullwell-social-card.png"
+                    },
+                    {
+                      "type": "file",
+                      "name": "fullwell-social-card.svg"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "dir",
               "name": "src",
               "children": [
                 {
                   "type": "file",
                   "name": "app.tsx"
+                },
+                {
+                  "type": "file",
+                  "name": "brand.ts"
                 },
                 {
                   "type": "file",
@@ -895,6 +919,10 @@
                     {
                       "type": "file",
                       "name": "collection-preview.tsx"
+                    },
+                    {
+                      "type": "file",
+                      "name": "company.tsx"
                     },
                     {
                       "type": "file",
@@ -1193,6 +1221,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-21-approval-efficient-onboarding.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-27-public-brand-company-identity.md"
                 }
               ]
             },

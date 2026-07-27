@@ -333,6 +333,41 @@ describe("Fastify application", () => {
     expect(response.body).toContain("We could not open this collection");
     expect(response.body).not.toContain("Alvarez");
     expect(response.body).toMatch(/assets\/index-[^"]+\.js/);
+    expect(response.body).not.toContain('rel="canonical"');
+    const homepage = await app.inject({ method: "GET", url: "/" });
+    expect(homepage.statusCode).toBe(200);
+    expect(homepage.headers["x-robots-tag"]).toBeUndefined();
+    expect(homepage.body).toContain("Fullwell by Sous Chef Studio");
+    expect(homepage.body).toContain("household assistant");
+    expect(homepage.body).toContain("Sous Chef Studio, Inc.");
+    expect(homepage.body).toContain("WhatsApp");
+    expect(homepage.body).toContain("<title>Fullwell Household Assistant | By Sous Chef Studio</title>");
+    expect(homepage.body).toContain('<meta name="description"');
+    expect(homepage.body).toContain('<link rel="canonical" href="https://example.test/">');
+    expect(homepage.body).toContain('<meta property="og:site_name" content="Fullwell">');
+    expect(homepage.body).toContain('<meta property="og:image:type" content="image/png">');
+    const structuredDataMatch = /<script type="application\/ld\+json">([^<]+)<\/script>/.exec(homepage.body);
+    if (structuredDataMatch?.[1] === undefined) throw new Error("homepage structured data is missing");
+    const structuredData = z.object({
+      "@context": z.literal("https://schema.org"),
+      "@graph": z.array(z.object({ "@type": z.string(), name: z.string() }).passthrough()),
+    }).parse(JSON.parse(structuredDataMatch[1]));
+    expect(structuredData["@graph"]).toEqual(expect.arrayContaining([
+      expect.objectContaining({ "@type": "Organization", name: "Sous Chef Studio, Inc." }),
+      expect.objectContaining({ "@type": "WebApplication", name: "Fullwell" }),
+    ]));
+    for (const publicPath of ["/about", "/company", "/privacy", "/terms"]) {
+      const publicPage = await app.inject({ method: "GET", url: publicPath });
+      expect(publicPage.statusCode, publicPath).toBe(200);
+      expect(publicPage.headers["x-robots-tag"], publicPath).toBeUndefined();
+      expect(publicPage.body, publicPath).toContain("Fullwell");
+      expect(publicPage.body, publicPath).toContain("Sous Chef Studio, Inc.");
+      expect(publicPage.body, publicPath).toContain(`rel="canonical" href="https://example.test${publicPath}"`);
+      expect(publicPage.body, publicPath).not.toContain("@fullwell.example");
+    }
+    const socialImage = await app.inject({ method: "GET", url: "/assets/fullwell-social-card.png" });
+    expect(socialImage.statusCode).toBe(200);
+    expect(socialImage.headers["content-type"]).toContain("image/png");
     const account = await app.inject({ method: "GET", url: "/account" });
     expect(account.statusCode).toBe(303);
     expect(account.headers.location).toBe("/sign-in?returnTo=%2Faccount");

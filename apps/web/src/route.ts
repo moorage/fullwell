@@ -24,7 +24,7 @@ const OAuthAuthorizationRouteSchema = z.object({
 }));
 
 export function resolveWebRoute(input: string): WebRoute {
-  const url = new URL(input, "https://fullwell.example");
+  const url = new URL(input, "https://local.invalid");
   const parts = url.pathname.split("/").filter(Boolean);
 
   if (url.pathname === "/" || url.pathname === "/install") {
@@ -77,6 +77,8 @@ export function resolveWebRoute(input: string): WebRoute {
     return { page: "household", householdId: parts[1] };
   }
   if (url.pathname === "/account") return { page: "account" };
+  if (url.pathname === "/about") return { page: "about" };
+  if (url.pathname === "/company") return { page: "company" };
   if (url.pathname === "/privacy") return { page: "privacy" };
   if (url.pathname === "/terms") return { page: "terms" };
   return { page: "not-found" };

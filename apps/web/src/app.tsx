@@ -2,6 +2,7 @@ import { AccountRoute } from "./routes/account.js";
 import { AuthorizeRoute } from "./routes/authorize.js";
 import { CollectionImportPlanRoute } from "./routes/collection-import-plan.js";
 import { CollectionPreviewRoute } from "./routes/collection-preview.js";
+import { AboutRoute, CompanyRoute } from "./routes/company.js";
 import { HouseholdCollectionsRoute } from "./routes/household-collections.js";
 import { HouseholdMembersRoute } from "./routes/household-members.js";
 import { HouseholdMealPlanRoute } from "./routes/household-meal-plan.js";
@@ -43,6 +44,8 @@ export function App({ url, context }: { url: string; context: WebRenderContext }
       case "members": return <HouseholdMembersRoute householdId={route.householdId} />;
       case "collections": return <HouseholdCollectionsRoute householdId={route.householdId} />;
       case "account": return <AccountRoute />;
+      case "about": return <AboutRoute />;
+      case "company": return <CompanyRoute />;
       case "privacy": return <PrivacyRoute />;
       case "terms": return <TermsRoute />;
       case "not-found": return <NotFoundRoute />;

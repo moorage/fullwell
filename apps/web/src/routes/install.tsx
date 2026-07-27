@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ArrowRight, Check, Clipboard, MessageCircle, Terminal } from "lucide-react";
+import { PUBLIC_BRAND } from "../brand.js";
 import { AppShell } from "../components/app-shell.js";
 import { BrandMark } from "../components/brand-mark.js";
 import { Button, ButtonLink, PageHeader } from "../components/ui.js";
@@ -38,13 +39,17 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
   return (
     <AppShell>
       <section className="install-hero page-band">
-        <PageHeader title="Your household food journal, in the agent you already use">
+        <p className="eyebrow">Fullwell by Sous Chef Studio</p>
+        <PageHeader title="Your household assistant for keeping the pantry full and meals organized">
           <p>
-            Fullwell helps your family remember recurring groceries, recipe history, and collections
-            without asking anyone to manage files or passwords. Start locally without an account;
-            connect Fullwell later only if you want cloud backup, WhatsApp, sharing, or family access.
+            Fullwell helps families remember groceries, organize recipes and meals, and handle
+            household food tasks through the AI agents they already use. Connect Fullwell to
+            WhatsApp to send restocking requests and household tasks from anywhere.
           </p>
         </PageHeader>
+        <p className="identity-attribution">
+          Fullwell is a household-assistant product developed and operated by Sous Chef Studio, Inc.
+        </p>
         <div className="host-chooser" role="group" aria-label="Choose your agent">
           {(["codex", "claude"] as const).map((option) => (
             <button
@@ -108,12 +113,61 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
         <details className="trouble">
           <summary>Having trouble?</summary>
           <p>Check that your agent is current, then try the command again. Reinstalling the client does not remove your local journal or cloud household.</p>
-          <a href="mailto:support@fullwell.example">Contact support</a>
+          <a href={`mailto:${PUBLIC_BRAND.supportEmail}`}>Contact support</a>
         </details>
         <p className="install-guides"><a className="text-link text-link--arrow" href="/guides">Explore advanced agent guides <ArrowRight aria-hidden="true" size={17} /></a></p>
         <a className="text-link text-link--arrow" href="/sign-in">
           Sign in to an existing account <ArrowRight aria-hidden="true" size={17} />
         </a>
+        <section id="whatsapp" className="public-feature" aria-labelledby="whatsapp-heading">
+          <p className="eyebrow">A Fullwell feature</p>
+          <h2 id="whatsapp-heading">Use Fullwell from WhatsApp</h2>
+          <p>
+            Connect your household to Fullwell and send grocery, pantry, meal-planning, and
+            restocking requests through WhatsApp. Fullwell securely passes approved requests to
+            your connected household assistant.
+          </p>
+          <ul className="request-examples">
+            <li>“Add milk and bananas to our grocery list.”</li>
+            <li>“We are almost out of granola bars.”</li>
+            <li>“What meals did we make last week?”</li>
+            <li>“Restock the usual breakfast items.”</li>
+          </ul>
+          <p className="fine-print">WhatsApp is an optional communication channel for Fullwell.</p>
+          <a className="text-link text-link--arrow" href="/guides/whatsapp">
+            See the WhatsApp guide <ArrowRight aria-hidden="true" size={17} />
+          </a>
+        </section>
+        <section className="public-feature company-disclosure" aria-labelledby="company-heading">
+          <p className="eyebrow">About Fullwell</p>
+          <h2 id="company-heading">Company</h2>
+          <p>
+            Fullwell is a product of Sous Chef Studio, Inc. Sous Chef Studio develops household
+            technology that helps families make food management, meal planning, and everyday home
+            tasks easier.
+          </p>
+          <dl className="identity-facts">
+            <div><dt>Legal operator</dt><dd>Sous Chef Studio, Inc.</dd></div>
+            <div><dt>Product</dt><dd>Fullwell</dd></div>
+            <div>
+              <dt>Primary product domain</dt>
+              <dd><a href={PUBLIC_BRAND.primaryProductDomain}>fullwell.ai</a></dd>
+            </div>
+            <div>
+              <dt>Service website</dt>
+              <dd><a href={PUBLIC_BRAND.serviceUrl}>fullwell.souschefstudio.com</a></dd>
+            </div>
+            <div>
+              <dt>Support email</dt>
+              <dd><a href={`mailto:${PUBLIC_BRAND.supportEmail}`}>{PUBLIC_BRAND.supportEmail}</a></dd>
+            </div>
+            <div>
+              <dt>Privacy email</dt>
+              <dd><a href={`mailto:${PUBLIC_BRAND.privacyEmail}`}>{PUBLIC_BRAND.privacyEmail}</a></dd>
+            </div>
+          </dl>
+          <p><a href="/about">Read more about Fullwell and Sous Chef Studio</a>.</p>
+        </section>
       </section>
     </AppShell>
   );

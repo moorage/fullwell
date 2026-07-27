@@ -9,7 +9,7 @@ Scoring scale:
 - 2 = fragile or mostly unproven
 - 1 = absent or high risk
 
-Last refreshed: 2026-07-26
+Last refreshed: 2026-07-27
 Refresh owner: knowledge automation plus reviewer of affected changes
 
 ## Scorecard

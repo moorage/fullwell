@@ -255,4 +255,6 @@ export type WebRoute =
   | { page: "account" }
   | { page: "privacy" }
   | { page: "terms" }
+  | { page: "about" }
+  | { page: "company" }
   | { page: "not-found" };

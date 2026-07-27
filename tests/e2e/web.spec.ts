@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import { z } from "zod";
 import {
   demoWebContext,
   groceryVisualJournalFixture,
@@ -13,7 +14,9 @@ test("serves a responsive, keyboard-usable install experience", async ({ page },
   expect(response?.status()).toBe(200);
   expect(response?.headers()["content-security-policy"]).toContain("script-src 'self'");
   expect(response?.headers()["referrer-policy"]).toBe("no-referrer");
-  await expect(page.getByRole("heading", { name: "Your household food journal, in the agent you already use" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your household assistant for keeping the pantry full and meals organized" })).toBeVisible();
+  await expect(page.getByText("Fullwell by Sous Chef Studio")).toBeVisible();
+  await expect(page.getByText(/household-assistant product developed and operated by Sous Chef Studio, Inc/)).toBeVisible();
 
   if (testInfo.project.name !== "no-js-webkit") {
     await expect(page.getByRole("link", { name: "Start Fullwell setup" })).toHaveAttribute("href", /^codex:\/\/new\?prompt=/);
@@ -34,6 +37,50 @@ test("serves a responsive, keyboard-usable install experience", async ({ page },
   const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   expect(horizontalOverflow).toBe(false);
   await page.screenshot({ path: testInfo.outputPath("install.png"), fullPage: true });
+});
+
+test("serves crawlable Fullwell company and WhatsApp identity", async ({ page, request }, testInfo) => {
+  const response = await page.goto("/");
+  expect(response?.status()).toBe(200);
+  const initialHtml = await response?.text();
+  expect(initialHtml).toContain("Fullwell");
+  expect(initialHtml).toContain("household assistant");
+  expect(initialHtml).toContain("Sous Chef Studio, Inc.");
+  expect(initialHtml).toContain("WhatsApp");
+
+  await expect(page).toHaveTitle("Fullwell Household Assistant | By Sous Chef Studio");
+  await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "http://127.0.0.1:4187/");
+  await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", "Fullwell");
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", "Fullwell Household Assistant");
+  const structuredDataText = await page.locator('script[type="application/ld+json"]').textContent();
+  const structuredData = z.object({
+    "@graph": z.array(z.object({ "@type": z.string(), name: z.string() }).passthrough()),
+  }).parse(JSON.parse(structuredDataText ?? ""));
+  expect(structuredData["@graph"]).toEqual(expect.arrayContaining([
+    expect.objectContaining({ "@type": "Organization", name: "Sous Chef Studio, Inc." }),
+    expect.objectContaining({ "@type": "WebApplication", name: "Fullwell" }),
+  ]));
+
+  const whatsapp = page.getByRole("region", { name: "Use Fullwell from WhatsApp" });
+  await expect(whatsapp).toContainText("WhatsApp is an optional communication channel for Fullwell.");
+  await expect(page.getByRole("link", { name: "About Fullwell", exact: true })).toHaveAttribute("href", "/about");
+  await expect(page.getByRole("link", { name: "Support", exact: true })).toHaveAttribute("href", "mailto:support@fullwell.app");
+  await expect(page.locator(".wordmark")).toHaveText("Fullwell");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+
+  for (const route of ["/about", "/company", "/privacy", "/terms"]) {
+    const publicResponse = await page.goto(route);
+    expect(publicResponse?.status(), route).toBe(200);
+    await expect(page.locator("body"), route).toContainText("Fullwell");
+    await expect(page.locator("body"), route).toContainText("Sous Chef Studio, Inc.");
+    await expect(page.locator('link[rel="canonical"]'), route).toHaveCount(1);
+  }
+  const socialImage = await request.get("/assets/fullwell-social-card.png");
+  expect(socialImage.status()).toBe(200);
+  expect(socialImage.headers()["content-type"]).toContain("image/png");
+  await page.goto("/");
+  await page.screenshot({ path: testInfo.outputPath("fullwell-public-identity.png"), fullPage: true });
 });
 
 test("renders the advanced guide hub and direct workflow destinations", async ({ page }, testInfo) => {

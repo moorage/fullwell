@@ -12,7 +12,7 @@ The artwork is presentation only. It must not change authentication, household d
 - [x] 2026-07-27T20:38Z: Inspected both supplied PNGs, the current install/homepage route, shared masthead, responsive CSS, public identity tests, static-asset serving, and the current production release boundary.
 - [x] 2026-07-27T20:43Z: Completed Milestone 1. Added the exact artwork bytes, decorative intrinsic image markup, responsive hero and masthead styling, unit coverage, and exact static-asset browser checks. The focused component suite passes 61 tests; web typecheck/build and eight focused WebKit checks pass.
 - [x] 2026-07-27T20:48Z: Completed Milestone 2. Accepted desktop, iPhone 13, 320x568, and no-JavaScript renders; the full browser gate passes 142 checks with 22 intentional skips, and the dedicated accessibility gate passes six applicable checks with six intentional skips. The standard screencast helper failed before capture on the known unavailable `x11grab` input with FFmpeg exit 234, so the reviewed Playwright screenshots remain the visible evidence.
-- [ ] Milestone 3: Commit, push, build the exact Linux/amd64 image, deploy with preserved rollback, and verify production.
+- [x] 2026-07-27T20:58Z: Completed Milestone 3. Pushed release commit `6fffbe8`, deployed checksum-matched Linux/amd64 image `hfj-staging:character-artwork-20260727-1-runtime`, retained the canonical-origin environment/image as rollback, and passed production asset, desktop/mobile, readiness, redirect, Apple, OAuth/MCP, signed messaging, persistence, and operator checks.
 
 ## Surprises & Discoveries
 
@@ -21,6 +21,7 @@ The artwork is presentation only. It must not change authentication, household d
 - 2026-07-27: `AppShell` owns the masthead across public, focused-auth, and workspace routes. Replacing its generic house stamp with the supplied face gives the compact artwork one consistent, non-authoritative brand role.
 - 2026-07-27: The source files have Finder quarantine/tag extended attributes, but their embedded image properties expose only dimensions, alpha, and the standard sRGB profile. `cp -X` prevented those source attributes from carrying into the workspace; macOS subsequently attached its local `com.apple.provenance` attribute. Git does not store extended attributes, and the committed PNG bytes retain the exact source SHA-256 values.
 - 2026-07-27: The reviewed desktop, iPhone 13, and 320x568 renders keep the agent chooser in the first desktop viewport and place the capped mobile character between the product explanation and chooser without horizontal overflow.
+- 2026-07-27: The first clean image attempt from a `/tmp` archive reproduced tracked bug `fullwell-60h`: Apple Container sent a two-byte build context. Repeating the exact commit archive from a sibling project directory restored the expected 5.81 MiB context. The temporary build recipe prebuilt `@hfj/contracts` before the unchanged workspace build, matching the previously proven workaround; the shipped app source and assets remain exact commit `6fffbe8`.
 
 ## Decision Log
 
@@ -151,8 +152,19 @@ Before deployment, retain the current `HFJ_IMAGE` and `/etc/hfj/deploy.env`. If 
 - Beads feature: `fullwell-3i2`
 - Source full-body SHA-256: `992d1d3a81d36a6d2b1a2e74a55d855557cdab3972fcb5cc1403f6ccc0c31219`
 - Source face SHA-256: `c03c30d5d13f7f74f6e4887805ffc659f317c2def2709c090081bd62bdb5fa04`
-- Planned screencast: `artifacts/screencasts/fullwell-character-artwork.mp4`
+- Screencast attempt: FFmpeg exit 234 on unavailable `x11grab`; no partial artifact was retained.
+- Release commit: `6fffbe826f456a86804336f1483ad5fee5d27da2`
+- Deployed image: `hfj-staging:character-artwork-20260727-1-runtime`
+- OCI index: `sha256:1a58fc469607d958992a8d108e1a6f7ea57c393f7de965a257d715b522d3e950`
+- Linux/amd64 manifest: `sha256:7da109a704de8a3f930b5e21461dd74eb0ca65222c9003c3b30020a4f08d0e4d`
+- Archive: 81,012,736 bytes, SHA-256 `f1e3f27e471aa50d16b5b59ceef48925773f9536a96df911dbc6ca027ff47fbb`
+- Rollback environment: `/etc/hfj/deploy.env.pre-character-artwork-20260727-1`
+- Rollback image: `hfj-staging:canonical-origin-20260727-1-runtime`
 
 ## Outcomes & Retrospective
 
-The exact full-body illustration now anchors the canonical homepage hero, while the square face replaces the generic masthead stamp throughout the shared shell. Both remain decorative, preserve the existing accessible names and product claims, and have intrinsic dimensions plus bounded responsive sizing. Local desktop, iPhone 13, 320x568, and no-JavaScript screenshots are accepted; the agent chooser remains above the fold on desktop. Focused component, typecheck, build, and eight WebKit checks pass. Add broad-gate, release-image, production, rollback, and final risk evidence after deployment.
+The exact full-body illustration anchors the canonical homepage hero, while the square face replaces the generic masthead stamp throughout the shared shell. Both remain decorative, preserve existing accessible names and product claims, and have intrinsic dimensions plus bounded responsive sizing. Local and deployed desktop, iPhone 13, and 320x568 screenshots are accepted; the agent chooser remains above the fold on desktop.
+
+Focused component, typecheck, build, eight targeted WebKit checks, the 142-check full browser gate, the six-check accessibility gate, and full repository verification pass. Production serves the exact source bytes as `image/png`, initial HTML references both assets, Apple sign-in advertises the apex callback, deployment and MCP discovery smokes pass, signed WhatsApp handling remains intact, and mounted-volume persistence survives service recreation. Operator readiness, reconciliation, backup, repository, restore, signing, and volume checks are healthy. Aggregate operator health remains degraded only by the pre-existing one response-ready message while no runner is online.
+
+The immutable prior canonical-origin image and root-only deploy environment retain rollback without a schema, household Git, Caddy, provider, or secret change. The transferred OCI archive and persistence canary were removed after verification. Remaining build-system work is already tracked by `fullwell-60h`; the screencast helper limitation remains tracked separately and did not block the reviewed browser evidence.

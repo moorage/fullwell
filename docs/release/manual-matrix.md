@@ -10,7 +10,7 @@ Status values: `Not run`, `Pass`, `Fail`, `Blocked`, or `Not available`. A relea
 | Mobile WebKit | iPhone 13 | Character is capped above the chooser; face masthead remains legible; no overflow | Pass |
 | Narrow WebKit | 320x568 | Single-column hero, bounded artwork, readable install controls, and no horizontal overflow | Pass |
 | No-JavaScript WebKit | 390x844 | Both static images render with the complete progressive install flow | Pass |
-| Production HTTPS | Record after rollout | Exact PNG checksums/content types plus desktop/mobile render review required | Not run |
+| Production HTTPS | fullwell.ai, 2026-07-27; 1440x900, iPhone 13, 320x568 WebKit | Exact PNG checksums/content types pass; full-body hero, face masthead, install controls, and no-overflow layout visually accepted | Pass |
 
 | Surface | Exact version/device | Install | OAuth | Setup | Invite | Share/revoke | Selective import | Upgrade/disable/uninstall | Evidence | Status |
 |---|---|---|---|---|---|---|---|---|---|---|

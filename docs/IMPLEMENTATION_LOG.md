@@ -5,8 +5,8 @@
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
   - `docs/exec-plans/active/2026-07-27-canonical-origin-fullwell-ai.md`
-  - `docs/exec-plans/active/2026-07-27-fullwell-character-artwork.md`
 - completed ExecPlans:
+  - `docs/exec-plans/completed/2026-07-27-fullwell-character-artwork.md`
   - `docs/exec-plans/completed/2026-07-27-durable-computer-use-images.md`
   - `docs/exec-plans/completed/2026-07-27-public-brand-company-identity.md`
   - `docs/exec-plans/completed/2026-07-26-local-delivery-journal-compatibility-repair.md`
@@ -20,6 +20,9 @@
 - 2026-07-27 Fullwell character artwork implementation places the exact supplied full-body illustration in the canonical homepage hero and replaces the shared masthead house stamp with the supplied face, while retaining existing product copy, install controls, navigation, and server authority
 - both same-origin PNGs preserve the source bytes, use explicit intrinsic dimensions and decorative semantics, and remain bounded without horizontal overflow at desktop, iPhone 13, 320x568, and no-JavaScript widths
 - focused web tests, typecheck, build, eight targeted WebKit checks, the full 142-check browser gate with 22 intentional skips, and the six-check accessibility gate with six intentional skips pass; the standard screencast helper again stops on unavailable macOS `x11grab` with exit 234, so reviewed Playwright screenshots retain visible evidence
+- release commit `6fffbe8` is pushed; DigitalOcean runs healthy Linux/amd64 image `hfj-staging:character-artwork-20260727-1-runtime` at OCI index digest `sha256:1a58fc469607d958992a8d108e1a6f7ea57c393f7de965a257d715b522d3e950` and concrete manifest `sha256:7da109a704de8a3f930b5e21461dd74eb0ca65222c9003c3b30020a4f08d0e4d` from the checksum-matched 81,012,736-byte archive SHA-256 `f1e3f27e471aa50d16b5b59ceef48925773f9536a96df911dbc6ca027ff47fbb`
+- the exact artwork hashes and PNG content types, deployed desktop/mobile/320 renders, initial HTML, apex readiness, permanent redirects, Apple callback, deployment/MCP discovery, signed WhatsApp smoke, and mounted-volume restart canary pass; `/etc/hfj/deploy.env.pre-character-artwork-20260727-1` and `hfj-staging:canonical-origin-20260727-1-runtime` retain rollback
+- authenticated operator readiness, reconciliation, backup, repository, restore, signing, and volume checks are healthy; aggregate status remains degraded only by the pre-existing one response-ready WhatsApp record while no runner is online, and the transferred archive and persistence canary were removed
 - 2026-07-27 canonical-origin migration implementation makes `https://fullwell.ai` the sole configured application origin, moves public identity and immutable agent-client metadata to the apex, and retains `www` plus `fullwell.souschefstudio.com` as redirect-only compatibility hosts
 - release commit `48048ba` is pushed; public `@fullwell/fullwell@1.1.18` has matching prepared and registry SHA-1 `9a571b41655d20ccbf24e544a69016dfb8b1cf18` and passes clean Codex and Claude host lifecycles
 - a separate tested `deploy/Caddyfile.whatsapp-cutover` exposed only the exact GET/POST WhatsApp webhook at the apex before final activation; after separate action-time confirmation, Meta saved and reloaded the direct apex callback with mTLS off and only `messages` subscribed at v25.0, and bounded signed delivery passes before and after activation

@@ -12,7 +12,7 @@ The result should help a third-party reviewer verify the display name `Fullwell`
 - [x] 2026-07-27T07:31Z: Milestone 1 - added the focused public identity routes, homepage sections, navigation/footer disclosure, legal identity, and production contacts.
 - [x] 2026-07-27T07:31Z: Milestone 2 - added route metadata, canonical links, Open Graph fields, a PNG social preview asset, and valid provider-linked JSON-LD.
 - [x] 2026-07-27T07:46Z: Milestone 3 - added and passed unit, server-rendering, crawler, placeholder, responsive, accessibility, no-JavaScript, social-image, and broken-link verification across the four WebKit projects.
-- [ ] Milestone 4 - update product guidance and delivery records, run complete gates, deploy, and verify the logged-out production responses.
+- [x] 2026-07-27T07:53Z: Milestone 4 - updated product guidance and delivery records, passed complete gates, deployed the exact pushed commit, and verified logged-out production responses and permanent aliases.
 
 ## Surprises & Discoveries
 
@@ -181,7 +181,7 @@ Files:
 - `docs/product-specs/household-food-journal-server.md`
 - `docs/IMPLEMENTATION_LOG.md`
 - `CHANGELOG.md`
-- `docs/exec-plans/active/2026-07-27-public-brand-company-identity.md`
+- `docs/exec-plans/completed/2026-07-27-public-brand-company-identity.md`
 
 Tasks:
 
@@ -222,4 +222,14 @@ Run `npm run test:e2e`, `npm run verify`, `npm run verify:docs`, and `npm run ve
 
 ## Outcomes & Retrospective
 
-Implementation is pending. Record the exact public copy, metadata, structured-data output, screenshot/screencast evidence, deployment image digest, commands run, and any contact-monitoring fact that could not be independently confirmed.
+The release makes Fullwell's public identity explicit without redesigning the application. The hero, optional WhatsApp section, company disclosure, `/about`, `/company`, Privacy, Terms, header, navigation, and footer all server-render the product, household-assistant purpose, operator, official domains, and production contacts. One typed module owns the factual values. The former literal `F` stamp is now a decorative house, so the visible and accessible wordmark reads `Fullwell` once.
+
+The root response now carries the exact title `Fullwell Household Assistant | By Sous Chef Studio`, the requested household-assistant description, one configured-origin canonical link, complete Fullwell Open Graph fields, and a 1200-by-630 PNG preview. Its JSON-LD parses as Sous Chef Studio, Inc. `Organization` plus a Fullwell `WebApplication` whose provider refers to that organization and whose official alias is `https://fullwell.ai/`. Other indexable static public pages receive route-specific canonical and Open Graph metadata; private and token-bearing pages do not.
+
+Local acceptance passed 86 focused web tests, 11 focused server tests, 140 WebKit checks with 16 intentional project skips, 416 complete application tests with 11 database-gated skips, every workspace typecheck/build, lint, unit/security/harness verification, docs verification, and ExecPlan verification. Production-facing source and built artifacts contain no `.example` email, lorem ipsum, or staging URL. Full-page desktop, iPhone, 320-pixel, and no-JavaScript screenshots under `artifacts/playwright/` passed visual review without horizontal overflow. The repository screencast attempt failed before capture because Homebrew FFmpeg 8.0.1 lacks `x11grab`; it exited 234 and created no MP4.
+
+Release commit `cd33b4f` is pushed to `origin/main`. DigitalOcean runs `hfj-staging:public-brand-20260727-1-runtime` at Linux/amd64 OCI index digest `sha256:84d396b21088302288efee2236c466096f5491db9cb3b8f7766613fd629467f9`, transferred with archive SHA-256 `2d92171182ac1cb5524bede22ed7f57eb01c256fd5c47c31d35ca3fcbdc2777f`. `/etc/hfj/deploy.env.pre-public-brand-20260727-1` and `hfj-staging:whatsapp-recovery-20260726-1-runtime` retain rollback. Live/readiness, schema `0008`, volume, signing, single-writer leadership, deployment, MCP discovery, all public identity routes, crawler HTML, canonical/Open Graph metadata, JSON-LD, PNG delivery, legal identity, and placeholder checks pass. `fullwell.ai` and `www.fullwell.ai` return path-preserving HTTPS 301 redirects to the unchanged application origin.
+
+The failed archive-cleanup command changed nothing because the execution policy rejected deletion without an approval path. The already-consumed checksum-verified archives remain at `/root/fullwell-public-brand-20260727-1.oci.tar` on staging and `/tmp/fullwell-public-brand.r5bdW7/fullwell-public-brand-20260727-1.oci.tar` locally; neither is active runtime state or contains credentials.
+
+The repository establishes `support@fullwell.app` and `privacy@fullwell.app` as the production addresses, so no placeholder or invented address was deployed. Repository source cannot independently prove whether either mailbox is currently monitored; that operational fact remains for the owner to confirm.

@@ -1221,10 +1221,6 @@
                 {
                   "type": "file",
                   "name": "2026-07-21-approval-efficient-onboarding.md"
-                },
-                {
-                  "type": "file",
-                  "name": "2026-07-27-public-brand-company-identity.md"
                 }
               ]
             },
@@ -1259,6 +1255,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-26-local-delivery-journal-compatibility-repair.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-27-public-brand-company-identity.md"
                 }
               ]
             }

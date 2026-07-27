@@ -1,11 +1,11 @@
 # Implementation Log
 
 - active ExecPlans:
-  - `docs/exec-plans/active/2026-07-27-public-brand-company-identity.md`
   - `docs/exec-plans/active/2026-07-15-household-food-journal-v1.md`
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
 - completed ExecPlans:
+  - `docs/exec-plans/completed/2026-07-27-public-brand-company-identity.md`
   - `docs/exec-plans/completed/2026-07-26-local-delivery-journal-compatibility-repair.md`
   - `docs/exec-plans/completed/2026-07-24-food-delivery-history-and-cart-preparation.md`
   - `docs/exec-plans/completed/2026-07-24-agent-guides-and-visual-journal-browsing.md`
@@ -14,7 +14,9 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
-- 2026-07-27 public brand identity work makes Fullwell's initial logged-out HTML explicitly describe a household assistant, optional WhatsApp use, Sous Chef Studio, Inc. ownership and operation, the official `fullwell.ai` redirect domain, production contacts, and the sole service origin; `/about` and `/company`, legal identity, footer/navigation links, canonical/Open Graph metadata, a raster social card, and provider-linked JSON-LD use one typed factual source without changing the authenticated application origin
+- 2026-07-27 public brand identity release commit `cd33b4f` makes Fullwell's initial logged-out HTML explicitly describe a household assistant, optional WhatsApp use, Sous Chef Studio, Inc. ownership and operation, the official `fullwell.ai` redirect domain, production contacts, and the sole service origin; `/about` and `/company`, legal identity, footer/navigation links, canonical/Open Graph metadata, a raster social card, and provider-linked JSON-LD use one typed factual source without changing the authenticated application origin
+- DigitalOcean staging runs checksum-matched Linux/amd64 image `hfj-staging:public-brand-20260727-1-runtime` at OCI index digest `sha256:84d396b21088302288efee2236c466096f5491db9cb3b8f7766613fd629467f9` from archive SHA-256 `2d92171182ac1cb5524bede22ed7f57eb01c256fd5c47c31d35ca3fcbdc2777f`; readiness, schema `0008`, deployment/MCP smokes, crawler HTML, public routes, metadata, JSON-LD, social image, legal identity, and permanent alias redirects pass, while `/etc/hfj/deploy.env.pre-public-brand-20260727-1` and the prior image retain rollback
+- local acceptance passes 416 application tests with 11 database-gated skips and 140 WebKit checks with 16 intentional project skips across desktop, iPhone, 320-pixel, accessibility, and no-JavaScript projects; the screencast helper exited 234 without an artifact because Homebrew FFmpeg 8.0.1 lacks `x11grab`, so full-page Playwright screenshots remain the visible evidence
 - 2026-07-27 live WhatsApp recovery removed only the five-day-old stale response, preserved and claimed the new restocking request, renewed the existing local runner's OAuth grant, and traced its pre-cart failure to a valid 3,456-file journal exceeding an obsolete 2,000-file snapshot cap; no cart mutation or checkout occurred
 - runner snapshots now match the supported 10,000-item plus 10,000-evidence journal capacity and three fixed compatibility files, load blobs through one bounded Git batch instead of one process per file, and retain the independent 1 MiB/file and 5 MiB total limits; exact-limit contracts, the real 20,000-path Git test, runner tests, and server typecheck pass
 - the corrected live snapshot installed all 3,456 validated files, then exposed a 3.13 MiB model-prompt expansion from 2,616 raw evidence records; the runner now keeps those files local for manifest and traceability checks while giving the host the profile, report, and all 837 evidence-citing item records with exact product/store provenance

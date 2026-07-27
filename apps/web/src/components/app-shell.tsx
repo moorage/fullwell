@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { House } from "lucide-react";
 import { PUBLIC_BRAND } from "../brand.js";
 import { useWebContext } from "../context.js";
 
@@ -19,7 +18,16 @@ export function AppShell({ children, context = "public", active }: AppShellProps
       </a>
       <header className="masthead">
         <a className="wordmark" href={context === "workspace" ? "/households" : "/"}>
-          <span className="wordmark__stamp" aria-hidden="true"><House size={18} strokeWidth={2.5} /></span>
+          <span className="wordmark__stamp" aria-hidden="true">
+            <img
+              className="wordmark__face"
+              src="/assets/fullwell-face-square.png"
+              alt=""
+              width="454"
+              height="455"
+              decoding="async"
+            />
+          </span>
           <span>Fullwell</span>
         </a>
         {context === "workspace" ? (

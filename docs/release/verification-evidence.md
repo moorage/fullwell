@@ -1,5 +1,16 @@
 # Verification Evidence
 
+## Fullwell character artwork
+
+Date: 2026-07-27
+
+- The canonical homepage hero uses the exact supplied `774x1247` full-body PNG, and the shared masthead uses the exact supplied `454x455` face PNG beside the visible `Fullwell` wordmark. Both are decorative, have explicit intrinsic dimensions, preserve the existing product and install flow, and add no browser authority or data/provider change.
+- Source and checked-in SHA-256 values match: full body `992d1d3a81d36a6d2b1a2e74a55d855557cdab3972fcb5cc1403f6ccc0c31219`; face `c03c30d5d13f7f74f6e4887805ffc659f317c2def2709c090081bd62bdb5fa04`.
+- Focused acceptance passes 61 web tests, web typecheck, the production web build, and eight targeted WebKit checks. The complete browser gate passes 142 checks with 22 intentional project skips; the dedicated accessibility gate passes six applicable checks with six intentional project skips. Full repository verification passes lint, typecheck, production builds, 421 application tests with 11 expected database-gated skips, docs verification, and active-ExecPlan verification.
+- Reviewed Playwright screenshots at 1440x900, iPhone 13, 320x568, and no JavaScript show no horizontal overflow. The desktop agent chooser remains in the first viewport, and the bounded mobile character does not obstruct the existing install controls.
+- The repository screencast helper was attempted for `artifacts/screencasts/fullwell-character-artwork.mp4`, but Homebrew FFmpeg 8.0.1 rejected the unavailable `x11grab` input and exited 234 before capture. No partial MP4 was produced; the reviewed WebKit screenshots are the local visual evidence.
+- Release commit, immutable image identifiers, production asset checks, runtime smokes, and rollback references will be appended after deployment.
+
 ## Canonical origin migration
 
 - 2026-07-27 local implementation changes the sole application and packaged-client origin to `https://fullwell.ai`, adds final redirect-only handling for `www` plus `fullwell.souschefstudio.com`, and adds a separate exact-path WhatsApp webhook transition configuration. Caddy 2.10 validates both configurations in Apple Container. Focused gates pass 2 Caddy tests, 12 server tests, 61 web tests, 53 package tests, and package validation for 9 skills, 42 tools, and 182 eval cases.

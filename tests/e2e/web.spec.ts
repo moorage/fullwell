@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import {
@@ -17,6 +18,18 @@ test("serves a responsive, keyboard-usable install experience", async ({ page },
   await expect(page.getByRole("heading", { name: "Your household assistant for keeping the pantry full and meals organized" })).toBeVisible();
   await expect(page.getByText("Fullwell by Sous Chef Studio")).toBeVisible();
   await expect(page.getByText(/household-assistant product developed and operated by Sous Chef Studio, Inc/)).toBeVisible();
+  await expect(page.locator(".install-hero__character-image")).toBeVisible();
+  await expect(page.locator(".install-hero__character-image")).toHaveAttribute("alt", "");
+  await expect(page.locator(".install-hero__character-image")).toHaveAttribute("width", "774");
+  await expect(page.locator(".install-hero__character-image")).toHaveAttribute("height", "1247");
+  await expect(page.locator(".wordmark__face")).toBeVisible();
+  await expect(page.locator(".wordmark__face")).toHaveAttribute("alt", "");
+  await expect(page.locator(".wordmark")).toHaveAccessibleName("Fullwell");
+  if (testInfo.project.name === "desktop-webkit") {
+    const chooser = await page.getByRole("group", { name: "Choose your agent" }).boundingBox();
+    expect(chooser, "The desktop agent chooser should be rendered").not.toBeNull();
+    expect((chooser?.y ?? 900) + (chooser?.height ?? 0), "The desktop agent chooser should remain above the fold").toBeLessThan(900);
+  }
 
   if (testInfo.project.name !== "no-js-webkit") {
     await expect(page.getByRole("link", { name: "Start Fullwell setup" })).toHaveAttribute("href", /^codex:\/\/new\?prompt=/);
@@ -79,6 +92,16 @@ test("serves crawlable Fullwell company and WhatsApp identity", async ({ page, r
   const socialImage = await request.get("/assets/fullwell-social-card.png");
   expect(socialImage.status()).toBe(200);
   expect(socialImage.headers()["content-type"]).toContain("image/png");
+  const characterAssets = [
+    ["/assets/fullwell-full-body-tall.png", "992d1d3a81d36a6d2b1a2e74a55d855557cdab3972fcb5cc1403f6ccc0c31219"],
+    ["/assets/fullwell-face-square.png", "c03c30d5d13f7f74f6e4887805ffc659f317c2def2709c090081bd62bdb5fa04"],
+  ] as const;
+  for (const [path, expectedSha256] of characterAssets) {
+    const asset = await request.get(path);
+    expect(asset.status(), path).toBe(200);
+    expect(asset.headers()["content-type"], path).toContain("image/png");
+    expect(createHash("sha256").update(await asset.body()).digest("hex"), path).toBe(expectedSha256);
+  }
   await page.goto("/");
   await page.screenshot({ path: testInfo.outputPath("fullwell-public-identity.png"), fullPage: true });
 });

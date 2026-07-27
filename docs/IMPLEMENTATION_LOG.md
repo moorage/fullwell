@@ -5,6 +5,7 @@
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
   - `docs/exec-plans/active/2026-07-27-canonical-origin-fullwell-ai.md`
+  - `docs/exec-plans/active/2026-07-27-fullwell-character-artwork.md`
 - completed ExecPlans:
   - `docs/exec-plans/completed/2026-07-27-durable-computer-use-images.md`
   - `docs/exec-plans/completed/2026-07-27-public-brand-company-identity.md`
@@ -16,6 +17,9 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-27 Fullwell character artwork implementation places the exact supplied full-body illustration in the canonical homepage hero and replaces the shared masthead house stamp with the supplied face, while retaining existing product copy, install controls, navigation, and server authority
+- both same-origin PNGs preserve the source bytes, use explicit intrinsic dimensions and decorative semantics, and remain bounded without horizontal overflow at desktop, iPhone 13, 320x568, and no-JavaScript widths
+- focused web tests, typecheck, build, eight targeted WebKit checks, the full 142-check browser gate with 22 intentional skips, and the six-check accessibility gate with six intentional skips pass; the standard screencast helper again stops on unavailable macOS `x11grab` with exit 234, so reviewed Playwright screenshots retain visible evidence
 - 2026-07-27 canonical-origin migration implementation makes `https://fullwell.ai` the sole configured application origin, moves public identity and immutable agent-client metadata to the apex, and retains `www` plus `fullwell.souschefstudio.com` as redirect-only compatibility hosts
 - release commit `48048ba` is pushed; public `@fullwell/fullwell@1.1.18` has matching prepared and registry SHA-1 `9a571b41655d20ccbf24e544a69016dfb8b1cf18` and passes clean Codex and Claude host lifecycles
 - a separate tested `deploy/Caddyfile.whatsapp-cutover` exposed only the exact GET/POST WhatsApp webhook at the apex before final activation; after separate action-time confirmation, Meta saved and reloaded the direct apex callback with mTLS off and only `messages` subscribed at v25.0, and bounded signed delivery passes before and after activation

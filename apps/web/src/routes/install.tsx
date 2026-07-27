@@ -39,17 +39,32 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
   return (
     <AppShell>
       <section className="install-hero page-band">
-        <p className="eyebrow">Fullwell by Sous Chef Studio</p>
-        <PageHeader title="Your household assistant for keeping the pantry full and meals organized">
-          <p>
-            Fullwell helps families remember groceries, organize recipes and meals, and handle
-            household food tasks through the AI agents they already use. Connect Fullwell to
-            WhatsApp to send restocking requests and household tasks from anywhere.
-          </p>
-        </PageHeader>
-        <p className="identity-attribution">
-          Fullwell is a household-assistant product developed and operated by Sous Chef Studio, Inc.
-        </p>
+        <div className="install-hero__lead">
+          <div className="install-hero__copy">
+            <p className="eyebrow">Fullwell by Sous Chef Studio</p>
+            <PageHeader title="Your household assistant for keeping the pantry full and meals organized">
+              <p>
+                Fullwell helps families remember groceries, organize recipes and meals, and handle
+                household food tasks through the AI agents they already use. Connect Fullwell to
+                WhatsApp to send restocking requests and household tasks from anywhere.
+              </p>
+            </PageHeader>
+            <p className="identity-attribution">
+              Fullwell is a household-assistant product developed and operated by Sous Chef Studio, Inc.
+            </p>
+          </div>
+          <figure className="install-hero__character" aria-hidden="true">
+            <img
+              className="install-hero__character-image"
+              src="/assets/fullwell-full-body-tall.png"
+              alt=""
+              width="774"
+              height="1247"
+              decoding="async"
+              fetchPriority="high"
+            />
+          </figure>
+        </div>
         <div className="host-chooser" role="group" aria-label="Choose your agent">
           {(["codex", "claude"] as const).map((option) => (
             <button

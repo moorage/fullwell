@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add the supplied Fullwell household-assistant character to the public homepage hero and use its square face as the shared masthead mark, with exact-byte same-origin assets, stable intrinsic sizing, decorative semantics, and responsive 320-pixel coverage.
 - Make `https://fullwell.ai` the sole application, Apple, passkey, OAuth, MCP, install, and canonical metadata origin; retain `www` and the legacy host as permanent path-preserving redirects, add a direct WhatsApp webhook transition configuration, and document required sign-in, passkey re-enrollment, and client reconnect behavior.
 - Let household owners rename a connected household from a hover-, keyboard-, and touch-accessible title control with an autofocus dialog, exact-HEAD conflict protection, a no-JavaScript fallback, and a public guide covering both chat and web renaming.
 - Clarify Fullwell's public identity with a server-rendered household-assistant homepage, optional WhatsApp section, visible Sous Chef Studio, Inc. ownership, official-domain and production-contact disclosures, `/about` and `/company` pages, corrected legal identity, route-specific canonical/Open Graph metadata, and provider-linked Schema.org JSON-LD.

@@ -2,6 +2,16 @@
 
 Status values: `Not run`, `Pass`, `Fail`, `Blocked`, or `Not available`. A release cannot pass with a required `Fail`, `Blocked`, or unexplained `Not available` result.
 
+## Public Artwork Matrix
+
+| Surface | Exact viewport/runtime | Artwork and layout evidence | Status |
+|---|---|---|---|
+| Desktop WebKit | 1440x900 | Full-body hero and face masthead visible; agent chooser remains in first viewport; no overflow | Pass |
+| Mobile WebKit | iPhone 13 | Character is capped above the chooser; face masthead remains legible; no overflow | Pass |
+| Narrow WebKit | 320x568 | Single-column hero, bounded artwork, readable install controls, and no horizontal overflow | Pass |
+| No-JavaScript WebKit | 390x844 | Both static images render with the complete progressive install flow | Pass |
+| Production HTTPS | Record after rollout | Exact PNG checksums/content types plus desktop/mobile render review required | Not run |
+
 | Surface | Exact version/device | Install | OAuth | Setup | Invite | Share/revoke | Selective import | Upgrade/disable/uninstall | Evidence | Status |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Codex CLI | 0.144.4 | Public npm artifact install/remove/reinstall pass | Dynamic registration, consent, token exchange, revoke/reconnect pass | Staging blocked | Staging blocked | Grant revoke pass; collection flow blocked | Staging blocked | Remove/reinstall pass; disable unavailable in CLI | `verification-evidence.md` | Blocked |

@@ -77,6 +77,18 @@ describe("web experience", () => {
     expect(screen.getByRole("link", { name: "fullwell.ai" })).toHaveAttribute("href", "https://fullwell.ai/");
     expect(screen.getByRole("link", { name: "support@fullwell.app" })).toHaveAttribute("href", "mailto:support@fullwell.app");
     expect(document.querySelector(".wordmark")).toHaveTextContent(/^Fullwell$/);
+    expect(document.querySelector(".wordmark__face")).toMatchObject({
+      alt: "",
+      height: 455,
+      width: 454,
+    });
+    expect(document.querySelector(".wordmark__face")).toHaveAttribute("src", "/assets/fullwell-face-square.png");
+    expect(document.querySelector(".install-hero__character-image")).toMatchObject({
+      alt: "",
+      height: 1247,
+      width: 774,
+    });
+    expect(document.querySelector(".install-hero__character-image")).toHaveAttribute("src", "/assets/fullwell-full-body-tall.png");
   });
 
   it("makes the Fullwell and Sous Chef Studio relationship explicit on public identity and legal routes", () => {

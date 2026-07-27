@@ -1,5 +1,15 @@
 # Verification Evidence
 
+## Household naming on web and chat
+
+Date: 2026-07-27
+
+- Release commit `1605e3a` is pushed to `origin/main`. Household owners can rename a connected household from a hover-, focus-, and touch-accessible title control whose native dialog autofocuses and selects the current name; the server delegates to the existing owner-only, CSRF-protected, idempotent, exact-HEAD `hfj_update_household_name` path used by chat. Editors and viewers receive no control or authority, and the initial HTML retains a direct no-JavaScript form.
+- Local acceptance passes 98 web tests, 25 focused server tests, 14 agent evals, 142 applicable WebKit checks with 22 intentional project skips, Browser-plugin guide inspection, zero production dependency vulnerabilities, production build, and full verification with 420 application tests and 11 expected database skips.
+- DigitalOcean staging runs `hfj-staging:household-rename-20260727-1-runtime` at Linux/amd64 OCI index digest `sha256:505143d96320bd6be429809328858042323ebbacd33a52a483d7f1bb691ba0f0` and concrete amd64 manifest `sha256:2c2d93f6eabf8e0dd5535850efa9a0a88d0915d5ce63a9fc8c91cf5ef1b8836b`. Its 79,073,792-byte archive has SHA-256 `103907bc606e638cd0e63876c4d054138532b6d41f317208bfe77455f6d3d9dd`, matched locally and on the Droplet before activation.
+- Public readiness reports schema `0008`; deployment and MCP discovery smokes pass; `/guides/household-name` serves the chat and website instructions; a fully parsed anonymous rename request returns `401` without mutation; the mounted-volume canary round-trips and is removed; and the running container reports healthy on the exact immutable image.
+- `/etc/hfj/deploy.env.pre-household-rename-20260727-1` and `hfj-staging:durable-images-20260727-1-runtime` retain rollback. The transferred archive was removed after activation. Authenticated operator readiness, reconciliation, backup, repository, signing, volume, and restore checks pass; aggregate status remains degraded only because one previously known WhatsApp response is waiting while no runner is online.
+
 ## Durable computer-use images
 
 Date: 2026-07-27

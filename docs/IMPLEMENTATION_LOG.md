@@ -13,6 +13,9 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-26 delivery cloud commits now accept 10,000 completed evidence records and 10,000 delivery dishes per provider request while retaining the 16 MiB request bound; commit `b6a57d9` is pushed and the boundary tests accept 10,000 and reject 10,001
+- DigitalOcean staging runs `hfj-staging:delivery-limits-20260726-1-runtime` at Linux/amd64 OCI index digest `sha256:a6d08842bfbdd1e5f78f2047077fd10c8145d87354c3d7110362bf1dc23ec8ab` from checksum-matched archive SHA-256 `e9c0df1afae1d65a52621a19f9c78a0e352d1d699c6cf8cc5645461819924cc0`; schema `0008` readiness and public deployment/MCP smokes pass, `/etc/hfj/deploy.env.pre-delivery-limits-20260726-1` retains rollback, and the transferred archive was removed
+- authenticated operator health confirms healthy readiness, reconciliation, backup, repository, signing, and volume checks; the aggregate remains degraded because one five-day-old response-ready messaging record has no online runner
 - 2026-07-26 local delivery compatibility repair adds one stable, locked, atomic, idempotent update operation and an automatic agent repair/reload/resume loop; user-facing recovery stays in ordinary language, no repair contacts cloud, and unknown corruption remains untouched
 - a private-copy proof of revision 460 repairs five legacy delivery IDs, one evidence-backed mixed restaurant-name item, one legacy report type, one stale report summary, and two obsolete browser labels into revision 461 while preserving all 511 delivery order lines; the normalized index has 138 exact dishes and 24 exact restaurant/location rows
 - focused local runtime and MCP coverage passes 35 tests, including exact meal-plan replay, repeat no-op, unknown-corruption preservation, report normalization, restaurant partitioning, and retained non-obsolete profile fields

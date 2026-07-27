@@ -1,5 +1,15 @@
 # Verification Evidence
 
+## Delivery cloud commit capacity
+
+Date: 2026-07-26
+
+- Commit `b6a57d9` is pushed to `origin/main`. The delivery cloud contribution contract accepts up to 10,000 completed evidence records and 10,000 delivery dishes per provider request, rejects 10,001, and retains the independent 16 MiB request bound.
+- Contracts build, 52 package tests, 408 application tests with 11 expected database-gated skips, full repository verification, documentation verification, ExecPlan verification, and the pruned production dependency audit pass.
+- DigitalOcean staging runs `hfj-staging:delivery-limits-20260726-1-runtime` at Linux/amd64 OCI index digest `sha256:a6d08842bfbdd1e5f78f2047077fd10c8145d87354c3d7110362bf1dc23ec8ab` from checksum-matched archive SHA-256 `e9c0df1afae1d65a52621a19f9c78a0e352d1d699c6cf8cc5645461819924cc0`. Public readiness reports schema `0008`; deployment and MCP discovery smokes pass.
+- Authenticated operator health reports healthy readiness, reconciliation, backup, repository, signing, and volume checks. Its aggregate status remains degraded because one five-day-old response-ready messaging record has no online runner; no current deployment check failed.
+- `/etc/hfj/deploy.env.pre-delivery-limits-20260726-1` retains `hfj-staging:takeout-browser-20260726-1-runtime` as rollback. The transferred archive was removed after activation.
+
 ## Food-delivery Milestone 7
 
 Date: 2026-07-26

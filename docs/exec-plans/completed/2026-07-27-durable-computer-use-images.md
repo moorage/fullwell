@@ -210,4 +210,8 @@ Fullwell now gives all three journal-authoring computer-use paths one image cont
 
 The standard screencast helper was attempted and failed with the known macOS `x11grab` limitation (FFmpeg exit 234). A deterministic Playwright-native fallback produced `artifacts/screencasts/durable-computer-use-images.mp4`, a 4.12-second, 1440x900 H.264 fixture recording that shows a recorded Wintermelon boba image beside truthful no-image fallbacks.
 
-No live provider or private household was opened, no existing record was backfilled, and no cloud deployment or package publication was performed. Existing grocery, recipe, and delivery records gain images only when the user authorizes the corresponding browser audit or refresh; the server never crawls provider pages or downloads image bytes.
+Release commit `13f82ca` is pushed. Public immutable `@fullwell/fullwell@1.1.17` is npm `latest`; its registry checksums byte-match the prepared 33-file artifact, and a clean registry download passes isolated Codex and Claude lifecycles.
+
+A zero-production-vulnerability Linux/amd64 deployment image is prepared as `hfj-staging:durable-images-20260727-1-runtime` at OCI index digest `sha256:e2593a7145c71a64c0ae59135ef4c4b33d3d6b736da8f00a80fe5ad58b5dc287` from archive SHA-256 `97b45643255204c0bafc0a4e247fd89df45911a5ddd9c6b0dc3171302b09c991`. The execution policy rejected the explicit archive transfer before any bytes left the workstation, and the Droplet has no private-repository or registry credential fallback. DigitalOcean therefore still runs the prior public-brand image; deployment, rollback activation, and deployed smokes remain open rather than being claimed.
+
+No live provider or private household was opened, and no existing record was backfilled or synced. Existing grocery, recipe, and delivery records gain images only when the user authorizes the corresponding browser audit or refresh; the server never crawls provider pages or downloads image bytes.

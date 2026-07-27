@@ -46,6 +46,7 @@ import {
   ProviderMerchantLocatorSchema,
   ProviderOrderLocatorSchema,
   ReportSchema,
+  RESTOCKING_SNAPSHOT_MAX_FILES,
   SafeHttpsUrlSchema,
   ToolInputSchemas,
   parseMealPlanningToolInput,
@@ -2034,12 +2035,24 @@ describe("contract boundaries", () => {
   });
 
   it("requires hashed, user-only snapshot manifests", () => {
-    expect(HouseholdSnapshotManifestSchema.safeParse({
+    const manifest = {
       household_id: "hsh_0123456789abcdef",
       head: "a".repeat(40),
       content_sha256: "b".repeat(64),
       created_at: "2026-07-20T12:00:00.000Z",
-      files: [{ path: "profiles/snacks.md", sha256: "c".repeat(64), bytes: 42, mode: 0o644 }],
+    };
+    const validFile = { path: "profiles/snacks.md", sha256: "c".repeat(64), bytes: 42, mode: 0o600 };
+    expect(HouseholdSnapshotManifestSchema.safeParse({
+      ...manifest,
+      files: [{ ...validFile, mode: 0o644 }],
+    }).success).toBe(false);
+    expect(HouseholdSnapshotManifestSchema.safeParse({
+      ...manifest,
+      files: Array.from({ length: RESTOCKING_SNAPSHOT_MAX_FILES }, () => validFile),
+    }).success).toBe(true);
+    expect(HouseholdSnapshotManifestSchema.safeParse({
+      ...manifest,
+      files: Array.from({ length: RESTOCKING_SNAPSHOT_MAX_FILES + 1 }, () => validFile),
     }).success).toBe(false);
   });
 });

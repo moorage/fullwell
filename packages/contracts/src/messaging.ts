@@ -8,6 +8,10 @@ import {
   RequestIdSchema,
   RunnerDeviceIdSchema,
 } from "./ids.js";
+import {
+  ONBOARDING_COMMIT_MAX_EVIDENCE,
+  ONBOARDING_COMMIT_MAX_ITEMS,
+} from "./tools.js";
 
 export const MessagingProviderSchema = z.literal("whatsapp_cloud");
 export const MessageEnvelopeStateSchema = z.enum([
@@ -96,10 +100,15 @@ export const RunnerCompletionSchema = z.object({
   host_session_id: z.string().min(1).max(256).nullable(),
 }).strict();
 
+export const RESTOCKING_SNAPSHOT_MAX_FILES =
+  ONBOARDING_COMMIT_MAX_EVIDENCE + ONBOARDING_COMMIT_MAX_ITEMS + 3;
+export const RESTOCKING_SNAPSHOT_MAX_FILE_BYTES = 1_048_576;
+export const RESTOCKING_SNAPSHOT_MAX_TOTAL_BYTES = 5 * 1_048_576;
+
 export const HouseholdSnapshotFileSchema = z.object({
   path: z.string().min(1).max(240),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
-  bytes: z.number().int().min(0).max(1_048_576),
+  bytes: z.number().int().min(0).max(RESTOCKING_SNAPSHOT_MAX_FILE_BYTES),
   mode: z.literal(0o600),
 }).strict();
 
@@ -108,7 +117,7 @@ export const HouseholdSnapshotManifestSchema = z.object({
   head: GitObjectIdSchema,
   content_sha256: z.string().regex(/^[0-9a-f]{64}$/),
   created_at: DateTimeSchema,
-  files: z.array(HouseholdSnapshotFileSchema).max(2_000),
+  files: z.array(HouseholdSnapshotFileSchema).max(RESTOCKING_SNAPSHOT_MAX_FILES),
 }).strict();
 
 export const HouseholdSnapshotResponseSchema = z.object({

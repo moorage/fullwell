@@ -3,7 +3,12 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import type { GitObjectId, HouseholdId, RequestId } from "@hfj/contracts";
-import { GitObjectIdSchema } from "@hfj/contracts";
+import {
+  GitObjectIdSchema,
+  RESTOCKING_SNAPSHOT_MAX_FILE_BYTES,
+  RESTOCKING_SNAPSHOT_MAX_FILES,
+  RESTOCKING_SNAPSHOT_MAX_TOTAL_BYTES,
+} from "@hfj/contracts";
 import { AppError } from "../core/errors.js";
 import type { CommitMetadata, HouseholdRepositoryPort, RepositoryChange, RepositorySnapshot, RestockingRepositorySnapshot } from "../core/ports.js";
 import { isRestockingSnapshotPath } from "../core/restocking-snapshot.js";
@@ -81,11 +86,14 @@ export class GitHouseholdRepository implements HouseholdRepositoryPort {
     const repository = this.repositoryPath(householdId);
     const head = await this.head(householdId);
     const tree = await git([
-      "--git-dir", repository, "ls-tree", "-rz", "--format=%(objectmode)%x09%(objecttype)%x09%(path)", head,
+      "--git-dir", repository, "ls-tree", "-rz",
+      "--format=%(objectmode)%x09%(objecttype)%x09%(objectname)%x09%(objectsize)%x09%(path)",
+      head,
     ]);
-    const paths = restockingPathsFromTree(tree);
-    if (paths.length > 2_000) throw new AppError("PROJECTION_DRIFT", "Household repository contains too many restocking files");
-    const files = await Promise.all(paths.map(async (path) => ({ path, content: await git(["--git-dir", repository, "show", `${head}:${path}`]) })));
+    const entries = restockingEntriesFromTree(tree);
+    if (entries.length > RESTOCKING_SNAPSHOT_MAX_FILES) throw new AppError("PROJECTION_DRIFT", "Household repository contains too many restocking files");
+    const contents = await gitBlobBatch(repository, entries.map((entry) => entry.objectId));
+    const files = entries.map((entry, index) => ({ path: entry.path, content: contents[index] ?? "" }));
     return { head, files };
   }
 
@@ -220,22 +228,34 @@ export function validateExportTree(tree: string): void {
   }
 }
 
-function restockingPathsFromTree(tree: string): string[] {
+interface RestockingTreeEntry {
+  readonly path: string;
+  readonly objectId: GitObjectId;
+}
+
+function restockingEntriesFromTree(tree: string): RestockingTreeEntry[] {
   const entries = tree.split("\0").filter(Boolean);
   if (entries.length > MAX_RECONCILABLE_REPOSITORY_FILES) throw new AppError("PROJECTION_DRIFT", "Household repository contains too many files");
-  const paths: string[] = [];
+  const selected: RestockingTreeEntry[] = [];
+  let totalBytes = 0;
   for (const entry of entries) {
-    const match = /^(\d{6})\t([^\t]+)\t(.+)$/.exec(entry);
-    if (match?.[3] === undefined) throw new AppError("PROJECTION_DRIFT", "Household repository contains an invalid tree entry");
-    const path = match[3];
+    const match = /^(\d{6})\t([^\t]+)\t([0-9a-f]{40})\t([^\t]+)\t(.+)$/.exec(entry);
+    if (match?.[5] === undefined) throw new AppError("PROJECTION_DRIFT", "Household repository contains an invalid tree entry");
+    const path = match[5];
     validateRepositoryPath(path);
     if (!isRestockingSnapshotPath(path)) continue;
     if (match[1] !== "100644" || match[2] !== "blob") {
       throw new AppError("PROJECTION_DRIFT", "Household repository contains an unsafe restocking entry");
     }
-    paths.push(path);
+    const objectId = GitObjectIdSchema.parse(match[3]);
+    const bytes = Number.parseInt(match[4] ?? "", 10);
+    if (!Number.isSafeInteger(bytes) || bytes < 0) throw new AppError("PROJECTION_DRIFT", "Household repository contains an invalid restocking file size");
+    if (bytes > RESTOCKING_SNAPSHOT_MAX_FILE_BYTES) throw new AppError("PROJECTION_DRIFT", "A restocking snapshot file exceeds the size limit");
+    totalBytes += bytes;
+    if (totalBytes > RESTOCKING_SNAPSHOT_MAX_TOTAL_BYTES) throw new AppError("PROJECTION_DRIFT", "The restocking snapshot exceeds the total size limit");
+    selected.push({ path, objectId });
   }
-  return paths.sort((left, right) => left.localeCompare(right));
+  return selected.sort((left, right) => left.path.localeCompare(right.path));
 }
 
 export function assertRepositoryCapacity(
@@ -279,6 +299,63 @@ async function git(args: ReadonlyArray<string>): Promise<string> {
       else reject(new GitProcessError(Buffer.concat(stderr).toString("utf8").slice(0, 4000)));
     });
   });
+}
+
+async function gitBlobBatch(repository: string, objectIds: ReadonlyArray<GitObjectId>): Promise<string[]> {
+  if (objectIds.length === 0) return [];
+  const output = await new Promise<Buffer>((resolvePromise, reject) => {
+    const child = spawn("git", ["--git-dir", repository, "cat-file", "--batch"], {
+      shell: false,
+      env: { PATH: processEnvPath(), HOME: "/nonexistent", LANG: "C", LC_ALL: "C", GIT_TERMINAL_PROMPT: "0", GIT_CONFIG_NOSYSTEM: "1" },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
+    const maxOutputBytes = RESTOCKING_SNAPSHOT_MAX_TOTAL_BYTES + RESTOCKING_SNAPSHOT_MAX_FILES * 64;
+    let outputBytes = 0;
+    let outputExceeded = false;
+    const timer = setTimeout(() => child.kill("SIGKILL"), 30_000);
+    child.stdout.on("data", (chunk: Buffer) => {
+      outputBytes += chunk.byteLength;
+      if (outputBytes > maxOutputBytes) {
+        outputExceeded = true;
+        child.kill("SIGKILL");
+        return;
+      }
+      stdout.push(chunk);
+    });
+    child.stderr.on("data", (chunk: Buffer) => { if (total(stderr) < 1_000_000) stderr.push(chunk); });
+    child.on("error", reject);
+    child.stdin.on("error", reject);
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (outputExceeded) {
+        reject(new AppError("PROJECTION_DRIFT", "The restocking snapshot exceeds the total size limit"));
+      } else if (code === 0) {
+        resolvePromise(Buffer.concat(stdout));
+      } else {
+        reject(new GitProcessError(Buffer.concat(stderr).toString("utf8").slice(0, 4000)));
+      }
+    });
+    child.stdin.end(`${objectIds.join("\n")}\n`);
+  });
+  const contents: string[] = [];
+  let offset = 0;
+  for (const objectId of objectIds) {
+    const headerEnd = output.indexOf(0x0a, offset);
+    if (headerEnd < 0) throw new AppError("PROJECTION_DRIFT", "Git returned an incomplete restocking object");
+    const header = output.subarray(offset, headerEnd).toString("ascii");
+    const match = /^([0-9a-f]{40}) blob (\d+)$/.exec(header);
+    if (match?.[1] !== objectId) throw new AppError("PROJECTION_DRIFT", "Git returned an unexpected restocking object");
+    const bytes = Number.parseInt(match[2] ?? "", 10);
+    const contentStart = headerEnd + 1;
+    const contentEnd = contentStart + bytes;
+    if (output[contentEnd] !== 0x0a) throw new AppError("PROJECTION_DRIFT", "Git returned a malformed restocking object");
+    contents.push(output.subarray(contentStart, contentEnd).toString("utf8"));
+    offset = contentEnd + 1;
+  }
+  if (offset !== output.byteLength) throw new AppError("PROJECTION_DRIFT", "Git returned extra restocking object data");
+  return contents;
 }
 
 function total(chunks: ReadonlyArray<Buffer>): number { return chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0); }

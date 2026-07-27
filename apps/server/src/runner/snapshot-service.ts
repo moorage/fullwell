@@ -4,6 +4,9 @@ import {
   GitObjectIdSchema,
   HouseholdIdSchema,
   HouseholdSnapshotResponseSchema,
+  RESTOCKING_SNAPSHOT_MAX_FILE_BYTES,
+  RESTOCKING_SNAPSHOT_MAX_FILES,
+  RESTOCKING_SNAPSHOT_MAX_TOTAL_BYTES,
   RunnerDeviceIdSchema,
   type GitObjectId,
   type HouseholdId,
@@ -14,10 +17,6 @@ import type { Clock, HouseholdRepositoryPort } from "../core/ports.js";
 import type { Principal } from "../core/types.js";
 import { AppError } from "../core/errors.js";
 import { isRestockingSnapshotPath } from "../core/restocking-snapshot.js";
-
-const MAX_FILES = 2_000;
-const MAX_FILE_BYTES = 1_048_576;
-const MAX_TOTAL_BYTES = 5 * 1_048_576;
 
 export interface RunnerSnapshotAuthorizationPort {
   withHouseholdLock<T>(householdId: HouseholdId, operation: () => Promise<T>): Promise<T>;
@@ -81,15 +80,15 @@ export class RunnerSnapshotService {
 
 function validateSelectedFiles(files: ReadonlyArray<{ readonly path: string; readonly content: string }>): void {
   if (!files.some((file) => file.path === "FORMAT_VERSION")) throw new AppError("PROJECTION_DRIFT", "The household snapshot has no format marker");
-  if (files.length > MAX_FILES) throw new AppError("PROJECTION_DRIFT", "The restocking snapshot contains too many files");
+  if (files.length > RESTOCKING_SNAPSHOT_MAX_FILES) throw new AppError("PROJECTION_DRIFT", "The restocking snapshot contains too many files");
   let totalBytes = 0;
   for (const file of files) {
     if (file.content.includes("\r")) throw new AppError("PROJECTION_DRIFT", "The restocking snapshot contains non-LF text");
     const bytes = Buffer.byteLength(file.content, "utf8");
-    if (bytes > MAX_FILE_BYTES) throw new AppError("PROJECTION_DRIFT", "A restocking snapshot file exceeds the size limit");
+    if (bytes > RESTOCKING_SNAPSHOT_MAX_FILE_BYTES) throw new AppError("PROJECTION_DRIFT", "A restocking snapshot file exceeds the size limit");
     totalBytes += bytes;
   }
-  if (totalBytes > MAX_TOTAL_BYTES) throw new AppError("PROJECTION_DRIFT", "The restocking snapshot exceeds the total size limit");
+  if (totalBytes > RESTOCKING_SNAPSHOT_MAX_TOTAL_BYTES) throw new AppError("PROJECTION_DRIFT", "The restocking snapshot exceeds the total size limit");
 }
 
 function contentDigest(files: ReadonlyArray<{ readonly path: string; readonly content: string }>): string {

@@ -3,7 +3,12 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { ActorIdSchema, HouseholdIdSchema, RequestIdSchema } from "@hfj/contracts";
+import {
+  ActorIdSchema,
+  HouseholdIdSchema,
+  RequestIdSchema,
+  RESTOCKING_SNAPSHOT_MAX_FILES,
+} from "@hfj/contracts";
 import { assertRepositoryCapacity, GitHouseholdRepository, MAX_RECONCILABLE_REPOSITORY_FILES } from "./git-repository.js";
 
 describe("GitHouseholdRepository", () => {
@@ -89,6 +94,9 @@ describe("GitHouseholdRepository", () => {
       });
       expect(committed).not.toBe(head);
       expect(await repository.read(householdId, items.at(-1)?.path ?? "missing")).toContain("schema_version");
+      const snapshot = await repository.restockingSnapshot(householdId);
+      expect(snapshot.files).toHaveLength(20_001);
+      expect(snapshot.files.length).toBeLessThanOrEqual(RESTOCKING_SNAPSHOT_MAX_FILES);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

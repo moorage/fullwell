@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Align runner snapshots with the supported 10,000-item and 10,000-evidence grocery journal capacity while retaining the 1 MiB per-file and 5 MiB total limits.
 - Raise one provider-scoped cloud delivery commit from 100 to 10,000 completed evidence records and from 100 to 10,000 delivery dishes, still bounded by the 16 MiB MCP request limit.
 - Automatically repair recognized older local delivery-journal formats, including deterministic ID/reference updates, evidence-backed restaurant-name partitions, report-summary normalization, and obsolete browser-label removal; reload and resume the interrupted sync while preserving all history and explaining any unrecoverable problem in ordinary user language.
 - Offer cloud sync after every successful local-only delivery audit so the user can collaborate, share delivery dishes in collections, and use them in household meal plans; accept clear conversational responses such as `yes` or `sync it` without scripted text while making ambiguity, decline, and silence a no-op.

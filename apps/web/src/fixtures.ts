@@ -11,6 +11,7 @@ export const households: readonly HouseholdSummary[] = [
   {
     id: "alvarez-home",
     name: "Alvarez home",
+    repositoryHead: "a".repeat(40),
     role: "owner",
     members: 4,
     recipes: 38,
@@ -21,6 +22,7 @@ export const households: readonly HouseholdSummary[] = [
   {
     id: "lake-cabin",
     name: "Lake cabin",
+    repositoryHead: "b".repeat(40),
     role: "viewer",
     members: 6,
     recipes: 14,

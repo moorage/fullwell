@@ -3,7 +3,7 @@ import { AppShell } from "../components/app-shell.js";
 import { BrandMark } from "../components/brand-mark.js";
 import { ButtonLink, PageHeader } from "../components/ui.js";
 
-export type GuideSlug = "whatsapp" | "household-invitations" | "collections-create" | "collections-share";
+export type GuideSlug = "whatsapp" | "household-name" | "household-invitations" | "collections-create" | "collections-share";
 
 type Guide = {
   slug: GuideSlug;
@@ -31,8 +31,22 @@ export const guides: readonly Guide[] = [
     ],
   },
   {
-    slug: "household-invitations",
+    slug: "household-name",
     number: "02",
+    title: "Name your household",
+    summary: "Rename a connected household naturally in chat or from its Fullwell overview.",
+    example: "Rename our household to Garden Table.",
+    outcome: "Fullwell uses the same owner-only household rename whether you start in chat or on the website, while protecting a newer change if your page is out of date.",
+    steps: [
+      { title: "Ask naturally in chat", body: "Tell ChatGPT or Claude the new household name. For a connected local household, Fullwell updates local and cloud names separately and tells you exactly which changes succeeded." },
+      { title: "Or open the household", body: "On the Fullwell website, open the household overview. Point to the household title or tab to it, then choose the pencil edit button." },
+      { title: "Enter the new name", body: "The current name is selected in the dialog so you can type its replacement, then choose Save name." },
+      { title: "Review owner access", body: "Only a household owner can rename a connected cloud household. If someone changed it after your page opened, Fullwell asks you to review the latest name and try again." },
+    ],
+  },
+  {
+    slug: "household-invitations",
+    number: "03",
     title: "Invite household members",
     summary: "Create a one-time invitation for another person with the right household role.",
     example: "Invite Sam to Maya's Household as an editor.",
@@ -46,7 +60,7 @@ export const guides: readonly Guide[] = [
   },
   {
     slug: "collections-create",
-    number: "03",
+    number: "04",
     title: "Create a collection",
     summary: "Gather a deliberate set of recipes or snacks around a theme without publishing it yet.",
     example: "Make a collection called Weeknight favorites with the recipes we liked.",
@@ -60,7 +74,7 @@ export const guides: readonly Guide[] = [
   },
   {
     slug: "collections-share",
-    number: "04",
+    number: "05",
     title: "Share a collection",
     summary: "Publish a privacy-reviewed collection snapshot with an expiring, revocable link.",
     example: "Share my Weeknight favorites collection for 7 days.",
@@ -81,8 +95,8 @@ export function GuidesRoute() {
         <div className="guides-layout">
           <div>
             <p className="eyebrow">Guides / Agent workflows</p>
-            <PageHeader title="Do more with Fullwell in chat">
-              <p>Step-by-step examples for useful household work with ChatGPT or Claude.</p>
+            <PageHeader title="Do more with Fullwell">
+              <p>Step-by-step guides for useful household work in chat and on the Fullwell website.</p>
             </PageHeader>
             <div className="guide-index">
               {guides.map((guide) => (

@@ -7,6 +7,7 @@ describe("resolveWebRoute", () => {
     ["/install?host=claude", { page: "install", host: "claude" }],
     ["/guides", { page: "guides" }],
     ["/guides/whatsapp", { page: "guide-detail", slug: "whatsapp" }],
+    ["/guides/household-name", { page: "guide-detail", slug: "household-name" }],
     ["/guides/household-invitations", { page: "guide-detail", slug: "household-invitations" }],
     ["/guides/collections/create", { page: "guide-detail", slug: "collections-create" }],
     ["/guides/collections/share", { page: "guide-detail", slug: "collections-share" }],

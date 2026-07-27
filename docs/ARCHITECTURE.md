@@ -52,13 +52,15 @@ The OAuth boundary advertises protected-resource and authorization-server metada
 
 ### Browser frontend
 
-Purpose: implement accessible React 19.2 flows for sign-in, passkeys, pending invitations, public advanced-agent guides, collection preview, selective import, account management, visual recipe and grocery browsing, connected weekly meal planning, and install-to-conversation handoff.
+Purpose: implement accessible React 19.2 flows for sign-in, passkeys, pending invitations, public advanced-agent guides, collection preview, selective import, account management, owner household renaming, visual recipe and grocery browsing, connected weekly meal planning, and install-to-conversation handoff.
 
 Path: `apps/web/`
 
 The frontend consumes explicit server contracts from `packages/contracts/`. It does not authorize requests, hold provider secrets, write Git, interpret repository paths, or make semantic food decisions. Public collection data must come from the server's allowlisted snapshot projection, never from a private household object serialized in the browser.
 
 The server-rendered household creation form posts to a typed Fastify boundary that resolves the browser principal, verifies CSRF, and delegates to `hfj_create_household`. Browser and MCP creation therefore share the same idempotency record, repository provisioning, signed Git commit, ownership projection, and default-household update instead of implementing a second mutation path.
+
+The household overview's rename dialog delegates to the existing `hfj_update_household_name` use case. Its private view model carries the Git HEAD that rendered the title, and the strict browser form adds CSRF plus idempotency before the service rechecks current owner membership and mutation scope. The desktop hover reveal has keyboard-focus and touch equivalents, while a no-JavaScript form preserves the server-authoritative action. Public `/guides/household-name` copy describes chat and web entry points but has no mutation authority or private context.
 
 Recipe, grocery, and Takeout browsers are read-only server projections over the authorized Git-backed household journal. Document and cursor-continuation requests independently resolve the principal, current membership, and projection HEAD; stale or unauthorized requests fail closed. React appends strictly parsed, bounded batches, while ordinary document links retain a non-JavaScript path. Authorized computer-use collection records only credential-free HTTPS images visibly associated with exact item/detail pages plus their exact page provenance. External image URLs remain browser-fetched with no referrer, fixed dimensions, lazy loading, and a local fallback; the service never searches for, fetches, proxies, or semantically enriches them.
 

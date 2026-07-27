@@ -169,6 +169,7 @@ const app = await buildApp({
     assetsRoot: resolve(repositoryRoot, "apps/web/dist"),
     contextFor: (request) => webViewModels.contextFor(request),
     createHousehold: (request, input) => webViewModels.createHousehold(request, input),
+    renameHousehold: (request, input) => webViewModels.renameHousehold(request, input),
     importCollection: (request, input) => webViewModels.importCollection(request, input),
     reviewMealConstraints: (request, input) => webViewModels.reviewMealConstraints(request, input),
     addMealProposal: (request, input) => webViewModels.addMealProposal(request, input),

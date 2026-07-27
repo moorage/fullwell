@@ -273,6 +273,8 @@ An authenticated user may create a household from the server-rendered household 
 
 An owner may rename a household through `hfj_update_household_name`. The mutation replaces only `household.md` at an exact repository HEAD, creates one signed commit, and updates the Neon display-name projection. Reconciliation parses the authoritative name from Git and repairs projection drift.
 
+The authenticated household overview exposes the same mutation to owners through a CSRF-protected browser form. Its private render context includes the exact Git HEAD that produced the visible title; the POST supplies that HEAD and a per-render idempotency key instead of refreshing it server-side. A stale page, invalid name, invalid CSRF token, or changed owner role performs no write and returns a private plain-language retry page. The hydrated dialog selects and focuses the current name, supports Escape, backdrop, and Cancel with focus restoration, and retains an inline no-JavaScript form.
+
 ### 8.1 Roles
 
 | Operation | Owner | Editor | Viewer |
@@ -280,6 +282,7 @@ An owner may rename a household through `hfj_update_household_name`. The mutatio
 | Read private household content | Yes | Yes | Yes |
 | Append evidence | Yes | Yes | No |
 | Edit items and reports | Yes | Yes | No |
+| Rename household | Yes | No | No |
 | Create and share collections | Yes | Yes | No |
 | Import into household | Yes | Yes | No |
 | Invite viewers/editors | Yes | No | No |
@@ -904,6 +907,7 @@ Output: short-lived authenticated download URL, content hash, source HEAD, and e
 | `POST /c/:token/import` | Authenticated confirmed import. |
 | `GET /account` | Sign-in methods, passkeys, MCP grants, households, exports, deletion. |
 | `GET /households/:id` | Minimal authenticated household/member/collection management UI. |
+| `POST /households/:id/name` | Owner-only, CSRF-protected, idempotent exact-HEAD household rename. |
 | `GET /households/:id/recipes` | Membership-authorized visual recipe journal with bounded progressive loading. |
 | `GET /households/:id/groceries` | Membership-authorized visual grocery journal with bounded progressive loading. |
 | `GET /households/:id/takeout` | Membership-authorized visual delivery-dish journal with exact public restaurant locations. |
@@ -913,7 +917,7 @@ Output: short-lived authenticated download URL, content hash, source HEAD, and e
 | `POST /households/:id/meal-plan/proposals` | CSRF-protected append-only free-form proposal. |
 | `POST /households/:id/meal-plan/proposals/:proposalId/withdraw` | Authorized append-only proposal withdrawal. |
 
-The public guide routes contain examples only and never receive credentials, access codes, or mutation confirmations. Contextual install, account, members, collection, and household links target the narrowest relevant guide.
+The public guide routes contain examples only and never receive credentials, access codes, or mutation confirmations. `/guides/household-name` explains natural chat renaming and the owner-only website dialog in directly crawlable HTML. Contextual install, account, members, collection, and household links target the narrowest relevant guide.
 
 Public identity metadata is derived from fixed route data and the configured `PUBLIC_ORIGIN`, never the request host. The canonical origin remains `https://fullwell.souschefstudio.com`; `https://fullwell.ai` and `https://www.fullwell.ai` remain official permanent redirect aliases. Only indexable public pages receive this metadata. JSON-LD identifies Sous Chef Studio, Inc. as an `Organization` and Fullwell as a `WebApplication` provided by that organization; it does not claim partnership, ratings, awards, pricing, registration, or customer counts.
 

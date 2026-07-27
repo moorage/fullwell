@@ -52,6 +52,8 @@ main { flex: 1; }
 .site-footer__identity p:first-child { color: var(--ink); font-weight: 700; }
 .site-footer nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px 20px; }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; margin-bottom: 42px; }
+.page-header__title { display: flex; align-items: center; gap: 10px; width: fit-content; max-width: 100%; margin-bottom: 16px; }
+.page-header__title h1 { overflow-wrap: anywhere; margin-bottom: 0; }
 .page-header__intro { max-width: 670px; color: var(--muted); font-size: 18px; }
 .page-header__intro p:last-child { margin-bottom: 0; }
 .page-header__action { padding-top: 12px; }
@@ -368,6 +370,18 @@ main { flex: 1; }
 .confirmation-dialog__body p { margin: 0; color: var(--muted); line-height: 1.55; }
 .confirmation-dialog__icon { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 50%; background: #f9e8e4; color: #962d1e; }
 .confirmation-dialog__actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px 24px; border-top: 1px solid var(--rule); }
+.household-name-edit { width: 38px; height: 38px; display: grid; flex: 0 0 auto; place-items: center; padding: 0; border: 1px solid var(--rule); border-radius: 50%; background: var(--surface); color: var(--leaf-dark); cursor: pointer; opacity: 0; transform: translateX(-4px); transition: opacity 120ms ease, transform 120ms ease, background 120ms ease; }
+.page-header__title:hover .household-name-edit, .page-header__title:focus-within .household-name-edit, .household-name-edit:focus-visible { opacity: 1; transform: translateX(0); }
+.household-name-edit:hover { background: #eef4ee; }
+.household-name-dialog { width: min(500px, calc(100% - 32px)); margin: auto; padding: 0; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 70px rgba(22, 38, 27, .24); }
+.household-name-dialog::backdrop { background: rgba(22, 38, 27, .48); backdrop-filter: blur(2px); }
+.household-name-dialog form { display: grid; gap: 20px; padding: 24px; }
+.household-name-dialog header h2 { margin-bottom: 7px; }
+.household-name-dialog header p { margin: 0; color: var(--muted); }
+.household-name-dialog .field { display: grid; gap: 6px; }
+.household-name-dialog__actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 4px; }
+.household-name-fallback { display: grid; grid-template-columns: minmax(220px, 360px) auto; gap: 10px; align-items: end; margin-left: 6px; }
+.household-name-fallback .field { display: grid; gap: 4px; }
 .advanced-export { padding: 12px 0; }
 .advanced-export > p { color: var(--muted); }
 .danger-zone { margin-top: 56px; padding: 20px; border: 1px solid #d99187; background: #fff8f6; }
@@ -415,6 +429,7 @@ main { flex: 1; }
   .page-band { padding: 48px 0; }
   .page-header { display: block; margin-bottom: 30px; }
   .page-header__intro { font-size: 16px; }
+  .page-header__title { align-items: flex-start; }
   .site-footer { align-items: flex-start; flex-direction: column; }
   .site-footer nav { justify-content: flex-start; }
   .host-chooser { width: 100%; }
@@ -443,6 +458,9 @@ main { flex: 1; }
   .meal-day__slots { grid-template-columns: 1fr; }
   .local-nav a { padding-inline: 6px; font-size: 13px; text-align: center; white-space: normal; }
   .inline-create-form, .invite-form, .profile-form { grid-template-columns: 1fr; }
+  .household-name-dialog__actions { flex-direction: column-reverse; }
+  .household-name-fallback { grid-template-columns: 1fr; }
+  .household-name-dialog__actions .button, .household-name-fallback .button { width: 100%; }
   .activity-list li { grid-template-columns: 34px 1fr; }
   .activity-list time { grid-column: 2; }
   .member-row, .account-row { grid-template-columns: auto 1fr; align-items: start; }
@@ -465,6 +483,10 @@ main { flex: 1; }
   .visual-journal-page--takeout .journal-total { display: flex; align-items: baseline; gap: 9px; width: fit-content; margin-top: 18px; padding-left: 0; border-left: 0; text-align: left; }
   .visual-journal-grid, .visual-journal-grid--groceries, .visual-journal-grid--takeout { grid-template-columns: 1fr; }
   .journal-total { min-width: 78px; padding-left: 12px; font-size: 34px; }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .household-name-edit { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

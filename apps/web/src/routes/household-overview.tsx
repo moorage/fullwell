@@ -1,6 +1,7 @@
 import { ArrowUpRight, BookOpen, Coffee, Download, ExternalLink, ShoppingBag, Sparkles } from "lucide-react";
 import { AppShell, HouseholdNav } from "../components/app-shell.js";
 import { BrandMark } from "../components/brand-mark.js";
+import { HouseholdNameEditor } from "../components/household-name-editor.js";
 import { ButtonLink, PageHeader, StatusNotice } from "../components/ui.js";
 import { useWebContext } from "../context.js";
 import { NotFoundRoute } from "./not-found.js";
@@ -14,6 +15,8 @@ export function HouseholdOverviewRoute({ householdId }: { householdId: string })
       <section className="workspace-page page-band">
         <PageHeader
           title={household.name}
+          titleId="household-name"
+          titleAction={household.role === "owner" ? <HouseholdNameEditor household={household} /> : undefined}
           action={<span className="role-label">Your role: {household.role}</span>}
         >
           <p>A shared record of the food your household buys, saves, cooks, and likes.</p>

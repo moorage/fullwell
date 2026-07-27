@@ -35,6 +35,7 @@ import type {
   WebCreateHouseholdInput,
   WebImportInput,
   WebJournalItemsInput,
+  WebRenameHouseholdInput,
   WebReviewMealConstraintsInput,
   WebWithdrawMealProposalInput,
 } from "./web.js";
@@ -141,6 +142,17 @@ export class WebViewModelService {
     }, principal);
     if (!created.ok) throw new AppError(created.error.code, created.error.message);
     return { householdId: z.object({ household_id: HouseholdIdSchema }).parse(created.data).household_id };
+  }
+
+  async renameHousehold(request: FastifyRequest, input: WebRenameHouseholdInput): Promise<void> {
+    const principal = await this.mutablePrincipal(request, input.csrf);
+    const result = await this.service.call("hfj_update_household_name", {
+      household_id: HouseholdIdSchema.parse(input.householdId),
+      name: input.name,
+      expected_head: GitObjectIdSchema.parse(input.expectedHead),
+      idempotency_key: input.idempotencyKey,
+    }, principal);
+    if (!result.ok) throw new AppError(result.error.code, result.error.message);
   }
 
   async importCollection(request: FastifyRequest, input: WebImportInput): Promise<{ householdId: string }> {
@@ -556,6 +568,7 @@ export class WebViewModelService {
       return {
         id: household.id,
         name: household.name,
+        repositoryHead: household.repositoryHead,
         role: membership.role,
         members: (await this.store.listHouseholdMemberships(household.id)).length,
         recipes: values.filter(({ item }) => item.kind === "recipe").length,

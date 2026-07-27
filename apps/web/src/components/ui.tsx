@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
+import { cloneElement, isValidElement, useId, type ButtonHTMLAttributes, type ComponentPropsWithRef, type ReactNode, type SelectHTMLAttributes } from "react";
 import { AlertCircle, CheckCircle2, Info, TriangleAlert } from "lucide-react";
 import { useWebContext } from "../context.js";
 
@@ -71,7 +71,7 @@ export function Field({ label, hint, children }: FieldProps) {
   );
 }
 
-export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
+export function TextInput(props: ComponentPropsWithRef<"input">) {
   return <input className="text-input" {...props} />;
 }
 
@@ -93,15 +93,19 @@ export function PageHeader({
   title,
   children,
   action,
+  titleAction,
+  titleId,
 }: {
-  title: string;
+  title: ReactNode;
   children?: ReactNode;
   action?: ReactNode;
+  titleAction?: ReactNode;
+  titleId?: string;
 }) {
   return (
     <header className="page-header">
       <div>
-        <h1>{title}</h1>
+        {titleAction ? <div className="page-header__title"><h1 id={titleId}>{title}</h1>{titleAction}</div> : <h1 id={titleId}>{title}</h1>}
         {children ? <div className="page-header__intro">{children}</div> : null}
       </div>
       {action ? <div className="page-header__action">{action}</div> : null}

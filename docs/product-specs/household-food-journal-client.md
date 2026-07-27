@@ -132,7 +132,7 @@ For a new household:
 
 After a cloud household is created or connected, the chat may mention that an eligible owner can invite someone in chat. After cloud onboarding creates at least one item, the chat may also mention collections with an example such as `Make a Weeknight Favorites collection from the recipes we liked.` These are contextual next steps, not authority to create an invitation or collection.
 
-The chat supports member and household renames without requiring the website. A member rename updates the revisioned local profile and, when connected, the account-scoped cloud display name. A household rename uses the local `rename_household` operation and, when connected, the owner-only `hfj_update_household_name` mutation at the exact Git HEAD. Local and cloud writes are independent; a partial result must identify which side changed.
+The chat supports member and household renames without requiring the website. A member rename updates the revisioned local profile and, when connected, the account-scoped cloud display name. A household rename uses the local `rename_household` operation and, when connected, the owner-only `hfj_update_household_name` mutation at the exact Git HEAD. Local and cloud writes are independent; a partial result must identify which side changed. An owner can also rename a connected cloud household from its website overview: the edit control appears beside the title on hover or keyboard focus, remains visible on touch, and opens a dialog with the current name selected in an autofocus input. The public household-naming guide explains both entry points.
 
 For an invite recipient:
 

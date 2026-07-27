@@ -156,8 +156,9 @@ describe("web experience", () => {
 
   it.each([
     ["/sign-in?returnTo=%2Fc%2Fshare", "Sign in to Fullwell"],
-    ["/guides", "Do more with Fullwell in chat"],
+    ["/guides", "Do more with Fullwell"],
     ["/guides/whatsapp", "Connect WhatsApp"],
+    ["/guides/household-name", "Name your household"],
     ["/guides/household-invitations", "Invite household members"],
     ["/guides/collections/create", "Create a collection"],
     ["/guides/collections/share", "Share a collection"],
@@ -181,15 +182,49 @@ describe("web experience", () => {
   it("links each advanced workflow to its own guide and keeps agent names visible beside marks", () => {
     renderApp("/guides");
     expect(screen.getByRole("link", { name: "Connect WhatsApp" })).toHaveAttribute("href", "/guides/whatsapp");
+    expect(screen.getByRole("link", { name: "Name your household" })).toHaveAttribute("href", "/guides/household-name");
     expect(screen.getByRole("link", { name: "Invite household members" })).toHaveAttribute("href", "/guides/household-invitations");
     expect(screen.getByRole("link", { name: "Create a collection" })).toHaveAttribute("href", "/guides/collections/create");
     expect(screen.getByRole("link", { name: "Share a collection" })).toHaveAttribute("href", "/guides/collections/share");
-    expect(screen.getAllByLabelText("Works with ChatGPT and Claude")).toHaveLength(4);
+    expect(screen.getAllByLabelText("Works with ChatGPT and Claude")).toHaveLength(5);
 
+    const namingGuide = renderApp("/guides/household-name");
+    expect(screen.getByText("“Rename our household to Garden Table.”")).toBeVisible();
+    expect(screen.getByText(/Only a household owner/)).toBeVisible();
+    namingGuide.unmount();
     renderApp("/guides/collections/share");
     expect(screen.getByText("“Share my Weeknight favorites collection for 7 days.”")).toBeVisible();
     expect(screen.getByRole("link", { name: "Use with ChatGPT" })).toHaveAttribute("href", "/install?host=codex");
     expect(screen.getByRole("link", { name: "Use with Claude" })).toHaveAttribute("href", "/install?host=claude");
+  });
+
+  it("opens an owner household-name dialog with the current name selected and restores focus on cancel", async () => {
+    const user = userEvent.setup();
+    renderApp("/households/alvarez-home");
+    const trigger = screen.getByRole("button", { name: "Edit household name" });
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Change household name" });
+    expect(dialog).toBeVisible();
+    const input = within(dialog).getByRole("textbox", { name: "Household name" });
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue("Alvarez home");
+    expect(input).toHaveProperty("selectionStart", 0);
+    expect(input).toHaveProperty("selectionEnd", "Alvarez home".length);
+    const form = input.closest("form");
+    expect(form).toHaveAttribute("action", "/households/alvarez-home/name");
+    expect(form?.querySelector<HTMLInputElement>('input[name="expectedHead"]')).toHaveValue("a".repeat(40));
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(dialog).not.toBeVisible();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("does not render the household-name editor for a non-owner", () => {
+    const viewerContext = {
+      ...demoWebContext,
+      households: demoWebContext.households.map((household) => ({ ...household, role: "viewer" as const })),
+    };
+    renderApp("/households/alvarez-home", viewerContext);
+    expect(screen.queryByRole("button", { name: "Edit household name" })).not.toBeInTheDocument();
   });
 
   it("uses the Apple mark in sign-in and routes household help to the relevant guides", () => {

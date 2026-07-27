@@ -86,9 +86,10 @@ test("serves crawlable Fullwell company and WhatsApp identity", async ({ page, r
 test("renders the advanced guide hub and direct workflow destinations", async ({ page }, testInfo) => {
   const response = await page.goto("/guides");
   expect(response?.status()).toBe(200);
-  await expect(page.getByRole("heading", { name: "Do more with Fullwell in chat" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Do more with Fullwell" })).toBeVisible();
   const destinations = [
     ["/guides/whatsapp", "Connect WhatsApp"],
+    ["/guides/household-name", "Name your household"],
     ["/guides/household-invitations", "Invite household members"],
     ["/guides/collections/create", "Create a collection"],
     ["/guides/collections/share", "Share a collection"],
@@ -99,11 +100,64 @@ test("renders the advanced guide hub and direct workflow destinations", async ({
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
   await page.screenshot({ path: testInfo.outputPath("guide-hub.png"), fullPage: true });
 
+  await page.goto("/guides/household-name");
+  await expect(page.getByRole("heading", { name: "Name your household" })).toBeVisible();
+  await expect(page.getByText("“Rename our household to Garden Table.”")).toBeVisible();
+  await expect(page.getByText(/Only a household owner/)).toBeVisible();
+
   await page.goto("/guides/collections/share");
   await expect(page.getByRole("heading", { name: "Share a collection" })).toBeVisible();
   await expect(page.getByText("“Share my Weeknight favorites collection for 7 days.”")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
   await page.screenshot({ path: testInfo.outputPath("guide-share-collection.png"), fullPage: true });
+});
+
+test("lets an owner rename a household from a hover-revealed, focused dialog", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-webkit", "One hydrated desktop browser proves the complete rename mutation");
+  const createdResponse = await page.request.post("/api/tools/hfj_create_household", {
+    headers: { authorization: "Bearer test-owner-token" },
+    data: { name: "E2E Rename Kitchen", idempotency_key: "e2e-household-rename-create-0001" },
+  });
+  expect(createdResponse.status()).toBe(200);
+  const created = z.object({
+    data: z.object({ household_id: z.string() }),
+  }).parse(await createdResponse.json());
+  await page.setExtraHTTPHeaders({ authorization: "Bearer test-owner-token" });
+  await page.goto(`/households/${created.data.household_id}`);
+  await page.waitForLoadState("networkidle");
+
+  const trigger = page.getByRole("button", { name: "Edit household name" });
+  await expect(trigger).toHaveCSS("opacity", "0");
+  await page.getByRole("heading", { name: "E2E Rename Kitchen" }).hover({ position: { x: 4, y: 4 } });
+  await expect(trigger).toHaveCSS("opacity", "1");
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: "Change household name" });
+  const nameInput = dialog.getByRole("textbox", { name: "Household name" });
+  await expect(dialog).toBeVisible();
+  await expect(nameInput).toBeFocused();
+  expect(await nameInput.evaluate((input: HTMLInputElement) => ({
+    start: input.selectionStart,
+    end: input.selectionEnd,
+    value: input.value,
+  }))).toEqual({ start: 0, end: "E2E Rename Kitchen".length, value: "E2E Rename Kitchen" });
+  await nameInput.fill("Garden Table");
+  await dialog.getByRole("button", { name: "Save name" }).click();
+  await expect(page).toHaveURL(new RegExp(`/households/${created.data.household_id}\\?renamed=1#household-name$`));
+  await expect(page.getByRole("heading", { name: "Garden Table" })).toBeVisible();
+});
+
+test("keeps a direct household rename form when JavaScript is disabled", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "no-js-webkit", "The no-JavaScript project proves the server-rendered fallback");
+  const [{ renderWebRoute }, styles] = await Promise.all([
+    import("../../apps/web/dist/server/server.js"),
+    readFile(new URL("../../apps/web/src/styles.css", import.meta.url), "utf8"),
+  ]);
+  const rendered = renderWebRoute("/households/alvarez-home", demoWebContext);
+  await page.setContent(`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${styles}</style></head><body>${rendered.appHtml}</body></html>`);
+  const fallback = page.locator("form.household-name-fallback");
+  await expect(fallback.getByRole("textbox", { name: "Change household name" })).toHaveValue("Alvarez home");
+  await expect(fallback.getByRole("button", { name: "Save name" })).toBeVisible();
+  await expect(fallback.locator('input[name="expectedHead"]')).toHaveValue("a".repeat(40));
 });
 
 test("renders unknown capability links without private fixture data", async ({ page }) => {

@@ -16,6 +16,7 @@ const publicRoutes = [
   "/company",
   "/guides",
   "/guides/whatsapp",
+  "/guides/household-name",
   "/guides/household-invitations",
   "/guides/collections/create",
   "/guides/collections/share",

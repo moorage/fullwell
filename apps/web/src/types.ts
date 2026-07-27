@@ -3,6 +3,7 @@ export type HouseholdRole = "owner" | "editor" | "viewer";
 export type HouseholdSummary = {
   id: string;
   name: string;
+  repositoryHead: string;
   role: HouseholdRole;
   members: number;
   recipes: number;
@@ -238,7 +239,7 @@ export type OAuthAuthorizationRequest = {
 export type WebRoute =
   | { page: "install"; host: "codex" | "claude" }
   | { page: "guides" }
-  | { page: "guide-detail"; slug: "whatsapp" | "household-invitations" | "collections-create" | "collections-share" }
+  | { page: "guide-detail"; slug: "whatsapp" | "household-name" | "household-invitations" | "collections-create" | "collections-share" }
   | { page: "sign-in"; returnTo?: string | undefined }
   | { page: "authorize"; authorization?: OAuthAuthorizationRequest | undefined }
   | { page: "invite"; token: string }

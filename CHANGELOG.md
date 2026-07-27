@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Let household owners rename a connected household from a hover-, keyboard-, and touch-accessible title control with an autofocus dialog, exact-HEAD conflict protection, a no-JavaScript fallback, and a public guide covering both chat and web renaming.
 - Clarify Fullwell's public identity with a server-rendered household-assistant homepage, optional WhatsApp section, visible Sous Chef Studio, Inc. ownership, official-domain and production-contact disclosures, `/about` and `/company` pages, corrected legal identity, route-specific canonical/Open Graph metadata, and provider-linked Schema.org JSON-LD.
 - Align runner snapshots with the supported 10,000-item and 10,000-evidence grocery journal capacity while retaining the 1 MiB per-file and 5 MiB total limits; keep raw evidence locally validated while sending only profiles, reports, and evidence-citing item records to the host.
 - Let one fresh authenticated runner process recover its own saturated queued requests after a compatibility fix, and require blocked cart explanations to use ordinary language instead of internal Fullwell terms.

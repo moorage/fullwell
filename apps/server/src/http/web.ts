@@ -11,6 +11,7 @@ import {
   MealPlanEventIdSchema,
   MealProposalIdSchema,
   MondayDateSchema,
+  ToolInputSchemas,
 } from "@hfj/contracts";
 import { z } from "zod";
 
@@ -23,6 +24,7 @@ export interface WebExperience {
   readonly assetsRoot: string;
   contextFor(request: FastifyRequest): Promise<WebRenderContext>;
   createHousehold?(request: FastifyRequest, input: WebCreateHouseholdInput): Promise<{ householdId: string }>;
+  renameHousehold?(request: FastifyRequest, input: WebRenameHouseholdInput): Promise<void>;
   importCollection?(request: FastifyRequest, input: WebImportInput): Promise<{ householdId: string }>;
   reviewMealConstraints?(request: FastifyRequest, input: WebReviewMealConstraintsInput): Promise<void>;
   addMealProposal?(request: FastifyRequest, input: WebAddMealProposalInput): Promise<void>;
@@ -32,6 +34,14 @@ export interface WebExperience {
 
 export type WebCreateHouseholdInput = {
   readonly name: string;
+  readonly csrf: string;
+  readonly idempotencyKey: string;
+};
+
+export type WebRenameHouseholdInput = {
+  readonly householdId: string;
+  readonly name: string;
+  readonly expectedHead: string;
   readonly csrf: string;
   readonly idempotencyKey: string;
 };
@@ -93,6 +103,12 @@ const CreateHouseholdFormSchema = z.object({
   name: z.string().trim().min(1).max(120),
   csrf: z.string().min(16).max(512),
   idempotencyKey: z.string().min(8).max(128),
+}).strict();
+const RenameHouseholdFormSchema = z.object({
+  name: ToolInputSchemas.hfj_update_household_name.shape.name,
+  expectedHead: GitObjectIdSchema,
+  csrf: z.string().min(16).max(512),
+  idempotencyKey: IdempotencyKeySchema,
 }).strict();
 const MealMutationFormSchema = z.object({
   week: MondayDateSchema,
@@ -157,6 +173,13 @@ export async function registerWebExperience(app: FastifyInstance, experience: We
     return reply.redirect(`/households/${encodeURIComponent(result.householdId)}`, 303);
   });
 
+  app.post<{ Params: { householdId: string } }>("/households/:householdId/name", { config: { rateLimit: { max: 20, timeWindow: 60 * 60_000, groupId: "household-rename" } } }, async (request, reply) => {
+    if (experience.renameHousehold === undefined) return reply.code(501).send({ error: { code: "PROVIDER_UNAVAILABLE", message: "Browser household renaming is not configured" } });
+    const form = RenameHouseholdFormSchema.parse(request.body);
+    await experience.renameHousehold(request, { householdId: request.params.householdId, ...form });
+    return reply.redirect(`/households/${encodeURIComponent(request.params.householdId)}?renamed=1#household-name`, 303);
+  });
+
   app.post<{ Params: { householdId: string } }>("/households/:householdId/meal-plan/review", async (request, reply) => {
     if (experience.reviewMealConstraints === undefined) return reply.code(501).send({ error: { code: "PROVIDER_UNAVAILABLE", message: "Browser meal planning is not configured" } });
     const form = ReviewMealConstraintsFormSchema.parse(request.body);
@@ -212,6 +235,24 @@ export function isMealPlanMutationPath(rawUrl: string): boolean {
     .test(new URL(rawUrl, "https://local.invalid").pathname);
 }
 
+export function isHouseholdRenamePath(rawUrl: string): boolean {
+  return /^\/households\/[^/]+\/name$/.test(new URL(rawUrl, "https://local.invalid").pathname);
+}
+
+export function sendHouseholdRenameError(
+  reply: import("fastify").FastifyReply,
+  rawUrl: string,
+  statusCode: number,
+  message: string,
+) {
+  const householdId = /^\/households\/([^/]+)\/name$/.exec(new URL(rawUrl, "https://local.invalid").pathname)?.[1];
+  const returnPath = householdId === undefined ? "/households" : `/households/${encodeURIComponent(householdId)}`;
+  reply.header("content-type", "text/html; charset=utf-8");
+  reply.header("cache-control", "no-store");
+  reply.header("x-robots-tag", "noindex, nofollow");
+  return reply.code(statusCode).send(`<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Household name update</title></head><body><main><h1>We could not change the household name</h1><p role="alert">${escapeText(message)}</p><p><a href="${escapeAttribute(returnPath)}">Return to the household and try again</a></p></main></body></html>`);
+}
+
 export function sendMealPlanMutationError(
   reply: import("fastify").FastifyReply,
   rawUrl: string,
@@ -239,7 +280,7 @@ function sendWebPage(reply: import("fastify").FastifyReply, url: string, context
 function isWebPath(rawUrl: string): boolean {
   const path = new URL(rawUrl, "https://local.invalid").pathname;
   return path === "/" || ["/install", "/sign-in", "/authorize", "/households", "/account", "/about", "/company", "/privacy", "/terms", "/guides"].includes(path)
-    || /^\/guides\/(?:whatsapp|household-invitations|collections\/(?:create|share))$/.test(path)
+    || /^\/guides\/(?:whatsapp|household-name|household-invitations|collections\/(?:create|share))$/.test(path)
     || /^\/invite\/family\/[^/]+$/.test(path)
     || /^\/c\/[^/]+(?:\/import\/plan)?$/.test(path)
     || /^\/households\/[^/]+(?:\/(?:members|collections|meal-plan|recipes|groceries|takeout))?$/.test(path);

@@ -32,6 +32,7 @@ export function resolveWebRoute(input: string): WebRoute {
   }
   if (url.pathname === "/guides") return { page: "guides" };
   if (url.pathname === "/guides/whatsapp") return { page: "guide-detail", slug: "whatsapp" };
+  if (url.pathname === "/guides/household-name") return { page: "guide-detail", slug: "household-name" };
   if (url.pathname === "/guides/household-invitations") return { page: "guide-detail", slug: "household-invitations" };
   if (url.pathname === "/guides/collections/create") return { page: "guide-detail", slug: "collections-create" };
   if (url.pathname === "/guides/collections/share") return { page: "guide-detail", slug: "collections-share" };

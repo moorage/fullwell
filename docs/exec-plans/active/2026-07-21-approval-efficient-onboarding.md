@@ -10,8 +10,16 @@ The change is a direct usability iteration on `docs/ideas/backlog/conversational
 
 The 2026-07-24 identity iteration makes the person's preferred name the first conversational question and remembers it independently of local-versus-cloud household authority. Cloud connection copies that confirmed name into the account display name. A first household receives a possessive default such as `Maya's Household` or `Chris' Household` only when no household exists and no pending household is being joined. Later chat requests can rename the person or household in the active local or cloud authority, stop the exact local WhatsApp runner without deleting its connection, remove the exact host-native weekly meal reminder, and receive context-sensitive invitation or collection examples after successful setup.
 
+The 2026-07-27 web iteration exposes that same owner-only, Git-authoritative household rename on the authenticated household overview. An owner can reveal an edit control beside the household title by hovering or focusing the title area, open a dialog whose current name is selected in an autofocus text input, and submit through a CSRF-protected, idempotent, exact-HEAD browser mutation. Touch users see the edit control without hover. A public household-naming guide explains both natural chat requests and the website path without changing editor or viewer authority.
+
 ## Progress
 
+- [x] Milestone 12 - expose owner household renaming on the web and document chat plus web naming.
+- [x] 2026-07-27: Created and claimed Bead `fullwell-46b`, confirmed the existing chat rename tool/eval already covers connected local and cloud authority, and framed the web integration with UX, accessibility, security, reliability, architecture, and eval lenses.
+- [x] 2026-07-27: Passed the Milestone 12 failure-oriented feature-critic gate by requiring a keyboard/touch-equivalent reveal, owner-only server authorization, CSRF and exact-HEAD checks, native no-JavaScript form fallback, focus restoration, friendly conflict recovery, and direct public guide coverage for both chat and web paths.
+- [x] 2026-07-27: Completed Milestone 12 locally with an owner-only hover/focus/touch title control, autofocus and preselected native dialog, no-JavaScript fallback, exact-HEAD browser mutation through `hfj_update_household_name`, private human-readable failure pages, and the public `/guides/household-name` guide.
+- [x] 2026-07-27: Passed 98 web tests, 25 focused server tests, the 14-test agent eval suite, the 142-test applicable WebKit suite with 22 intentional project skips, Browser-plugin guide inspection, production build, and full verification with 420 application tests and 11 expected database skips.
+- [x] 2026-07-27: Attempted `artifacts/screencasts/web-household-rename.mp4`; Homebrew FFmpeg 8.0.1 rejected the helper's Linux-only `x11grab` input with exit code 234, so no MP4 was created and the Browser-plugin screenshot plus deterministic WebKit tests remain the visible evidence.
 - [x] Milestone 11 - remember name-first identity, synchronize cloud naming, and add conversational local controls and next steps.
 - [x] 2026-07-24T05:55Z: Completed Milestone 11 locally with a separate private revisioned profile, deterministic first-household naming, account-scoped cloud display-name updates, Git-authoritative owner household renames with Neon recovery, a fixed-purpose WhatsApp runner stop, exact weekly-reminder removal guidance, and context-gated invitation and collection examples.
 - [x] 2026-07-24T05:55Z: Passed the 21-test contract boundary, 50 focused server tests, 43 packaging/lifecycle tests, 14 scheduler/eval tests, 328-test full application suite with 11 expected database skips, 39 applicable WebKit checks with 13 intentional project skips, lint, typecheck, production build, seven-migration up/down/up, all 11 PostgreSQL adapter integrations, and full repository/docs/ExecPlan verification.
@@ -69,6 +77,9 @@ The 2026-07-24 identity iteration makes the person's preferred name the first co
 
 ## Surprises & Discoveries
 
+- 2026-07-27: Chat household renaming is already implemented and covered by the `change-connected-household-name` cross-host eval. The web feature should call the same `hfj_update_household_name` service use case rather than create another naming authority.
+- 2026-07-27: The current browser household summary omits the Git HEAD, so an exact-view rename needs a bounded repository revision in the private render context. Using a fresh server-side HEAD would silently overwrite a change made after the page loaded.
+- 2026-07-27: A desktop-only hover affordance would be undiscoverable by keyboard and touch users. The title control must reveal on `:focus-within`, remain visible for coarse/no-hover pointers, and retain a direct no-JavaScript form.
 - 2026-07-24: A preferred name cannot live only in the guest household document because an existing-account user must remember it locally before OAuth without creating a false guest authority. A separate private local profile is the smallest authority-neutral boundary.
 - 2026-07-24: Account display-name updates already exist for browser sessions through `AccountService`, but chat has no cloud tool for them. Household titles are Git-authoritative while their Neon `households.display_name` value is a projection; a safe rename needs a Git mutation plus reconciliation that reprojects `household.md`.
 - 2026-07-24: Stopping the WhatsApp runner and stopping the weekly reminder are unrelated operations. The runner is one fixed macOS LaunchAgent and should stop without revoking or purging connection state; the reminder belongs solely to the Codex or Claude native task named `Fullwell weekly meal planning`.
@@ -96,6 +107,9 @@ The 2026-07-24 identity iteration makes the person's preferred name the first co
 
 ## Decision Log
 
+- 2026-07-27: Add an owner-only browser POST that delegates to `hfj_update_household_name` with the page's exact repository HEAD, CSRF token, and per-render idempotency key. Keep `household.md` authoritative and reuse normal reconciliation rather than adding a database-only rename.
+- 2026-07-27: Place the edit affordance directly beside the household overview title. Hide it visually until title hover/focus on precise pointers, keep it keyboard focusable, and show it persistently on touch. The dialog starts with the current name selected, restores focus on close, supports Escape/backdrop cancellation, and provides a no-JavaScript inline form.
+- 2026-07-27: Add a public `/guides/household-name` guide that presents chat and website as equivalent entry points to the same owner-only cloud rename. Keep the existing connected local/cloud partial-result guidance unchanged.
 - 2026-07-24: Store the preferred member name in a revisioned private local profile under the active Codex home, separate from the optional guest household. Store the local household title inside its existing bounded journal document so older local runtimes can still read the top-level schema.
 - 2026-07-24: Add purpose-specific `hfj_update_user_display_name` and `hfj_update_household_name` cloud tools. The first is an idempotent `journal:write` operational identity update with no household ID; the second is an owner-only, expected-HEAD Git mutation whose `household.md` title is reprojected into Neon during ordinary completion and reconciliation.
 - 2026-07-24: Derive a first-household default by trimming the confirmed display name, using an apostrophe alone for names ending in `s` or `S`, and otherwise using apostrophe-s. Never apply that default while accepting a pending invitation or when any household already exists.
@@ -134,6 +148,8 @@ The 2026-07-24 identity iteration makes the person's preferred name the first co
 The shared host behavior lives in `packages/agent-client/skills/manage-household-food-journal/SKILL.md`, `packages/agent-client/skills/audit-grocery-purchases/SKILL.md`, and `packages/agent-client/skills/track-recipe-history/SKILL.md`. `packages/agent-client/runtime/onboarding-draft.mjs` owns the authenticated checkpoint boundary, while `packages/agent-client/runtime/local-household.mjs` owns the account-free guest authority and optional cloud-link marker; both are bundled for both hosts. `packages/agent-client/evals/cases/v1.json`, `packages/agent-client/evals/expected/v1.json`, and `packages/agent-client/tests/evals/matrix.test.mjs` make tool order and forbidden behavior deterministic across Codex and Claude.
 
 `apps/server/src/account/service.ts` already renames a signed-in browser user's display name through the private identity store, but that behavior is not available to MCP chat. `household.md` is the exported household title authority, while `households.display_name` is the operational read projection used by context and browser views. `packages/local-runner/src/launchd.ts` owns the durable runner lifecycle, and `packages/agent-client/references/weekly-meal-planning-automation.md` owns the separate host-native reminder lifecycle.
+
+For the browser naming iteration, `apps/server/src/http/web.ts` owns strict form parsing and the server-rendered POST/redirect boundary, while `apps/server/src/http/web-view-model.ts` authenticates the browser principal, verifies CSRF, and delegates to `HouseholdFoodJournalService`. `apps/web/src/routes/household-overview.tsx` owns the visible household title, `apps/web/src/context.tsx` validates the serialized private render model before hydration, and `apps/web/src/routes/guides.tsx` owns the public online guides. `apps/web/src/components/confirm-action-form.tsx` demonstrates the repository's native `<dialog>` cancellation and focus-return pattern.
 
 Assumptions and constraints:
 
@@ -668,6 +684,66 @@ Verification:
 - `npm run verify:execplan`
 - `npm run capture:screencast -- --output artifacts/screencasts/name-first-household-controls.mp4`
 
+### Milestone 12 - Web household rename and public naming guide
+
+Files:
+
+- `apps/server/src/http/web.ts`
+- `apps/server/src/http/web-view-model.ts`
+- `apps/server/src/http/app.test.ts`
+- `apps/server/src/http/web-view-model.test.ts`
+- `apps/server/src/main.ts`
+- `apps/web/src/types.ts`
+- `apps/web/src/context.tsx`
+- `apps/web/src/fixtures.ts`
+- `apps/web/src/components/household-name-editor.tsx`
+- `apps/web/src/routes/household-overview.tsx`
+- `apps/web/src/routes/guides.tsx`
+- `apps/web/src/route.ts`
+- `apps/web/src/server.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/test/app.test.tsx`
+- `apps/web/src/test/route.test.ts`
+- `tests/e2e/web.spec.ts`
+- `tests/e2e/accessibility.spec.ts`
+- `docs/product-specs/household-food-journal-client.md`
+- `docs/product-specs/household-food-journal-server.md`
+- `docs/ARCHITECTURE.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `CHANGELOG.md`
+
+Tasks:
+
+1. Add the household repository HEAD to the private browser household summary and validate it at the React hydration boundary. Add a strict browser rename form containing the new name, exact expected HEAD, CSRF token, and idempotency key.
+2. Authenticate the browser principal, verify CSRF, and delegate the POST to `hfj_update_household_name`. Preserve its owner-only scope and Git mutation/reconciliation behavior. Redirect a successful write to the refreshed household overview; return a private, human-readable retry page for stale revisions, invalid input, rate limits, and authorization changes.
+3. Add a focused household-name editor beside the overview title. Reveal its pencil control on hover and focus for precise pointers, keep it visible on touch, prefill and select the current name in an autofocus dialog input, restore trigger focus after cancel, and preserve Escape/backdrop cancellation. Render a direct inline rename form inside `<noscript>`.
+4. Add `/guides/household-name` to the public guide index, router, metadata, and crawler allowlist. Explain the natural chat request and web hover/edit/dialog flow, that only owners can rename a connected cloud household, and that a connected chat rename reports local and cloud outcomes separately.
+5. Extend route, view-model, React, accessibility, and browser tests for owner success, exact replay, stale HEAD, invalid CSRF/name, editor denial, hidden/revealed/touch-equivalent control, autofocus and text selection, cancellation/focus restoration, no-JavaScript fallback, guide crawlability, and updated title after redirect. Update normative specs, architecture, changelog, and implementation log.
+
+Feature-critic constraints:
+
+- The hover treatment is visual polish, not the accessibility mechanism. The button remains in the focus order, appears on `:focus-within`, and is visible without hover on touch or coarse pointers.
+- Only an owner sees the web edit affordance. The server independently authenticates, verifies CSRF, requires `household:manage`, and checks current owner membership so a forged editor or viewer POST fails.
+- The form carries the repository HEAD that produced the visible title. A stale page fails with a plain-language refresh-and-retry response; it never substitutes a fresh HEAD and silently overwrites another rename.
+- The input reuses the contract's trimmed, bounded household-name schema. Blank, control-character, overlong, and extra form fields fail before mutation.
+- The dialog does not trap users after cancellation. Escape, backdrop, and Cancel close it, and the trigger regains focus. The current name is selected when the dialog opens so typing replaces it.
+- JavaScript improves the interaction but is not mutation authority. The initial HTML contains the title, owner control, form fields, and a no-JavaScript submit path; the POST remains server-authoritative.
+- The public guide contains no household data or mutation tokens. It describes both chat and web paths, owner authority, and conflict recovery in directly crawlable HTML.
+- Rollback removes the browser POST, private summary revision, component, and additive guide route. Successfully committed household names remain valid because the durable format and mutation are unchanged.
+
+Verification:
+
+- `npm run test --workspace @hfj/server -- http/web-view-model.test.ts http/app.test.ts`
+- `npm run test --workspace @hfj/web`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test:e2e`
+- `npm run build`
+- `npm run verify`
+- `npm run verify:docs`
+- `npm run verify:execplan`
+- `npm run capture:screencast -- --output artifacts/screencasts/web-household-rename.mp4`
+
 ## Interfaces and Dependencies
 
 The public input is conceptually:
@@ -708,6 +784,9 @@ The exact schema uses unique section and profile lists so unchanged state is omi
 - On a fresh installation, the first user-facing question is `What should I call you?`; the confirmed answer is saved in private revisioned local profile state before the account question and is reused after restart.
 - Connecting an existing account or promoting a local household saves the remembered name as the cloud account display name. With no existing household and no pending household join, the first household is named `Name's Household`, or `Names' Household` when the validated name ends in `s` or `S`; existing and joined household titles remain unchanged.
 - Ordinary chat can update the person's local profile name, the cloud account display name, the local household name, and an owner-authorized cloud household name with exact revision/idempotency behavior and no cross-authority success claim.
+- An owner can rename a connected cloud household from the household overview with a hover/focus/touch-equivalent edit control and an autofocus, preselected name dialog. The same action remains available in ordinary chat; editors and viewers cannot see or forge the browser mutation.
+- A stale browser rename, changed authorization, invalid CSRF token, or invalid name performs no Git write and returns a human-readable recovery path. JavaScript-disabled browsers retain a direct server-rendered form.
+- `/guides/household-name` is public, crawlable, linked from `/guides`, and explains both chat and web naming paths without implying that local and cloud renames are atomic.
 - An explicit chat request can stop the fixed local WhatsApp LaunchAgent while retaining connection data, and can remove the exact host-native weekly meal reminder. Fullwell reports success only after the relevant local control plane confirms the result.
 - After a successful eligible cloud setup, the chat may suggest inviting another household member and making a collection with one concrete request example; it does not auto-invite, auto-publish, send, or show suggestions in inapplicable failure, pending-intent, or viewer-only states.
 - After the name is remembered locally, a fresh installation's `@Fullwell hi` path asks whether the person already has an account before any hosted Fullwell call. A negative answer initializes local household state and begins grocery then recipe questions without OAuth or hosted MCP; an affirmative answer uses the existing authenticated path.
@@ -729,6 +808,8 @@ The exact schema uses unique section and profile lists so unchanged state is omi
 - Screencast command: `npm run capture:screencast -- --output artifacts/screencasts/approval-efficient-onboarding.mp4`.
 
 ## Outcomes & Retrospective
+
+Milestone 12 reuses the existing owner-only `hfj_update_household_name` authority instead of creating a browser-only naming path. The authenticated overview now carries the Git HEAD that rendered the title, reveals a pencil control through hover, focus, or touch, and opens a native dialog with the current name focused and selected. Editors and viewers receive no control and cannot forge the POST; stale pages, invalid input, CSRF failures, and changed roles return private plain-language recovery without a write. The same server-rendered page retains a no-JavaScript form, while `/guides/household-name` gives logged-out visitors directly crawlable chat and website instructions. Browser, unit, eval, build, documentation, and ExecPlan gates pass; the macOS screencast helper remains unable to use its Linux-only `x11grab` input, so no MP4 is claimed.
 
 Milestone 11 now makes an explicitly confirmed preferred name the first durable Fullwell state without inventing a guest household for an existing-account user. The same local profile supplies cloud display-name synchronization and a deterministic possessive first-household title, while existing, joined, and pending-intent households remain untouched. Purpose-specific local and cloud rename controls preserve independent revisions and report partial outcomes honestly; cloud household titles remain Git-authoritative and rebuild their Neon projection. Chat can stop only the fixed WhatsApp LaunchAgent, permanently remove the exact host-native weekly reminder, and offer eligible invitation or collection examples without treating copy as mutation authority. Public `@fullwell/fullwell@1.1.12` contains this behavior together with collaborative meal planning, the private recipe board, and optional weekly planning handoff; `latest` and the clean downloaded host lifecycles pass. No separate application deployment or screencast is claimed for the package release.
 

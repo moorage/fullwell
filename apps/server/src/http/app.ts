@@ -13,7 +13,14 @@ import { HouseholdFoodJournalService } from "../services/household-food-journal.
 import { registerBrowserAuthRoutes, type BrowserAuthRouteDependencies } from "../auth/routes.js";
 import { registerAccountRoutes, type AccountRouteDependencies } from "../account/routes.js";
 import { registerOAuthRoutes, type OAuthRouteDependencies } from "../oauth/routes.js";
-import { isMealPlanMutationPath, registerWebExperience, sendMealPlanMutationError, type WebExperience } from "./web.js";
+import {
+  isHouseholdRenamePath,
+  isMealPlanMutationPath,
+  registerWebExperience,
+  sendHouseholdRenameError,
+  sendMealPlanMutationError,
+  type WebExperience,
+} from "./web.js";
 import type { ObservabilityPort } from "../telemetry/observability.js";
 import { registerMessagingRoutes, type MessagingRouteDependencies } from "../messaging/routes.js";
 import { registerRunnerRoutes, type RunnerRouteDependencies } from "../runner/routes.js";
@@ -130,6 +137,9 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
       if (isMealPlanMutationPath(request.url)) {
         return sendMealPlanMutationError(reply, request.url, 429, "Too many requests were submitted. Return to the week and try again shortly.");
       }
+      if (isHouseholdRenamePath(request.url)) {
+        return sendHouseholdRenameError(reply, request.url, 429, "Too many name changes were submitted. Wait a moment, then try again.");
+      }
       return reply.code(429).send({ error: rateLimitError.data.error });
     }
     const contentParserError = ContentParserErrorSchema.safeParse(error);
@@ -141,12 +151,18 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
       if (isMealPlanMutationPath(request.url)) {
         return sendMealPlanMutationError(reply, request.url, statusCode, "The submitted meal details could not be read. Return to the week and check the form.");
       }
+      if (isHouseholdRenamePath(request.url)) {
+        return sendHouseholdRenameError(reply, request.url, statusCode, "The submitted household name could not be read. Return to the household and check the form.");
+      }
       return reply.code(statusCode).send({ error: { code: "VALIDATION_FAILED", message: "Request content was rejected" } });
     }
     if (error instanceof z.ZodError) {
       dependencies.observability?.error("http.request_failed", error, { request_id: String(request.id), method: request.method, route, status_code: 400, error_code: "VALIDATION_FAILED" });
       if (isMealPlanMutationPath(request.url)) {
         return sendMealPlanMutationError(reply, request.url, 400, "The submitted meal details were not valid. Return to the week and check the form.");
+      }
+      if (isHouseholdRenamePath(request.url)) {
+        return sendHouseholdRenameError(reply, request.url, 400, "Enter a household name between 1 and 120 characters.");
       }
       return reply.code(400).send({ error: { code: "VALIDATION_FAILED", message: "Request validation failed" } });
     }
@@ -160,11 +176,17 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
       if (isMealPlanMutationPath(request.url)) {
         return sendMealPlanMutationError(reply, request.url, httpStatus(error.code), mealPlanMutationErrorMessage(error.code));
       }
+      if (isHouseholdRenamePath(request.url)) {
+        return sendHouseholdRenameError(reply, request.url, httpStatus(error.code), householdRenameErrorMessage(error.code));
+      }
       return reply.code(httpStatus(error.code)).send({ error: { code: error.code, message: error.message } });
     }
     dependencies.observability?.error("http.request_failed", error instanceof Error ? error : new Error("Unknown request failure"), { request_id: String(request.id), method: request.method, route, status_code: 500, error_code: "INTERNAL_ERROR" });
     if (isMealPlanMutationPath(request.url)) {
       return sendMealPlanMutationError(reply, request.url, 500, "The meal plan could not be updated. Return to the week and try again.");
+    }
+    if (isHouseholdRenamePath(request.url)) {
+      return sendHouseholdRenameError(reply, request.url, 500, "The household name could not be changed. Return to the household and try again.");
     }
     return reply.code(500).send({ error: { code: "INTERNAL_ERROR", message: "The request could not be completed" } });
   });
@@ -351,6 +373,17 @@ function mealPlanMutationErrorMessage(code: string): string {
   }
   if (code === "VALIDATION_FAILED") return "The submitted meal details were not valid. Return to the week and check the form.";
   return "The meal plan could not be updated. Return to the week and try again.";
+}
+
+function householdRenameErrorMessage(code: string): string {
+  if (code === "AUTH_REQUIRED") return "Sign in before changing the household name.";
+  if (code === "FORBIDDEN") return "You do not have permission to change this name. If you are a household owner, refresh the page and try again.";
+  if (code === "NOT_FOUND") return "This household is unavailable or you no longer have access to it.";
+  if (code === "REVISION_CONFLICT" || code === "PROJECTION_DRIFT" || code === "RECONCILIATION_REQUIRED") {
+    return "The household changed after this page opened. Return to the household, review the latest name, and try again.";
+  }
+  if (code === "VALIDATION_FAILED") return "Enter a household name between 1 and 120 characters.";
+  return "The household name could not be changed. Return to the household and try again.";
 }
 
 function safeRoute(route: string | undefined): string {

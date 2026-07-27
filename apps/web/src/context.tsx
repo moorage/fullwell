@@ -197,7 +197,7 @@ const webRenderContextSchema: z.ZodType<WebRenderContext> = z.object({
   messaging: messagingStatusSchema,
   viewer: z.object({ displayName: z.string(), email: z.string() }),
   households: z.array(z.object({
-    id: z.string().min(1), name: z.string().min(1), role: householdRoleSchema, members: z.number().int().nonnegative(),
+    id: z.string().min(1), name: z.string().min(1), repositoryHead: gitObjectIdSchema, role: householdRoleSchema, members: z.number().int().nonnegative(),
     recipes: z.number().int().nonnegative(), groceries: z.number().int().nonnegative(),
     takeout: z.number().int().nonnegative(), updatedLabel: z.string(),
   })),

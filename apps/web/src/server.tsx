@@ -30,6 +30,7 @@ const pageTitles: Record<string, string> = {
   "/company": "Fullwell Company Information | Sous Chef Studio",
   "/guides": "Advanced agent guides",
   "/guides/whatsapp": "Connect WhatsApp",
+  "/guides/household-name": "Name your household",
   "/guides/household-invitations": "Invite household members",
   "/guides/collections/create": "Create a collection",
   "/guides/collections/share": "Share a collection",
@@ -70,6 +71,10 @@ const publicPageDescriptions: Record<string, PublicPageDescription> = {
   "/guides/whatsapp": {
     description: "Connect WhatsApp as an optional communication channel for the Fullwell household assistant.",
     openGraphTitle: "Use Fullwell from WhatsApp",
+  },
+  "/guides/household-name": {
+    description: "Rename a Fullwell household in chat or from the household website as an authorized owner.",
+    openGraphTitle: "Name Your Fullwell Household",
   },
   "/guides/household-invitations": {
     description: "Learn how Fullwell households invite family members and keep each person's access attributable.",

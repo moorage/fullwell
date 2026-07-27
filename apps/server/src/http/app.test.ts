@@ -319,6 +319,7 @@ describe("Fastify application", () => {
         assetsRoot: resolve(import.meta.dirname, "../../../web/dist"),
         contextFor: (request) => viewModels.contextFor(request),
         createHousehold: (request, input) => viewModels.createHousehold(request, input),
+        renameHousehold: (request, input) => viewModels.renameHousehold(request, input),
         reviewMealConstraints: (request, input) => viewModels.reviewMealConstraints(request, input),
         addMealProposal: (request, input) => viewModels.addMealProposal(request, input),
         withdrawMealProposal: (request, input) => viewModels.withdrawMealProposal(request, input),
@@ -746,6 +747,92 @@ describe("Fastify application", () => {
       headers: { "x-test-browser-session": "editor" },
     });
     expect(staleEditorJournal.statusCode).toBe(409);
+    const householdBeforeRename = await base.store.getHousehold(householdId);
+    if (householdBeforeRename === null) throw new Error("household missing before rename");
+    const headBeforeRename = householdBeforeRename.repositoryHead;
+    const renamePayload = new URLSearchParams({
+      name: "Garden Table",
+      expectedHead: headBeforeRename,
+      csrf: "c".repeat(32),
+      idempotencyKey: "web-household-rename-0001",
+    }).toString();
+    const renamed = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/name`,
+      headers: { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "owner" },
+      payload: renamePayload,
+    });
+    expect(renamed.statusCode).toBe(303);
+    expect(renamed.headers.location).toBe(`/households/${householdId}?renamed=1#household-name`);
+    const replayedRename = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/name`,
+      headers: { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "owner" },
+      payload: renamePayload,
+    });
+    expect(replayedRename.statusCode).toBe(303);
+    const renamedPage = await app.inject({ method: "GET", url: `/households/${householdId}`, headers: { "x-test-browser-session": "owner" } });
+    expect(renamedPage.body).toContain("Garden Table");
+    const staleRename = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/name`,
+      headers: { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "owner" },
+      payload: new URLSearchParams({
+        name: "Old Page Name",
+        expectedHead: headBeforeRename,
+        csrf: "c".repeat(32),
+        idempotencyKey: "web-household-rename-stale-0001",
+      }).toString(),
+    });
+    expect(staleRename.statusCode).toBe(409);
+    expect(staleRename.body).toContain("changed after this page opened");
+    expect(staleRename.headers["x-robots-tag"]).toBe("noindex, nofollow");
+    const householdAfterRename = await base.store.getHousehold(householdId);
+    if (householdAfterRename === null) throw new Error("household missing after rename");
+    const invalidName = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/name`,
+      headers: { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "owner" },
+      payload: new URLSearchParams({
+        name: "Bad\nName",
+        expectedHead: householdAfterRename.repositoryHead,
+        csrf: "c".repeat(32),
+        idempotencyKey: "web-household-rename-invalid-0001",
+      }).toString(),
+    });
+    expect(invalidName.statusCode).toBe(400);
+    expect(invalidName.body).toContain("between 1 and 120 characters");
+    const rejectedRenameCsrf = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/name`,
+      headers: { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "owner" },
+      payload: new URLSearchParams({
+        name: "CSRF Bypass",
+        expectedHead: householdAfterRename.repositoryHead,
+        csrf: "x".repeat(32),
+        idempotencyKey: "web-household-rename-csrf-0001",
+      }).toString(),
+    });
+    expect(rejectedRenameCsrf.statusCode).toBe(403);
+    expect(rejectedRenameCsrf.body).toContain("do not have permission");
+    await base.store.upsertMembership({
+      ...editorMembership,
+      projectionHead: householdAfterRename.repositoryHead,
+      removedAt: null,
+    });
+    const forbiddenEditorRename = await app.inject({
+      method: "POST",
+      url: `/households/${householdId}/name`,
+      headers: { "content-type": "application/x-www-form-urlencoded", "x-test-browser-session": "editor" },
+      payload: new URLSearchParams({
+        name: "Editor Bypass",
+        expectedHead: householdAfterRename.repositoryHead,
+        csrf: "c".repeat(32),
+        idempotencyKey: "web-household-rename-editor-0001",
+      }).toString(),
+    });
+    expect(forbiddenEditorRename.statusCode).toBe(403);
+    expect(forbiddenEditorRename.body).toContain("do not have permission");
     const ownerMembership = (await base.store.listMemberships(owner.userId))[0]?.membership;
     if (ownerMembership === undefined) throw new Error("owner membership missing");
     await base.store.upsertMembership({ ...ownerMembership, role: "viewer" });
@@ -823,12 +910,13 @@ describe("Fastify application", () => {
     const householdId = "hsh_0000000000000901";
     const responses = await Promise.all([
       app.inject({ method: "POST", url: "/households" }),
+      app.inject({ method: "POST", url: `/households/${householdId}/name` }),
       app.inject({ method: "POST", url: `/households/${householdId}/meal-plan/review` }),
       app.inject({ method: "POST", url: `/households/${householdId}/meal-plan/proposals` }),
       app.inject({ method: "POST", url: `/households/${householdId}/meal-plan/proposals/mlp_0000000000000901/withdraw` }),
       app.inject({ method: "GET", url: `/households/${householdId}/journal-items?section=recipes` }),
     ]);
-    expect(responses.map(({ statusCode }) => statusCode)).toEqual([501, 501, 501, 501, 501]);
+    expect(responses.map(({ statusCode }) => statusCode)).toEqual([501, 501, 501, 501, 501, 501]);
     expect(responses.every(({ json }) => json().error.code === "PROVIDER_UNAVAILABLE")).toBe(true);
     await app.close();
   });

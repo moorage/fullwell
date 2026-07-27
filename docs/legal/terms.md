@@ -2,7 +2,7 @@
 
 Effective date: 2026-07-15
 
-Fullwell is a product operated by Sous Chef Studio, Inc. In these terms, “Fullwell” refers to the service operated by Sous Chef Studio, Inc. Contact `support@fullwell.app` with questions.
+Fullwell is a product operated by Sous Chef Studio, Inc. In these terms, “Fullwell” refers to the service operated by Sous Chef Studio, Inc. Contact `support@fullwell.ai` with questions.
 
 ## The service
 
@@ -42,4 +42,4 @@ We may limit or suspend access to protect users, investigate abuse, comply with 
 
 ## Changes and contact
 
-Material changes receive a new effective date and notice when appropriate. Contact `support@fullwell.app`, `privacy@fullwell.app`, or `security@fullwell.app` as relevant.
+Material changes receive a new effective date and notice when appropriate. Contact `support@fullwell.ai`, `privacy@fullwell.ai`, or `security@fullwell.app` as relevant.

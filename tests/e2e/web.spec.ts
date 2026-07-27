@@ -78,7 +78,7 @@ test("serves crawlable Fullwell company and WhatsApp identity", async ({ page, r
   const whatsapp = page.getByRole("region", { name: "Use Fullwell from WhatsApp" });
   await expect(whatsapp).toContainText("WhatsApp is an optional communication channel for Fullwell.");
   await expect(page.getByRole("link", { name: "About Fullwell", exact: true })).toHaveAttribute("href", "/about");
-  await expect(page.getByRole("link", { name: "Support", exact: true })).toHaveAttribute("href", "mailto:support@fullwell.app");
+  await expect(page.getByRole("link", { name: "Support", exact: true })).toHaveAttribute("href", "mailto:support@fullwell.ai");
   await expect(page.locator(".wordmark")).toHaveText("Fullwell");
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
 

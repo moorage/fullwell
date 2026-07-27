@@ -75,7 +75,7 @@ describe("web experience", () => {
     expect(within(whatsapp).getByText("“Add milk and bananas to our grocery list.”")).toBeVisible();
     expect(within(whatsapp).getByText(/optional communication channel/)).toBeVisible();
     expect(screen.getByRole("link", { name: "fullwell.ai" })).toHaveAttribute("href", "https://fullwell.ai/");
-    expect(screen.getByRole("link", { name: "support@fullwell.app" })).toHaveAttribute("href", "mailto:support@fullwell.app");
+    expect(screen.getByRole("link", { name: "support@fullwell.ai" })).toHaveAttribute("href", "mailto:support@fullwell.ai");
     expect(document.querySelector(".wordmark")).toHaveTextContent(/^Fullwell$/);
     expect(document.querySelector(".wordmark__face")).toMatchObject({
       alt: "",
@@ -101,17 +101,17 @@ describe("web experience", () => {
     expect(screen.getByText("Fullwell is a household-assistant product owned and operated by Sous Chef Studio, Inc.")).toBeVisible();
     expect(screen.getByText("Official website").nextElementSibling).toHaveTextContent("fullwell.ai");
     expect(screen.queryByText("fullwell.souschefstudio.com")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "support@fullwell.app" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "support@fullwell.ai" })).toBeVisible();
     company.unmount();
 
     const terms = renderApp("/terms");
     expect(screen.getByText(/Fullwell is a product operated by Sous Chef Studio, Inc/)).toBeVisible();
-    expect(screen.getByRole("link", { name: "support@fullwell.app" })).toHaveAttribute("href", "mailto:support@fullwell.app");
+    expect(screen.getByRole("link", { name: "support@fullwell.ai" })).toHaveAttribute("href", "mailto:support@fullwell.ai");
     terms.unmount();
 
     renderApp("/privacy");
     expect(screen.getByText(/Fullwell is a product operated by Sous Chef Studio, Inc/)).toBeVisible();
-    expect(screen.getByRole("link", { name: "privacy@fullwell.app" })).toHaveAttribute("href", "mailto:privacy@fullwell.app");
+    expect(screen.getByRole("link", { name: "privacy@fullwell.ai" })).toHaveAttribute("href", "mailto:privacy@fullwell.ai");
   });
 
   it("does not accept an invitation when its preview opens", () => {

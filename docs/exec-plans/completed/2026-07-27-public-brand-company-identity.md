@@ -18,7 +18,7 @@ The result should help a third-party reviewer verify the display name `Fullwell`
 
 - 2026-07-27: The homepage is the existing `/install` React route and already server-renders through `apps/server/src/http/web.ts`; no new marketing application or client-only data path is needed.
 - 2026-07-27: The architecture intentionally binds browser sessions, passkeys, Apple callbacks, OAuth, MCP, and absolute application links to `fullwell.souschefstudio.com`. Both `fullwell.ai` aliases already terminate HTTPS and return path-preserving permanent redirects, so canonical metadata must use the final application origin rather than a redirecting alias.
-- 2026-07-27: `docs/legal/privacy.md` and `docs/legal/terms.md` already identify `support@fullwell.app` and `privacy@fullwell.app` as production contacts. The rendered install and Terms routes alone still expose `support@fullwell.example`.
+- 2026-07-27: `docs/legal/privacy.md` and `docs/legal/terms.md` identify `support@fullwell.ai` and `privacy@fullwell.ai` as production contacts. The rendered install and Terms routes alone still exposed `support@fullwell.example`.
 - 2026-07-27: The current wordmark is accessible as `Fullwell`, but its decorative literal `F` immediately precedes the visible word and can be perceived as `FFullwell`.
 - 2026-07-27: The feature-critic pass found that the original milestone list omitted the normative legal Markdown, allowed public identity facts to drift between content and metadata, and proposed an SVG Open Graph image that common social-review crawlers may not render reliably.
 - 2026-07-27: The first browser run exposed only two ambiguous locator assertions caused by legitimate repeated footer/body links; exact accessible names fixed the test without changing the UI. The complete rerun passed 140 checks with 16 intentional project skips.
@@ -28,7 +28,7 @@ The result should help a third-party reviewer verify the display name `Fullwell`
 ## Decision Log
 
 - 2026-07-27: Keep `https://fullwell.souschefstudio.com/` canonical. This matches the sole-origin architecture and the final URL returned by both official brand aliases.
-- 2026-07-27: Use `support@fullwell.app` and retain `privacy@fullwell.app` because the repository's current production legal notices already designate them for those purposes. Do not add any unverified contact.
+- 2026-07-27: Use `support@fullwell.ai` and `privacy@fullwell.ai`, which the repository's corrected production legal notices designate for those purposes. Do not add any unverified contact.
 - 2026-07-27: Preserve the existing paper, leaf, serif, spacing, and open-section system. This is a focused content and identity correction, so the existing-app exception to concept generation applies and no redesign mockup is needed.
 - 2026-07-27: Replace the decorative `F` stamp with a decorative household mark while retaining the visible `Fullwell` text and accessible link name.
 - 2026-07-27: Represent Sous Chef Studio, Inc. as a Schema.org `Organization` and Fullwell as a `WebApplication` whose provider is that organization. Do not add ratings, pricing, awards, customer counts, partnership claims, or unsupported legal claims.
@@ -85,7 +85,7 @@ The current site describes a narrow food journal and does not supply enough publ
 
 - Must fix before implementation: include the normative legal Markdown in the contact/operator correction; centralize factual identity values; use a raster Open Graph image; define canonical behavior per public route; and prove initial HTML rather than hydrated DOM alone.
 - Should fix during implementation: make the support link directly usable, keep `/about` and `/company` indexable, verify the social image itself returns 200, and ensure private routes do not accidentally gain public canonical or structured-data output.
-- Monitor after deployment: whether Meta refreshes its cached public evidence and whether `support@fullwell.app` and `privacy@fullwell.app` are operationally monitored cannot be proven from repository source alone.
+- Monitor after deployment: whether Meta refreshes its cached public evidence and whether `support@fullwell.ai` and `privacy@fullwell.ai` are operationally monitored cannot be proven from repository source alone.
 
 ## Milestones
 
@@ -232,4 +232,4 @@ Release commit `cd33b4f` is pushed to `origin/main`. DigitalOcean runs `hfj-stag
 
 The failed archive-cleanup command changed nothing because the execution policy rejected deletion without an approval path. The already-consumed checksum-verified archives remain at `/root/fullwell-public-brand-20260727-1.oci.tar` on staging and `/tmp/fullwell-public-brand.r5bdW7/fullwell-public-brand-20260727-1.oci.tar` locally; neither is active runtime state or contains credentials.
 
-The repository establishes `support@fullwell.app` and `privacy@fullwell.app` as the production addresses, so no placeholder or invented address was deployed. Repository source cannot independently prove whether either mailbox is currently monitored; that operational fact remains for the owner to confirm.
+The repository establishes `support@fullwell.ai` and `privacy@fullwell.ai` as the production addresses, so no placeholder or invented address is deployed. Repository source cannot independently prove whether either mailbox is currently monitored; that operational fact remains for the owner to confirm.

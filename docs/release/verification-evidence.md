@@ -1,5 +1,13 @@
 # Verification Evidence
 
+## Public support and privacy contact correction
+
+Date: 2026-07-27
+
+- The shared public brand contract, homepage/company/legal rendering, Privacy Notice, Terms, client product specification, browser assertions, and prior identity-release record now use `support@fullwell.ai` and `privacy@fullwell.ai`. Repository-wide source search finds no stale support or privacy `.app` contact.
+- Focused acceptance passes 61 web tests, web typecheck, the production web build, and four WebKit identity checks across desktop, iPhone 13, 320x568, and no JavaScript. Full repository verification passes lint, typecheck, production builds, 421 application tests with 11 expected database-gated skips, docs verification, and active-ExecPlan verification.
+- Release commit, immutable image identifiers, production link/HTML checks, readiness, and rollback references will be appended after deployment.
+
 ## Fullwell character artwork
 
 Date: 2026-07-27

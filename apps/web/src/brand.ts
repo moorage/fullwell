@@ -4,8 +4,8 @@ export type PublicBrandIdentity = {
   readonly companyDisplayName: "Sous Chef Studio";
   readonly companyUrl: "https://souschefstudio.com/";
   readonly primaryProductDomain: "https://fullwell.ai/";
-  readonly supportEmail: "support@fullwell.app";
-  readonly privacyEmail: "privacy@fullwell.app";
+  readonly supportEmail: "support@fullwell.ai";
+  readonly privacyEmail: "privacy@fullwell.ai";
   readonly socialImagePath: "/assets/fullwell-social-card.png";
 };
 
@@ -15,8 +15,8 @@ export const PUBLIC_BRAND: PublicBrandIdentity = {
   companyDisplayName: "Sous Chef Studio",
   companyUrl: "https://souschefstudio.com/",
   primaryProductDomain: "https://fullwell.ai/",
-  supportEmail: "support@fullwell.app",
-  privacyEmail: "privacy@fullwell.app",
+  supportEmail: "support@fullwell.ai",
+  privacyEmail: "privacy@fullwell.ai",
   socialImagePath: "/assets/fullwell-social-card.png",
 };
 

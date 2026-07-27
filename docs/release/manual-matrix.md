@@ -16,12 +16,12 @@ Status values: `Not run`, `Pass`, `Fail`, `Blocked`, or `Not available`. A relea
 
 | Surface | Required transition | Evidence | Status |
 |---|---|---|---|
-| Apple web sign-in | Existing Fullwell Services ID registers the apex and legacy rollback callbacks; one real apex sign-in completes | Four website URLs saved and reloaded on 2026-07-27; live apex sign-in pending | Not run |
+| Apple web sign-in | Existing Fullwell Services ID registers the apex and legacy rollback callbacks; one real apex sign-in completes | Four website URLs saved and reloaded; real Apple passkey authorization returns to an authenticated reload-persistent apex session | Pass |
 | Email and browser session | Fresh apex magic link creates an apex session; old-host session is not accepted | Local derivation passes; live run pending | Not run |
 | Passkey | Apple/email bootstrap on the apex, then new passkey enrollment and passkey-only sign-in | Live run pending | Not run |
-| Codex and Claude | Install or update `@fullwell/fullwell@1.1.18`, revoke/disconnect the legacy resource, and authorize `https://fullwell.ai/mcp` | Package validation passes; registry and live reconnect pending | Not run |
+| Codex and Claude | Install or update `@fullwell/fullwell@1.1.18`, revoke/disconnect the legacy resource, and authorize `https://fullwell.ai/mcp` | Registry artifact and isolated host lifecycles pass; live existing-host reconnect pending | Blocked |
 | Local runner | Disconnect old-origin configuration and reconnect with `--origin https://fullwell.ai` | Deterministic docs/package checks pass; live reconnect pending | Not run |
-| Meta WhatsApp webhook | Prove the direct apex transition route, save the apex callback, and receive a signed empty delivery before final redirect activation | Provider save and live smoke pending | Not run |
+| Meta WhatsApp webhook | Prove the direct apex transition route, save the apex callback, and receive a signed empty delivery before final redirect activation | Apex callback reloaded, mTLS off, only `messages` at v25.0; bounded signed smoke passes before and after activation | Pass |
 
 ## WhatsApp Restocking Matrix
 

@@ -15,10 +15,10 @@ This is an origin migration rather than a branding string replacement. Existing 
 - [x] 2026-07-27T19:10Z: Completed the feature-critic gate; added the pinned Meta webhook, in-flight callback, pre-cutover canary, client-release, and rollback requirements to the plan.
 - [x] 2026-07-27T19:17Z: Milestone 1 complete. Added final-origin Caddy assertions, a tested exact-path WhatsApp transition gateway, configured-origin OAuth/resource metadata coverage, canonical public-identity coverage, and exact apex package validation.
 - [x] 2026-07-27T19:17Z: Milestone 2 complete. Moved gateway, deployment example, public identity, package `1.1.18`, local-runner guidance, architecture, specs, runbooks, active verification commands, changelogs, and release tracking to the apex contract.
-- [ ] Milestone 3: Complete local verification and migration evidence. All local automated gates pass; the deployed-origin screencast and live evidence remain rollout-bound.
-- [ ] Milestone 4: Configure Apple and Meta callbacks. Apple is complete; the Meta callback remains gated on the direct apex webhook route and action-time confirmation.
-- [ ] Milestone 5: Prepare and execute the recoverable production rollout after required release authority.
-- [ ] Milestone 6: Verify live auth/discovery, reconnect affected clients, and close the migration.
+- [x] 2026-07-27T19:40Z: Milestone 3 complete. Focused tests, lint, typecheck, production build, coverage, security, WebKit E2E, accessibility, complete verification, docs verification, and active-ExecPlan verification pass. The standard screencast attempt failed before capture because Homebrew FFmpeg 8.0.1 lacks `x11grab`; it exited 234 and created no artifact.
+- [x] 2026-07-27T20:03Z: Milestone 4 complete. Apple retains the apex and legacy domains/callbacks; Meta saved and reloaded the direct apex webhook with mTLS off and only `messages` subscribed at Graph API v25.0; the bounded signed-delivery smoke passes.
+- [x] 2026-07-27T20:05Z: Milestone 5 complete. Release commit `48048ba` is pushed, public `@fullwell/fullwell@1.1.18` is checksum-matched, and the recoverable DigitalOcean rollout activated the exact reviewed Linux/amd64 image without a database migration.
+- [ ] Milestone 6: Automated production readiness, redirects, canonical metadata, OAuth metadata, MCP discovery, and messaging pass. A real Apple passkey authorization returns to a reload-persistent authenticated apex session; complete any required Fullwell passkey and installed-client reconnect evidence.
 
 ## Surprises & Discoveries
 
@@ -32,6 +32,10 @@ This is an origin migration rather than a branding string replacement. Existing 
 - 2026-07-27: OAuth issuer and authorization-server metadata preserve the URL serializer's trailing `/`, while endpoint and MCP resource URLs do not. The configured-origin test records this exact standards-facing output.
 - 2026-07-27: The existing 10,000-record delivery contract test exceeded Vitest's generic five-second limit only under whole-repository coverage instrumentation. A test-local 15-second timeout preserves the same boundary and lets the deterministic case complete; it runs in about 1.4 seconds alone and 5.7 seconds under coverage.
 - 2026-07-27: After explicit action-time confirmation, Apple saved and then reloaded all four Fullwell website URLs: the apex and legacy domains plus their exact `/auth/apple/callback` return URLs. The existing Services ID, primary App ID association, and key remain unchanged.
+- 2026-07-27: Meta accepted and reloaded the apex callback only after the exact webhook path was serving directly. The final provider state keeps mTLS off and only `messages` subscribed at Graph API v25.0; verification, invalid-token rejection, unsigned rejection, and signed empty delivery pass before and after the final origin switch.
+- 2026-07-27: The authorized provider UI exposed the masked verification-token field value through its accessibility representation. No value entered Git or release evidence; Beads bug `fullwell-z0t` tracks a coordinated post-migration rotation.
+- 2026-07-27: Apple's OCI export loaded as an index, so the reviewed Linux/amd64 manifest was normalized through a Docker-local tag before activation. Platform inspection and a Node runtime canary passed before Compose used the image.
+- 2026-07-27: The repository screencast helper assumes the Linux `x11grab` input. Homebrew FFmpeg 8.0.1 on macOS rejected that input with exit 234 before capture and left no partial artifact, so browser automation, live redirect checks, and authenticated callback evidence remain the visible acceptance record.
 
 ## Decision Log
 
@@ -44,6 +48,7 @@ This is an origin migration rather than a branding string replacement. Existing 
 - 2026-07-27: Use a two-phase gateway cutover for WhatsApp. First expose only the exact webhook path at the apex while all other apex traffic still redirects to the old canonical host, move and prove Meta's callback, then activate the final apex application origin. Do not temporarily serve the complete browser application from two origins.
 - 2026-07-27: Keep Meta configuration pending until the exact apex webhook route is live. The available Chrome profile reaches Meta's login page rather than an authenticated app dashboard, so the user may need to complete Meta login before the action-time callback confirmation.
 - 2026-07-27: Change no database schema or household Git content. Rollback restores the prior image, Caddy routing, `PUBLIC_DOMAIN`, and client package; Apple may retain both exact callbacks because that is additive and supports recovery.
+- 2026-07-27: Keep the canonical-origin rollout and the WhatsApp verification-token rotation as separate recoverable changes. The origin switch retains the existing encrypted credential; `fullwell-z0t` will coordinate provider and server rotation after the new origin is stable.
 
 ## Context and Orientation
 
@@ -361,4 +366,10 @@ Client recovery is explicit reconnect, not token translation. Codex, Claude, and
 
 ## Outcomes & Retrospective
 
-Implementation has not started. Update this section with the exact release, client package, Apple configuration, live verification, rollback evidence, credential-transition results, residual risks, and observation-window outcome.
+Release commit `48048ba3ce3d82175a6abed1bd54a87867dda24e` is pushed to `origin/main`. Public immutable `@fullwell/fullwell@1.1.18` has registry SHA-1 `9a571b41655d20ccbf24e544a69016dfb8b1cf18`, matches the prepared artifact, and passes clean Codex and Claude host lifecycles.
+
+DigitalOcean runs healthy Linux/amd64 image `hfj-staging:canonical-origin-20260727-1-runtime`. The transferred OCI archive has SHA-256 `8c8d6d4231d289de4ad5ed4051a30c591b1d82dfccb7f66e607d9588e4cf32d6`, index digest `sha256:8f60ab4ef2ca8fe3bd20bbbf2798f2604c6ed4d46cc565942d6a887affa3c8e1`, and concrete amd64 manifest `sha256:1441e7c2ede5cd4ecaa7ffe129ff31eb06faf02498d03eb141e7372a33256a47`. The deployed environment has `PUBLIC_DOMAIN=fullwell.ai`; the reviewed Caddyfile has SHA-256 `8a8dc22e1dc727fd42f1146312aa44a426161a6a93dc3b1ac9b9e513e95bd1eb`. The preserved legacy environment, Caddyfile, and prior immutable image remain the rollback unit.
+
+The apex directly returns application HTML and health checks. `www` and the legacy host return path-and-query-preserving `301` redirects to the apex. Canonical and Open Graph metadata, OAuth authorization-server and protected-resource metadata, MCP discovery, deployment smoke, and the bounded signed WhatsApp smoke all use the apex and pass. A real Apple passkey authorization used the exact apex callback, returned to the authenticated apex households page, and remained authenticated after reload. Apple retains both transition callbacks; Meta persists the exact apex webhook with only `messages` at v25.0.
+
+No schema migration, household Git mutation, key creation, or credential download occurred. The remaining user-controlled transition evidence is any needed Fullwell passkey, email, Codex, Claude, and local-runner reconnect. Beads bug `fullwell-z0t` tracks post-migration WhatsApp verification-token rotation without recording its value.

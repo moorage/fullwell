@@ -6,7 +6,9 @@ Date: 2026-07-27
 
 - The shared public brand contract, homepage/company/legal rendering, Privacy Notice, Terms, client product specification, browser assertions, and prior identity-release record now use `support@fullwell.ai` and `privacy@fullwell.ai`. Repository-wide source search finds no stale support or privacy `.app` contact.
 - Focused acceptance passes 61 web tests, web typecheck, the production web build, and four WebKit identity checks across desktop, iPhone 13, 320x568, and no JavaScript. Full repository verification passes lint, typecheck, production builds, 421 application tests with 11 expected database-gated skips, docs verification, and active-ExecPlan verification.
-- Release commit, immutable image identifiers, production link/HTML checks, readiness, and rollback references will be appended after deployment.
+- Release commit `1a74fc170d0f0af8c7ee7a1c6e3bd403e4121976` is pushed. DigitalOcean runs healthy Linux/amd64 image `hfj-staging:contact-domains-20260727-1-runtime` at OCI index `sha256:1f4849860582a8d53fe011e96172f87a3cfdbbbf0949dd220afde07c7f255555` and concrete manifest `sha256:151a157da4363a76f58a174efd47988590871d59901e43c8ede89ca877994581`. Its 81,012,736-byte archive matched locally and remotely at SHA-256 `2a86eec6d0d16974e044eadea906401594d2ee2601ba1557d3eb0da4b198c7eb`.
+- Production server-rendered HTML and live WebKit checks pass on `/`, `/company`, `/privacy`, and `/terms`: every public support/privacy link uses the exact `.ai` address and matching `mailto`, with no stale `.app` contact. Deployment and MCP discovery smokes pass, and public readiness remains healthy on schema `0008`.
+- `/etc/hfj/deploy.env.pre-contact-domains-20260727-1` and `hfj-staging:character-artwork-20260727-1-runtime` retain rollback. No migration, household Git mutation, Caddy/provider/secret change, or npm publication occurred. The transferred archive and temporary local build context were removed.
 
 ## Fullwell character artwork
 

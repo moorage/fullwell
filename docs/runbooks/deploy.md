@@ -37,7 +37,9 @@ Use `systemd-creds encrypt --name=<credential-name> - /etc/credstore.encrypted/<
 
 Put only `PUBLIC_DOMAIN`, the immutable `HFJ_IMAGE` digest, and the non-secret object endpoint/region/bucket/prefix/key ID/retention settings in `/etc/hfj/deploy.env`, root-owned mode `0440`. No credential belongs in that file, the image, OpenTofu state, `/opt`, or `/data/households`.
 
-For `fullwell.ai`, keep `PUBLIC_DOMAIN=fullwell.souschefstudio.com`. Configure Namecheap `A` records for `@` and `www` to the Droplet's current reserved public IPv4 address, with no conflicting URL redirect, CNAME, or AAAA records. The checked-in Caddyfile obtains certificates for both aliases and returns `308` to `https://fullwell.souschefstudio.com{uri}`. Confirm the canonical host before changing DNS, deploy and validate the Caddyfile, then verify apex and `www` over both HTTP and HTTPS with a non-root path and query string.
+Set `PUBLIC_DOMAIN=fullwell.ai`. Namecheap `A` records for `@` and `www`, plus the legacy host's existing record, must resolve to the Droplet's reserved public IPv4 address with no conflicting URL redirect, CNAME, or AAAA record. The final checked-in Caddyfile serves the application only at the apex and permanently redirects `www` plus `fullwell.souschefstudio.com` to the exact apex path and query.
+
+For a live WhatsApp callback migration, first validate and activate `deploy/Caddyfile.whatsapp-cutover` while `PUBLIC_DOMAIN` remains `fullwell.souschefstudio.com`. This temporary gateway serves only `GET` and `POST /api/messaging/whatsapp/webhook` directly at the apex; every other apex request continues to redirect to the legacy application origin. Run the non-destructive messaging smoke against the apex, update and verify Meta's callback, then deploy the final Caddyfile and change `PUBLIC_DOMAIN` in the same release window. Never route a Meta webhook POST through a redirect or expose any other apex application path during this intermediate phase.
 
 ## Release
 
@@ -53,8 +55,8 @@ For `fullwell.ai`, keep `PUBLIC_DOMAIN=fullwell.souschefstudio.com`. Configure N
 The repository smoke scripts require an explicit non-local target. For staging, run:
 
 ```sh
-STAGING_BASE_URL=https://fullwell.souschefstudio.com npm run test:deploy-smoke -- staging
-STAGING_BASE_URL=https://fullwell.souschefstudio.com npm run test:mcp-smoke -- staging
+STAGING_BASE_URL=https://fullwell.ai npm run test:deploy-smoke -- staging
+STAGING_BASE_URL=https://fullwell.ai npm run test:mcp-smoke -- staging
 ```
 
 After WhatsApp credentials are installed but before linking a real sender, run `npm run test:messaging-smoke` with `STAGING_BASE_URL` and the four `MESSAGING_SMOKE_*_FILE` paths. The smoke validates the challenge, rejection, and signed empty-envelope boundaries only. It does not enqueue a message or call Meta's send API.

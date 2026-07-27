@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.1.18 - 2026-07-27
+
+- Move hosted MCP, OAuth handoff, install, privacy, and terms metadata to the canonical `https://fullwell.ai` origin and require existing old-origin installations to reconnect.
+
 ## 1.1.17 - 2026-07-27
 
 - Document the 10,000-record and 10,000-dish cloud delivery commit boundary, still bounded by the hosted 16 MiB MCP request limit.

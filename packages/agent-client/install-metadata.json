@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "release": "1.1.17",
-  "mcp_url": "https://fullwell.souschefstudio.com/mcp",
-  "install_page": "https://fullwell.souschefstudio.com/install",
+  "release": "1.1.18",
+  "mcp_url": "https://fullwell.ai/mcp",
+  "install_page": "https://fullwell.ai/install",
   "platforms": {
     "codex": {
       "label": "Use with Codex",

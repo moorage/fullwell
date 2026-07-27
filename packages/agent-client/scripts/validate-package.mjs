@@ -274,6 +274,7 @@ export const validatePackage = async () => {
   assert(claude.name === "fullwell", "Claude must expose the public fullwell plugin name");
   assert(codex.version === claude.version, "Host manifests must share a version");
   assert(codex.version === packageJson.version, "Package and host versions must match");
+  assert(install.release === packageJson.version, "Install metadata and package versions must match");
   assert(packageJson.files?.includes("runtime"), "Package must include the local onboarding runtime");
   assert(codex.interface?.displayName === "Fullwell", "Codex must expose the Fullwell mention name");
   assert(codex.interface?.defaultPrompt?.[0] === "Set up Fullwell.", "Codex must expose the conversational setup starter");
@@ -305,6 +306,7 @@ export const validatePackage = async () => {
   assert(endpoint?.url === install.mcp_url, "Install metadata and MCP config URL differ");
   const endpointUrl = new URL(endpoint.url);
   assert(endpointUrl.protocol === "https:" && endpointUrl.pathname === "/mcp", "MCP URL must be public HTTPS /mcp");
+  assert(endpointUrl.origin === "https://fullwell.ai", "MCP URL must use the canonical Fullwell origin");
   assert(Object.keys(endpoint).sort().join(",") === "type,url", "MCP config must contain no credentials or tenant data");
   const installUrl = new URL(install.install_page);
   assert(installUrl.protocol === "https:" && installUrl.pathname === "/install", "Install page must be public HTTPS /install");

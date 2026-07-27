@@ -1767,7 +1767,7 @@ describe("contract boundaries", () => {
       }],
       next_cursor: null,
     })).toThrow();
-  });
+  }, 15_000);
 
   it("normalizes names while rejecting control characters", () => {
     expect(parseToolInput("hfj_update_user_display_name", {

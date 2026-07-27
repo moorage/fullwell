@@ -6,12 +6,8 @@ function OfficialDomains() {
   return (
     <ul className="identity-domain-list">
       <li>
-        <a href={PUBLIC_BRAND.primaryProductDomain}>fullwell.ai</a> is Fullwell&apos;s primary
-        product domain and redirects to the service website.
-      </li>
-      <li>
-        <a href={PUBLIC_BRAND.serviceUrl}>fullwell.souschefstudio.com</a> is Fullwell&apos;s
-        service website.
+        <a href={PUBLIC_BRAND.primaryProductDomain}>fullwell.ai</a> is Fullwell&apos;s official
+        product and service website.
       </li>
     </ul>
   );
@@ -65,9 +61,8 @@ export function CompanyRoute() {
           <div><dt>Product</dt><dd>Fullwell</dd></div>
           <div><dt>Legal operator</dt><dd>Sous Chef Studio, Inc.</dd></div>
           <div>
-            <dt>Official domains</dt>
-            <dd><a href={PUBLIC_BRAND.primaryProductDomain}>fullwell.ai</a> and{" "}
-              <a href={PUBLIC_BRAND.serviceUrl}>fullwell.souschefstudio.com</a></dd>
+            <dt>Official website</dt>
+            <dd><a href={PUBLIC_BRAND.primaryProductDomain}>fullwell.ai</a></dd>
           </div>
           <div>
             <dt>Support</dt>

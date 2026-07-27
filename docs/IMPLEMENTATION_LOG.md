@@ -4,6 +4,7 @@
   - `docs/exec-plans/active/2026-07-15-household-food-journal-v1.md`
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
+  - `docs/exec-plans/active/2026-07-27-canonical-origin-fullwell-ai.md`
 - completed ExecPlans:
   - `docs/exec-plans/completed/2026-07-27-durable-computer-use-images.md`
   - `docs/exec-plans/completed/2026-07-27-public-brand-company-identity.md`
@@ -15,6 +16,9 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-27 canonical-origin migration implementation makes `https://fullwell.ai` the sole configured application origin, moves public identity and immutable agent-client metadata to the apex, and retains `www` plus `fullwell.souschefstudio.com` as redirect-only compatibility hosts
+- a separate tested `deploy/Caddyfile.whatsapp-cutover` exposes only the exact GET/POST WhatsApp webhook at the apex before final activation; Apple and Meta provider saves, package publication, commit/push, production deployment, and live credential-transition evidence remain pending their explicit rollout boundaries
+- after explicit action-time confirmation, Apple saved and reloaded the apex and legacy domains plus both exact callbacks on the existing Fullwell Services ID; the existing primary App ID association and key were not changed, while Meta remains pending the direct webhook route and separate confirmation
 - release commit `1605e3a` is pushed; DigitalOcean staging runs zero-production-vulnerability Linux/amd64 image `hfj-staging:household-rename-20260727-1-runtime` at OCI index digest `sha256:505143d96320bd6be429809328858042323ebbacd33a52a483d7f1bb691ba0f0` and concrete manifest `sha256:2c2d93f6eabf8e0dd5535850efa9a0a88d0915d5ce63a9fc8c91cf5ef1b8836b` from checksum-matched 79,073,792-byte archive SHA-256 `103907bc606e638cd0e63876c4d054138532b6d41f317208bfe77455f6d3d9dd`
 - public readiness reports schema `0008`; deployment, MCP discovery, public household-name guide, anonymous no-mutation rename boundary, mounted-volume canary, and exact running-image checks pass; `/etc/hfj/deploy.env.pre-household-rename-20260727-1` and `hfj-staging:durable-images-20260727-1-runtime` retain rollback, and the transferred archive is removed
 - operator readiness, reconciliation, backup, repository, signing, volume, and restore checks pass; aggregate operator health remains degraded only because the previously known WhatsApp response is waiting while no runner is online

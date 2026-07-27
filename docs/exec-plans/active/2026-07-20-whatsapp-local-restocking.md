@@ -728,8 +728,8 @@ Verification:
 - `npm run test:migrations`
 - `npm run container:postgres:verify`
 - `TEST_DATABASE_URL=<isolated-local-url> npm run test:integration`
-- `STAGING_BASE_URL=https://fullwell.souschefstudio.com npm run test:messaging-smoke`
-- `STAGING_BASE_URL=https://fullwell.souschefstudio.com npm run test:deploy-smoke -- staging`
+- `STAGING_BASE_URL=https://fullwell.ai npm run test:messaging-smoke`
+- `STAGING_BASE_URL=https://fullwell.ai npm run test:deploy-smoke -- staging`
 - `npm audit --omit=dev`
 - `npm run knowledge:refresh`
 - `npm run verify`

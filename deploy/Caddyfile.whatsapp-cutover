@@ -3,11 +3,24 @@
 	admin off
 }
 
-www.fullwell.ai, fullwell.souschefstudio.com {
-	redir https://fullwell.ai{uri} permanent
+www.fullwell.ai {
+	redir https://fullwell.souschefstudio.com{uri} permanent
 }
 
 fullwell.ai {
+	@whatsapp_webhook {
+		path /api/messaging/whatsapp/webhook
+		method GET POST
+	}
+	handle @whatsapp_webhook {
+		reverse_proxy app:3000
+	}
+	handle {
+		redir https://fullwell.souschefstudio.com{uri} permanent
+	}
+}
+
+fullwell.souschefstudio.com {
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"

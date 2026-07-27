@@ -87,6 +87,8 @@ describe("web experience", () => {
 
     const company = renderApp("/company");
     expect(screen.getByText("Fullwell is a household-assistant product owned and operated by Sous Chef Studio, Inc.")).toBeVisible();
+    expect(screen.getByText("Official website").nextElementSibling).toHaveTextContent("fullwell.ai");
+    expect(screen.queryByText("fullwell.souschefstudio.com")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "support@fullwell.app" })).toBeVisible();
     company.unmount();
 
@@ -675,6 +677,23 @@ describe("web experience", () => {
     const rendered = renderWebRoute("/c/summer-table-7Qc9", demoWebContext);
     expect(rendered.title).toBe("Shared collection");
     expect(rendered.appHtml).toContain("Summer table");
+    expect([
+      "/invite/invitation-token",
+      "/households/hsh_0123456789abcdef/meal-plan",
+      "/households/hsh_0123456789abcdef/recipes",
+      "/households/hsh_0123456789abcdef/groceries",
+      "/households/hsh_0123456789abcdef/takeout",
+      "/households/hsh_0123456789abcdef/activity",
+      "/unknown",
+    ].map((url) => renderWebRoute(url, demoWebContext).title)).toEqual([
+      "Family invitation",
+      "Weekly meal plan",
+      "Household recipes",
+      "Household groceries",
+      "Household takeout",
+      "Household",
+      "Fullwell",
+    ]);
   });
 
   it("returns fixed public metadata and parseable Fullwell structured data", () => {

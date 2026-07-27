@@ -22,14 +22,19 @@ import { ServiceObservability } from "../telemetry/observability.js";
 import { createOperatorAuthenticator, HealthService } from "../health/health.js";
 import { AppError } from "../core/errors.js";
 
-async function fixture(options: Pick<AppDependencies, "observability" | "operatorAuthentication" | "rateLimit"> = {}) {
+type FixtureOptions = Pick<AppDependencies, "observability" | "operatorAuthentication" | "rateLimit"> & {
+  readonly publicOrigin?: URL;
+};
+
+async function fixture(options: FixtureOptions = {}) {
+  const { publicOrigin: configuredPublicOrigin, ...appOptions } = options;
   const store = new MemoryOperationalStore();
   const repository = new MemoryHouseholdRepository();
   const clock = new FixedClock(new Date("2026-07-15T12:00:00.000Z"));
   const random = new DeterministicRandomSource();
   const hasher = new HmacTokenHasher("test-pepper-that-is-long-enough-0001");
   const authentication = new DeterministicTestAuthenticator();
-  const publicOrigin = new URL("https://example.test");
+  const publicOrigin = configuredPublicOrigin ?? new URL("https://example.test");
   const artifacts = new MemoryExportArtifactStore();
   const service = new HouseholdFoodJournalService(store, repository, clock, random, hasher, new NoopTelemetry(), publicOrigin, artifacts);
   const browserOwner = await authentication.authenticate("Bearer test-owner-token");
@@ -40,7 +45,7 @@ async function fixture(options: Pick<AppDependencies, "observability" | "operato
     service, authentication, store, repository, mail: new UnconfiguredMailProvider(), identity: new UnconfiguredAppleIdentityProvider(), random, publicOrigin,
     health,
     exportDownloads: { artifacts, hasher, clock, resolveBrowserPrincipal: async (request) => request.headers["x-test-browser-session"] === "owner" ? browserOwner : null },
-    ...options,
+    ...appOptions,
   });
   app.addHook("onClose", async () => rm(healthRoot, { recursive: true, force: true }));
   return { app, repository, service, store, authentication, hasher, random, publicOrigin, artifacts, clock };
@@ -55,6 +60,33 @@ describe("Fastify application", () => {
       "magic_link", "apple", "passkey", "identity_management",
       "oauth_registration", "oauth_authorization", "oauth_token", "oauth_revocation", null,
     ]);
+  });
+
+  it("derives public metadata from the configured origin instead of the request host", async () => {
+    const { app } = await fixture({ publicOrigin: new URL("https://fullwell.ai") });
+    const authorization = await app.inject({
+      method: "GET",
+      url: "/.well-known/oauth-authorization-server",
+      headers: { host: "attacker.example" },
+    });
+    expect(authorization.json()).toMatchObject({
+      issuer: "https://fullwell.ai/",
+      authorization_endpoint: "https://fullwell.ai/oauth/authorize",
+      token_endpoint: "https://fullwell.ai/oauth/token",
+      revocation_endpoint: "https://fullwell.ai/oauth/revoke",
+      registration_endpoint: "https://fullwell.ai/oauth/register",
+    });
+    const resource = await app.inject({
+      method: "GET",
+      url: "/.well-known/oauth-protected-resource",
+      headers: { host: "attacker.example" },
+    });
+    expect(resource.json()).toMatchObject({
+      resource: "https://fullwell.ai/mcp",
+      authorization_servers: ["https://fullwell.ai/"],
+    });
+    expect(`${authorization.body}${resource.body}`).not.toContain("attacker.example");
+    await app.close();
   });
 
   it("publishes and invokes the complete MCP tool catalog", async () => {

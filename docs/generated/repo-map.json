@@ -1052,6 +1052,10 @@
         },
         {
           "type": "file",
+          "name": "Caddyfile.whatsapp-cutover"
+        },
+        {
+          "type": "file",
           "name": "caddy.test.mjs"
         },
         {
@@ -1225,6 +1229,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-21-approval-efficient-onboarding.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-27-canonical-origin-fullwell-ai.md"
                 }
               ]
             },

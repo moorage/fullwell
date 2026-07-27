@@ -349,8 +349,8 @@ Verification:
 - `npm run verify`
 - `npm run verify:docs`
 - `npm run verify:execplan`
-- `STAGING_BASE_URL=https://fullwell.souschefstudio.com npm run test:deploy-smoke -- staging`
-- `STAGING_BASE_URL=https://fullwell.souschefstudio.com npm run test:mcp-smoke -- staging`
+- `STAGING_BASE_URL=https://fullwell.ai npm run test:deploy-smoke -- staging`
+- `STAGING_BASE_URL=https://fullwell.ai npm run test:mcp-smoke -- staging`
 
 ### Milestone 6 - Real-history onboarding capacity
 

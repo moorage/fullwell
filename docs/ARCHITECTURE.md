@@ -181,7 +181,7 @@ Raw traces live under ignored `.codex/self-improvement/`. Tracked documents cont
 
 DigitalOcean App Platform is not the version 1 target because its application filesystem is ephemeral. The production container runs on a Droplet with an attached Block Storage volume. Keep a single active writer instance until advisory-lock behavior, shared filesystem semantics, failover, and split-brain prevention are proven for a different topology.
 
-`fullwell.souschefstudio.com` is the sole application origin for browser sessions, passkeys, Apple callbacks, OAuth, and MCP. The Caddy gateway also terminates TLS for `fullwell.ai` and `www.fullwell.ai`, but those brand aliases only return a permanent path-and-query-preserving redirect to the canonical origin and never reverse proxy application traffic.
+`fullwell.ai` is the sole application origin for browser sessions, passkeys, Apple callbacks, OAuth, MCP, and absolute email links. The Caddy gateway also terminates TLS for `www.fullwell.ai` and the legacy `fullwell.souschefstudio.com` host, but both aliases only return a permanent path-and-query-preserving redirect to the apex and never reverse proxy application traffic. `PUBLIC_ORIGIN` remains the single authority for every origin-bound application contract; request host headers never select an issuer, callback, relying-party ID, resource, or canonical URL.
 
 OpenTofu state is operational infrastructure data, not application data. It lives in a dedicated Neon PostgreSQL database and role through the direct TLS endpoint; the backend uses database advisory locks and a distinct schema per environment. Backblaze is reserved for compliance-locked application backups because its S3-compatible API does not implement OpenTofu's conditional lock write.
 

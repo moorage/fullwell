@@ -7,6 +7,6 @@
   },
   "household-food-journal": {
     "type": "http",
-    "url": "https://fullwell.souschefstudio.com/mcp"
+    "url": "https://fullwell.ai/mcp"
   }
 }

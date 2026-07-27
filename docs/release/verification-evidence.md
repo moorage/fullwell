@@ -1,5 +1,13 @@
 # Verification Evidence
 
+## Canonical origin migration
+
+- 2026-07-27 local implementation changes the sole application and packaged-client origin to `https://fullwell.ai`, adds final redirect-only handling for `www` plus `fullwell.souschefstudio.com`, and adds a separate exact-path WhatsApp webhook transition configuration. Caddy 2.10 validates both configurations in Apple Container. Focused gates pass 2 Caddy tests, 12 server tests, 61 web tests, 53 package tests, and package validation for 9 skills, 42 tools, and 182 eval cases.
+- The complete local gate passes lint, typecheck, build, 421 application tests with 11 expected database-gated skips, 14 security tests, 142 WebKit E2E checks with 22 intentional project skips, 6 accessibility checks with 6 intentional project skips, and the exact 90% branch-coverage threshold. `npm run verify`, docs verification, and active-ExecPlan verification pass.
+- The 10,000-record delivery contract case received a test-local 15-second timeout after whole-repository coverage instrumentation repeatedly exceeded Vitest's generic five-second limit; the unchanged deterministic assertion completes in about 1.4 seconds alone and 5.7 seconds under coverage.
+- After explicit action-time confirmation, the existing Fullwell Apple Services ID saved and reloaded `fullwell.ai`, `fullwell.souschefstudio.com`, and the exact HTTPS `/auth/apple/callback` return URL on each host. No Services ID, App ID association, or key was created, removed, downloaded, or rotated.
+- The Meta callback remains unchanged until the direct apex webhook route is deployed and its separate action-time confirmation is received. npm publication, commit/push, DigitalOcean activation, and live Apple/email/passkey/OAuth/runner verification are not yet claimed.
+
 ## Household naming on web and chat
 
 Date: 2026-07-27

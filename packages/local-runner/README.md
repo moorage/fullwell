@@ -19,7 +19,7 @@ Build the package, then connect one Mac to one household:
 ```sh
 npm run build --workspace @fullwell/local-runner
 fullwell-runner connect \
-  --origin https://fullwell.souschefstudio.com \
+  --origin https://fullwell.ai \
   --household <household-id> \
   --host codex \
   --host-project "$HOME/Projects/fullwell-isolated-project-env" \
@@ -29,6 +29,8 @@ fullwell-runner status
 ```
 
 `connect` opens the browser for OAuth with PKCE and then opens Account for the two-sided WhatsApp link. Tokens remain in macOS Keychain. `config.json` contains only non-secret identifiers, absolute executable and isolated-project paths, the public origin, and the approved retailer origin. The Codex runner rejects any effective MCP server other than `node_repl` and requires the Browser and Chrome plugins before each host invocation. Apps, hooks, shell, search, and user rules remain disabled. The installed LaunchAgent contains no secret and selects a stable Node 24 executable.
+
+An installation connected to `fullwell.souschefstudio.com` must run `fullwell-runner disconnect` and reconnect with `--origin https://fullwell.ai`. OAuth grants and Keychain tokens are bound to the old resource and are not rewritten or accepted at the new origin.
 
 The dedicated project isolates Codex configuration and action tools; it is not an operating-system account boundary. Its login must use macOS Keychain, and Browser Use must list only the approved exact origin in the isolated home's persistent `browser/config.toml`. A missing approval or capability drift returns a blocked result and must not be worked around with `never_ask` or a broad browser policy.
 

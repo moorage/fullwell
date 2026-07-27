@@ -12,7 +12,7 @@ test("the Codex and Claude package is complete and privacy-safe", async () => {
   const result = await validatePackage();
   assert.equal(result.skillCount, requiredSkills.length);
   assert.equal(result.toolCount, requiredTools.length + requiredLocalTools.length);
-  assert.equal(result.endpoint, "https://fullwell.souschefstudio.com/mcp");
+  assert.equal(result.endpoint, "https://fullwell.ai/mcp");
   assert.ok(result.evalCount >= 15);
   assert.ok(requiredSkills.includes("audit-food-delivery-orders"));
   assert.ok(requiredSkills.includes("reorder-food-delivery"));

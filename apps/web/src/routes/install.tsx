@@ -150,12 +150,8 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
             <div><dt>Legal operator</dt><dd>Sous Chef Studio, Inc.</dd></div>
             <div><dt>Product</dt><dd>Fullwell</dd></div>
             <div>
-              <dt>Primary product domain</dt>
+              <dt>Product and service website</dt>
               <dd><a href={PUBLIC_BRAND.primaryProductDomain}>fullwell.ai</a></dd>
-            </div>
-            <div>
-              <dt>Service website</dt>
-              <dd><a href={PUBLIC_BRAND.serviceUrl}>fullwell.souschefstudio.com</a></dd>
             </div>
             <div>
               <dt>Support email</dt>

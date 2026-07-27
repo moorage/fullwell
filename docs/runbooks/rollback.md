@@ -22,9 +22,11 @@ For the WhatsApp gateway, disable local live-cart authority first, then service 
 
 For conversational onboarding, remove the new client package/install handoff before rolling back the server so no host calls an unavailable tool. The previous server remains compatible with schema `0007` because it ignores `onboarding_preferences`. Drop that table with `0007_conversational_onboarding.down.sql` only after stopping writers, recording a protected database recovery point, and accepting loss of per-user skip/resume preferences; canonical snack and recipe reports remain in Git and are not changed by the down migration.
 
-## Brand-alias rollback
+## Canonical-origin rollback
 
-The `fullwell.ai` aliases do not require an application or database rollback. Restore the prior `/opt/household-food-journal/deploy/Caddyfile`, validate it with the running Caddy image, and recreate only the gateway container. If the alias must be withdrawn, restore the previously recorded Namecheap records or remove the alias `A` records after lowering DNS TTL and preserving a screenshot or export of both states. Leave `PUBLIC_DOMAIN`, Apple, passkey, OAuth, MCP, and session configuration unchanged. Re-run the canonical deployment smoke after either rollback.
+Restore the recorded pre-cutover `Caddyfile`, immutable application image, and `/etc/hfj/deploy.env` together so `PUBLIC_DOMAIN=fullwell.souschefstudio.com` again matches the application's directly served host. Validate the restored Caddy configuration, recreate the application and gateway, and rerun deployment plus MCP discovery smokes against the legacy origin. Do not change Neon or household Git data.
+
+Before changing Meta back, use `deploy/Caddyfile.whatsapp-cutover` in reverse: keep the apex webhook direct until the legacy callback has been restored and verified. Apple may retain both exact registered return URLs during the observation window; the application's configured `PUBLIC_ORIGIN` selects the callback it actually uses. Old apex sessions, passkeys, OAuth grants, and runner tokens remain origin-bound and are not translated during rollback.
 
 ## Invariants
 

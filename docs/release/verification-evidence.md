@@ -1,5 +1,15 @@
 # Verification Evidence
 
+## Apple account-link callback
+
+Date: 2026-07-28
+
+- Release commit `660dc6046134a88375a4d6a5ba1a29045719e7fe` is pushed to `origin/main`. The callback regression is covered with only the short-lived `SameSite=None` Apple binding cookie present, matching Safari's cross-site `form_post`; the initiating session is revalidated from its HMAC hash, and a revoked session fails closed.
+- Local acceptance passes 17 focused auth tests, 14 security tests, full repository verification with 424 application tests and 12 expected database-gated skips, coverage with 100% auth-service lines, all 12 PostgreSQL integrations through an eight-migration up/down/up cycle, and a zero-finding production dependency audit.
+- DigitalOcean runs healthy Linux/amd64 image `hfj-staging:apple-link-660dc60-runtime` at OCI index `sha256:134e7ffc61a976740ab379571423805c343b62acef1ebf7a1769057641178966` and concrete manifest `sha256:023b2cf9a609d2c21cd982d73adbcdf5f63f429cdd50d7fa4752e7fbad189c83`. The transferred 81,015,808-byte archive matched locally and remotely at SHA-256 `76054101628de96c35ebbfaeb8ee7ebeb79a87ba1dcd7f2e733bcf169d17289e`, and the local plus remote Node runtime canaries pass.
+- Public liveness and schema `0008` readiness, deployment smoke, MCP discovery smoke, active-image inspection, and warning-log review pass. Authenticated operator health reports zero incomplete or reconciliation-required mutations, zero quarantines or backup gaps, healthy restore/repository/signature/volume checks, and the unchanged known degradation of four response-ready WhatsApp records while no runner is online.
+- `/etc/hfj/deploy.env.pre-apple-link-20260728-1` and `hfj-staging:atomic-cloud-3b722e9-runtime` retain rollback. No migration, Caddy, provider configuration, credential, household Git, or npm package changed. The transferred archive is removed after activation; completing the Apple provider ceremony remains a user-controlled action in the same signed-in browser.
+
 ## Atomic recovered-cloud journal release and recipe repair
 
 Date: 2026-07-28

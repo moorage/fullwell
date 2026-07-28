@@ -124,12 +124,9 @@ describe("BrowserAuthService", () => {
     expect(linkedEmailSession.user.id).toBe(principal.userId);
 
     const apple = await auth.beginAppleIdentity(principal.userId, session.sessionToken);
-    await expect(auth.completeApple({ code: "code", state: apple.state, browserBinding: apple.browserBinding, redirectUri: "https://journal.example.test/auth/apple/callback" }))
-      .rejects.toMatchObject({ code: "AUTH_REQUIRED" });
-    const retry = await auth.beginAppleIdentity(principal.userId, session.sessionToken);
     const linkedAppleSession = await auth.completeApple({
-      code: "code", state: retry.state, browserBinding: retry.browserBinding,
-      redirectUri: "https://journal.example.test/auth/apple/callback", rawSessionToken: session.sessionToken,
+      code: "code", state: apple.state, browserBinding: apple.browserBinding,
+      redirectUri: "https://journal.example.test/auth/apple/callback",
     });
     expect(linkedAppleSession.user.id).toBe(principal.userId);
     expect(await store.listIdentityMethods(principal.userId)).toEqual(["apple", "magic_link"]);
@@ -142,6 +139,20 @@ describe("BrowserAuthService", () => {
     await auth.requestMagicLinkIdentity(otherSession.user.id, otherSession.sessionToken, "member@example.test");
     await expect(auth.completeMagicLinkIdentity(mail.magicLink?.searchParams.get("token") ?? "", otherSession.sessionToken))
       .rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  });
+
+  it("rejects Apple identity linking when the initiating session is revoked before callback", async () => {
+    const { auth, mail } = fixture(new UnsupportedPasskeyProvider(), new DeterministicAppleProvider());
+    const session = await magicLinkSession(auth, mail);
+    const principal = await auth.authenticateSession(session.sessionToken);
+    const apple = await auth.beginAppleIdentity(principal.userId, session.sessionToken);
+
+    await auth.signOut(session.sessionToken);
+
+    await expect(auth.completeApple({
+      code: "code", state: apple.state, browserBinding: apple.browserBinding,
+      redirectUri: "https://journal.example.test/auth/apple/callback",
+    })).rejects.toMatchObject({ code: "AUTH_REQUIRED" });
   });
 
   it("creates a browser session from a first-time Apple sign-in", async () => {

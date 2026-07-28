@@ -198,7 +198,7 @@ Do not offer a service-specific password in version 1.
 
 Continue with Apple must use the web Services ID flow and validate authorization codes and identity tokens server-side. Treat Apple's stable subject as the external identity key. The user's name and email may be available only during the first authorization; store only what is needed for account display, invitations, security notices, and recovery.
 
-Apple's cross-site `form_post` callback must use a short-lived `Secure; SameSite=None` browser-binding cookie. The sign-in page's Content Security Policy may allow form navigation only to the service origin and `https://appleid.apple.com`; every other form destination remains blocked.
+Apple's cross-site `form_post` callback must use a short-lived `Secure; SameSite=None` browser-binding cookie. When linking Apple to an existing account, the single-use challenge also binds a hashed reference to the initiating session so the callback can revalidate that session without depending on the browser sending its `SameSite=Lax` session cookie on a cross-site POST. The sign-in page's Content Security Policy may allow form navigation only to the service origin and `https://appleid.apple.com`; every other form destination remains blocked.
 
 After initial Apple or magic-link authentication, offer passkey enrollment. Passkeys must use WebAuthn with discoverable credentials and required user verification where supported. The private key remains in the user's credential provider, including Apple Passwords/iCloud Keychain.
 

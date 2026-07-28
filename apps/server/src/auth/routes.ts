@@ -98,7 +98,6 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
       state: body.state,
       browserBinding: body.browser_binding,
       redirectUri: dependencies.appleAuthorization?.redirectUri ?? body.redirect_uri ?? "",
-      ...(request.cookies.hfj_session === undefined ? {} : { rawSessionToken: request.cookies.hfj_session }),
     });
     setSessionCookie(reply, session.sessionToken, dependencies.secureCookies);
     setCsrfCookie(reply, session.csrfToken, dependencies.secureCookies);

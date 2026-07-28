@@ -90,20 +90,25 @@ export class BrowserAuthService {
     const browserBinding = this.random.token(32);
     await this.store.saveChallenge({
       id: this.random.opaqueId("challenge"), kind: "apple", tokenHash: this.hasher.hash(state),
-      browserBindingHash: this.hasher.hash(browserBinding), payload: { link_user_id: userId, pending_intent: "/account" },
+      browserBindingHash: this.hasher.hash(browserBinding),
+      payload: { link_user_id: userId, link_session_hash: this.hasher.hash(rawSessionToken), pending_intent: "/account" },
       expiresAt: addMinutes(this.clock.now(), 10), consumedAt: null,
     });
     return { state, browserBinding };
   }
 
-  async completeApple(input: { readonly code: string; readonly state: string; readonly browserBinding: string; readonly redirectUri: string; readonly rawSessionToken?: string }): Promise<IssuedWebSession> {
+  async completeApple(input: { readonly code: string; readonly state: string; readonly browserBinding: string; readonly redirectUri: string }): Promise<IssuedWebSession> {
     const challenge = await this.consumeChallenge("apple", input.state, input.browserBinding);
     const identity = await this.apple.exchangeAppleCode(input.code, input.redirectUri, input.state);
     const subjectHash = this.hasher.hash(identity.subject);
     const linkUserId = challenge.payload.link_user_id;
     const user = linkUserId === undefined
       ? await this.resolveOrCreateUser("apple", subjectHash, identity.name?.trim() || "Household member")
-      : await this.completeAppleIdentity(UserIdSchema.parse(linkUserId), input.rawSessionToken, subjectHash);
+      : await this.completeAppleIdentity(
+        UserIdSchema.parse(linkUserId),
+        requiredPayload(challenge.payload, "link_session_hash"),
+        subjectHash,
+      );
     return this.issueSession(user, challenge.payload.pending_intent ?? null);
   }
 
@@ -247,11 +252,15 @@ export class BrowserAuthService {
     return user;
   }
 
-  private async completeAppleIdentity(userId: Principal["userId"], rawSessionToken: string | undefined, subjectHash: string) {
-    if (rawSessionToken === undefined) throw new AppError("AUTH_REQUIRED", "Sign in is required to link Apple");
-    const user = await this.assertSessionUser(rawSessionToken, userId);
+  private async completeAppleIdentity(userId: Principal["userId"], sessionTokenHash: string, subjectHash: string) {
+    const resolved = await this.store.getSessionByTokenHash(sessionTokenHash);
+    const now = this.clock.now();
+    if (resolved === null || resolved.session.revokedAt !== null || new Date(resolved.session.expiresAt) <= now) {
+      throw new AppError("AUTH_REQUIRED", "Sign in is required to link Apple");
+    }
+    if (resolved.user.id !== userId) throw new AppError("FORBIDDEN", "The sign-in method belongs to a different account");
     await this.linkIdentity(userId, "apple", subjectHash);
-    return user;
+    return resolved.user;
   }
 
   private async linkIdentity(userId: Principal["userId"], provider: "apple" | "magic_link", subjectHash: string): Promise<void> {

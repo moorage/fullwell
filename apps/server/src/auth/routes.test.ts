@@ -263,7 +263,7 @@ describe("browser auth routes", () => {
     if (state === null || bindingCookie === undefined) throw new Error("Apple link callback values missing");
     const completed = await app.inject({
       method: "POST", url: "/auth/apple/callback",
-      headers: { cookie: `${authenticated.cookie}; ${bindingCookie}` }, payload: { code: "code", state },
+      headers: { cookie: bindingCookie }, payload: { code: "code", state },
     });
     expect(completed.statusCode).toBe(303);
     expect(completed.headers.location).toBe("/account");

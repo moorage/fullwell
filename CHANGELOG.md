@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fix Apple sign-in-method linking after magic-link authentication by binding the initiating session to the single-use Apple challenge instead of expecting Safari to send a `SameSite=Lax` session cookie on Apple's cross-site `form_post` callback.
 - Fix merged ChatGPT desktop and Claude OAuth authorization by admitting only their exact supported loopback callback origins to the consent page's CSP.
 - Advertise every hosted MCP input schema with an explicit object root so Claude can load the complete `fullwell-cloud` tool catalog after authorization.
 - Rename the hosted MCP identity from `household-food-journal` to `fullwell-cloud` while preserving `fullwell-local` and unrelated service/package names.

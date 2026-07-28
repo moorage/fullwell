@@ -1,5 +1,16 @@
 # Verification Evidence
 
+## Claude fullwell-cloud authorization
+
+Date: 2026-07-28
+
+- Claude Code 2.1.215 completed standards-based OAuth through its dynamically registered exact `http://localhost:<port>/callback` redirect with zero CSP errors. No bearer token was copied or exposed.
+- The first authenticated discovery reached the hosted server but Claude rejected `hfj_commit_delivery_index`, the sole tool whose refined discriminated union generated a valid root `oneOf` without an explicit root `type`. Commit `3348399e3ca4d42fb258156002ae9fcfcde49a31` adds `type: "object"` to every advertised hosted input schema without changing Zod runtime validation.
+- The focused 12-test server catalog suite, server typecheck, complete repository verification with 423 passing application tests and 11 expected database-gated skips, docs verification, and active-ExecPlan verification pass. The exact image runtime canary passes and `npm audit --omit=dev` reports zero production vulnerabilities.
+- DigitalOcean runs healthy Linux/amd64 image `hfj-staging:claude-tools-3348399-runtime` at OCI index `sha256:cf19dc2097eb6d9280b81c585775678d60b2fecf55af03ca27d26aa1e91f5325` and concrete manifest `sha256:768d2e47b0abdd645c6785f4e27793a9b9cc28d6c3baf42428ecdf364e8fab8e`. Its 81,012,224-byte archive matched locally and remotely at SHA-256 `49e8982d4fa7fc2bfd77c42d5b3f815835cab573c6760af411c6c0b1e84ab47b`.
+- Production readiness is healthy on schema `0008`; Git, mounted volume, signing, operational store, and single-writer leadership are ready. Deployment and MCP discovery smokes pass with no warning-level service entries.
+- `claude mcp list` and `claude mcp get plugin:fullwell:fullwell-cloud` both report the hosted MCP connected and load its complete catalog. No household journal tool was invoked. The prior image `hfj-staging:claude-oauth-2e12ca4-runtime` and root-only `/etc/hfj/deploy.env.pre-claude-tools-20260728-1` retain rollback; no schema migration, household Git mutation, Caddy/provider/secret change, or npm publication occurred.
+
 ## Public support and privacy contact correction
 
 Date: 2026-07-27

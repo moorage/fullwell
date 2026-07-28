@@ -12,7 +12,7 @@ export function SignInRoute({ emailSent, returnTo }: { emailSent: boolean; retur
       <section className="auth-layout page-band">
         <div className="auth-intro">
           <PageHeader title="Sign in to Fullwell">
-            <p>Your individual account keeps household changes attributable while letting your family collaborate.</p>
+            <p>Your individual cloud account keeps household changes attributable while letting your family collaborate.</p>
           </PageHeader>
           {returnTo ? <p className="pending-intent">After sign-in, you’ll return to what you were doing.</p> : null}
         </div>
@@ -34,7 +34,7 @@ export function SignInRoute({ emailSent, returnTo }: { emailSent: boolean; retur
           <div className="auth-divider"><span>or</span></div>
           <form action="/auth/magic-link" method="post" className="stack-form">
             {returnTo ? <input type="hidden" name="pending_intent" value={returnTo} /> : null}
-            <Field label="Email address" hint="We never reveal whether an address already has an account.">
+            <Field label="Email address" hint="We never reveal whether an address already has a cloud account.">
               <TextInput name="email" type="email" autoComplete="email" required />
             </Field>
             <Button type="submit" variant="secondary">

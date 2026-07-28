@@ -37,7 +37,7 @@ const pageTitles: Record<string, string> = {
   "/sign-in": "Sign in to Fullwell",
   "/authorize": "Allow agent access",
   "/households": "Your households",
-  "/account": "Account",
+  "/account": "Cloud account",
   "/privacy": "Privacy Policy",
   "/terms": "Terms of Service",
 };
@@ -144,6 +144,7 @@ function buildPublicMetadata(
 
 function fullwellStructuredDataJson(context: WebRenderContext): string {
   const applicationUrl = new URL("/", context.canonicalUrl).toString();
+  const iconUrl = new URL(PUBLIC_BRAND.iconPath, context.canonicalUrl).toString();
   const organizationId = `${PUBLIC_BRAND.companyUrl}#organization`;
   return JSON.stringify({
     "@context": "https://schema.org",
@@ -161,11 +162,14 @@ function fullwellStructuredDataJson(context: WebRenderContext): string {
         url: applicationUrl,
         sameAs: [PUBLIC_BRAND.primaryProductDomain],
         description: FULLWELL_DESCRIPTION,
+        image: iconUrl,
+        thumbnailUrl: iconUrl,
         applicationCategory: "LifestyleApplication",
         operatingSystem: "Web",
         brand: {
           "@type": "Brand",
           name: PUBLIC_BRAND.productName,
+          logo: iconUrl,
         },
         provider: {
           "@id": organizationId,

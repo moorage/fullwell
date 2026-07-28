@@ -34,7 +34,7 @@ export function TermsRoute() {
           Fullwell is a product operated by Sous Chef Studio, Inc. In these terms, “Fullwell”
           refers to the service operated by Sous Chef Studio, Inc.
         </p>
-        <section><h2>Using Fullwell</h2><p>You may use Fullwell to maintain food journals for households you are authorized to access. Each person must use an individual account. Do not share sign-in links, impersonate another member, probe private collections, or use the service unlawfully.</p></section>
+        <section><h2>Using Fullwell</h2><p>You may use Fullwell to maintain food journals for households you are authorized to access. Each person must use an individual cloud account for hosted features. Do not share sign-in links, impersonate another member, probe private collections, or use the service unlawfully.</p></section>
         <section><h2>Your content and permissions</h2><p>You retain rights in content you provide. You give Fullwell permission to store, process, back up, and display it only as needed to operate the service. A household owner controls membership; a collection publisher controls the intentionally shared snapshot.</p></section>
         <section><h2>Agent-assisted records</h2><p>Codex and Claude may help collect evidence and propose journal changes. Review important results. Fullwell is an organizational tool, not medical, dietary, financial, or professional advice.</p></section>
         <section><h2>Availability and changes</h2><p>We work to protect and restore household journals, but no online service is perfectly available. Material changes to these terms will be communicated before they apply where required.</p></section>

@@ -50,12 +50,12 @@ export const guides: readonly Guide[] = [
     title: "Invite household members",
     summary: "Create a one-time invitation for another person with the right household role.",
     example: "Invite Sam to Maya's Household as an editor.",
-    outcome: "Fullwell creates a short-lived link you can send directly. The recipient reviews the household and explicitly joins with their own account.",
+    outcome: "Fullwell creates a short-lived link you can send directly. The recipient reviews the household and explicitly joins with their own cloud account.",
     steps: [
       { title: "Choose a role", body: "Editors can update journal content. Viewers can read and export it. Only a household owner can create the invitation." },
       { title: "Ask in chat", body: "Name the household, the person you are inviting, and the role you want them to have." },
       { title: "Send the one-time link", body: "Share only the invitation URL with the intended person. Opening the link does not join them automatically." },
-      { title: "Let them confirm", body: "The recipient signs in with an individual account, reviews the details, and chooses Join household." },
+      { title: "Let them confirm", body: "The recipient signs in with an individual cloud account, reviews the details, and chooses Join household." },
     ],
   },
   {

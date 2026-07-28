@@ -126,7 +126,7 @@ async function connect(applicationRoot: string, configPath: string, options: Rea
   account.searchParams.set("runner_device", device.device_id);
   account.searchParams.set("household_id", householdId);
   await executeFile("/usr/bin/open", [account.toString()], { encoding: "utf8", maxBuffer: 16_384 });
-  process.stdout.write(`Runner ${device.device_id} registered. Complete the WhatsApp link in the opened Fullwell account page.\n`);
+  process.stdout.write(`Runner ${device.device_id} registered. Complete the WhatsApp link in the opened Fullwell cloud account page.\n`);
 }
 
 async function setBrowser(

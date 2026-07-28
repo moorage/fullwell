@@ -832,6 +832,30 @@
                     },
                     {
                       "type": "file",
+                      "name": "fullwell-icon-16.png"
+                    },
+                    {
+                      "type": "file",
+                      "name": "fullwell-icon-180.png"
+                    },
+                    {
+                      "type": "file",
+                      "name": "fullwell-icon-192.png"
+                    },
+                    {
+                      "type": "file",
+                      "name": "fullwell-icon-32.png"
+                    },
+                    {
+                      "type": "file",
+                      "name": "fullwell-icon-512.png"
+                    },
+                    {
+                      "type": "file",
+                      "name": "fullwell-icon.png"
+                    },
+                    {
+                      "type": "file",
                       "name": "fullwell-social-card.png"
                     },
                     {
@@ -839,6 +863,14 @@
                       "name": "fullwell-social-card.svg"
                     }
                   ]
+                },
+                {
+                  "type": "file",
+                  "name": "favicon.ico"
+                },
+                {
+                  "type": "file",
+                  "name": "site.webmanifest"
                 }
               ]
             },
@@ -1291,6 +1323,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-28-atomic-cloud-journal-save.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-28-fullwell-icon-surfaces.md"
                 },
                 {
                   "type": "file",

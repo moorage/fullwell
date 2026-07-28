@@ -66,13 +66,28 @@ test("serves crawlable Fullwell company and WhatsApp identity", async ({ page, r
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "http://127.0.0.1:4187/");
   await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", "Fullwell");
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", "Fullwell Household Assistant");
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary_large_image");
+  await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute("content", "http://127.0.0.1:4187/assets/fullwell-social-card.png");
+  await expect(page.locator('link[rel="icon"][sizes="32x32"]')).toHaveAttribute("href", "/assets/fullwell-icon-32.png");
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", "/assets/fullwell-icon-180.png");
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href", "/site.webmanifest");
   const structuredDataText = await page.locator('script[type="application/ld+json"]').textContent();
   const structuredData = z.object({
     "@graph": z.array(z.object({ "@type": z.string(), name: z.string() }).passthrough()),
   }).parse(JSON.parse(structuredDataText ?? ""));
   expect(structuredData["@graph"]).toEqual(expect.arrayContaining([
     expect.objectContaining({ "@type": "Organization", name: "Sous Chef Studio, Inc." }),
-    expect.objectContaining({ "@type": "WebApplication", name: "Fullwell" }),
+    expect.objectContaining({
+      "@type": "WebApplication",
+      name: "Fullwell",
+      image: "http://127.0.0.1:4187/assets/fullwell-icon.png",
+      thumbnailUrl: "http://127.0.0.1:4187/assets/fullwell-icon.png",
+      brand: expect.objectContaining({
+        "@type": "Brand",
+        name: "Fullwell",
+        logo: "http://127.0.0.1:4187/assets/fullwell-icon.png",
+      }),
+    }),
   ]));
 
   const whatsapp = page.getByRole("region", { name: "Use Fullwell from WhatsApp" });
@@ -80,6 +95,7 @@ test("serves crawlable Fullwell company and WhatsApp identity", async ({ page, r
   await expect(page.getByRole("link", { name: "About Fullwell", exact: true })).toHaveAttribute("href", "/about");
   await expect(page.getByRole("link", { name: "Support", exact: true })).toHaveAttribute("href", "mailto:support@fullwell.ai");
   await expect(page.locator(".wordmark")).toHaveText("Fullwell");
+  await expect(page.locator(".wordmark__face")).toHaveAttribute("src", "/assets/fullwell-icon.png");
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
 
   for (const route of ["/about", "/company", "/privacy", "/terms"]) {
@@ -89,19 +105,39 @@ test("serves crawlable Fullwell company and WhatsApp identity", async ({ page, r
     await expect(page.locator("body"), route).toContainText("Sous Chef Studio, Inc.");
     await expect(page.locator('link[rel="canonical"]'), route).toHaveCount(1);
   }
-  const socialImage = await request.get("/assets/fullwell-social-card.png");
-  expect(socialImage.status()).toBe(200);
-  expect(socialImage.headers()["content-type"]).toContain("image/png");
-  const characterAssets = [
-    ["/assets/fullwell-full-body-tall.png", "992d1d3a81d36a6d2b1a2e74a55d855557cdab3972fcb5cc1403f6ccc0c31219"],
-    ["/assets/fullwell-face-square.png", "c03c30d5d13f7f74f6e4887805ffc659f317c2def2709c090081bd62bdb5fa04"],
+  const imageAssets = [
+    ["/assets/fullwell-full-body-tall.png", "992d1d3a81d36a6d2b1a2e74a55d855557cdab3972fcb5cc1403f6ccc0c31219", 774, 1247],
+    ["/assets/fullwell-icon.png", "696d832540acdd66044a5cfe8273fe60018fa48855e961c6b71e1705cd007189", 1046, 1044],
+    ["/assets/fullwell-icon-16.png", "45512f1a7a52f9e1b224737bfdb9a5ca96efbd00cb855c1e2c90ccf7588bdd4a", 16, 16],
+    ["/assets/fullwell-icon-32.png", "f74327507cacbb993fd78dce43b6b76a1178bf7086cdc5ac32d5ef37032020b4", 32, 32],
+    ["/assets/fullwell-icon-180.png", "3f71ff3935344e09e5be29a6b3956cd7117383d2a69727d0f952f6513aec09a8", 180, 180],
+    ["/assets/fullwell-icon-192.png", "b2c23626a8f13cd74b60c2f124d68a467f8c80b5de5cc425a50dde7cbbd48734", 192, 192],
+    ["/assets/fullwell-icon-512.png", "50a821d69d20ea588d7ef7bdc69ee0d5bd36b1a457b859775ae104b3b243bd5b", 512, 512],
+    ["/assets/fullwell-social-card.png", "5a22ec1452c8af2d3a2cb251e8ec816f37255ef0e9a8e2c80bff1306fea13160", 1200, 630],
   ] as const;
-  for (const [path, expectedSha256] of characterAssets) {
+  for (const [path, expectedSha256, width, height] of imageAssets) {
     const asset = await request.get(path);
     expect(asset.status(), path).toBe(200);
     expect(asset.headers()["content-type"], path).toContain("image/png");
-    expect(createHash("sha256").update(await asset.body()).digest("hex"), path).toBe(expectedSha256);
+    const body = await asset.body();
+    expect(createHash("sha256").update(body).digest("hex"), path).toBe(expectedSha256);
+    expect(body.readUInt32BE(16), `${path} width`).toBe(width);
+    expect(body.readUInt32BE(20), `${path} height`).toBe(height);
   }
+  const favicon = await request.get("/favicon.ico");
+  expect(favicon.status()).toBe(200);
+  expect(favicon.headers()["content-type"]).toContain("image/x-icon");
+  expect(createHash("sha256").update(await favicon.body()).digest("hex")).toBe("a9572c2e06d06c19ce9452d44ed1616b2c0fcd1b88e5595e911e8066ca83c97b");
+  const siteManifest = await request.get("/site.webmanifest");
+  expect(siteManifest.status()).toBe(200);
+  expect(siteManifest.headers()["content-type"]).toContain("application/manifest+json");
+  expect(await siteManifest.json()).toMatchObject({
+    name: "Fullwell",
+    icons: [
+      { src: "/assets/fullwell-icon-192.png", sizes: "192x192" },
+      { src: "/assets/fullwell-icon-512.png", sizes: "512x512" },
+    ],
+  });
   await page.goto("/");
   await page.screenshot({ path: testInfo.outputPath("fullwell-public-identity.png"), fullPage: true });
 });
@@ -250,9 +286,9 @@ test("uses a cancellable dialog for destructive Account actions", async ({ page 
 
   await page.waitForLoadState("networkidle");
   await expect(page.locator('input[name="confirmation"]')).toHaveCount(0);
-  const deleteButton = page.getByRole("button", { name: "Delete account" });
+  const deleteButton = page.getByRole("button", { name: "Delete cloud account" });
   await deleteButton.click();
-  const dialog = page.getByRole("dialog", { name: "Delete your Fullwell account?" });
+  const dialog = page.getByRole("dialog", { name: "Delete your Fullwell cloud account?" });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).not.toBeVisible();

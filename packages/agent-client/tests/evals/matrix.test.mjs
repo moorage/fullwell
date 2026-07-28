@@ -22,6 +22,7 @@ test("each eval has a unique identity and targets both host matrices", async () 
   const deliverySafetyReference = await readFile(path.join(root, "references/food-delivery-and-cart-safety.md"), "utf8");
   const automationReference = await readFile(path.join(root, "references/weekly-meal-planning-automation.md"), "utf8");
   const voiceReference = await readFile(path.join(root, "references/voice-and-identity.md"), "utf8");
+  const privacyReference = await readFile(path.join(root, "references/privacy-and-sharing.md"), "utf8");
   const skillNames = await readdir(path.join(root, "skills"));
   const skillContents = await Promise.all(
     skillNames.map(async (skill) => [skill, await readFile(path.join(root, "skills", skill, "SKILL.md"), "utf8")]),
@@ -37,6 +38,12 @@ test("each eval has a unique identity and targets both host matrices", async () 
   assert.ok(expected.forbidden_behaviors.length >= 10);
   assert.ok(voiceReference.includes("speak as the user's Fullwell assistant in a warm, natural first-person voice"));
   assert.ok(voiceReference.includes("Do not claim to be human"));
+  assert.ok(voiceReference.includes("Use the person's remembered name like a well-communicating friend would"));
+  assert.ok(voiceReference.includes("Do not force the name into every message or repeat it in adjacent replies"));
+  assert.ok(voiceReference.includes("Call hosted identity a `cloud account`"));
+  assert.ok(privacyReference.includes("without a Fullwell cloud account"));
+  assert.ok(shareCollectionSkill.includes("Fullwell cloud account is needed"));
+  assert.ok(shareCollectionSkill.includes("already have a cloud account"));
   for (const [skill, content] of skillContents) {
     assert.ok(content.includes("[voice and identity](../../references/voice-and-identity.md)"), `${skill} must use the shared voice contract`);
   }
@@ -55,6 +62,12 @@ test("each eval has a unique identity and targets both host matrices", async () 
   assert.deepEqual(claudeGreeting?.required_tools, ["fullwell_local_profile_load"]);
   assert.ok(claudeGreeting?.invariants.includes("ask_preferred_name_first"));
   assert.ok(managingSkill.includes("`Hi Fullwell.`"));
+  const namedCloudAccountQuestion = matrix.cases.find((testCase) => testCase.id === "new-name-warmly-asks-about-cloud-account");
+  assert.deepEqual(namedCloudAccountQuestion?.required_tools, ["fullwell_local_profile_update", "fullwell_local_household_load"]);
+  assert.ok(namedCloudAccountQuestion?.invariants.includes("preserve_user_supplied_name_capitalization"));
+  assert.ok(namedCloudAccountQuestion?.invariants.includes("acknowledge_new_name_warmly"));
+  assert.ok(namedCloudAccountQuestion?.invariants.includes("use_returned_name_without_recapitalizing"));
+  assert.ok(namedCloudAccountQuestion?.invariants.includes("ask_about_fullwell_cloud_account"));
   const noAccount = matrix.cases.find((testCase) => testCase.id === "first-time-no-account-starts-local-groceries");
   assert.deepEqual(noAccount?.required_tools, [
     "fullwell_local_profile_load",
@@ -63,6 +76,8 @@ test("each eval has a unique identity and targets both host matrices", async () 
     "fullwell_local_household_update",
   ]);
   assert.ok(noAccount?.invariants.includes("initialize_local_guest_household"));
+  assert.ok(noAccount?.invariants.includes("acknowledge_new_name_warmly"));
+  assert.ok(noAccount?.invariants.includes("do_not_repeat_answered_cloud_account_question"));
   assert.ok(noAccount?.invariants.includes("default_household_name_chris_possessive"));
   assert.ok(noAccount?.invariants.includes("explain_snack_benefit_before_question"));
   assert.ok(noAccount?.invariants.includes("include_concrete_restock_example"));
@@ -397,11 +412,12 @@ test("each eval has a unique identity and targets both host matrices", async () 
   assert.ok(draftRuntime.includes("expected_draft_revision"));
   assert.ok(draftRuntime.includes("PROHIBITED_DRAFT_DATA"));
   assert.ok(managingSkill.includes("What should I call you?"));
-  assert.ok(managingSkill.indexOf("What should I call you?") < managingSkill.indexOf("Do you already have a Fullwell account?"));
+  assert.ok(managingSkill.indexOf("What should I call you?") < managingSkill.indexOf("Do you already have a Fullwell cloud account?"));
   assert.ok(managingSkill.includes("fullwell/local/profile.json"));
-  assert.ok(managingSkill.includes("Do you already have a Fullwell account?"));
+  assert.ok(managingSkill.includes("Hey <display_name>, nice to be acquainted. Do you already have a Fullwell cloud account?"));
+  assert.ok(managingSkill.includes("Do not repeat the name in adjacent replies"));
   assert.ok(managingSkill.includes("fullwell/local/household.json"));
-  assert.ok(managingSkill.includes("You only need an account for cloud backup, WhatsApp, sharing, or family access"));
+  assert.ok(managingSkill.includes("You only need a cloud account for cloud backup, WhatsApp, sharing, or family access"));
   assert.ok(localRuntime.includes("expected_revision"));
   assert.ok(localRuntime.includes("PROHIBITED_LOCAL_DATA"));
   assert.equal(claudeMcpConfig["fullwell-local"].args[0], "${CLAUDE_PLUGIN_ROOT}/runtime/local-household-mcp.mjs");
@@ -430,6 +446,12 @@ test("each eval has a unique identity and targets both host matrices", async () 
   assert.ok(expected.forbidden_behaviors.includes("calls_fullwell_before_the_user_chooses_an_existing_account_or_cloud_backup"));
   assert.ok(expected.forbidden_behaviors.includes("marks_cloud_backup_after_a_failed_or_uncertain_hosted_write"));
   assert.ok(expected.forbidden_behaviors.includes("asks_account_or_household_questions_before_remembering_the_preferred_name"));
+  assert.ok(expected.forbidden_behaviors.includes("omits_the_newly_remembered_name_from_the_first_cloud_account_question"));
+  assert.ok(expected.forbidden_behaviors.includes("title_cases_or_recapitalizes_the_user_supplied_preferred_name_before_saving_it"));
+  assert.ok(expected.forbidden_behaviors.includes("recapitalizes_the_returned_display_name_instead_of_using_it_exactly"));
+  assert.ok(expected.forbidden_behaviors.includes("uses_unqualified_account_wording_when_contrasting_cloud_identity_with_local_no_account_use"));
+  assert.ok(expected.forbidden_behaviors.includes("forces_the_members_name_into_every_message_or_repeats_it_in_adjacent_replies"));
+  assert.ok(expected.forbidden_behaviors.includes("repeats_the_cloud_account_question_after_the_current_exchange_already_answered_it"));
   assert.ok(expected.forbidden_behaviors.includes("fails_to_save_the_remembered_name_as_the_cloud_display_name_after_connection"));
   assert.ok(expected.forbidden_behaviors.includes("creates_an_unjoined_first_household_without_the_deterministic_possessive_name"));
   const stableLocalPermission = matrix.cases.find((testCase) => testCase.id === "local-tool-permission-survives-upgrade");

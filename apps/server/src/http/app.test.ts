@@ -400,8 +400,13 @@ describe("Fastify application", () => {
     expect(homepage.body).toContain("<title>Fullwell Household Assistant | By Sous Chef Studio</title>");
     expect(homepage.body).toContain('<meta name="description"');
     expect(homepage.body).toContain('<link rel="canonical" href="https://example.test/">');
+    expect(homepage.body).toContain('<link rel="icon" type="image/png" sizes="32x32" href="/assets/fullwell-icon-32.png">');
+    expect(homepage.body).toContain('<link rel="apple-touch-icon" sizes="180x180" href="/assets/fullwell-icon-180.png">');
+    expect(homepage.body).toContain('<link rel="manifest" href="/site.webmanifest">');
     expect(homepage.body).toContain('<meta property="og:site_name" content="Fullwell">');
     expect(homepage.body).toContain('<meta property="og:image:type" content="image/png">');
+    expect(homepage.body).toContain('<meta name="twitter:card" content="summary_large_image">');
+    expect(homepage.body).toContain('<meta name="twitter:image" content="https://example.test/assets/fullwell-social-card.png">');
     const structuredDataMatch = /<script type="application\/ld\+json">([^<]+)<\/script>/.exec(homepage.body);
     if (structuredDataMatch?.[1] === undefined) throw new Error("homepage structured data is missing");
     const structuredData = z.object({
@@ -410,7 +415,17 @@ describe("Fastify application", () => {
     }).parse(JSON.parse(structuredDataMatch[1]));
     expect(structuredData["@graph"]).toEqual(expect.arrayContaining([
       expect.objectContaining({ "@type": "Organization", name: "Sous Chef Studio, Inc." }),
-      expect.objectContaining({ "@type": "WebApplication", name: "Fullwell" }),
+      expect.objectContaining({
+        "@type": "WebApplication",
+        name: "Fullwell",
+        image: "https://example.test/assets/fullwell-icon.png",
+        thumbnailUrl: "https://example.test/assets/fullwell-icon.png",
+        brand: expect.objectContaining({
+          "@type": "Brand",
+          name: "Fullwell",
+          logo: "https://example.test/assets/fullwell-icon.png",
+        }),
+      }),
     ]));
     for (const publicPath of ["/about", "/company", "/privacy", "/terms"]) {
       const publicPage = await app.inject({ method: "GET", url: publicPath });
@@ -424,6 +439,20 @@ describe("Fastify application", () => {
     const socialImage = await app.inject({ method: "GET", url: "/assets/fullwell-social-card.png" });
     expect(socialImage.statusCode).toBe(200);
     expect(socialImage.headers["content-type"]).toContain("image/png");
+    const favicon = await app.inject({ method: "GET", url: "/favicon.ico" });
+    expect(favicon.statusCode).toBe(200);
+    expect(favicon.headers["content-type"]).toContain("image/x-icon");
+    expect(favicon.headers["cache-control"]).toContain("immutable");
+    const siteManifest = await app.inject({ method: "GET", url: "/site.webmanifest" });
+    expect(siteManifest.statusCode).toBe(200);
+    expect(siteManifest.headers["content-type"]).toContain("application/manifest+json");
+    expect(siteManifest.json()).toMatchObject({
+      name: "Fullwell",
+      icons: [
+        { src: "/assets/fullwell-icon-192.png", sizes: "192x192", type: "image/png" },
+        { src: "/assets/fullwell-icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
+    });
     const account = await app.inject({ method: "GET", url: "/account" });
     expect(account.statusCode).toBe(303);
     expect(account.headers.location).toBe("/sign-in?returnTo=%2Faccount");

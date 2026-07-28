@@ -23,7 +23,7 @@ Build a hosted Household Food Journal service that provides:
 
 Google Drive is out of scope. End users never interact with Git, SSH, repository hosting, personal access tokens, or server credentials.
 
-The installed agent may provide a single-user local guest journal before account creation. That guest document is outside this service's authority and contains no server identity, OAuth state, or Git checkout. A client compatibility repair for a recognized older local delivery identifier remains entirely inside the locked local runtime, changes no hosted state, and must rebuild the exact provider payload before a later hosted contribution. The hosted service becomes involved only when the user chooses an existing account or explicitly promotes local data for cloud backup, WhatsApp, sharing, or family access. Once promoted, all cloud mutations still pass through this specification's authenticated contracts and sole Git writer.
+The installed agent may provide a single-user local guest journal without cloud-account creation. That guest document is outside this service's authority and contains no server identity, OAuth state, or Git checkout. A client compatibility repair for a recognized older local delivery identifier remains entirely inside the locked local runtime, changes no hosted state, and must rebuild the exact provider payload before a later hosted contribution. The hosted service becomes involved only when the user chooses an existing cloud account or explicitly promotes local data for cloud backup, WhatsApp, sharing, or family access. Once promoted, all cloud mutations still pass through this specification's authenticated contracts and sole Git writer.
 
 ## 2. Product decisions
 
@@ -35,7 +35,7 @@ These decisions are normative for version 1.
 4. Neon PostgreSQL stores operational state needed for authentication, OAuth, sessions, idempotency, locks, token revocation, invitations, and query projections. It is not the authoritative copy of household journal content.
 5. Agents, guided by installed skills, make semantic decisions and author Markdown reports. The server does not classify food, merge food identities, decide recipe equivalence, infer statuses, or write report prose.
 6. The server validates structure, authorization, evidence references, arithmetic assertions, allowed transitions, and Git consistency.
-7. Every person has an individual account. A household membership grants collaboration rights.
+7. Every person using hosted features has an individual cloud account. A household membership grants collaboration rights.
 8. Continue with Apple is the primary first-run sign-in. Existing passkeys are equally prominent. Email magic link is the fallback.
 9. MCP uses standards-based OAuth with no copied bearer tokens.
 10. Family invitations grant membership only after authenticated, explicit acceptance.
@@ -54,7 +54,7 @@ The system succeeds when:
 - concurrent edits never silently overwrite each other;
 - every accepted content mutation corresponds to exactly one signed Git commit and one append-only audit event;
 - retried MCP requests cannot duplicate evidence, imports, invitations, or commits;
-- a collection visitor can preview without an account and import selected items after sign-in;
+- a collection visitor can preview without a cloud account and import selected items after sign-in;
 - a collection link cannot expose unselected private content or grant household membership;
 - a household can be restored from its repository plus operational metadata backup;
 - users can download a readable ZIP and a verifiable Git bundle.
@@ -198,7 +198,7 @@ Do not offer a service-specific password in version 1.
 
 Continue with Apple must use the web Services ID flow and validate authorization codes and identity tokens server-side. Treat Apple's stable subject as the external identity key. The user's name and email may be available only during the first authorization; store only what is needed for account display, invitations, security notices, and recovery.
 
-Apple's cross-site `form_post` callback must use a short-lived `Secure; SameSite=None` browser-binding cookie. When linking Apple to an existing account, the single-use challenge also binds a hashed reference to the initiating session so the callback can revalidate that session without depending on the browser sending its `SameSite=Lax` session cookie on a cross-site POST. The sign-in page's Content Security Policy may allow form navigation only to the service origin and `https://appleid.apple.com`; every other form destination remains blocked.
+Apple's cross-site `form_post` callback must use a short-lived `Secure; SameSite=None` browser-binding cookie. When linking Apple to an existing cloud account, the single-use challenge also binds a hashed reference to the initiating session so the callback can revalidate that session without depending on the browser sending its `SameSite=Lax` session cookie on a cross-site POST. The sign-in page's Content Security Policy may allow form navigation only to the service origin and `https://appleid.apple.com`; every other form destination remains blocked.
 
 After initial Apple or magic-link authentication, offer passkey enrollment. Passkeys must use WebAuthn with discoverable credentials and required user verification where supported. The private key remains in the user's credential provider, including Apple Passwords/iCloud Keychain.
 
@@ -208,7 +208,7 @@ Email magic links:
 - are one-time use;
 - store only a hash of the token;
 - are bound to the initiating browser transaction when practical;
-- do not reveal whether an address already has an account;
+- do not reveal whether an address already has a cloud account;
 - redirect back to the pending invitation, import, or MCP authorization intent.
 
 ### 7.2 MCP OAuth

@@ -12,7 +12,7 @@ export function HouseholdMembersRoute({ householdId }: { householdId: string }) 
     <AppShell context="workspace" active="households">
       <section className="workspace-page page-band">
         <PageHeader title={`People in ${household.name}`}>
-          <p>Each person signs in with an individual account. Owners control invitations and roles.</p>
+          <p>Each person signs in with an individual cloud account. Owners control invitations and roles.</p>
         </PageHeader>
         <HouseholdNav householdId={householdId} active="members" />
         <section className="management-section" aria-labelledby="members-heading">

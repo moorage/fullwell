@@ -21,10 +21,10 @@ export function AppShell({ children, context = "public", active }: AppShellProps
           <span className="wordmark__stamp" aria-hidden="true">
             <img
               className="wordmark__face"
-              src="/assets/fullwell-face-square.png"
+              src={PUBLIC_BRAND.iconPath}
               alt=""
-              width="454"
-              height="455"
+              width="1046"
+              height="1044"
               decoding="async"
             />
           </span>
@@ -45,7 +45,7 @@ export function AppShell({ children, context = "public", active }: AppShellProps
               Guides
             </a>
             <a aria-current={active === "account" ? "page" : undefined} href="/account">
-              Account
+              Cloud account
             </a>
           </nav>
         ) : context === "public" ? (

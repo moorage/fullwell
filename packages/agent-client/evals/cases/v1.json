@@ -4,7 +4,7 @@
   "cases": [
     {
       "id": "existing-account-setup-oauth",
-      "prompt": "My name is Taylor. I already have a Fullwell account. Connect it and set up my household food journal.",
+      "prompt": "My name is Taylor. I already have a Fullwell cloud account. Connect it and set up my household food journal.",
       "skills": ["manage-household-food-journal"],
       "required_tools": ["fullwell_local_profile_load", "fullwell_local_profile_update", "fullwell_local_household_load", "hfj_get_context", "hfj_update_user_display_name", "hfj_create_household"],
       "invariants": ["remember_name_before_oauth", "affirmative_account_choice_before_oauth", "browser_auth_only", "never_request_token", "save_cloud_display_name", "default_first_household_name", "one_household", "begin_guided_first_run", "no_intermediate_onboarding_write"]
@@ -24,11 +24,18 @@
       "invariants": ["load_local_profile_first", "ask_preferred_name_first", "do_not_load_household_before_name", "no_fullwell_call_before_name", "no_generic_greeting"]
     },
     {
+      "id": "new-name-warmly-asks-about-cloud-account",
+      "prompt": "The local profile is missing, and my answer to \"What should I call you?\" is \"matt\". Continue setup.",
+      "skills": ["manage-household-food-journal"],
+      "required_tools": ["fullwell_local_profile_update", "fullwell_local_household_load"],
+      "invariants": ["save_preferred_name_before_household_load", "preserve_user_supplied_name_capitalization", "acknowledge_new_name_warmly", "use_returned_name_without_recapitalizing", "ask_about_fullwell_cloud_account", "one_routing_question", "no_fullwell_call_before_cloud_account_choice"]
+    },
+    {
       "id": "first-time-no-account-starts-local-groceries",
-      "prompt": "My name is Chris. I do not have a Fullwell account. Continue locally and help me get started.",
+      "prompt": "My name is Chris. I do not have a Fullwell cloud account. Continue locally and help me get started.",
       "skills": ["manage-household-food-journal", "audit-grocery-purchases"],
       "required_tools": ["fullwell_local_profile_load", "fullwell_local_profile_update", "fullwell_local_household_load", "fullwell_local_household_update"],
-      "invariants": ["remember_local_name", "initialize_local_guest_household", "default_household_name_chris_possessive", "no_fullwell_call", "no_setup_area_menu", "snacks_before_recipes", "explain_snack_benefit_before_question", "include_concrete_restock_example", "first_person_assistant_voice", "ask_grocery_stores", "revision_checked_local_save"]
+      "invariants": ["remember_local_name", "acknowledge_new_name_warmly", "do_not_repeat_answered_cloud_account_question", "initialize_local_guest_household", "default_household_name_chris_possessive", "no_fullwell_call", "no_setup_area_menu", "snacks_before_recipes", "explain_snack_benefit_before_question", "include_concrete_restock_example", "first_person_assistant_voice", "ask_grocery_stores", "revision_checked_local_save"]
     },
     {
       "id": "bare-fullwell-greeting-asks-account",
@@ -389,14 +396,14 @@
     },
     {
       "id": "declined-cloud-backup-stays-local",
-      "prompt": "No thanks, do not create a Fullwell account or back this up. Keep using my finished local journal.",
+      "prompt": "No thanks, do not create a Fullwell cloud account or back this up. Keep using my finished local journal.",
       "skills": ["manage-household-food-journal"],
       "required_tools": ["fullwell_local_household_load"],
       "invariants": ["ready_local_journal_remains_authoritative", "no_fullwell_call", "no_false_cloud_backup", "direct_local_features_remain_available"]
     },
     {
       "id": "local-journal-backs-up-after-consent",
-      "prompt": "Yes, create or connect my Fullwell account and back up the finished local journal after showing me the cloud copy summary.",
+      "prompt": "Yes, create or connect my Fullwell cloud account and back up the finished local journal after showing me the cloud copy summary.",
       "skills": ["manage-household-food-journal"],
       "required_tools": ["fullwell_local_profile_load", "fullwell_local_household_load", "hfj_get_context", "hfj_update_user_display_name", "hfj_create_household", "hfj_commit_onboarding", "fullwell_local_household_update"],
       "invariants": ["oauth_only_after_backup_consent", "save_remembered_name_as_cloud_display_name", "use_default_name_when_creating_first_cloud_household", "reconcile_current_cloud_snapshot", "confirm_exact_cloud_copy", "one_cloud_commit", "stable_local_promotion_key", "record_cloud_link_only_after_success", "retain_local_journal"]
@@ -410,7 +417,7 @@
     },
     {
       "id": "guest-sharing-offers-account",
-      "prompt": "Share a collection from my local guest household without creating a Fullwell account.",
+      "prompt": "Share a collection from my local guest household without creating a Fullwell cloud account.",
       "skills": ["share-food-collection", "manage-household-food-journal"],
       "required_tools": ["fullwell_local_household_load"],
       "invariants": ["explain_account_required_for_cloud_share", "offer_optional_promotion", "no_fullwell_call_without_consent", "no_false_share"]
@@ -851,7 +858,7 @@
     },
     {
       "id": "change-connected-member-name",
-      "prompt": "Change my name to Morgan both locally and on my connected Fullwell account.",
+      "prompt": "Change my name to Morgan both locally and on my connected Fullwell cloud account.",
       "skills": ["manage-household-food-journal"],
       "required_tools": ["fullwell_local_profile_load", "fullwell_local_profile_update", "hfj_get_context", "hfj_update_user_display_name"],
       "invariants": ["revision_check_local_profile", "idempotent_cloud_display_name_update", "report_local_and_cloud_outcomes_separately", "never_claim_atomic_dual_write"]

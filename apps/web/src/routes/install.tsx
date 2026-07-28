@@ -122,7 +122,7 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
             </div>
             {promptCopyFailed ? <span className="share-failure" role="status">Copy failed. Select the setup prompt instead.</span> : null}
             {detail.setupHref === null ? null : <p className="fine-print">The button fills a new conversation. Review the prompt, then press Send.</p>}
-            <p className="trust-line">No account is required to start. If you connect one later, sign-in opens in your browser; never paste a code or access key into chat.</p>
+            <p className="trust-line">No cloud account is required to start. If you connect one later, sign-in opens in your browser; never paste a code or access key into chat.</p>
           </div>
         </section>
         <details className="trouble">
@@ -132,7 +132,7 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
         </details>
         <p className="install-guides"><a className="text-link text-link--arrow" href="/guides">Explore advanced agent guides <ArrowRight aria-hidden="true" size={17} /></a></p>
         <a className="text-link text-link--arrow" href="/sign-in">
-          Sign in to an existing account <ArrowRight aria-hidden="true" size={17} />
+          Sign in to an existing cloud account <ArrowRight aria-hidden="true" size={17} />
         </a>
         <section id="whatsapp" className="public-feature" aria-labelledby="whatsapp-heading">
           <p className="eyebrow">A Fullwell feature</p>

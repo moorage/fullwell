@@ -10,7 +10,7 @@ export function AccountRoute() {
   return (
     <AppShell context="workspace" active="account">
       <section className="workspace-page page-band">
-        <PageHeader title="Account">
+        <PageHeader title="Cloud account">
           <p>Review your signed-in identity, household access, and connected agent authorization.</p>
         </PageHeader>
         <section className="account-section" aria-labelledby="profile-heading">
@@ -150,16 +150,16 @@ export function AccountRoute() {
           <Button type="submit" variant="secondary"><LogOut aria-hidden="true" size={18} /> Sign out</Button>
         </form>
         <section className="account-section danger-zone" aria-labelledby="delete-heading">
-          <header><h2 id="delete-heading">Delete account</h2><p>This revokes every session and connected agent.</p></header>
+          <header><h2 id="delete-heading">Delete cloud account</h2><p>This revokes every session and connected agent.</p></header>
           <p>You must first transfer or delete any household you solely own. Household history keeps a pseudonymous former-member label.</p>
           <ConfirmActionForm
             action="/account/delete"
-            buttonLabel="Delete account"
+            buttonLabel="Delete cloud account"
             confirmation="DELETE"
             csrf={security.csrfToken}
             description="This signs you out everywhere, revokes every connected agent, and cannot be undone. Household history keeps a former-member label."
             icon={<Trash2 aria-hidden="true" size={17} />}
-            title="Delete your Fullwell account?"
+            title="Delete your Fullwell cloud account?"
           />
         </section>
       </section>

@@ -1,30 +1,30 @@
 ---
 name: manage-household-food-journal
-description: Handle every Fullwell greeting or setup request through local-first grocery, recipe, and food-delivery history, optional account connection and provider-scoped household contribution, weekly meal-planning follow-up, hosted household selection, family access, profiles, and exports.
+description: Handle every Fullwell greeting or setup request through local-first grocery, recipe, and food-delivery history, optional cloud-account connection and provider-scoped household contribution, weekly meal-planning follow-up, hosted household selection, family access, profiles, and exports.
 ---
 
 # Manage Household Food Journal
 
 Fullwell has two explicit authority modes:
 
-- A **local guest household** works without a Fullwell account and is the default for a new installation. It supports grocery-history collection, recipe collection, food-delivery indexing, direct restocking, recipe recall, and household meal planning on this computer.
+- A **local guest household** works without a Fullwell cloud account and is the default for a new installation. It supports grocery-history collection, recipe collection, food-delivery indexing, direct restocking, recipe recall, and household meal planning on this computer.
 - A **cloud household** uses the hosted MCP service and is required for cloud backup, WhatsApp, collection sharing, invitations, and multiplayer access.
 
 Use the plugin-provided `fullwell-local` tools for guest data and the bundled [local onboarding draft helper](../../runtime/onboarding-draft.mjs) for unconfirmed work tied to an authenticated cloud household. Never execute the versioned `runtime/local-household.mjs` cache path directly. Pass draft-helper JSON only through standard input; never put draft contents in command arguments. Follow [voice and identity](../../references/voice-and-identity.md), [the MCP contract](../../references/mcp-tool-contract.md), and [privacy rules](../../references/privacy-and-sharing.md).
 
 ## Remember the member before choosing authority
 
-Treat every greeting addressed to Fullwell, including a bare `@Fullwell hi` or `Hi Fullwell.`, as a request to start or resume this flow. Never call a Fullwell MCP tool merely to discover whether the person has an account.
+Treat every greeting addressed to Fullwell, including a bare `@Fullwell hi` or `Hi Fullwell.`, as a request to start or resume this flow. Never call a Fullwell MCP tool merely to discover whether the person has a cloud account.
 
 1. Call `fullwell_local_profile_load` with no arguments before loading a household or contacting the cloud.
-2. If the profile is `missing` and the user has not already supplied a preferred name, ask exactly: "What should I call you?" Stop there. The account question, household setup, audits, and hosted calls all wait for this answer.
-3. Save an explicit preferred name with `fullwell_local_profile_update`, using `expected_revision: 0` for a missing profile or the returned revision for a rename. Keep the returned `display_name` and `default_household_name`; names ending in `s` use `<NAME>' Household`, while other names use `<NAME>'s Household`.
+2. If the profile is `missing` and the user has not already supplied a preferred name, ask exactly: "What should I call you?" Stop there. The cloud-account question, household setup, audits, and hosted calls all wait for this answer.
+3. Save an explicit preferred name with `fullwell_local_profile_update`, using `expected_revision: 0` for a missing profile or the returned revision for a rename. Pass the name with the capitalization the person used; do not title-case or otherwise recapitalize it. Keep the returned `display_name` and `default_household_name`; names ending in `s` use `<NAME>' Household`, while other names use `<NAME>'s Household`.
 4. Call `fullwell_local_household_load` with no arguments. It is a local read-only tool and never contacts the Fullwell cloud service.
-5. If it returns a local household, resume it without asking the account question again. A `collecting` household resumes its first unresolved grocery or recipe section. A `ready` household can answer direct local requests; offer cloud backup only at the end of a setup run, when its recorded backup is stale, or when the user requests an account-gated feature.
-6. If it returns `missing`, ask exactly one routing question before any hosted call: "Do you already have a Fullwell account?"
+5. If it returns a local household, resume it without asking the cloud-account question again. A `collecting` household resumes its first unresolved grocery or recipe section. A `ready` household can answer direct local requests; offer cloud backup only at the end of a setup run, when its recorded backup is stale, or when the user requests a cloud-account-gated feature.
+6. If it returns `missing` immediately after creating the preferred-name profile and the person has not already answered the cloud-account choice in the current exchange, ask exactly one routing question before any hosted call: "Hey <display_name>, nice to be acquainted. Do you already have a Fullwell cloud account?" Use the returned `display_name` exactly; do not change its capitalization. If they already answered, acknowledge the new name just as warmly without repeating the answered question, then follow their choice. If the profile was already remembered, naturally reintroduce the name when it has not appeared in the recent exchange, for example: "Hey <display_name>, do you already have a Fullwell cloud account?" Do not repeat the name in adjacent replies.
 7. If the user says yes, use the cloud path. Calling `hfj_get_context` starts OAuth when needed; tell the user to finish in the service browser window and never request a token.
-8. If the user says no, or says they want to continue without an account, call `fullwell_local_household_update` with `{ "operation": "initialize", "household_name": "<default_household_name>" }` and begin grocery-history onboarding immediately. The host may ask once for permission to update Fullwell's private local journal; explain that a persistent choice applies to this named local tool across Fullwell upgrades, not to arbitrary Node commands. Do not call `hfj_get_context`, create a cloud household, or mention an authentication blocker.
-9. Interpret the answer conversationally. Do not use keyword matching. If the answer is genuinely unclear, clarify only whether to connect an existing account or continue locally.
+8. If the user says no, or says they want to continue without a cloud account, call `fullwell_local_household_update` with `{ "operation": "initialize", "household_name": "<default_household_name>" }` and begin grocery-history onboarding immediately. The host may ask once for permission to update Fullwell's private local journal; explain that a persistent choice applies to this named local tool across Fullwell upgrades, not to arbitrary Node commands. Do not call `hfj_get_context`, create a cloud household, or mention an authentication blocker.
+9. Interpret the answer conversationally. Do not use keyword matching. If the answer is genuinely unclear, clarify only whether to connect an existing cloud account or continue locally.
 
 ## Local guest household
 
@@ -61,16 +61,16 @@ Use this local guided flow:
 5. If the user naturally declines a section, store exactly one local outcome: `no_sources` when no applicable source exists, `not_now` when they defer or say never mind, or `user_declined` for another refusal. Advance to the next section without asking what to set up next. Do not treat a local skip as cloud onboarding state.
 6. If the user explicitly stops, cancels, or quits the whole unfinished setup, explain that cancellation removes the unfinished local journal and call `fullwell_local_household_delete_collecting` only after they confirm deletion. Never delete a `ready` local household through this flow.
 7. Keep at most 10,000 evidence records and 10,000 items and a complete local document no larger than 16 MiB. Name the exact blocking limit rather than dropping data or claiming completion.
-8. After collection, show a concise summary of sources, evidence counts, item counts by grocery area, recipe counts, reports, and skipped sections. Use `finalize` so the journal is locally usable before discussing an account. Finish in first person, for example: "I finished learning 42 grocery products and 17 recipes, and I saved what I found locally." Replace the illustrative counts with actual counts and name skipped sections accurately.
+8. After collection, show a concise summary of sources, evidence counts, item counts by grocery area, recipe counts, reports, and skipped sections. Use `finalize` so the journal is locally usable before discussing a cloud account. Finish in first person, for example: "I finished learning 42 grocery products and 17 recipes, and I saved what I found locally." Replace the illustrative counts with actual counts and name skipped sections accurately.
 9. Only after `finalize` succeeds, and only when the journal contains at least one evidence-backed grocery item, ask: "Want to try this now? Tell me something you're out of - for example, 'We're out of cashews; restock them.' I'll use your shopping history to identify the usual product and store. I'll add requests under your $50 automatic cart maximum and ask you first at or above it." Omit this invitation when no restockable grocery was learned rather than implying you can identify one. If the user accepts this invitation before answering the cloud question, complete the restock first; the restocking skill must carry the unconnected local state forward and resume the cloud offer after a verified add instead of ending the onboarding conversation.
-10. Then ask: "Would you like to create or connect a Fullwell account to back this up? You only need an account for cloud backup, WhatsApp, sharing, or family access." When the first restock completes before this question, the equivalent handoff is `(P.S. You can use WhatsApp, collaborate, and share with others by connecting to Fullwell cloud.) Would you like to connect now?` A decline ends successfully with no Fullwell call. Do not describe the local file as cloud-backed.
+10. Then ask: "Would you like to create or connect a Fullwell cloud account to back this up? You only need a cloud account for cloud backup, WhatsApp, sharing, or family access." When the first restock completes before this question, the equivalent handoff is `(P.S. You can use WhatsApp, collaborate, and share with others by connecting to Fullwell cloud.) Would you like to connect now?` A decline ends successfully with no Fullwell call. Do not describe the local file as cloud-backed.
 11. After the primary setup and any chosen cloud handoff finish, offer the personal weekly meal-planning check-in through the meal-planning skill. Inspect native tasks first. Offer Sunday at 9:00 AM in the user-confirmed IANA time zone, accept another exact day and time, and create nothing after a decline or silence. This optional question never changes the successful setup result.
 
 ## Food-delivery history
 
 Route requests to learn, index, refresh, search, or compare delivery history through `audit-food-delivery-orders`. Delivery setup is optional and does not reopen or block the grocery-then-recipe first run.
 
-1. Reuse the loaded local household and ask which delivery providers and installed signed-in browser the user wants to use. Do not require a Fullwell account for local indexing.
+1. Reuse the loaded local household and ask which delivery providers and installed signed-in browser the user wants to use. Do not require a Fullwell cloud account for local indexing.
 2. Save the complete canonical local journal at the exact revision after every complete order. Preserve existing delivery evidence, dishes, profile, report, meal-planning state, and provider promotion receipts across unrelated operations.
 3. If a local user asks to collaborate, authenticate and select the destination household, then reconcile with `hfj_search_delivery_history`, `hfj_get_delivery_order`, `hfj_get_delivery_index`, and current item/profile reads. Present the exact provider-specific copy/merge and retention notice.
 4. For each provider whose visibility and retention preview received a clear contextual affirmative, call local `stage_delivery_promotion`; do not require scripted confirmation text. The selected user and household IDs are transient inputs and only their one-way target-binding digest is retained while pending. Then call `hfj_commit_delivery_index` once in `local_promotion` mode with that stable key and `household_visibility_confirmed: true`. Call local `record_delivery_promotion` only after the hosted response confirms the returned user, household, provider, and HEAD.
@@ -92,7 +92,7 @@ Start this only after an affirmative backup/connect answer or an explicit reques
 
 ## Existing cloud account path
 
-After an affirmative existing-account answer, call `hfj_get_context` and stay within the hosted path:
+After an affirmative existing-cloud-account answer, call `hfj_get_context` and stay within the hosted path:
 
 When the local household load is `missing` but the authenticated context returns an existing household, that is a recovered cloud account, not a new local guest. Use the returned cloud household, repository HEAD, and `user.actor_id`; do not initialize, hydrate, or reconstruct a local household from cloud data.
 
@@ -108,9 +108,9 @@ When the local household load is `missing` but the authenticated context returns
 
 Never call `hfj_update_onboarding`, `hfj_get_profile`, `hfj_append_evidence`, `hfj_update_profile`, or `hfj_commit_change_set` as intermediate writes during either guided first-run path.
 
-## Account-gated capabilities
+## Cloud-account-gated capabilities
 
-For WhatsApp, collection sharing, invitations, multiplayer membership, server exports, or cloud backup, a guest must first choose the optional cloud promotion above. Explain the concrete reason for the account instead of presenting authentication as a general prerequisite.
+For WhatsApp, collection sharing, invitations, multiplayer membership, server exports, or cloud backup, a guest must first choose the optional cloud promotion above. Explain the concrete reason for the cloud account instead of presenting authentication as a general prerequisite.
 
 After cloud onboarding, family invitations require an editor/viewer choice and `hfj_create_family_invite`. A recipient must see the safe preview and explicitly agree before `hfj_accept_family_invite`. Owners may use `hfj_revoke_family_invite`, while membership review and changes use `hfj_list_members`, `hfj_update_member`, and `hfj_remove_member` with confirmation and final-owner protection.
 

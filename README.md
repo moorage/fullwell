@@ -8,9 +8,9 @@ The implemented architecture uses:
 - one containerized TypeScript service on a DigitalOcean Droplet;
 - DigitalOcean Block Storage mounted at `/data/households` for authoritative household Git repositories;
 - Neon PostgreSQL for operational identity, OAuth, authorization projections, idempotency, locking, and jobs;
-- one shared agent-client source package for Codex and Claude, with an account-free local guest household under the active Codex home.
+- one shared agent-client source package for Codex and Claude, with a cloud-account-free local guest household under the active Codex home.
 
-After installation, `@Fullwell hi` first asks and privately remembers what to call the person, then asks whether they already have an account. Existing users connect through OAuth and keep that name as their cloud display name. Everyone else gets a deterministically named first local household, can complete grocery and recipe onboarding locally, and may later connect for cloud features. Fullwell can also build an additive weekly household meal plan from liked recipes, separately approved web research, or free-form ideas; local users can open a private image-forward recipe board, while connected households gain a shared authenticated week view.
+After installation, `@Fullwell hi` first asks and privately remembers what to call the person, warmly acknowledges the answer by name, then asks whether they already have a Fullwell cloud account. Existing cloud-account users connect through OAuth and keep that name as their cloud display name. Everyone else gets a deterministically named first local household, can complete grocery and recipe onboarding without a cloud account, and may later connect for cloud features. Fullwell can also build an additive weekly household meal plan from liked recipes, separately approved web research, or free-form ideas; local users can open a private image-forward recipe board, while connected households gain a shared authenticated week view.
 
 Product truth lives in:
 

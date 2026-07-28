@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Use the user-supplied Fullwell icon as the canonical compact brand image in the shared masthead, favicon, Apple touch and web-app icons, Open Graph/Twitter card, and Schema.org application identity.
+- Address a newly named person with `Hey <name>, nice to be acquainted` before asking about a Fullwell cloud account, reuse remembered names naturally after conversational gaps without repetition, and distinguish cloud accounts from account-free local use throughout onboarding.
 - Fix Apple sign-in-method linking after magic-link authentication by binding the initiating session to the single-use Apple challenge instead of expecting Safari to send a `SameSite=Lax` session cookie on Apple's cross-site `form_post` callback.
 - Fix merged ChatGPT desktop and Claude OAuth authorization by admitting only their exact supported loopback callback origins to the consent page's CSP.
 - Advertise every hosted MCP input schema with an explicit object root so Claude can load the complete `fullwell-cloud` tool catalog after authorization.

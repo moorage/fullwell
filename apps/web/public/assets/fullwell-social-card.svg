@@ -3,9 +3,8 @@
   <desc id="description">Fullwell by Sous Chef Studio</desc>
   <rect width="1200" height="630" fill="#fbfaf6"/>
   <path d="M0 455C190 390 300 535 510 460s330-34 690 84v86H0z" fill="#dbe9df"/>
-  <circle cx="1015" cy="112" r="150" fill="#e8f2ef"/>
-  <rect x="90" y="90" width="76" height="76" rx="18" fill="#2f6b4c"/>
-  <path d="M112 132l16-15 16 15v19h-11v-12h-10v12h-11z" fill="#fbfaf6"/>
+  <circle cx="1015" cy="150" r="162" fill="#e8f2ef"/>
+  <image href="fullwell-icon.png" x="865" y="0" width="300" height="300" preserveAspectRatio="xMidYMid meet"/>
   <text x="90" y="250" fill="#1e2420" font-family="Georgia, 'Times New Roman', serif" font-size="98" font-weight="700">Fullwell</text>
   <text x="94" y="325" fill="#2f6b4c" font-family="Arial, sans-serif" font-size="29" font-weight="700" letter-spacing="2">HOUSEHOLD ASSISTANT</text>
   <text x="94" y="390" fill="#535e56" font-family="Arial, sans-serif" font-size="32">Groceries, meals, pantry needs, and WhatsApp</text>

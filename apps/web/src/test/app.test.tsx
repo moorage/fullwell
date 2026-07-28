@@ -20,7 +20,7 @@ describe("web experience", () => {
     expect(screen.getByRole("link", { name: "Start Fullwell setup" })).toHaveAttribute("href", demoWebContext.install.hosts.codex.setupHref);
     expect(screen.getByText("@Fullwell hi")).toBeVisible();
     expect(screen.getByRole("heading", { name: /Your household assistant/ })).toBeVisible();
-    expect(screen.getByText(/No account is required to start/)).toBeVisible();
+    expect(screen.getByText(/No cloud account is required to start/)).toBeVisible();
     expect(screen.getByRole("link", { name: "Explore advanced agent guides" })).toHaveAttribute("href", "/guides");
     await user.click(screen.getByRole("button", { name: "Use with Claude" }));
     expect(screen.getByText(/claude plugin install fullwell@fullwell/)).toBeVisible();
@@ -79,10 +79,10 @@ describe("web experience", () => {
     expect(document.querySelector(".wordmark")).toHaveTextContent(/^Fullwell$/);
     expect(document.querySelector(".wordmark__face")).toMatchObject({
       alt: "",
-      height: 455,
-      width: 454,
+      height: 1044,
+      width: 1046,
     });
-    expect(document.querySelector(".wordmark__face")).toHaveAttribute("src", "/assets/fullwell-face-square.png");
+    expect(document.querySelector(".wordmark__face")).toHaveAttribute("src", "/assets/fullwell-icon.png");
     expect(document.querySelector(".install-hero__character-image")).toMatchObject({
       alt: "",
       height: 1247,
@@ -182,7 +182,7 @@ describe("web experience", () => {
     ["/households/alvarez-home/meal-plan?week=2026-07-20", "Meals for July 20–26"],
     ["/households/alvarez-home/members", "People in Alvarez home"],
     ["/households/alvarez-home/collections", "Collections from Alvarez home"],
-    ["/account", "Account"],
+    ["/account", "Cloud account"],
     ["/about", "A household assistant for everyday food tasks"],
     ["/company", "Fullwell company information"],
     ["/privacy", "Privacy Policy"],
@@ -536,7 +536,7 @@ describe("web experience", () => {
     expect(screen.getAllByRole("button", { name: "Download ZIP" })).toHaveLength(demoWebContext.households.length);
     expect(screen.getAllByRole("button", { name: /history bundle/ })).toHaveLength(demoWebContext.households.length);
     expect(screen.getAllByDisplayValue("readable_zip")[0]?.closest("form")).toHaveAttribute("action", expect.stringMatching(/\/account\/households\/.*\/exports/));
-    expect(screen.getByRole("button", { name: "Delete account" }).closest("form")).toHaveAttribute("action", "/account/delete");
+    expect(screen.getByRole("button", { name: "Delete cloud account" }).closest("form")).toHaveAttribute("action", "/account/delete");
   });
 
   it("cancels and confirms destructive account actions in a focused dialog", async () => {
@@ -715,6 +715,7 @@ describe("web experience", () => {
   it("returns fixed public metadata and parseable Fullwell structured data", () => {
     const rendered = renderWebRoute("/", demoWebContext);
     const canonicalUrl = new URL("/", demoWebContext.canonicalUrl).toString();
+    const iconUrl = new URL("/assets/fullwell-icon.png", canonicalUrl).toString();
     expect(rendered.title).toBe("Fullwell Household Assistant | By Sous Chef Studio");
     expect(rendered.metadata).toMatchObject({
       canonicalUrl,
@@ -731,6 +732,13 @@ describe("web experience", () => {
       expect.objectContaining({
         "@type": "WebApplication",
         name: "Fullwell",
+        image: iconUrl,
+        thumbnailUrl: iconUrl,
+        brand: {
+          "@type": "Brand",
+          name: "Fullwell",
+          logo: iconUrl,
+        },
         provider: { "@id": "https://souschefstudio.com/#organization" },
       }),
     ]));

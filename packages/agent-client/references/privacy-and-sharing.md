@@ -27,7 +27,7 @@ Bind every load to the current repository HEAD and both onboarding revisions. Ne
 
 ## Local guest household
 
-A person without a Fullwell account may keep one durable guest household under `~/.codex/fullwell/local/household.json`, or the configured Codex home equivalent. The local ID is generated on the device and is not a Fullwell user or household identity. The document is bounded, revision-checked, atomically replaced, and stored in `0700` directories with mode `0600`. It is accessible to another person who can access the same operating-system account and is not encrypted at rest.
+A person without a Fullwell cloud account may keep one durable guest household under `~/.codex/fullwell/local/household.json`, or the configured Codex home equivalent. The local ID is generated on the device and is not a Fullwell user or household identity. The document is bounded, revision-checked, atomically replaced, and stored in `0700` directories with mode `0600`. It is accessible to another person who can access the same operating-system account and is not encrypted at rest.
 
 The remembered preferred name lives separately under `~/.codex/fullwell/local/profile.json` with the same private directory and file modes. The preferred name and household title are private identity data: use them for the user's own local and authenticated cloud display surfaces, but never put them in telemetry, scheduled-task prompts, public collection snapshots, share messages without review, or logs.
 

@@ -35,8 +35,8 @@ h3 { margin-bottom: 4px; font-size: 17px; }
 .skip-link:focus { top: 12px; }
 .masthead { width: min(1160px, calc(100% - 48px)); min-height: 78px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--rule); }
 .wordmark { display: inline-flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 23px; font-weight: 700; text-decoration: none; }
-.wordmark__stamp { display: grid; width: 38px; height: 38px; place-items: center; overflow: hidden; border: 1px solid #c98f57; border-radius: 50%; background: #f6cf91; }
-.wordmark__face { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; transform: scale(1.08); }
+.wordmark__stamp { display: grid; width: 38px; height: 38px; place-items: center; overflow: hidden; border-radius: 50%; }
+.wordmark__face { width: 100%; height: 100%; object-fit: contain; }
 .masthead__action { font-weight: 700; }
 .primary-nav { display: flex; align-items: center; gap: 6px; }
 .primary-nav a, .local-nav a { padding: 9px 12px; border-bottom: 2px solid transparent; text-decoration: none; font-weight: 600; }

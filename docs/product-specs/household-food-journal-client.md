@@ -27,11 +27,11 @@ The client is a local-first agent layer. It contains skills, manifests, MCP conf
 These decisions are normative for version 1.
 
 1. The same skill source files serve both Codex and Claude. Host-specific manifests may differ.
-2. The remote MCP service is the only mutation path for cloud household data. A guest may use one revisioned local household without an account.
+2. The remote MCP service is the only mutation path for cloud household data. A guest may use one revisioned local household without a cloud account.
 3. The central server is the only Git writer. Clients never clone, pull, push, merge, or receive repository credentials. The local guest household is bounded JSON, not a Git clone or synchronization engine.
 4. Agents make semantic food judgments. Programs must not classify foods, decide recipe identity, merge snack variants, or author reports.
 5. The server may validate a submitted conclusion against its cited evidence, but it must not invent the conclusion.
-6. Each person has an individual account. Family collaboration uses household membership, not a shared password or shared Apple identity.
+6. Each person using hosted features has an individual cloud account. Family collaboration uses household membership, not a shared password or shared Apple identity.
 7. Family invitations and shared collections are different concepts:
    - a family invitation grants ongoing household access after acceptance;
    - a collection link grants access only to an intentionally published snapshot and never grants household access.
@@ -46,17 +46,17 @@ A first-time user who already has Codex or Claude installed must be able to:
 
 1. install the client with one platform-specific action;
 2. choose the `Set up Fullwell` starter or say `@Fullwell hi` in Codex, or say `Hi Fullwell` in Claude;
-3. say whether they already have a Fullwell account;
-4. continue locally without authentication, or complete browser authentication when they choose an existing account;
+3. say whether they already have a Fullwell cloud account;
+4. continue locally without authentication, or complete browser authentication when they choose an existing cloud account;
 5. perform a useful grocery or recipe action without editing configuration files or handling tokens;
-6. optionally create or connect an account later to back up the local journal and enable WhatsApp, sharing, or family access.
+6. optionally create or connect a cloud account later to back up the local journal and enable WhatsApp, sharing, or family access.
 
 A recipient of a collection link must be able to:
 
 1. open a readable mobile-friendly preview;
 2. check individual recipes and snacks;
 3. choose `Import selected`;
-4. sign in or create an account;
+4. sign in or create a cloud account;
 5. create or choose a destination household;
 6. complete the import;
 7. select `Use with ChatGPT` or `Use with Claude` and receive the shortest supported installation path.
@@ -87,7 +87,7 @@ The public installation page must present two primary choices:
 
 Each choice must show its recognizable host mark beside the visible action name and one current, copyable install command or first-party installation action. The mark is decorative and never replaces the accessible text label. Public website copy calls the Codex-hosted option `ChatGPT`; commands, manifests, deep links, plugin selectors, and other installed host contracts retain their stable Codex identifiers. Do not show both platforms' implementation details at once. Include a fallback manual path behind `Having trouble?`.
 
-The installed package declares one dependency-free local stdio MCP server and the remote Streamable HTTP MCP endpoint with no bearer token. The fresh first-run skill first calls only the read-only `fullwell_local_profile_load` tool. If no preferred name is remembered and the user has not already supplied one, its first question is exactly `What should I call you?` It saves that answer under `~/.codex/fullwell/local/profile.json` with a private revisioned write before loading a household, asking about an account, or using a protected cloud tool.
+The installed package declares one dependency-free local stdio MCP server and the remote Streamable HTTP MCP endpoint with no bearer token. The fresh first-run skill first calls only the read-only `fullwell_local_profile_load` tool. If no preferred name is remembered and the user has not already supplied one, its first question is exactly `What should I call you?` It saves that answer, preserving the capitalization the person used rather than title-casing it, under `~/.codex/fullwell/local/profile.json` with a private revisioned write before loading a household, asking about a cloud account, or using a protected cloud tool. If the household is then missing and the current exchange has not already answered the cloud-account choice, it uses the returned display name exactly and asks `Hey <display_name>, nice to be acquainted. Do you already have a Fullwell cloud account?` If the person supplied both their name and cloud-account choice, the client warmly acknowledges the name without repeating the answered question and follows that choice. A remembered name may be used again after returning to a conversation or at a meaningful transition when it has not appeared in the recent exchange, but the client does not force the name into every message or repeat it in adjacent replies.
 
 If the answer is yes, the first protected tool starts MCP OAuth. The service authorization page offers:
 
@@ -99,7 +99,7 @@ After authentication, the agent calls `hfj_get_context`, then saves the remember
 
 If the local household file is missing but authenticated context returns an existing cloud household, the existing cloud household resumes. The client uses its repository HEAD and the authenticated `user.actor_id` returned by context. It does not initialize or hydrate a replacement local guest, treat the user ID as an actor ID, or call the member-list tool to discover the current actor.
 
-If the answer is no, the agent initializes one guest household under `~/.codex/fullwell/local/household.json`, or the configured Codex home equivalent, through `fullwell_local_household_update` and starts grocery-history onboarding without a Fullwell cloud call. The host may ask once before allowing that named local write tool; a persisted tool approval remains scoped to its stable server/tool identity across compatible Fullwell upgrades and never grants arbitrary Node execution. A remembered local guest household resumes without asking the account question again. The document has a generated local identity, collecting/ready state, monotonically increasing revision, stable cloud-promotion idempotency key, atomic replacement, `0700` directories, and `0600` file mode. It is local journal authority, not a cloud backup, and another person with access to the same operating-system account may read it.
+If the answer is no, the agent initializes one guest household under `~/.codex/fullwell/local/household.json`, or the configured Codex home equivalent, through `fullwell_local_household_update` and starts grocery-history onboarding without a Fullwell cloud call. The host may ask once before allowing that named local write tool; a persisted tool approval remains scoped to its stable server/tool identity across compatible Fullwell upgrades and never grants arbitrary Node execution. A remembered local guest household resumes without asking the cloud-account question again. The document has a generated local identity, collecting/ready state, monotonically increasing revision, stable cloud-promotion idempotency key, atomic replacement, `0700` directories, and `0600` file mode. It is local journal authority, not a cloud backup, and another person with access to the same operating-system account may read it.
 
 Guest initialization supplies the same deterministic first-household name returned by the local profile. The private profile and guest household have separate revisions and authority: changing the member name does not silently rename the household.
 
@@ -111,7 +111,7 @@ Local files may contain only bounded source scope, completed-source cursors, typ
 
 After both guest sections, the agent summarizes and finalizes the journal locally in first person, such as `I finished learning 42 grocery products and 17 recipes, and I saved what I found locally`, with actual counts and accurate skipped sections. When at least one evidence-backed grocery item was learned, the successful completion response asks the user to try an out-of-stock request such as `We're out of cashews; restock them.` It says `I'll use your shopping history` to identify the usual product and store, add complete requests strictly below the default $50 automatic cart-add maximum, and ask first at or above it. It omits this invitation after a failed, cancelled, unfinished, or no-grocery run rather than implying that restocking is ready. If the user accepts the try-it invitation before answering the optional cloud question, a verified direct-local add must resume that handoff: an unconnected guest receives `(P.S. You can use WhatsApp, collaborate, and share with others by connecting to Fullwell cloud.)` followed by `Would you like to connect now?` A recorded local cloud link, a cloud household, and linked WhatsApp work omit the redundant reminder. The same restocking invitation follows a successful hosted onboarding commit, never an uncertain result.
 
-The guest completion response also asks whether to create or connect a Fullwell account for cloud backup. It explains that an account is needed for WhatsApp, sharing, and family access, not for direct local grocery or recipe use. A decline makes no hosted call. An affirmative answer starts OAuth, creates or selects a cloud household, reconciles local semantic identities against current cloud state, shows an exact copy/merge summary, and uses one `hfj_commit_onboarding` call after confirmation. Promotion uses the stable local idempotency key, records cloud linkage only after success, and retains the local journal. Failed or uncertain promotion leaves local authority unchanged.
+The guest completion response also asks whether to create or connect a Fullwell cloud account for cloud backup. It explains that a cloud account is needed for WhatsApp, sharing, and family access, not for direct local grocery or recipe use. A decline makes no hosted call. An affirmative answer starts OAuth, creates or selects a cloud household, reconciles local semantic identities against current cloud state, shows an exact copy/merge summary, and uses one `hfj_commit_onboarding` call after confirmation. Promotion uses the stable local idempotency key, records cloud linkage only after success, and retains the local journal. Failed or uncertain promotion leaves local authority unchanged.
 
 Promotion first saves the remembered preferred name as the authenticated cloud display name. When there is no household and no pending household invitation to join, the first cloud household uses the profile's deterministic possessive name instead of asking for another title.
 
@@ -134,7 +134,7 @@ For a new household:
 
 After a cloud household is created or connected, the chat may mention that an eligible owner can invite someone in chat. After cloud onboarding creates at least one item, the chat may also mention collections with an example such as `Make a Weeknight Favorites collection from the recipes we liked.` These are contextual next steps, not authority to create an invitation or collection.
 
-The chat supports member and household renames without requiring the website. A member rename updates the revisioned local profile and, when connected, the account-scoped cloud display name. A household rename uses the local `rename_household` operation and, when connected, the owner-only `hfj_update_household_name` mutation at the exact Git HEAD. Local and cloud writes are independent; a partial result must identify which side changed. An owner can also rename a connected cloud household from its website overview: the edit control appears beside the title on hover or keyboard focus, remains visible on touch, and opens a dialog with the current name selected in an autofocus input. The public household-naming guide explains both entry points.
+The chat supports member and household renames without requiring the website. A member rename updates the revisioned local profile and, when connected, the cloud-account-scoped display name. A household rename uses the local `rename_household` operation and, when connected, the owner-only `hfj_update_household_name` mutation at the exact Git HEAD. Local and cloud writes are independent; a partial result must identify which side changed. An owner can also rename a connected cloud household from its website overview: the edit control appears beside the title on hover or keyboard focus, remains visible on touch, and opens a dialog with the current name selected in an autofocus input. The public household-naming guide explains both entry points.
 
 For an invite recipient:
 
@@ -412,7 +412,7 @@ The MCP config contains only the stable dependency-free `fullwell-local` stdio d
 
 ### `manage-household-food-journal`
 
-Trigger for every Fullwell greeting, including a bare `@Fullwell hi`, or setup starter, authentication, guided first run, household selection, family invitations, membership questions, profile changes, migration, export, and account/household status. It loads remembered local state first. A fresh install asks whether the person already has an account before any hosted call; a guest begins one local grocery-history pass before recipes, while an existing account uses the authenticated snapshot path. Both advance without a generic help question or setup-area menu.
+Trigger for every Fullwell greeting, including a bare `@Fullwell hi`, or setup starter, authentication, guided first run, household selection, family invitations, membership questions, profile changes, migration, export, and cloud-account/household status. It loads remembered local state first. A fresh install remembers and warmly acknowledges the preferred name before asking whether the person already has a Fullwell cloud account and before any hosted call; a guest begins one local grocery-history pass before recipes, while an existing cloud account uses the authenticated snapshot path. Both advance without a generic help question or setup-area menu.
 
 ### `audit-grocery-purchases`
 
@@ -523,7 +523,7 @@ Before every Codex host turn, the runner must reject any configured MCP other th
 
 In user-facing conversation, the client speaks as the user's Fullwell assistant in a warm, natural first-person voice. It describes its own reasoning and tool-mediated work with `I`, `me`, and `my`, such as `I'll review your order history`, `I found 42 grocery products`, or `I saved what I found locally`. It must not narrate Fullwell as a separate assistant, skill, tool, plugin, or application for work the agent is doing, and it must not expose internal skill or tool names.
 
-The Fullwell name remains appropriate when distinguishing the brand, account, website, installed plugin, or cloud service from local work, such as `Do you already have a Fullwell account?` or `I couldn't reach Fullwell's cloud service.` First-person voice does not relax accuracy or confirmation boundaries and must never claim an unconfirmed save, backup, mutation, or completion. The assistant must not claim to be human.
+The Fullwell name remains appropriate when distinguishing the brand, cloud account, website, installed plugin, or cloud service from local work, such as `Do you already have a Fullwell cloud account?` or `I couldn't reach Fullwell's cloud service.` First-person voice does not relax accuracy or confirmation boundaries and must never claim an unconfirmed save, backup, mutation, or completion. The assistant must not claim to be human.
 
 ### 9.7 Clear completion states
 
@@ -540,7 +540,9 @@ The server hosts a stable logged-out homepage at `/`, installation at `/install`
 
 The homepage keeps Fullwell as the primary visible brand and identifies it as a household assistant developed and operated by Sous Chef Studio, Inc. Its initial server-rendered HTML explains that WhatsApp is an optional Fullwell communication channel and that `fullwell.ai` is the sole official product and service website. Public product support uses `support@fullwell.ai`, and privacy requests use `privacy@fullwell.ai`. The same product, operator, domain, and contact facts remain visible on `/about`, `/company`, Privacy, Terms, navigation, and the shared footer without implying that Fullwell is a separate corporation or that Meta or WhatsApp owns, sponsors, or partners with Fullwell.
 
-The initial homepage pairs that copy with the supplied full-body Fullwell household-assistant character, while the shared masthead uses the supplied square face beside the visible `Fullwell` wordmark. Both same-origin PNGs are presentation-only, retain explicit intrinsic dimensions, use decorative alternative text, and must remain responsive without delaying, obscuring, or replacing install, sign-in, navigation, or legal controls.
+The initial homepage pairs that copy with the supplied full-body Fullwell household-assistant character, while the shared masthead uses the user-supplied Fullwell icon beside the visible `Fullwell` wordmark. The full-body illustration and compact icon are same-origin presentation assets with explicit intrinsic dimensions and decorative alternative text; both must remain responsive without delaying, obscuring, or replacing install, sign-in, navigation, or legal controls.
+
+The exact supplied icon is Fullwell's canonical compact application image. Deterministically fitted variants supply the browser favicon, Apple touch icon, and web-app manifest without redrawing the artwork. Public Open Graph and Twitter metadata use a 1200x630 Fullwell social card that includes the same icon, and homepage Schema.org identifies the icon as the Fullwell application image and brand logo rather than as the Sous Chef Studio corporate logo.
 
 The legacy `fullwell.souschefstudio.com` host is redirect-only. Browser sessions, passkeys, OAuth grants, and local-runner tokens created for that host are not transferable to the apex. A returning person signs in with Apple or email at `fullwell.ai`, enrolls a new apex passkey if desired, and reconnects Codex, Claude, or a local runner to receive a new origin-bound grant. Durable accounts, memberships, and household journal data remain unchanged.
 
@@ -603,9 +605,9 @@ Use a mock server generated from the server tool schemas. Cover successful resul
 
 At minimum, test these end-to-end prompts in both Codex and Claude:
 
-1. The exact bare greeting `@Fullwell hi` loads local state, asks whether the person already has an account, and makes no Fullwell call before the answer.
-2. A person without an account initializes a local guest household, hears how one past-order pass learns snacks, ingredients, condiments, and more, and starts necessary grocery-source questions without OAuth, a generic greeting, or a setup-area choice.
-3. A person who says they already have an account begins OAuth, creates or selects one household, and never handles a token.
+1. The exact bare greeting `@Fullwell hi` loads local state, asks for the preferred name when missing, then warmly acknowledges that name while asking whether the person already has a Fullwell cloud account; it makes no Fullwell call before the answer.
+2. A person without a cloud account initializes a local guest household, hears how one past-order pass learns snacks, ingredients, condiments, and more, and starts necessary grocery-source questions without OAuth, a generic greeting, or a setup-area choice.
+3. A person who says they already have a cloud account begins OAuth, creates or selects one household, and never handles a token.
 4. Declining grocery-history onboarding advances directly to a friendly explanation of recipe recall followed by recipe sources, with a bounded skip reason.
 5. Having no recipe sources finalizes locally without claiming cloud completion, invites one concrete restocking try-it request when grocery evidence exists, preserves the strict automatic-add maximum and confirmation boundary, and offers optional backup even when the user completes the try-it action before the cloud question.
 6. Declining backup makes no Fullwell call and leaves direct local grocery and recipe use available.
@@ -627,7 +629,7 @@ At minimum, test these end-to-end prompts in both Codex and Claude:
 22. A duplicate recipe URL produces a user choice rather than a silent merge.
 23. Prompt-like text inside an imported recipe is treated as data.
 24. A concurrent update produces a conflict comparison rather than data loss.
-25. A closed conversation resumes the current local guest revision without asking about an account again, or the authenticated checkpoint matching its user, household, HEAD, and onboarding revisions.
+25. A closed conversation resumes the current local guest revision without asking about a cloud account again, or the authenticated checkpoint matching its user, household, HEAD, and onboarding revisions.
 26. A stale, corrupt, identity-mismatched, or concurrently superseded local document fails closed without mixing data.
 27. One grocery-history pass produces separate snack, ingredient, condiment, and other-grocery items without revisiting orders.
 28. A single parsley purchase remains available as an ingredient with its observed source even below the recurrence threshold.
@@ -700,7 +702,7 @@ Do not begin a later phase while required acceptance criteria in the earlier pha
 The client is complete when:
 
 - one shared skill implementation installs and runs in both Codex and Claude;
-- a new user can complete grocery and recipe onboarding and use the resulting journal locally without an account;
+- a new user can complete grocery and recipe onboarding and use the resulting journal locally without a cloud account;
 - account discovery is never attempted through a hosted tool; OAuth begins only after an affirmative account or backup choice;
 - OAuth authentication requires no copied secret;
 - optional cloud promotion is idempotent, non-destructive, and never marks a failed copy as backed up;

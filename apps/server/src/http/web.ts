@@ -140,6 +140,10 @@ export async function registerWebExperience(app: FastifyInstance, experience: We
   const manifest = ManifestSchema.parse(JSON.parse(await readFile(resolve(experience.assetsRoot, ".vite/manifest.json"), "utf8")));
   const entry = manifest["index.html"];
   if (entry === undefined) throw new Error("The web build manifest has no index.html entry");
+  const [favicon, siteManifest] = await Promise.all([
+    readFile(resolve(experience.assetsRoot, "favicon.ico")),
+    readFile(resolve(experience.assetsRoot, "site.webmanifest")),
+  ]);
 
   await app.register(fastifyStatic, {
     root: resolve(experience.assetsRoot, "assets"),
@@ -147,6 +151,20 @@ export async function registerWebExperience(app: FastifyInstance, experience: We
     decorateReply: false,
     immutable: true,
     maxAge: "1y",
+  });
+
+  app.get("/favicon.ico", async (_request, reply) => {
+    return reply
+      .header("cache-control", "public, max-age=31536000, immutable")
+      .type("image/x-icon")
+      .send(favicon);
+  });
+
+  app.get("/site.webmanifest", async (_request, reply) => {
+    return reply
+      .header("cache-control", "public, max-age=3600")
+      .type("application/manifest+json")
+      .send(siteManifest);
   });
 
   app.post<{ Params: { token: string } }>("/c/:token/import/plan", { config: { rateLimit: { max: 30, timeWindow: 15 * 60_000, groupId: "collection-import" } } }, async (request, reply) => {
@@ -298,7 +316,7 @@ function htmlDocument(rendered: RenderedWebRoute, context: WebRenderContext, scr
   const serializedContext = JSON.stringify(context).replaceAll("<", "\\u003c");
   const links = styles.map((href) => `<link rel="stylesheet" href="/${escapeAttribute(href)}">`).join("");
   const metadata = rendered.metadata === undefined ? "" : metadataHtml(rendered.metadata);
-  return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#fbfaf6"><meta name="referrer" content="no-referrer"><title>${escapeText(rendered.title)}</title>${metadata}${links}</head><body><div id="root">${rendered.appHtml}</div><script id="web-context" type="application/json">${serializedContext}</script><script type="module" src="/${escapeAttribute(script)}"></script></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#fbfaf6"><meta name="referrer" content="no-referrer"><link rel="icon" type="image/png" sizes="32x32" href="/assets/fullwell-icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="/assets/fullwell-icon-16.png"><link rel="shortcut icon" href="/favicon.ico"><link rel="apple-touch-icon" sizes="180x180" href="/assets/fullwell-icon-180.png"><link rel="manifest" href="/site.webmanifest"><title>${escapeText(rendered.title)}</title>${metadata}${links}</head><body><div id="root">${rendered.appHtml}</div><script id="web-context" type="application/json">${serializedContext}</script><script type="module" src="/${escapeAttribute(script)}"></script></body></html>`;
 }
 
 function metadataHtml(metadata: RenderedWebRoute["metadata"]): string {
@@ -320,6 +338,11 @@ function metadataHtml(metadata: RenderedWebRoute["metadata"]): string {
     `<meta property="og:image:width" content="1200">`,
     `<meta property="og:image:height" content="630">`,
     `<meta property="og:image:alt" content="${escapeAttribute(openGraph.imageAlt)}">`,
+    `<meta name="twitter:card" content="summary_large_image">`,
+    `<meta name="twitter:title" content="${escapeAttribute(openGraph.title)}">`,
+    `<meta name="twitter:description" content="${escapeAttribute(openGraph.description)}">`,
+    `<meta name="twitter:image" content="${escapeAttribute(openGraph.imageUrl)}">`,
+    `<meta name="twitter:image:alt" content="${escapeAttribute(openGraph.imageAlt)}">`,
     structuredData,
   ].join("");
 }

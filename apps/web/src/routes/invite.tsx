@@ -26,7 +26,7 @@ export function InviteRoute({ token, state }: { token: string; state: InviteStat
         <section className="narrow-page page-band">
           <PageHeader title={`You joined ${invite.householdName}`} />
           <StatusNotice tone="success" title="Household ready">
-            <p>Your individual account now has editor access. Changes will show who made them.</p>
+            <p>Your individual cloud account now has editor access. Changes will show who made them.</p>
           </StatusNotice>
           <ButtonLink href={households[0] === undefined ? "/households" : `/households/${households[0].id}`}>Open household</ButtonLink>
         </section>

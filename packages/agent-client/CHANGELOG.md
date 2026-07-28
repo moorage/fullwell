@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.1.21 - 2026-07-28
+
+- Address a newly named person with `Hey <name>, nice to be acquainted` before asking about a Fullwell cloud account, reuse remembered names naturally after conversational gaps without repetition, and distinguish cloud accounts from account-free local use throughout onboarding.
+
 ## 1.1.20 - 2026-07-28
 
 - Resume an existing cloud household when local Fullwell state is missing, use the authenticated actor ID returned by context, and save bounded ordinary recipe or grocery updates through one atomic evidence-plus-item change set.

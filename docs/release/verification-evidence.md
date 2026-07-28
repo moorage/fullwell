@@ -1,5 +1,17 @@
 # Verification Evidence
 
+## Atomic recovered-cloud journal release and recipe repair
+
+Date: 2026-07-28
+
+- Release commit `3b722e9` is pushed to `origin/main`. Local acceptance passes 17 focused service tests, 39 contract tests, 14 agent eval tests, 53 package/lifecycle tests, all 12 Neon integrations through an eight-migration up/down/up cycle, 142 WebKit checks with 22 intentional skips, full repository verification with 423 application tests and 12 expected database-gated skips, and a zero-finding production dependency audit.
+- DigitalOcean runs the exact release as Linux/amd64 image `hfj-staging:atomic-cloud-3b722e9-runtime` at OCI index `sha256:31770ccd0f931515ede2d8ae30be5354ed5608d2369128b6cb7e2cf8fe830a77` and concrete manifest `sha256:166331785db5ee8242c481f7deed1c237cafd68f015179b60d00d8cf66cfd4f7`. The transferred archive matched SHA-256 `45372657be12b146b360ba51dcfaf1a5decace7697937df2de23d021293bbd15`; the Node runtime canary, service activation, public liveness/readiness, deployment smoke, and MCP discovery smoke pass.
+- The first activation stopped before changing the service because Docker identifies the imported OCI index by its index digest rather than its config digest. The running service remained on the prior image. The corrected digest check then passed, and `/etc/hfj/deploy.env.pre-atomic-cloud-20260728-1` plus `hfj-staging:claude-tools-3348399-runtime` retain rollback. The transferred archive was removed.
+- Maintenance checked the pre-existing incomplete mutation with zero quarantines or invalid repositories. After the repair, maintenance completed one fresh encrypted backup with zero failures. Authenticated operator health reports ready schema `0008`, zero incomplete or reconciliation-required mutations, zero quarantines, zero backup gaps, healthy restore drill/repository/signatures/volume, and no warning or error service logs.
+- Public `@fullwell/fullwell@1.1.20` was published at `2026-07-28T21:02:32.785Z`. Its prepared and clean-registry artifacts match at SHA-1 `f0491629ffd078a734093b3f7b8556272d4bea76` and SHA-512 `sha512-wHQedPPh+MJlpf/YnxE4WfZUvtz5gk4qNozW0GneVcR8rGCff8JhG36+V6NTSifmv2o3fHYRui/7AxWhG+1okA==`; both Codex and Claude report enabled `1.1.20`, and their local and cloud MCP servers connect.
+- An isolated authenticated cloud recovery searched first, created only the missing recipe item through `hfj_commit_change_set` while citing the original append-only evidence, and verified exactly one searchable item. It did not append evidence, edit Neon directly, mark the recipe cooked or liked, or persist a detailed transcript. An identical fresh recovery run returned `REPAIR_NOOP`.
+- Aggregate operator status remains degraded only by the existing WhatsApp queue condition: four response-ready records while messaging health is false. Readiness, journal reconciliation, backup, repository, signing, restore, volume, deployment, package, and repair gates for this release are green.
+
 ## Claude fullwell-cloud authorization
 
 Date: 2026-07-28

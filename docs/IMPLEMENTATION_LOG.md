@@ -5,8 +5,8 @@
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
   - `docs/exec-plans/active/2026-07-27-canonical-origin-fullwell-ai.md`
-  - `docs/exec-plans/active/2026-07-28-release-atomic-cloud-recovery.md`
 - completed ExecPlans:
+  - `docs/exec-plans/completed/2026-07-28-release-atomic-cloud-recovery.md`
   - `docs/exec-plans/completed/2026-07-28-atomic-cloud-journal-save.md`
   - `docs/exec-plans/completed/2026-07-27-fullwell-character-artwork.md`
   - `docs/exec-plans/completed/2026-07-27-durable-computer-use-images.md`
@@ -19,9 +19,14 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-28 release commit `3b722e9` is pushed; DigitalOcean runs the exact Linux/amd64 atomic-cloud image at OCI index `sha256:31770ccd0f931515ede2d8ae30be5354ed5608d2369128b6cb7e2cf8fe830a77` and concrete manifest `sha256:166331785db5ee8242c481f7deed1c237cafd68f015179b60d00d8cf66cfd4f7` from checksum-matched archive SHA-256 `45372657be12b146b360ba51dcfaf1a5decace7697937df2de23d021293bbd15`
+- public `@fullwell/fullwell@1.1.20` matches the prepared artifact and clean registry download at SHA-1 `f0491629ffd078a734093b3f7b8556272d4bea76`; Codex and Claude both run the enabled release with connected local and cloud MCP identities
+- deployment and MCP smokes, schema `0008` readiness, zero-warning/error logs, reconciliation, repository/signature/restore/volume checks, and a fresh post-repair backup pass; the aggregate operator status remains degraded only by the existing four response-ready WhatsApp records
+- the authorized recovery created the one missing recipe item through the typed atomic commit while citing the existing evidence and appending none; exact search passed and an identical fresh run returned `REPAIR_NOOP`
+- `/etc/hfj/deploy.env.pre-atomic-cloud-20260728-1` and the prior Claude-tools image retain rollback; the transferred archive was removed, no migration or direct Neon edit occurred, and private household content was excluded from release evidence
 - 2026-07-28 atomic cloud journal recovery work makes a missing local Fullwell household resume the existing authenticated cloud authority, returns the current actor ID from context, and combines bounded ordinary evidence plus citing items/reports in one `hfj_commit_change_set`
 - journal validation now runs against one prospective state under the household lock, rejects foreign actor attribution and changed idempotency-key reuse, and loads the Neon projection inside the mutation transaction so success implies immediate search visibility instead of an accepted Git commit with a stale projection
-- verification passes 17 focused service tests, 39 contract tests, 14 agent eval tests, 53 package/lifecycle tests, all 12 Neon integration tests with eight-migration up/down/up, 142 WebKit E2E tests with 22 intentional skips, and full repository verification with 423 application tests plus 12 expected database-gated skips; delivery and repair of the original orphan evidence remain operational follow-up
+- verification passes 17 focused service tests, 39 contract tests, 14 agent eval tests, 53 package/lifecycle tests, all 12 Neon integration tests with eight-migration up/down/up, 142 WebKit E2E tests with 22 intentional skips, and full repository verification with 423 application tests plus 12 expected database-gated skips
 - 2026-07-28 desktop OAuth/MCP follow-up accepts the merged ChatGPT client's bounded `/callback/<nonce>` IPv4-loopback redirect when deriving the consent-only CSP exception, rejects unrelated or malformed loopback paths, and renames only the hosted MCP identity to `fullwell-cloud`
 - server, dual-host package, lifecycle, eval, architecture, security, product-spec, and changelog surfaces distinguish `fullwell-cloud` from the unchanged `fullwell-local`; public `@fullwell/fullwell@1.1.19` is `latest` with registry SHA-1 `b02e6d7d4ae0c5c2a86e87afbbf00dc2eec6337d`, matching the prepared and cleanly downloaded artifact
 - focused server, 53-test dual-host packaging, 14-test eval, 14-test security, full repository verification with 423 passing application tests and 11 expected database skips, WebKit E2E with 142 passes and 22 intentional skips, and clean Codex/Claude package lifecycles pass; current Codex and Claude installations run package `1.1.19`

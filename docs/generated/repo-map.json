@@ -1241,10 +1241,6 @@
                 {
                   "type": "file",
                   "name": "2026-07-27-canonical-origin-fullwell-ai.md"
-                },
-                {
-                  "type": "file",
-                  "name": "2026-07-28-release-atomic-cloud-recovery.md"
                 }
               ]
             },
@@ -1295,6 +1291,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-28-atomic-cloud-journal-save.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-28-release-atomic-cloud-recovery.md"
                 }
               ]
             }

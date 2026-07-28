@@ -4,7 +4,7 @@
 
 The atomic recovered-cloud journal fix is implemented and verified locally, but
 the public server and immutable agent package still run the earlier split-write
-contract. The original live Eomuk Tang save also left one valid append-only
+contract. The original live recipe save also left one valid append-only
 evidence record in Git without its recipe item because the old server returned
 success before persisting the matching Neon projection.
 
@@ -27,11 +27,20 @@ credentials, or create a second local household authority.
   validation, 14 eval tests, 53 lifecycle tests, zero-production-vulnerability
   audit, eight-migration PostgreSQL cycle with 12 integrations, 142 WebKit
   checks with 22 intentional skips, and full repository verification pass.
-- [ ] Milestone 1: Prepare, verify, commit, and push release `1.1.20`.
-- [ ] Milestone 2: Deploy and reconcile the production server.
-- [ ] Milestone 3: Publish and install the immutable agent package.
-- [ ] Milestone 4: Repair and verify the existing recipe without new evidence.
-- [ ] Milestone 5: Record acceptance evidence and close the release task.
+- [x] 2026-07-28T20:56Z: Milestone 1 complete. Release commit `3b722e9`
+  is pushed and the exact committed source produced the verified amd64 image.
+- [x] 2026-07-28T20:59Z: Milestone 2 complete. The compatible server is live;
+  deployment/MCP smokes, maintenance, repository validation, and bounded logs
+  pass with zero quarantines, invalid repositories, warnings, or errors.
+- [x] 2026-07-28T21:03Z: Milestone 3 complete. Immutable package `1.1.20`
+  is public, its clean download matches the prepared checksum, and Codex and
+  Claude both run it enabled with connected local and cloud MCP servers.
+- [x] 2026-07-28T21:09Z: Milestone 4 complete. The isolated authenticated
+  recovery created the missing recipe item without new evidence, exact search
+  passed, and an identical fresh run returned `REPAIR_NOOP`.
+- [x] 2026-07-28T21:12Z: Milestone 5 complete. A fresh backup and aggregate
+  health checks pass, sanitized release evidence is recorded, and the plan is
+  complete.
 
 ## Surprises & Discoveries
 
@@ -47,6 +56,18 @@ credentials, or create a second local household authority.
 - 2026-07-28: Current Codex and Claude installations both run enabled package
   `1.1.19`, npm `latest` is `1.1.19`, and the current server image is retained as
   the pre-release rollback image.
+- 2026-07-28: Apple Container exported the expected OCI index and amd64
+  manifest, while Docker 29 identifies the imported tag by the OCI index digest
+  rather than the image config digest. The first guarded activation stopped
+  before changing service state; using the already verified index digest made
+  the retry pass.
+- 2026-07-28: npm web OTP requires a TTY. The non-interactive publish attempt
+  returned a redacted one-time URL and made no registry change; the TTY retry
+  opened npm's first-party WebAuthn flow and published the same prepared
+  artifact.
+- 2026-07-28: Maintenance checked the incomplete mutation with no quarantine
+  and no rebuild required. The repaired item then committed against the
+  original evidence through the new Git-aware validation path.
 
 ## Decision Log
 
@@ -320,7 +341,7 @@ Verification:
 
 - Public server accepts one atomic evidence-plus-item change set and returns the
   authenticated actor ID in context.
-- Maintenance rebuilds the stale projection from signed Git with no quarantine.
+- Maintenance checks the signed Git projection with no rebuild or quarantine.
 - Public `@fullwell/fullwell@1.1.20` matches the prepared immutable artifact and
   both current hosts run it enabled with local and cloud MCP identities intact.
 - Deployment readiness, MCP discovery, production audit, persistence,
@@ -344,7 +365,23 @@ Verification:
 
 ## Outcomes & Retrospective
 
-Implementation is in progress. Record the release commit, package checksums,
-image/archive digests, rollback image, verification counts, reconciliation
-result, private repair result, backup result, and remaining risk before moving
-this plan to `completed/`.
+Release commit `3b722e9` is pushed. The compatible Linux/amd64 server is live at
+OCI index `sha256:31770ccd0f931515ede2d8ae30be5354ed5608d2369128b6cb7e2cf8fe830a77`
+and concrete manifest
+`sha256:166331785db5ee8242c481f7deed1c237cafd68f015179b60d00d8cf66cfd4f7`
+from archive SHA-256
+`45372657be12b146b360ba51dcfaf1a5decace7697937df2de23d021293bbd15`.
+Public package `1.1.20` byte-matches its prepared artifact at SHA-1
+`f0491629ffd078a734093b3f7b8556272d4bea76`; Codex and Claude both run it
+enabled with connected local and cloud MCP servers.
+
+The supported maintenance path found zero quarantine or repository failures.
+The isolated authenticated recovery created the one missing recipe item while
+citing the original evidence and appending none; exact search passed and a
+fresh identical run returned `REPAIR_NOOP`. Post-repair maintenance completed
+one backup, and readiness, reconciliation, repository, signing, restore,
+volume, deployment, MCP, package, and log gates pass. Aggregate operator status
+remains degraded only by the pre-existing WhatsApp response-ready queue, which
+is outside this release. The previous image and root-only environment backup
+retain rollback, and no migration, direct Neon edit, duplicate evidence, or
+private repair transcript was created.

@@ -580,6 +580,8 @@ Do not auto-merge Markdown from two agents. The requesting agent must read the c
 
 ## 12. MCP tool contract
 
+Every advertised tool input schema has an explicit top-level JSON Schema `type: "object"`, including refined union schemas whose generated representation begins with `oneOf`. Runtime validation remains authoritative; the explicit root type is a compatible constraint that lets current Codex and Claude clients discover the complete catalog.
+
 All tools return a common envelope:
 
 ```json

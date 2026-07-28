@@ -352,7 +352,7 @@ function toolCatalog(): Array<{ name: ToolName; description: string; inputSchema
     return {
       name: toolName,
       description: ToolDescriptions[toolName] ?? name.replaceAll("_", " "),
-      inputSchema: z.toJSONSchema(schema, { io: "input" }),
+      inputSchema: { ...z.toJSONSchema(schema, { io: "input" }), type: "object" as const },
       annotations: annotations(toolName),
     };
   });

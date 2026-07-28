@@ -99,10 +99,12 @@ describe("Fastify application", () => {
     const tools = list.json().result.tools as Array<{
       name: string;
       description: string;
+      inputSchema: { type?: string };
       annotations: { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean; openWorldHint: boolean };
     }>;
     const names = tools.map((tool) => tool.name);
     expect(names).toEqual(Object.keys(ToolInputSchemas));
+    expect(tools.filter(({ inputSchema }) => inputSchema.type !== "object").map(({ name }) => name)).toEqual([]);
     expect(tools.find(({ name }) => name === "hfj_update_onboarding")?.description).toContain("Start, skip, or resume");
     expect(tools.find(({ name }) => name === "hfj_get_context")?.annotations).toEqual({
       readOnlyHint: true,

@@ -22,6 +22,7 @@ This is an origin migration rather than a branding string replacement. Existing 
 - [x] 2026-07-28: Implemented the bounded merged-desktop callback compatibility and `fullwell-cloud` identity, prepared package `1.1.19`, and passed focused server, package, eval, full repository, security, browser E2E, docs, and ExecPlan gates. Publication, deployment, and a live merged-desktop reconnect remain outside this local change.
 - [x] 2026-07-28: Published checksum-matched `@fullwell/fullwell@1.1.19`, upgraded current Codex and Claude installations, deployed the exact pushed Linux/amd64 release to `fullwell.ai`, and completed the merged-desktop loopback redirect, Codex token exchange, authenticated `fullwell-cloud` read, readiness, deployment, and MCP discovery checks with the prior image and root-only environment backup retained.
 - [x] 2026-07-28: Added the exact `http://localhost:<explicit-port>/callback` consent-only CSP compatibility required by Claude while retaining the narrower `127.0.0.1` path shapes for Codex and the local runner; focused server checks and full repository verification with 423 passing application tests and 11 expected database skips pass.
+- [x] 2026-07-28: Reproduced Claude's post-authorization catalog rejection, identified `hfj_commit_delivery_index` as the sole generated schema without an explicit object root, and added a catalog-wide object-root compatibility contract without changing runtime validation.
 - [ ] Milestone 6: Automated production readiness, redirects, canonical metadata, OAuth metadata, MCP discovery, and messaging pass. A real Apple passkey authorization returns to a reload-persistent authenticated apex session; complete any required Fullwell passkey and installed-client reconnect evidence.
 
 ## Surprises & Discoveries
@@ -43,6 +44,7 @@ This is an origin migration rather than a branding string replacement. Existing 
 - 2026-07-28: The merged ChatGPT desktop client registers native callbacks as `/callback/<nonce>`, while the consent CSP recognized only `/oauth/callback`. The OAuth request itself validated, but the missing exact loopback origin in `form-action` blocked the POST redirect before the client could receive its code.
 - 2026-07-28: A clean release archive exposed that the production Dockerfile invoked the unordered workspace build before `@hfj/contracts` emitted its compiled boundary. Building contracts first preserves the existing workspace build while making exact-source OCI builds reproducible; `scripts/local/apple-container.test.mjs` now locks that order.
 - 2026-07-28: Claude Code 2.1.215 dynamically registers `http://localhost:3118/callback`. OAuth validation already accepted that exact loopback URI, but the consent CSP intentionally recognized only the `127.0.0.1` client shapes, so Claude's POST returned to the unchanged consent page while its listener waited.
+- 2026-07-28: Claude completed OAuth but rejected tool 29 because the refined discriminated union for `hfj_commit_delivery_index` generated a root `oneOf` without an explicit root `type`. Codex accepted the valid schema, while Claude requires every MCP input schema root to say `type: "object"`.
 
 ## Decision Log
 
@@ -59,6 +61,7 @@ This is an origin migration rather than a branding string replacement. Existing 
 - 2026-07-28: Accept both the existing exact `/oauth/callback` path and the merged desktop client's bounded `/callback/<nonce>` shape when deriving the consent-only CSP exception. Continue to require uncredentialed HTTP on exact IPv4 loopback, an explicit port, and no query or fragment.
 - 2026-07-28: Rename only the hosted MCP's host-facing identity to `fullwell-cloud`. Preserve the `fullwell-local` MCP identity and all unrelated repository, package, deployment, service, and source-file names.
 - 2026-07-28: Permit Claude's exact `http://localhost:<explicit-port>/callback` origin only on the consent page. Do not extend `localhost` to the local-runner or nonce-bearing paths, and continue rejecting missing ports, credentials, queries, fragments, and extra segments.
+- 2026-07-28: Normalize each hosted tool's generated input schema with an explicit top-level object type. All shared tool inputs are object contracts, so this preserves Zod runtime validation and the generated union branches while satisfying strict Claude discovery.
 
 ## Context and Orientation
 
@@ -360,6 +363,7 @@ Verification:
 - Meta's WhatsApp callback uses the apex directly, keeps only the required subscription, and receives signed webhook traffic without a cross-host redirect.
 - The consent page permits only the exact registered loopback origin for `/oauth/callback` or a bounded `/callback/<nonce>` path; invalid, remote, credentialed, query-bearing, fragment-bearing, missing-nonce, and unrelated loopback callback values do not widen `form-action`.
 - Codex and Claude expose the hosted MCP as `fullwell-cloud`, the remote server initializes with that name, and `fullwell-local` remains unchanged.
+- Every advertised hosted tool input schema has an explicit top-level object type, and Claude loads the complete tool catalog after OAuth without a schema-validation error.
 - One real Apple sign-in, one email fallback sign-in, one new passkey enrollment/sign-in, one Codex OAuth reconnect, one Claude OAuth reconnect, and one local-runner reconnect pass on the apex.
 - Existing old-host sessions, passkeys, OAuth grants, and runner tokens are not silently accepted at the new origin. Durable accounts, memberships, household Git repositories, and Neon operational data remain intact.
 - Caddy, focused tests, packaging, E2E, accessibility, lint, typecheck, build, coverage, security, complete verification, docs, and ExecPlan gates pass.

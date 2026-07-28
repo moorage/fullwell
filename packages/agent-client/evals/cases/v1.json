@@ -10,6 +10,13 @@
       "invariants": ["remember_name_before_oauth", "affirmative_account_choice_before_oauth", "browser_auth_only", "never_request_token", "save_cloud_display_name", "default_first_household_name", "one_household", "begin_guided_first_run", "no_intermediate_onboarding_write"]
     },
     {
+      "id": "missing-local-state-resumes-cloud-recipe-save",
+      "prompt": "I deleted ~/.codex/fullwell, but I already connected my existing cloud household. Add https://example.test/fishcake-hotpot to my saved recipes.",
+      "skills": ["manage-household-food-journal", "track-recipe-history"],
+      "required_tools": ["fullwell_local_household_load", "hfj_get_context", "hfj_search_items", "hfj_commit_change_set"],
+      "invariants": ["missing_local_state_uses_existing_cloud_household", "no_local_household_initialization_or_hydration", "use_context_actor_id", "one_atomic_evidence_and_item_change_set", "no_separate_append_evidence", "no_member_lookup_for_current_actor", "saved_only_not_cooked_or_liked", "stable_idempotency_key", "immediately_searchable_after_success"]
+    },
+    {
       "id": "first-time-setup-asks-account-before-oauth",
       "prompt": "@Fullwell hi, please help me get started with my food journal on this computer.",
       "skills": ["manage-household-food-journal"],
@@ -139,15 +146,15 @@
       "id": "discoverable-recipe-unknown",
       "prompt": "This recipe is discoverable on an authorized site. Mark it saved and liked.",
       "skills": ["track-recipe-history"],
-      "required_tools": ["hfj_append_evidence", "hfj_commit_change_set"],
-      "invariants": ["saved_unknown", "cooked_unknown", "liked_unknown"]
+      "required_tools": ["hfj_commit_change_set"],
+      "invariants": ["saved_unknown", "cooked_unknown", "liked_unknown", "one_atomic_evidence_and_item_change_set"]
     },
     {
       "id": "cooked-not-liked",
       "prompt": "We cooked this recipe, so mark it liked too.",
       "skills": ["track-recipe-history"],
-      "required_tools": ["hfj_append_evidence", "hfj_commit_change_set"],
-      "invariants": ["cooked_independent_from_liked", "evidence_before_conclusion"]
+      "required_tools": ["hfj_commit_change_set"],
+      "invariants": ["cooked_independent_from_liked", "evidence_before_conclusion", "one_atomic_evidence_and_item_change_set"]
     },
     {
       "id": "collection-private-fields",

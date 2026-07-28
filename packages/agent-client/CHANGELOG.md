@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.1.20 - 2026-07-28
+
+- Resume an existing cloud household when local Fullwell state is missing, use the authenticated actor ID returned by context, and save bounded ordinary recipe or grocery updates through one atomic evidence-plus-item change set.
+
 ## 1.1.19 - 2026-07-28
 
 - Rename the hosted MCP identity to `fullwell-cloud` so installed hosts distinguish it from the local Fullwell service.

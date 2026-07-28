@@ -1,6 +1,6 @@
 {
   "name": "@fullwell/fullwell",
-  "version": "1.1.19",
+  "version": "1.1.20",
   "private": false,
   "description": "Shared Codex and Claude client for Fullwell",
   "type": "module",

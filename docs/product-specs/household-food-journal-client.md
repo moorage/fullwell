@@ -97,6 +97,8 @@ If the answer is yes, the first protected tool starts MCP OAuth. The service aut
 
 After authentication, the agent calls `hfj_get_context`, then saves the remembered preferred name through `hfj_update_user_display_name`. If the user has no household and is not joining one through a pending family invitation, it calls `hfj_create_household` with the deterministic first-household name: `<NAME>'s Household`, or `<NAME>' Household` when the name ends in `s`. A pending family invitation or collection import resumes instead of creating an unrelated household.
 
+If the local household file is missing but authenticated context returns an existing cloud household, the existing cloud household resumes. The client uses its repository HEAD and the authenticated `user.actor_id` returned by context. It does not initialize or hydrate a replacement local guest, treat the user ID as an actor ID, or call the member-list tool to discover the current actor.
+
 If the answer is no, the agent initializes one guest household under `~/.codex/fullwell/local/household.json`, or the configured Codex home equivalent, through `fullwell_local_household_update` and starts grocery-history onboarding without a Fullwell cloud call. The host may ask once before allowing that named local write tool; a persisted tool approval remains scoped to its stable server/tool identity across compatible Fullwell upgrades and never grants arbitrary Node execution. A remembered local guest household resumes without asking the account question again. The document has a generated local identity, collecting/ready state, monotonically increasing revision, stable cloud-promotion idempotency key, atomic replacement, `0700` directories, and `0600` file mode. It is local journal authority, not a cloud backup, and another person with access to the same operating-system account may read it.
 
 Guest initialization supplies the same deterministic first-household name returned by the local profile. The private profile and guest household have separate revisions and authority: changing the member name does not silently rename the household.
@@ -195,15 +197,17 @@ Preserve the existing evidence-first recipe workflow. The agent must:
 3. for every website, ask whether the whole discoverable site or a specific subsection is in scope;
 4. ask what presence in that scope means: discoverable, saved, cooked, liked, or another user-defined status;
 5. check access and sign-in before collection;
-6. append every occurrence, including duplicates and conflicts, as evidence;
+6. preserve every occurrence, including duplicates and conflicts, as evidence;
 7. resolve recipe identity itself;
 8. keep Saved, Cooked, and Liked independent;
 9. track every supported cooking date and preparation change;
 10. use a visibly associated credential-free HTTPS image displayed by the exact audited recipe page and preserve both page and image provenance;
-11. commit the resulting entry and index updates through `hfj_commit_change_set`;
+11. commit new evidence plus the resulting entry and index updates through one `hfj_commit_change_set`;
 12. ask at the end whether the places the user saves or discusses recipes have changed.
 
 Do not infer liked from cooked, cooked from saved, or saved from mere discoverability.
+
+A bounded ordinary cloud recipe update is one atomic change set containing its new evidence, recipe item, and optional index report. It does not append evidence in a separate mutation first. Evidence-only checkpoints remain available for long-running audits or migrations where no citing item or report is ready.
 
 ### 5.4a Index and reuse food-delivery history
 
@@ -451,7 +455,7 @@ The client is coded against these stable tool names. Complete schemas and author
 | `fullwell_local_household_delete_collecting` | Delete only an unfinished guest household after explicit cancellation confirmation. |
 | `fullwell_local_recipe_board_create` | Create one bounded private static recipe-board snapshot without opening a browser or changing the journal. |
 | `fullwell_local_whatsapp_runner_stop` | Stop the local macOS WhatsApp runner while preserving connection and local data. |
-| `hfj_get_context` | Read authenticated user, households, pending intent, roles, current revisions, per-section onboarding state, both onboarding profiles, and a bounded item identity index. |
+| `hfj_get_context` | Read authenticated user and actor identity, households, pending intent, roles, current revisions, per-section onboarding state, both onboarding profiles, and a bounded item identity index. |
 | `hfj_update_user_display_name` | Update the authenticated user's cloud display name without household membership. |
 | `hfj_create_household` | Create a household and its Git repository. |
 | `hfj_select_household` | Set the session's active household. |
@@ -472,8 +476,8 @@ The client is coded against these stable tool names. Complete schemas and author
 | `hfj_withdraw_meal_proposal` | Append an authorized attributed withdrawal without deleting history. |
 | `hfj_search_items` | Find recipes, delivery dishes, and snack, ingredient, condiment, or other-grocery items in the active household. |
 | `hfj_get_item` | Read a complete item, evidence references, and revision. |
-| `hfj_append_evidence` | Append immutable non-delivery purchase, recipe discovery, cooking, or import evidence. |
-| `hfj_commit_change_set` | Commit non-delivery entries, reports, and corrections with expected revisions. |
+| `hfj_append_evidence` | Append immutable non-delivery evidence only when no citing item or report is ready. |
+| `hfj_commit_change_set` | Atomically commit new non-delivery evidence, citing entries, reports, and corrections with expected revisions. |
 | `hfj_search_delivery_history` | Search public-safe provider/restaurant/location fields and receive opaque complete-order handles. |
 | `hfj_get_delivery_order` | Resolve one opaque handle to one exact complete delivery or pickup order at the current revision. |
 | `hfj_get_delivery_index` | Read the canonical delivery index and exact document revision. |

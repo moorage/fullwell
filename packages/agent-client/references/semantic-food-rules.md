@@ -47,4 +47,4 @@ Meal slots contain proposals, not a program-selected winner. Program code may va
 
 ## Evidence and reports
 
-Read current state before change. Append evidence before conclusions. Every report row cites exact item and evidence IDs; recurrence and last-date assertions must be deterministically supported. The agent authors the Markdown and explains uncertainty, conflicts, and limitations instead of inventing facts.
+Read current state before change. Preserve evidence before authoring conclusions; for a bounded ordinary cloud update, commit the evidence and its citing items or reports atomically. Every report row cites exact item and evidence IDs; recurrence and last-date assertions must be deterministically supported. The agent authors the Markdown and explains uncertainty, conflicts, and limitations instead of inventing facts.

@@ -86,7 +86,7 @@ describe("HouseholdFoodJournalService", () => {
     expect(await service.call("hfj_get_context", {}, owner)).toMatchObject({
       ok: true,
       data: {
-        user: { id: owner.userId, display_name: owner.displayName },
+        user: { id: owner.userId, actor_id: owner.actorId, display_name: owner.displayName },
         households: [],
         default_household_id: null,
         onboarding: null,
@@ -193,6 +193,7 @@ describe("HouseholdFoodJournalService", () => {
     expect((await call("hfj_list_members", { household_id: householdId })).data.members).toHaveLength(2);
     expect((await call("hfj_get_context", { household_id: householdId }, member)).data.user).toEqual({
       id: member.userId,
+      actor_id: member.actorId,
       display_name: member.displayName,
     });
 
@@ -237,40 +238,35 @@ describe("HouseholdFoodJournalService", () => {
     const confirmationId = "evd_0000000000000204";
     const snackId = ItemIdSchema.parse("itm_0000000000000201");
     const recipeId = ItemIdSchema.parse("itm_0000000000000202");
-    const evidence = await call("hfj_append_evidence", {
-      household_id: householdId,
-      expected_head: head,
-      idempotency_key: "evidence-append-0201",
-      evidence: [
-        {
-          id: purchaseId, kind: "purchase", observed_at: "2026-07-15T10:00:00.000Z", evidence_date: "2026-07-15", date_precision: "day",
-          source_type: "receipt", source_label: "Market receipt", stable_locator: "order-0201", summary: "Bought apples", actor_id: owner.actorId,
-          limitations: [], schema_version: 1, purchase: { store: "Market", order_reference: "0201", line_item_title: "Apples", order_date: "2026-07-15" },
-        },
-        {
-          id: discoveryId, kind: "recipe_discovery", observed_at: "2026-07-15T10:01:00.000Z", evidence_date: "2026-07-15", date_precision: "day",
-          source_type: "web", source_label: "Recipe page", stable_locator: "https://example.test/soup", summary: "Saved soup", actor_id: owner.actorId,
-          limitations: [], schema_version: 1, recipe_discovery: { canonical_recipe_url: "https://example.test/soup", audited_page_url: "https://example.test/soup", author_or_publisher: "Test Kitchen", source_scope: "saved" },
-        },
-        {
-          id: cookingId, kind: "cooking", observed_at: "2026-07-15T10:02:00.000Z", evidence_date: "2026-07-15", date_precision: "day",
-          source_type: "journal", source_label: "Cooking note", stable_locator: "cook-0201", summary: "Cooked soup", actor_id: owner.actorId,
-          limitations: [], schema_version: 1, cooking: { recipe_candidate: "Tomato soup", cooked_on: "2026-07-15", result: "Good", changes: [] },
-        },
-        {
-          id: confirmationId, kind: "user_confirmation", observed_at: "2026-07-15T10:03:00.000Z", evidence_date: "2026-07-15", date_precision: "day",
-          source_type: "conversation", source_label: "Owner", stable_locator: "confirmation-0201", summary: "Liked soup", actor_id: owner.actorId,
-          limitations: [], schema_version: 1,
-          confirmation: { subject: "recipe_preference", recipe_item_id: recipeId, preference: "liked" },
-        },
-      ],
-    });
-    head = evidence.head;
+    const journalEvidence = [
+      {
+        id: purchaseId, kind: "purchase", observed_at: "2026-07-15T10:00:00.000Z", evidence_date: "2026-07-15", date_precision: "day",
+        source_type: "receipt", source_label: "Market receipt", stable_locator: "order-0201", summary: "Bought apples", actor_id: owner.actorId,
+        limitations: [], schema_version: 1, purchase: { store: "Market", order_reference: "0201", line_item_title: "Apples", order_date: "2026-07-15" },
+      },
+      {
+        id: discoveryId, kind: "recipe_discovery", observed_at: "2026-07-15T10:01:00.000Z", evidence_date: "2026-07-15", date_precision: "day",
+        source_type: "web", source_label: "Recipe page", stable_locator: "https://example.test/soup", summary: "Saved soup", actor_id: owner.actorId,
+        limitations: [], schema_version: 1, recipe_discovery: { canonical_recipe_url: "https://example.test/soup", audited_page_url: "https://example.test/soup", author_or_publisher: "Test Kitchen", source_scope: "saved" },
+      },
+      {
+        id: cookingId, kind: "cooking", observed_at: "2026-07-15T10:02:00.000Z", evidence_date: "2026-07-15", date_precision: "day",
+        source_type: "journal", source_label: "Cooking note", stable_locator: "cook-0201", summary: "Cooked soup", actor_id: owner.actorId,
+        limitations: [], schema_version: 1, cooking: { recipe_candidate: "Tomato soup", cooked_on: "2026-07-15", result: "Good", changes: [] },
+      },
+      {
+        id: confirmationId, kind: "user_confirmation", observed_at: "2026-07-15T10:03:00.000Z", evidence_date: "2026-07-15", date_precision: "day",
+        source_type: "conversation", source_label: "Owner", stable_locator: "confirmation-0201", summary: "Liked soup", actor_id: owner.actorId,
+        limitations: [], schema_version: 1,
+        confirmation: { subject: "recipe_preference", recipe_item_id: recipeId, preference: "liked" },
+      },
+    ];
 
-    const changeSet = await call("hfj_commit_change_set", {
+    const changeSetInput = {
       household_id: householdId,
       expected_head: head,
       idempotency_key: "change-set-0201",
+      evidence: journalEvidence,
       items: [
         {
           id: snackId, kind: "snack", display_name: "Honeycrisp apple", brand: null, product_line: null, flavor: null, formulation: null, format: "fresh",
@@ -288,8 +284,32 @@ describe("HouseholdFoodJournalService", () => {
         assertions: [{ row_id: "apple", item_ids: [snackId], evidence_ids: [purchaseId], distinct_order_count: 1, last_date: "2026-07-15" }],
       }],
       expected_item_revisions: {},
-    });
+    };
+    const commitsBeforeJournalChange = repository.commitCount(householdId);
+    expect(await service.call("hfj_commit_change_set", {
+      ...changeSetInput,
+      idempotency_key: "change-set-wrong-actor-0201",
+      evidence: journalEvidence.map((evidence, index) => index === 0
+        ? { ...evidence, actor_id: member.actorId }
+        : evidence),
+    }, owner)).toMatchObject({ ok: false, error: { code: "VALIDATION_FAILED" } });
+    expect(repository.commitCount(householdId)).toBe(commitsBeforeJournalChange);
+    const changeSet = await call("hfj_commit_change_set", changeSetInput);
     head = changeSet.head;
+    expect(changeSet.data.evidence_ids).toEqual([purchaseId, discoveryId, cookingId, confirmationId]);
+    expect(repository.commitCount(householdId)).toBe(commitsBeforeJournalChange + 1);
+    expect(await call("hfj_commit_change_set", changeSetInput)).toEqual(changeSet);
+    expect(await service.call("hfj_commit_change_set", {
+      household_id: householdId,
+      expected_head: head,
+      idempotency_key: "change-set-0201",
+      items: [{
+        id: recipeId, kind: "recipe", title: "Changed replay", canonical_url: "https://example.test/changed", audited_page_url: "https://example.test/changed",
+        author_or_publisher: "Test Kitchen", saved: "unknown", cooked: "unknown", liked: "unknown", last_cooked: null, date_precision: "unknown", image_url: null, image_page_url: null,
+        evidence_ids: [discoveryId], created_at: "2026-07-15T12:00:00.000Z", updated_at: "2026-07-15T12:00:00.000Z", schema_version: 1, body_markdown: "Changed.",
+      }],
+      expected_item_revisions: { [recipeId]: changeSet.head },
+    }, owner)).toMatchObject({ ok: false, error: { code: "REVISION_CONFLICT" } });
     expect((await call("hfj_search_items", { household_id: householdId, query: "apple", kind: "snack", limit: 10 })).data.items).toHaveLength(1);
     expect((await call("hfj_search_items", { household_id: householdId, query: "example.test", kind: "recipe", limit: 10 })).data.items).toHaveLength(1);
     expect((await call("hfj_get_item", { household_id: householdId, item_id: recipeId })).data.revision).toBe(changeSet.head);

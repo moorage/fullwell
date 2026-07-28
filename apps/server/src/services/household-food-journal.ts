@@ -50,6 +50,7 @@ import {
   type DeliveryOrderGroup,
   type DeliveryOrderLineEvidence,
   type DeliveryProfile,
+  type Evidence,
   type CollectionItem,
   type CollectionSelectionItem,
   type DeliveryDishItem,
@@ -181,7 +182,7 @@ export class HouseholdFoodJournalService {
     });
     return {
       data: {
-        user: { id: principal.userId, display_name: principal.displayName },
+        user: { id: principal.userId, actor_id: principal.actorId, display_name: principal.displayName },
         households: memberships.map(({ household, membership }) => ({ id: household.id, name: household.name, role: membership.role, repository_head: household.repositoryHead })),
         default_household_id: selected,
         pending_intent: null,
@@ -409,14 +410,11 @@ export class HouseholdFoodJournalService {
           throw new AppError("PROJECTION_DRIFT", "The household projection does not match the onboarding snapshot", true);
         }
         projection = await this.store.projection(parsed.household_id);
-        const prospectiveEvidence = new Map(projection.evidence);
-        for (const evidence of parsed.evidence) {
-          if (prospectiveEvidence.has(evidence.id)) throw new AppError("REVISION_CONFLICT", `Evidence already exists: ${evidence.id}`);
-          if (evidence.supersedes_evidence_id !== undefined && !prospectiveEvidence.has(evidence.supersedes_evidence_id)) {
-            throw new AppError("VALIDATION_FAILED", "Correction evidence must reference an existing event");
-          }
-          prospectiveEvidence.set(evidence.id, evidence);
-        }
+        const prospectiveEvidence = validatedProspectiveEvidence(
+          projection.evidence,
+          parsed.evidence,
+          principal.actorId,
+        );
         for (const item of parsed.items) {
           validateItemEvidence(item, prospectiveEvidence);
           const current = projection.items.get(item.id);
@@ -1037,44 +1035,64 @@ export class HouseholdFoodJournalService {
 
   private async appendEvidence(input: unknown, principal: Principal): Promise<WriteResult> {
     const parsed = ToolInputSchemas.hfj_append_evidence.parse(input);
-    const projection = await this.store.projection(parsed.household_id);
-    for (const evidence of parsed.evidence) {
-      if (projection.evidence.has(evidence.id)) throw new AppError("REVISION_CONFLICT", `Evidence already exists: ${evidence.id}`);
-      if (evidence.supersedes_evidence_id !== undefined && !projection.evidence.has(evidence.supersedes_evidence_id)) throw new AppError("VALIDATION_FAILED", "Correction evidence must reference an existing event");
-    }
-    const changes: RepositoryChange[] = parsed.evidence.map((evidence) => ({
-      path: journalEvidencePath(evidence),
-      content: stableJson(evidence), appendOnly: true,
-    }));
     return await this.mutations.run({
       principal, tool: "hfj_append_evidence", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_append_evidence", parsed),
-      expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "journal:write", summary: "evidence: append journal observations",
-      buildChanges: async () => changes,
-      applyProjection: async () => { for (const evidence of parsed.evidence) projection.evidence.set(evidence.id, evidence); return { status: "completed", evidence_ids: parsed.evidence.map((entry) => entry.id), count: parsed.evidence.length }; },
+      expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "journal:write", summary: "evidence: append journal observations", enforceFingerprintOnReplay: true,
+      buildChanges: async () => {
+        const projection = await this.store.projection(parsed.household_id);
+        validatedProspectiveEvidence(projection.evidence, parsed.evidence, principal.actorId);
+        return parsed.evidence.map(evidenceChange);
+      },
+      applyProjection: async () => {
+        const projection = await this.store.projection(parsed.household_id);
+        for (const evidence of parsed.evidence) projection.evidence.set(evidence.id, evidence);
+        return { status: "completed", evidence_ids: parsed.evidence.map((entry) => entry.id), count: parsed.evidence.length };
+      },
     });
   }
 
   private async commitChangeSet(input: unknown, principal: Principal): Promise<WriteResult> {
     const parsed = ToolInputSchemas.hfj_commit_change_set.parse(input);
-    const projection = await this.store.projection(parsed.household_id);
-    for (const item of parsed.items) {
-      validateItemEvidence(item, projection.evidence);
-      const current = projection.items.get(item.id);
-      const expected = parsed.expected_item_revisions[item.id];
-      if (current !== undefined && expected !== current.revision) throw new AppError("REVISION_CONFLICT", `Item changed: ${item.id}`);
-      if (current === undefined && expected !== undefined) throw new AppError("REVISION_CONFLICT", `New item has an unexpected revision: ${item.id}`);
-    }
-    const ids = new Set([...projection.items.keys(), ...parsed.items.map((item) => item.id)]);
-    for (const report of parsed.reports) validateReport(report, projection.evidence, ids);
-    const changes: RepositoryChange[] = [
-      ...parsed.items.map((item) => ({ path: journalItemPath(item), content: markdownDocument(itemFrontmatter(item), item.body_markdown), appendOnly: false })),
-      ...parsed.reports.map((report) => ({ path: report.report_type === "recurring_snacks" ? "snacks/reports/recurring-snacks.md" : "recipes/reports/recipe-index.md", content: report.markdown.endsWith("\n") ? report.markdown : `${report.markdown}\n`, appendOnly: false })),
-    ];
     return await this.mutations.run({
       principal, tool: "hfj_commit_change_set", householdId: parsed.household_id, idempotencyKey: parsed.idempotency_key, requestFingerprint: this.mutationFingerprint("hfj_commit_change_set", parsed),
-      expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "journal:write", summary: "journal: commit agent-authored change set",
-      buildChanges: async () => changes,
-      applyProjection: async (head) => { for (const item of parsed.items) projection.items.set(item.id, { item, revision: head }); return { status: "completed", item_ids: parsed.items.map((item) => item.id), report_count: parsed.reports.length }; },
+      expectedHead: parsed.expected_head, minimumRole: "editor", requiredScope: "journal:write", summary: "journal: commit agent-authored change set", enforceFingerprintOnReplay: true,
+      buildChanges: async () => {
+        const projection = await this.store.projection(parsed.household_id);
+        const submittedItemIds = new Set<string>(parsed.items.map(({ id }) => id));
+        if (Object.keys(parsed.expected_item_revisions).some((id) => !submittedItemIds.has(id))) {
+          throw new AppError("VALIDATION_FAILED", "Item revision expectations must name submitted items");
+        }
+        const prospectiveEvidence = validatedProspectiveEvidence(
+          projection.evidence,
+          parsed.evidence,
+          principal.actorId,
+        );
+        for (const item of parsed.items) {
+          validateItemEvidence(item, prospectiveEvidence);
+          const current = projection.items.get(item.id);
+          const expected = parsed.expected_item_revisions[item.id];
+          if (current !== undefined && expected !== current.revision) throw new AppError("REVISION_CONFLICT", `Item changed: ${item.id}`);
+          if (current === undefined && expected !== undefined) throw new AppError("REVISION_CONFLICT", `New item has an unexpected revision: ${item.id}`);
+        }
+        const ids = new Set([...projection.items.keys(), ...parsed.items.map((item) => item.id)]);
+        for (const report of parsed.reports) validateReport(report, prospectiveEvidence, ids);
+        return [
+          ...parsed.evidence.map(evidenceChange),
+          ...parsed.items.map(itemChange),
+          ...parsed.reports.map(reportChange),
+        ];
+      },
+      applyProjection: async (head) => {
+        const projection = await this.store.projection(parsed.household_id);
+        for (const evidence of parsed.evidence) projection.evidence.set(evidence.id, evidence);
+        for (const item of parsed.items) projection.items.set(item.id, { item, revision: head });
+        return {
+          status: "completed",
+          evidence_ids: parsed.evidence.map((evidence) => evidence.id),
+          item_ids: parsed.items.map((item) => item.id),
+          report_count: parsed.reports.length,
+        };
+      },
     });
   }
 
@@ -1642,6 +1660,27 @@ function evidenceChange(evidence: import("@hfj/contracts").Evidence): Repository
     content: stableJson(evidence),
     appendOnly: true,
   };
+}
+
+function validatedProspectiveEvidence(
+  current: ReadonlyMap<string, Evidence>,
+  submitted: ReadonlyArray<Evidence>,
+  actorId: Principal["actorId"],
+): Map<string, Evidence> {
+  const prospective = new Map(current);
+  for (const evidence of submitted) {
+    if (prospective.has(evidence.id)) {
+      throw new AppError("REVISION_CONFLICT", `Evidence already exists: ${evidence.id}`);
+    }
+    if (evidence.actor_id !== actorId) {
+      throw new AppError("VALIDATION_FAILED", "Evidence must be attributed to the authenticated contributor");
+    }
+    if (evidence.supersedes_evidence_id !== undefined && !prospective.has(evidence.supersedes_evidence_id)) {
+      throw new AppError("VALIDATION_FAILED", "Correction evidence must reference an existing event");
+    }
+    prospective.set(evidence.id, evidence);
+  }
+  return prospective;
 }
 function profileChange(profile: "snacks" | "recipes", markdown: string): RepositoryChange {
   return { path: `profiles/${profile}.md`, content: markdown.endsWith("\n") ? markdown : `${markdown}\n`, appendOnly: false };

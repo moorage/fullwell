@@ -269,11 +269,20 @@ export const ToolInputSchemas = {
     evidence: z.array(NonDeliveryEvidenceSchema).min(1).max(100),
   }).strict(),
   hfj_commit_change_set: RevisionedHouseholdMutationSchema.extend({
+    evidence: z.array(NonDeliveryEvidenceSchema).max(100).default([]),
     items: z.array(NonDeliveryJournalItemSchema).max(100).default([]),
     reports: z.array(NonDeliveryReportSchema).max(20).default([]),
     expected_item_revisions: z.record(ItemIdSchema, GitObjectIdSchema).default({}),
-  }).strict().refine((value) => value.items.length + value.reports.length > 0, {
-    message: "At least one item or report is required",
+  }).strict().superRefine((value, context) => {
+    if (value.items.length + value.reports.length === 0) {
+      context.addIssue({ code: "custom", message: "At least one item or report is required" });
+    }
+    if (new Set(value.evidence.map(({ id }) => id)).size !== value.evidence.length) {
+      context.addIssue({ code: "custom", path: ["evidence"], message: "Evidence IDs must be unique" });
+    }
+    if (new Set(value.items.map(({ id }) => id)).size !== value.items.length) {
+      context.addIssue({ code: "custom", path: ["items"], message: "Item IDs must be unique" });
+    }
   }),
   hfj_commit_onboarding: RevisionedHouseholdMutationSchema.extend({
     sections: z.array(OnboardingCommitOutcomeSchema).max(2).default([]),

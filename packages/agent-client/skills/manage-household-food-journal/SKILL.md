@@ -94,6 +94,8 @@ Start this only after an affirmative backup/connect answer or an explicit reques
 
 After an affirmative existing-account answer, call `hfj_get_context` and stay within the hosted path:
 
+When the local household load is `missing` but the authenticated context returns an existing household, that is a recovered cloud account, not a new local guest. Use the returned cloud household, repository HEAD, and `user.actor_id`; do not initialize, hydrate, or reconstruct a local household from cloud data.
+
 1. Save the remembered local name to the authenticated cloud account with `hfj_update_user_display_name`, using a stable idempotency key. Report a local-only result if that cloud write fails.
 2. Resume a pending family invitation or collection import before ordinary setup.
 3. If no household exists and no invitation is being joined, call `hfj_create_household` with the profile's exact `default_household_name` and an idempotency key.
@@ -123,7 +125,7 @@ When cloud onboarding has produced at least one item, another useful chat-native
 - To stop the local WhatsApp runner, call `fullwell_local_whatsapp_runner_stop`. Say that the background runner stopped and its cloud connection was preserved. Do not revoke the runner, sign out, purge credentials, delete snapshots, or describe this as a full disconnect.
 - To stop the weekly meal reminder, route to `plan-household-meals` and remove the exact host-native task named `Fullwell weekly meal planning`. "Stop", "turn off", "remove", and "cancel the weekly reminder" mean permanent removal; "pause" means pause. Confirm completion only after the host confirms the resulting state.
 
-Outside guided first run, cloud profile reads and edits use `hfj_get_profile` and `hfj_update_profile`; cloud evidence and ordinary journal changes use `hfj_append_evidence` and `hfj_commit_change_set`. Keep the local guest authority unchanged until a separate confirmed promotion succeeds. Use `hfj_export_household` only for a cloud household and explain that its download URL expires.
+Outside guided first run, cloud profile reads and edits use `hfj_get_profile` and `hfj_update_profile`. A bounded ordinary cloud journal update sends its new evidence, items, and reports together through one `hfj_commit_change_set`; reserve `hfj_append_evidence` for evidence-only checkpoints or migrations where no item or report is ready. Keep the local guest authority unchanged until a separate confirmed promotion succeeds. Use `hfj_export_household` only for a cloud household and explain that its download URL expires.
 
 Route requests to organize a week of household meals, suggest recipes for slots, preserve competing meal ideas, inspect or withdraw meal proposals, open a visual recipe board, or manage the weekly planning reminder through the `plan-household-meals` skill.
 

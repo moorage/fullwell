@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { z } from "zod";
 import {
   ActorIdSchema,
   CollectionIdSchema,
@@ -19,11 +20,12 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AccountService } from "../account/service.js";
 import { MemoryHouseholdRepository } from "../adapters/memory.js";
-import { DeterministicRandomSource, FixedClock } from "../adapters/providers.js";
+import { DeterministicRandomSource, FixedClock, NoopTelemetry } from "../adapters/providers.js";
 import type { TokenHasher } from "../core/ports.js";
-import type { HouseholdProjection, MembershipRecord, MutationRecord } from "../core/types.js";
+import type { HouseholdProjection, MembershipRecord, MutationRecord, Principal } from "../core/types.js";
 import { NeonAuthStore } from "../auth/neon-store.js";
 import { NeonOAuthStore } from "../oauth/neon-store.js";
+import { HouseholdFoodJournalService } from "../services/household-food-journal.js";
 import { NeonConnection } from "./neon.js";
 import { NeonOperationalStore } from "./neon-operational-store.js";
 
@@ -311,6 +313,138 @@ describeDatabase("NeonOperationalStore", () => {
     expect(JSON.stringify(importedSearchRows)).not.toContain("provider_label");
     expect((await store.getHousehold(householdId))?.name).toBe("Rebuilt Household");
     expect(await store.getMembership(householdId, ownerId)).toMatchObject({ role: "owner", projectionHead: rebuiltHead });
+  });
+
+  it("persists an atomic evidence-backed recipe before returning success", async () => {
+    const repository = new MemoryHouseholdRepository();
+    const principal: Principal = {
+      userId: ownerId,
+      actorId: ownerActorId,
+      displayName: "Kitchen Owner",
+      scopes: new Set(["journal:read", "journal:write", "household:manage"]),
+      client: "test",
+    };
+    const service = new HouseholdFoodJournalService(
+      store,
+      repository,
+      new FixedClock(new Date("2026-07-28T12:00:00.000Z")),
+      new DeterministicRandomSource(),
+      tokenHasher,
+      new NoopTelemetry(),
+      new URL("https://journal.example.test"),
+    );
+    const created = await service.call("hfj_create_household", {
+      name: "Recovered Cloud Kitchen",
+      idempotency_key: "atomic-recipe-create-0101",
+    }, principal);
+    if (!created.ok) throw new Error(created.error.code);
+    const createdData = z.object({ household_id: HouseholdIdSchema }).parse(created.data);
+    const createdHead = GitObjectIdSchema.parse(created.repository_head);
+    const evidenceId = "evd_0000000000000191";
+    const checkpointEvidenceId = "evd_0000000000000192";
+    const itemId = "itm_0000000000000191";
+
+    const committed = await service.call("hfj_commit_change_set", {
+      household_id: createdData.household_id,
+      expected_head: createdHead,
+      idempotency_key: "atomic-recipe-save-0101",
+      evidence: [{
+        id: evidenceId,
+        kind: "recipe_discovery",
+        observed_at: "2026-07-28T12:00:00.000Z",
+        evidence_date: "2026-07-28",
+        date_precision: "day",
+        source_type: "recipe_website",
+        source_label: "FutureDish",
+        stable_locator: "https://example.test/fishcake-hotpot",
+        summary: "Saved fishcake hotpot",
+        actor_id: ownerActorId,
+        limitations: ["Saved only"],
+        schema_version: 1,
+        recipe_discovery: {
+          canonical_recipe_url: "https://example.test/fishcake-hotpot",
+          audited_page_url: "https://example.test/fishcake-hotpot",
+          author_or_publisher: "FutureDish",
+          source_scope: "saved",
+        },
+      }],
+      items: [{
+        id: itemId,
+        kind: "recipe",
+        title: "Fishcake hotpot",
+        canonical_url: "https://example.test/fishcake-hotpot",
+        audited_page_url: "https://example.test/fishcake-hotpot",
+        author_or_publisher: "FutureDish",
+        saved: "yes",
+        cooked: "no",
+        liked: "no",
+        last_cooked: null,
+        date_precision: "unknown",
+        image_url: null,
+        image_page_url: null,
+        evidence_ids: [evidenceId],
+        created_at: "2026-07-28T12:00:00.000Z",
+        updated_at: "2026-07-28T12:00:00.000Z",
+        schema_version: 1,
+        body_markdown: "Saved from the recipe page.",
+      }],
+      expected_item_revisions: {},
+    }, principal);
+    expect(committed).toMatchObject({
+      ok: true,
+      data: { evidence_ids: [evidenceId], item_ids: [itemId] },
+    });
+    if (!committed.ok) throw new Error(committed.error.code);
+
+    const persisted = await store.projection(createdData.household_id);
+    expect(persisted.evidence.has(evidenceId)).toBe(true);
+    const persistedItem = persisted.items.get(itemId)?.item;
+    expect(persistedItem?.kind).toBe("recipe");
+    if (persistedItem?.kind !== "recipe") throw new Error("Recipe projection was not persisted");
+    expect(persistedItem.title).toBe("Fishcake hotpot");
+    expect(await service.call("hfj_search_items", {
+      household_id: createdData.household_id,
+      query: "fishcake",
+      kind: "recipe",
+      limit: 10,
+    }, principal)).toMatchObject({
+      ok: true,
+      data: { items: [expect.objectContaining({ id: itemId, title: "Fishcake hotpot" })] },
+    });
+    const checkpoint = await service.call("hfj_append_evidence", {
+      household_id: createdData.household_id,
+      expected_head: GitObjectIdSchema.parse(committed.repository_head),
+      idempotency_key: "recipe-evidence-checkpoint-0101",
+      evidence: [{
+        id: checkpointEvidenceId,
+        kind: "recipe_discovery",
+        observed_at: "2026-07-28T12:01:00.000Z",
+        evidence_date: "2026-07-28",
+        date_precision: "day",
+        source_type: "recipe_website",
+        source_label: "FutureDish",
+        stable_locator: "https://example.test/noodle-soup",
+        summary: "Checkpointed noodle soup discovery",
+        actor_id: ownerActorId,
+        limitations: ["No item authored yet"],
+        schema_version: 1,
+        recipe_discovery: {
+          canonical_recipe_url: "https://example.test/noodle-soup",
+          audited_page_url: "https://example.test/noodle-soup",
+          author_or_publisher: "FutureDish",
+          source_scope: "discoverable",
+        },
+      }],
+    }, principal);
+    expect(checkpoint).toMatchObject({
+      ok: true,
+      data: { evidence_ids: [checkpointEvidenceId] },
+    });
+    expect((await store.projection(createdData.household_id)).evidence.has(checkpointEvidenceId)).toBe(true);
+    await connection.direct.begin(async (sql) => {
+      await sql`DELETE FROM mutation_requests WHERE household_id = ${createdData.household_id}`;
+      await sql`DELETE FROM households WHERE id = ${createdData.household_id}`;
+    });
   });
 
   it("persists onboarding progress with optimistic revisions", async () => {

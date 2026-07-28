@@ -5,7 +5,9 @@
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
   - `docs/exec-plans/active/2026-07-27-canonical-origin-fullwell-ai.md`
+  - `docs/exec-plans/active/2026-07-28-release-atomic-cloud-recovery.md`
 - completed ExecPlans:
+  - `docs/exec-plans/completed/2026-07-28-atomic-cloud-journal-save.md`
   - `docs/exec-plans/completed/2026-07-27-fullwell-character-artwork.md`
   - `docs/exec-plans/completed/2026-07-27-durable-computer-use-images.md`
   - `docs/exec-plans/completed/2026-07-27-public-brand-company-identity.md`
@@ -17,6 +19,9 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-28 atomic cloud journal recovery work makes a missing local Fullwell household resume the existing authenticated cloud authority, returns the current actor ID from context, and combines bounded ordinary evidence plus citing items/reports in one `hfj_commit_change_set`
+- journal validation now runs against one prospective state under the household lock, rejects foreign actor attribution and changed idempotency-key reuse, and loads the Neon projection inside the mutation transaction so success implies immediate search visibility instead of an accepted Git commit with a stale projection
+- verification passes 17 focused service tests, 39 contract tests, 14 agent eval tests, 53 package/lifecycle tests, all 12 Neon integration tests with eight-migration up/down/up, 142 WebKit E2E tests with 22 intentional skips, and full repository verification with 423 application tests plus 12 expected database-gated skips; delivery and repair of the original orphan evidence remain operational follow-up
 - 2026-07-28 desktop OAuth/MCP follow-up accepts the merged ChatGPT client's bounded `/callback/<nonce>` IPv4-loopback redirect when deriving the consent-only CSP exception, rejects unrelated or malformed loopback paths, and renames only the hosted MCP identity to `fullwell-cloud`
 - server, dual-host package, lifecycle, eval, architecture, security, product-spec, and changelog surfaces distinguish `fullwell-cloud` from the unchanged `fullwell-local`; public `@fullwell/fullwell@1.1.19` is `latest` with registry SHA-1 `b02e6d7d4ae0c5c2a86e87afbbf00dc2eec6337d`, matching the prepared and cleanly downloaded artifact
 - focused server, 53-test dual-host packaging, 14-test eval, 14-test security, full repository verification with 423 passing application tests and 11 expected database skips, WebKit E2E with 142 passes and 22 intentional skips, and clean Codex/Claude package lifecycles pass; current Codex and Claude installations run package `1.1.19`

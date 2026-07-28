@@ -617,7 +617,7 @@ Tool results must remain concise. Large Markdown bodies and evidence lists shoul
 
 Input: optional `household_id`.
 
-Output: the stable authenticated Fullwell user ID and display data, editable/readable households with roles, default household, pending invitation/import intent, granted scopes, current repository HEADs, and the selected household's snack and recipe onboarding states. The stable user ID is non-secret and lets installed clients isolate resumable local working drafts without using display names. For a selected household, also return both onboarding profile Markdown documents with revisions and a deterministic item identity index capped at 200 entries with an explicit truncation flag. Resolve the repository HEAD, household projection HEAD, membership projection HEAD, onboarding state, profiles, and item index under the household lock; reject drift rather than returning a mixed snapshot. Reject a supplied household ID unless the caller has a current membership before reading repository state.
+Output: the stable authenticated Fullwell user ID, authenticated actor ID, and display data; editable/readable households with roles; default household; pending invitation/import intent; granted scopes; current repository HEADs; and the selected household's snack and recipe onboarding states. The stable user ID is non-secret and lets installed clients isolate resumable local working drafts without using display names. The actor ID is the only valid attribution for new evidence submitted by this authenticated contributor; clients must not substitute the user ID or query household members to discover it. For a selected household, also return both onboarding profile Markdown documents with revisions and a deterministic item identity index capped at 200 entries with an explicit truncation flag. Resolve the repository HEAD, household projection HEAD, membership projection HEAD, onboarding state, profiles, and item index under the household lock; reject drift rather than returning a mixed snapshot. Reject a supplied household ID unless the caller has a current membership before reading repository state.
 
 #### `hfj_update_user_display_name`
 
@@ -719,11 +719,11 @@ Output: the current item variant, typed frontmatter, full Markdown, cited eviden
 
 #### `hfj_append_evidence`
 
-Input: `household_id`, one to 100 typed evidence records, migration ID when applicable, `idempotency_key`, `expected_head`.
+Input: `household_id`, one to 100 typed evidence records attributed to the authenticated actor, migration ID when applicable, `idempotency_key`, `expected_head`.
 
 Output: evidence IDs, duplicate/replayed IDs, commit, and updated HEAD.
 
-Reject any evidence record that contains credentials, session cookies, raw message bodies beyond allowed minimal summaries, or unknown fields. Stable locators are private by default. This generic tool accepts only non-delivery evidence; delivery-order evidence must use the provider-scoped delivery commit.
+Reject evidence attributed to another actor and any evidence record that contains credentials, session cookies, raw message bodies beyond allowed minimal summaries, or unknown fields. Stable locators are private by default. This generic tool accepts only non-delivery evidence; delivery-order evidence must use the provider-scoped delivery commit. Load, validate, and update the projection inside the household transaction so a successful response means the evidence is durably visible to the next request.
 
 #### `hfj_commit_change_set`
 
@@ -731,13 +731,15 @@ Input:
 
 - `household_id`;
 - `expected_head`;
-- one to 50 typed changes;
-- each change's entity kind, entity ID, operation, expected blob revision, typed frontmatter, agent-authored Markdown, evidence IDs, and report assertions;
+- zero to 100 new typed non-delivery evidence records attributed to the authenticated actor;
+- one to 100 non-delivery items, one to 20 reports, or both;
+- each item's entity ID, expected blob revision when updating, typed frontmatter, agent-authored Markdown, and evidence IDs;
+- each report's typed assertions;
 - `idempotency_key`.
 
-Output: commit, new HEAD, per-entity blob revisions, validation results, and projection checkpoint.
+Output: evidence and item IDs, report count, commit, new HEAD, and durable projection checkpoint.
 
-Allowed operations are create item, update item, append correction, update report, and update index for non-delivery items/reports only. `delivery_dish` and `delivery_index` are excluded from this generic writer. The server maps entity kinds to paths; callers never provide arbitrary paths.
+Allowed operations are append non-delivery evidence or corrections, create or update a non-delivery item, and update a non-delivery report or index. `delivery_dish`, delivery-order evidence, and `delivery_index` are excluded from this generic writer. The server maps entity kinds to paths; callers never provide arbitrary paths. Evidence, citing items, and reports in one bounded ordinary update are validated against one prospective state under the household lock and committed atomically in one signed Git commit. Invalid evidence, attribution, report citations, expected item revisions, or stale HEADs fail before Git. The transaction-scoped projection and search index are durable before success; exact idempotent replay returns the original commit and changed payload reuse conflicts.
 
 ### 12.2a Food-delivery history
 

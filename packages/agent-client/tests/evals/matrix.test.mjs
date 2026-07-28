@@ -327,6 +327,18 @@ test("each eval has a unique identity and targets both host matrices", async () 
   assert.ok(finalConfirmation?.invariants.includes("one_final_fullwell_write"));
   assert.ok(finalConfirmation?.invariants.includes("delete_checkpoint_only_after_success"));
   assert.ok(finalConfirmation?.invariants.includes("offer_restock_try_it_after_successful_completion"));
+  const recoveredCloudSave = matrix.cases.find((testCase) => testCase.id === "missing-local-state-resumes-cloud-recipe-save");
+  assert.deepEqual(recoveredCloudSave?.required_tools, [
+    "fullwell_local_household_load",
+    "hfj_get_context",
+    "hfj_search_items",
+    "hfj_commit_change_set",
+  ]);
+  assert.ok(recoveredCloudSave?.invariants.includes("one_atomic_evidence_and_item_change_set"));
+  assert.ok(recoveredCloudSave?.invariants.includes("use_context_actor_id"));
+  assert.ok(expected.forbidden_behaviors.includes("initializes_or_hydrates_a_local_household_after_recovering_an_existing_cloud_household"));
+  assert.ok(expected.forbidden_behaviors.includes("guesses_or_looks_up_the_current_actor_instead_of_using_context_actor_id"));
+  assert.ok(expected.forbidden_behaviors.includes("splits_a_bounded_ordinary_journal_update_into_evidence_and_item_writes"));
   const localCompletion = matrix.cases.find((testCase) => testCase.id === "recipe-no-sources-finishes-guided-run");
   assert.ok(localCompletion?.invariants.includes("offer_restock_try_it_after_successful_completion"));
   assert.ok(localCompletion?.invariants.includes("explain_history_based_product_and_store"));

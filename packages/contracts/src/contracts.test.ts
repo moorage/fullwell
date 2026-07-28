@@ -1463,6 +1463,11 @@ describe("contract boundaries", () => {
     })).toThrow();
     expect(() => parseToolInput("hfj_commit_change_set", {
       ...mutation,
+      evidence: [deliveryEvidence],
+      items: [onboardingItem(1)],
+    })).toThrow();
+    expect(() => parseToolInput("hfj_commit_change_set", {
+      ...mutation,
       items: [deliveryDish],
     })).toThrow();
     expect(() => parseToolInput("hfj_commit_change_set", {
@@ -1500,6 +1505,22 @@ describe("contract boundaries", () => {
     expect(() => parseToolInput("hfj_commit_onboarding", {
       ...mutation,
       reports: [nonDeliveryReportFixture(), deliveryReport],
+    })).toThrow();
+    expect(parseToolInput("hfj_commit_change_set", {
+      ...mutation,
+      idempotency_key: "atomic-journal-change-1",
+      evidence: [onboardingEvidence(1)],
+      items: [onboardingItem(1)],
+    })).toMatchObject({
+      evidence: [{ id: "evd_0000000000000001" }],
+      items: [{ id: "itm_0000000000000001" }],
+      reports: [],
+    });
+    expect(() => parseToolInput("hfj_commit_change_set", {
+      ...mutation,
+      idempotency_key: "duplicate-journal-evidence-1",
+      evidence: [onboardingEvidence(1), onboardingEvidence(1)],
+      items: [onboardingItem(1)],
     })).toThrow();
     expect(parseToolInput("hfj_get_profile", {
       household_id: mutation.household_id,

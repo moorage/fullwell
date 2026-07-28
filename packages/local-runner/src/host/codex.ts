@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
+import type { RunnerBrowserBackend } from "../config.js";
 import { isolatedCodexEnvironment, verifyIsolatedCodexCapabilities } from "./codex-capabilities.js";
 import { HostResolutionSchema, HostTerminalSchema, type AgentHostPort, type HostActInput, type HostResolveInput } from "./types.js";
 import { actionPrompt, CODEX_OUTPUT_JSON_SCHEMA, CODEX_TERMINAL_OUTPUT_JSON_SCHEMA, resolutionPrompt } from "./prompt.js";
@@ -32,15 +33,16 @@ export class CodexHostAdapter implements AgentHostPort {
   constructor(
     private readonly executable: string,
     private readonly projectDirectory: string,
+    private readonly browserBackend: RunnerBrowserBackend,
     private readonly processRunner: ProcessRunner = runProcess,
   ) {}
 
   async resolve(input: HostResolveInput) {
-    return HostResolutionSchema.parse(await this.invoke(input, resolutionPrompt(input, await restockingSnapshotPrompt(input.snapshotDirectory)), CODEX_OUTPUT_JSON_SCHEMA));
+    return HostResolutionSchema.parse(await this.invoke(input, resolutionPrompt(input, await restockingSnapshotPrompt(input.snapshotDirectory), this.browserBackend), CODEX_OUTPUT_JSON_SCHEMA));
   }
 
   async act(input: HostActInput) {
-    return HostTerminalSchema.parse(await this.invoke(input, actionPrompt(input), CODEX_TERMINAL_OUTPUT_JSON_SCHEMA));
+    return HostTerminalSchema.parse(await this.invoke(input, actionPrompt(input, this.browserBackend), CODEX_TERMINAL_OUTPUT_JSON_SCHEMA));
   }
 
   private async invoke(input: HostResolveInput, prompt: string, outputSchema: object): Promise<unknown> {
@@ -48,12 +50,14 @@ export class CodexHostAdapter implements AgentHostPort {
     const schemaPath = join(temporary, "output.schema.json");
     const outputPath = join(temporary, "result.json");
     try {
-      await verifyIsolatedCodexCapabilities(this.executable, this.projectDirectory, this.processRunner, input.signal);
+      await verifyIsolatedCodexCapabilities(this.executable, this.projectDirectory, this.browserBackend, this.processRunner, input.signal);
       await writeFile(schemaPath, `${JSON.stringify(outputSchema)}\n`, { encoding: "utf8", mode: 0o600 });
+      const browserFeatures = this.browserBackend === "chrome"
+        ? ["--enable", "browser_use", "--enable", "browser_use_external"]
+        : ["--disable", "browser_use", "--disable", "browser_use_external"];
       const common = [
         "--enable", "computer_use",
-        "--enable", "browser_use",
-        "--enable", "browser_use_external",
+        ...browserFeatures,
         "--disable", "shell_tool",
         "--disable", "unified_exec",
         "--disable", "standalone_web_search",
@@ -80,7 +84,7 @@ export class CodexHostAdapter implements AgentHostPort {
         signal: input.signal,
         timeoutMilliseconds: 10 * 60_000,
         maxOutputBytes: 1_048_576,
-        env: isolatedCodexEnvironment(this.projectDirectory),
+        env: isolatedCodexEnvironment(this.projectDirectory, this.browserBackend),
       });
       const threadId = codexThreadId(result.stdout) ?? input.resumeSessionId;
       const parsed: unknown = JSON.parse(await readFile(outputPath, "utf8"));

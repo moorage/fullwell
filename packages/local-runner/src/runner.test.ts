@@ -47,6 +47,7 @@ function runnerConfig(root: string) {
     household_id: householdId,
     device_id: deviceId,
     host: "codex",
+    browser_backend: "chrome",
     host_executable: "/usr/local/bin/codex",
     host_project_directory: "/tmp/fullwell-isolated-project-env",
     retailer_origin: "https://retailer.example.test/",

@@ -25,7 +25,7 @@ export const guides: readonly Guide[] = [
     outcome: "Fullwell opens the browser and WhatsApp confirmations you need; the local runner keeps product reasoning and retailer access on your Mac.",
     steps: [
       { title: "Ask in chat", body: "Tell ChatGPT or Claude which cloud household should receive WhatsApp requests." },
-      { title: "Review the browser setup", body: "Sign in to Fullwell and approve the runner-to-household link. Do not paste account codes or access keys into chat." },
+      { title: "Choose the background browser", body: "Authorize Safari through Codex Computer Use or Chrome through Browser Use, then sign in to Fullwell and approve the runner-to-household link. A browser you used for a foreground order-history audit does not authorize the runner. Safari uses broader macOS app control; Claude Code supports Chrome only." },
       { title: "Confirm in WhatsApp", body: "Send the displayed one-time linking message, then approve the pending connection in Fullwell." },
       { title: "Keep the runner available", body: "The local runner must be running on your Mac to receive and complete restocking work. You can stop it later by asking in chat." },
     ],

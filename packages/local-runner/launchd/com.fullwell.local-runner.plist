@@ -15,11 +15,6 @@
   <true/>
   <key>ProcessType</key>
   <string>Background</string>
-  <key>EnvironmentVariables</key>
-  <dict>
-    <key>BROWSER_USE_AVAILABLE_BACKENDS</key>
-    <string>chrome</string>
-  </dict>
   <key>ThrottleInterval</key>
   <integer>10</integer>
 </dict>

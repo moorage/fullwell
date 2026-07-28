@@ -202,6 +202,10 @@ describe("web experience", () => {
     expect(screen.getByRole("link", { name: "Share a collection" })).toHaveAttribute("href", "/guides/collections/share");
     expect(screen.getAllByLabelText("Works with ChatGPT and Claude")).toHaveLength(5);
 
+    const whatsappGuide = renderApp("/guides/whatsapp");
+    expect(screen.getByText(/Authorize Safari through Codex Computer Use or Chrome through Browser Use/)).toBeVisible();
+    expect(screen.getByText(/Safari uses broader macOS app control/)).toBeVisible();
+    whatsappGuide.unmount();
     const namingGuide = renderApp("/guides/household-name");
     expect(screen.getByText("“Rename our household to Garden Table.”")).toBeVisible();
     expect(screen.getByText(/Only a household owner/)).toBeVisible();

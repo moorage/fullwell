@@ -14,13 +14,20 @@ const resolveInput = {
   signal: new AbortController().signal,
 };
 
-function codexCapabilityResult(invocation: Parameters<ProcessRunner>[0]) {
+function codexCapabilityResult(invocation: Parameters<ProcessRunner>[0], browserBackend: "chrome" | "safari" = "chrome") {
   if (invocation.args[0] === "mcp") {
-    return { stdout: "Name  Command  Args  Env  Cwd  Status  Auth\nnode_repl  node  -  -  -  enabled  Unsupported\n", stderr: "" };
+    return {
+      stdout: browserBackend === "chrome"
+        ? "Name  Command  Args  Env  Cwd  Status  Auth\nnode_repl  node  -  -  -  enabled  Unsupported\n"
+        : "Name  Command  Args  Env  Cwd  Status  Auth\ncomputer-use  computer-use  mcp  -  -  enabled  Unsupported\nnode_repl  node  -  -  -  enabled  Unsupported\n",
+      stderr: "",
+    };
   }
   if (invocation.args[0] === "plugin") {
     return {
-      stdout: "PLUGIN  STATUS  VERSION  PATH\nbrowser@openai-bundled  installed, enabled  1  /browser\nchrome@openai-bundled  installed, enabled  1  /chrome\n",
+      stdout: browserBackend === "chrome"
+        ? "PLUGIN  STATUS  VERSION  PATH\nbrowser@openai-bundled  installed, enabled  1  /browser\nchrome@openai-bundled  installed, enabled  1  /chrome\n"
+        : "PLUGIN  STATUS  VERSION  PATH\ncomputer-use@openai-bundled  installed, enabled  1  /computer-use\n",
       stderr: "",
     };
   }
@@ -50,6 +57,7 @@ describe("agent host adapters", () => {
       expect(invocation.args).toContain("web_search=\"disabled\"");
       expect(invocation.cwd).toBe(resolveInput.snapshotDirectory);
       expect(invocation.env?.CODEX_HOME).toBe(join(resolveInput.snapshotDirectory, ".codex-home"));
+      expect(invocation.env?.BROWSER_USE_AVAILABLE_BACKENDS).toBe("chrome");
       expect(invocation.args).not.toContain("--dangerously-bypass-approvals-and-sandbox");
       expect(invocation.stdin).toContain("<provider-message>");
       expect(invocation.stdin).toContain("<snapshot-files>");
@@ -87,7 +95,7 @@ describe("agent host adapters", () => {
       }));
       return { stdout: `${JSON.stringify({ type: "thread.started", thread_id: "codex-session" })}\n`, stderr: "" };
     });
-    await expect(new CodexHostAdapter("/usr/local/bin/codex", resolveInput.snapshotDirectory, processRunner).resolve(resolveInput)).resolves.toEqual({
+    await expect(new CodexHostAdapter("/usr/local/bin/codex", resolveInput.snapshotDirectory, "chrome", processRunner).resolve(resolveInput)).resolves.toEqual({
       kind: "needs_input", message: "Salted or unsalted?", host_session_id: "codex-session",
     });
   });
@@ -108,10 +116,44 @@ describe("agent host adapters", () => {
     });
   });
 
+  it("invokes Safari through Computer Use without a Chrome backend", async () => {
+    const processRunner: ProcessRunner = vi.fn(async (invocation) => {
+      const capabilityResult = codexCapabilityResult(invocation, "safari");
+      if (capabilityResult !== null) return capabilityResult;
+      expect(invocation.env?.BROWSER_USE_AVAILABLE_BACKENDS).toBeUndefined();
+      expect(invocation.args.slice(invocation.args.indexOf("browser_use") - 1, invocation.args.indexOf("browser_use") + 1)).toEqual(["--disable", "browser_use"]);
+      expect(invocation.stdin).toContain("installed Computer Use skill through node_repl");
+      expect(invocation.stdin).toContain("com.apple.Safari");
+      expect(invocation.stdin).toContain("Do not operate another app");
+      const outputIndex = invocation.args.indexOf("--output-last-message") + 1;
+      const outputPath = invocation.args[outputIndex];
+      if (outputPath === undefined) throw new Error("Missing output path");
+      await writeFile(outputPath, JSON.stringify({
+        kind: "blocked",
+        selected_item_reference: null,
+        retailer_origin: null,
+        retailer_locator: null,
+        baseline_quantity: null,
+        target_quantity: null,
+        currency: null,
+        incremental_amount_minor: null,
+        automatic_add_maximum_minor: null,
+        authorization_mode: null,
+        message: "The store needs you to sign in.",
+        host_session_id: null,
+      }));
+      return { stdout: `${JSON.stringify({ type: "thread.started", thread_id: "safari-session" })}\n`, stderr: "" };
+    });
+
+    await expect(new CodexHostAdapter("/usr/local/bin/codex", resolveInput.snapshotDirectory, "safari", processRunner).resolve(resolveInput)).resolves.toEqual({
+      kind: "blocked", message: "The store needs you to sign in.", host_session_id: "safari-session",
+    });
+  });
+
   it("cleans temporary Codex schema files after host failure", async () => {
     const directory = await mkdtemp(join(tmpdir(), "runner-host-test-"));
     try {
-      const adapter = new CodexHostAdapter("/missing", directory, async () => { throw new Error("host failure"); });
+      const adapter = new CodexHostAdapter("/missing", directory, "chrome", async () => { throw new Error("host failure"); });
       await expect(adapter.resolve({ ...resolveInput, snapshotDirectory: directory })).rejects.toThrow(/host failure/);
     } finally {
       await rm(directory, { recursive: true, force: true });
@@ -119,7 +161,7 @@ describe("agent host adapters", () => {
   });
 
   it("resumes host sessions, runs action prompts, and rejects unsuccessful structured output", async () => {
-    const codex = new CodexHostAdapter("/usr/local/bin/codex", resolveInput.snapshotDirectory, async (invocation) => {
+    const codex = new CodexHostAdapter("/usr/local/bin/codex", resolveInput.snapshotDirectory, "chrome", async (invocation) => {
       const capabilityResult = codexCapabilityResult(invocation);
       if (capabilityResult !== null) return capabilityResult;
       expect(invocation.args).toContain("resume");
@@ -193,7 +235,7 @@ describe("agent host adapters", () => {
       }
       throw new Error("The model must not start after capability drift");
     });
-    await expect(new CodexHostAdapter("/usr/local/bin/codex", resolveInput.snapshotDirectory, processRunner).resolve(resolveInput))
+    await expect(new CodexHostAdapter("/usr/local/bin/codex", resolveInput.snapshotDirectory, "chrome", processRunner).resolve(resolveInput))
       .rejects.toThrow(/unexpected: github/);
   });
 
@@ -208,7 +250,7 @@ describe("agent host adapters", () => {
       }
       throw new Error("The model must not start after plugin drift");
     });
-    await expect(new CodexHostAdapter("/usr/local/bin/codex", resolveInput.snapshotDirectory, processRunner).resolve(resolveInput))
+    await expect(new CodexHostAdapter("/usr/local/bin/codex", resolveInput.snapshotDirectory, "chrome", processRunner).resolve(resolveInput))
       .rejects.toThrow(/unexpected: github@personal/);
   });
 });

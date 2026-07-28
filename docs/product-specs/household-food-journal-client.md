@@ -291,7 +291,7 @@ When the agent finds an existing Household Food Journal workspace, offer a one-t
 
 ### 5.8 Restock from WhatsApp
 
-1. Install and connect one Fullwell local runner to one household, choose Codex or Claude Code, and approve one retailer origin directly in the host/browser. Codex uses a dedicated trusted project, a separate `CODEX_HOME`, and a keyring-backed login rather than the user's general host configuration.
+1. Install and connect one Fullwell local runner to one household, choose Codex or Claude Code, explicitly authorize one supported background browser, and approve one retailer origin directly in that host/browser. This is separate from any browser chosen for a foreground purchase-history audit. Codex supports Safari through the official Computer Use plugin and Chrome through Browser Use; Claude Code supports Chrome only. Missing, arbitrary, incompatible host/browser, and legacy implicit choices fail before launch and never fall through to another browser. A purpose-built `set-browser` migration preserves an existing device/link while recording the user's explicit choice. Codex uses a dedicated trusted project, a separate `CODEX_HOME`, and a keyring-backed login rather than the user's general host configuration. Safari Computer Use targets only `com.apple.Safari` in the fixed prompt but has broader macOS accessibility/screenshot authority than Chrome's origin-scoped Browser Use integration.
 2. Grant exact `journal:read` and `runner:messages` OAuth scopes. Secrets remain in Keychain; no token is copied.
 3. From Account, create a ten-minute WhatsApp link, send the prefilled link text, and return to the same recent browser session to confirm the pending connection.
 4. Send a restocking request such as `We're out of cashews, get more`, `Buy a head of parsley`, or `I need more mayo - not the Japanese one`. The server routes it without reading household grocery files or choosing a product.
@@ -513,7 +513,7 @@ The client must never request, type, store, or echo passwords, one-time codes, O
 
 Restocking provider text is data for one fixed workflow and cannot broaden tools, snapshot paths, approved origins, MCP access, or purchase authority.
 
-Before every Codex host turn, the runner must reject any configured MCP other than `node_repl`, require the Browser and Chrome plugins, and disable apps, hooks, shell, search, multi-agent work, remote plugins, and user rules. Browser Use stores only the approved exact origin in the isolated home's persistent policy. Missing exact-origin approval or capability drift returns `blocked`; `never_ask` or a broad browser approval policy is not an acceptable fallback.
+Before every Codex host turn, the runner must reject any configured MCP other than `node_repl`, require the Browser and Chrome plugins, and disable apps, hooks, shell, search, multi-agent work, remote plugins, and user rules. It must load the exact supported background backend from strict runner config and pass that value to both the host process and LaunchAgent; it may not infer Chrome from an absent or different browser choice. Browser Use stores only the approved exact origin in the isolated home's persistent policy. Missing exact-origin approval or capability drift returns `blocked`; `never_ask` or a broad browser approval policy is not an acceptable fallback.
 
 ### 9.6 First-person assistant voice
 

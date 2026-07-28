@@ -9,10 +9,12 @@ import { HouseholdIdSchema } from "@hfj/contracts";
 import { connectNativeRunner } from "./auth/connect.js";
 import { MacOSKeychain } from "./auth/keychain.js";
 import { OAuthTokenManager } from "./auth/token-manager.js";
-import { defaultApplicationRoot, parseRunnerConfig, type RunnerConfig } from "./config.js";
+import { defaultApplicationRoot, parseRunnerBrowserBackend, parseRunnerConfig, parseRunnerHost, setRunnerBrowserBackend, type RunnerBrowserBackend, type RunnerConfig } from "./config.js";
 import { FullwellGatewayClient } from "./gateway-client.js";
 import { ClaudeHostAdapter } from "./host/claude.js";
+import { verifyIsolatedCodexCapabilities } from "./host/codex-capabilities.js";
 import { CodexHostAdapter } from "./host/codex.js";
+import { runProcess } from "./host/process.js";
 import type { AgentHostPort } from "./host/types.js";
 import { LaunchdManager } from "./launchd.js";
 import { stableNode24Executable } from "./node-runtime.js";
@@ -34,17 +36,39 @@ export async function runCli(argv: readonly string[]): Promise<void> {
     case "connect":
       await connect(applicationRoot, configPath, options);
       return;
+    case "set-browser":
+      await setBrowser(configPath, launchd, parseRunnerBrowserBackend(requiredOption(options, "browser")));
+      return;
     case "install": {
-      await loadConfig(configPath);
+      const config = await loadConfig(configPath);
+      if (config.host === "codex") {
+        await verifyIsolatedCodexCapabilities(
+          config.host_executable,
+          requiredCodexProjectDirectory(config),
+          config.browser_backend,
+          runProcess,
+          AbortSignal.timeout(60_000),
+        );
+      }
       const entrypoint = fileURLToPath(import.meta.url);
-      await launchd.install([await stableNode24Executable(), entrypoint, "run", "--root", applicationRoot], join(applicationRoot, "logs"));
+      await launchd.install(
+        [await stableNode24Executable(), entrypoint, "run", "--root", applicationRoot],
+        join(applicationRoot, "logs"),
+        config.browser_backend,
+      );
       process.stdout.write("Fullwell local runner installed and started.\n");
       return;
     }
     case "status": {
       const config = await optionalConfig(configPath);
       const service = await launchd.status();
-      process.stdout.write(`${JSON.stringify({ connected: config !== null, service, host: config?.host ?? null, device_id: config?.device_id ?? null })}\n`);
+      process.stdout.write(`${JSON.stringify({
+        connected: config !== null,
+        service,
+        host: config?.host ?? null,
+        browser_backend: config?.browser_backend ?? null,
+        device_id: config?.device_id ?? null,
+      })}\n`);
       return;
     }
     case "run": {
@@ -71,10 +95,10 @@ export async function runCli(argv: readonly string[]): Promise<void> {
 }
 
 async function connect(applicationRoot: string, configPath: string, options: ReadonlyMap<string, string>): Promise<void> {
+  const browserBackend = parseRunnerBrowserBackend(requiredOption(options, "browser"));
   const origin = new URL(requiredOption(options, "origin"));
   const householdId = HouseholdIdSchema.parse(requiredOption(options, "household"));
-  const host = requiredOption(options, "host");
-  if (host !== "codex" && host !== "claude") throw new Error("--host must be codex or claude");
+  const host = parseRunnerHost(requiredOption(options, "host"), browserBackend);
   const retailerOrigin = new URL(requiredOption(options, "retailer"));
   const name = options.get("name") ?? `${basename(homedir())}'s Mac`;
   const hostExecutable = await findExecutable(options.get("host-executable") ?? host);
@@ -90,6 +114,7 @@ async function connect(applicationRoot: string, configPath: string, options: Rea
     household_id: householdId,
     device_id: device.device_id,
     host,
+    browser_backend: browserBackend,
     host_executable: hostExecutable,
     host_project_directory: hostProjectDirectory,
     retailer_origin: retailerOrigin.toString(),
@@ -104,12 +129,23 @@ async function connect(applicationRoot: string, configPath: string, options: Rea
   process.stdout.write(`Runner ${device.device_id} registered. Complete the WhatsApp link in the opened Fullwell account page.\n`);
 }
 
+async function setBrowser(
+  configPath: string,
+  launchd: LaunchdManager,
+  browserBackend: RunnerBrowserBackend,
+): Promise<void> {
+  const config = setRunnerBrowserBackend(JSON.parse(await readFile(configPath, "utf8")), browserBackend);
+  await launchd.uninstall();
+  await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  process.stdout.write(`Fullwell local runner authorized for ${browserBackend}. Run install after configuring the matching host plugin.\n`);
+}
+
 async function createRuntime(config: RunnerConfig): Promise<LocalRunner> {
   const keychain = new MacOSKeychain(KEYCHAIN_ACCOUNT);
   const tokens = new OAuthTokenManager(new URL(config.public_origin), keychain);
   const gateway = new FullwellGatewayClient(new URL(config.public_origin), tokens);
   const host: AgentHostPort = config.host === "codex"
-    ? new CodexHostAdapter(config.host_executable, requiredCodexProjectDirectory(config))
+    ? new CodexHostAdapter(config.host_executable, requiredCodexProjectDirectory(config), config.browser_backend)
     : new ClaudeHostAdapter(config.host_executable);
   return new LocalRunner(
     config,

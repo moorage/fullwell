@@ -17,11 +17,11 @@ export class ClaudeHostAdapter implements AgentHostPort {
   ) {}
 
   async resolve(input: HostResolveInput) {
-    return HostResolutionSchema.parse(await this.invoke(input, resolutionPrompt(input, await restockingSnapshotPrompt(input.snapshotDirectory))));
+    return HostResolutionSchema.parse(await this.invoke(input, resolutionPrompt(input, await restockingSnapshotPrompt(input.snapshotDirectory), "chrome")));
   }
 
   async act(input: HostActInput) {
-    return HostTerminalSchema.parse(await this.invoke(input, actionPrompt(input)));
+    return HostTerminalSchema.parse(await this.invoke(input, actionPrompt(input, "chrome")));
   }
 
   private async invoke(input: HostResolveInput, prompt: string): Promise<unknown> {

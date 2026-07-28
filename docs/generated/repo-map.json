@@ -824,6 +824,14 @@
                   "children": [
                     {
                       "type": "file",
+                      "name": "fullwell-face-square.png"
+                    },
+                    {
+                      "type": "file",
+                      "name": "fullwell-full-body-tall.png"
+                    },
+                    {
+                      "type": "file",
                       "name": "fullwell-social-card.png"
                     },
                     {
@@ -1271,6 +1279,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-27-durable-computer-use-images.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-27-fullwell-character-artwork.md"
                 },
                 {
                   "type": "file",

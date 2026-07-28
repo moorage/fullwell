@@ -6,13 +6,18 @@ import { LaunchdManager, renderLaunchAgent } from "./launchd.js";
 
 describe("LaunchdManager", () => {
   it("renders a fixed secret-free LaunchAgent definition", () => {
-    const definition = renderLaunchAgent(["/usr/local/bin/node", "/opt/fullwell/cli.js", "run"], "/tmp/fullwell&logs");
+    const definition = renderLaunchAgent(["/usr/local/bin/node", "/opt/fullwell/cli.js", "run"], "/tmp/fullwell&logs", "chrome");
     expect(definition).toContain("com.fullwell.local-runner");
     expect(definition).toContain("/opt/fullwell/cli.js");
     expect(definition).toContain("/tmp/fullwell&amp;logs/runner.log");
     expect(definition).toContain("BROWSER_USE_AVAILABLE_BACKENDS");
     expect(definition).toContain("<string>chrome</string>");
+    expect(definition.split("<string>chrome</string>")).toHaveLength(2);
     expect(definition).not.toMatch(/access.token|refresh.token|authorization/i);
+
+    const safari = renderLaunchAgent(["/usr/local/bin/node", "/opt/fullwell/cli.js", "run"], "/tmp/fullwell-logs", "safari");
+    expect(safari).not.toContain("BROWSER_USE_AVAILABLE_BACKENDS");
+    expect(safari).not.toContain("<string>safari</string>");
   });
 
   it("installs, inspects, and removes the per-user LaunchAgent idempotently", async () => {
@@ -25,14 +30,15 @@ describe("LaunchdManager", () => {
       });
       const plist = join(root, "LaunchAgents/com.fullwell.local-runner.plist");
       const manager = new LaunchdManager(plist, execute);
-      await manager.install(["/usr/local/bin/node", "/opt/fullwell/cli.js", "run"], join(root, "logs"));
+      await manager.install(["/usr/local/bin/node", "/opt/fullwell/cli.js", "run"], join(root, "logs"), "chrome");
       expect((await stat(plist)).mode & 0o777).toBe(0o600);
       expect(await manager.readDefinition()).toContain("/usr/local/bin/node");
       expect(await manager.status()).toBe("running");
       expect(calls.some((args) => args[0] === "bootstrap")).toBe(true);
+      expect(calls).toContainEqual(["bootout", expect.stringMatching(/^gui\/\d+$/), plist]);
       await manager.uninstall();
       expect(await manager.readDefinition()).toBeNull();
-      await expect(manager.install(["relative-node"], join(root, "logs"))).rejects.toThrow(/absolute path/);
+      await expect(manager.install(["relative-node"], join(root, "logs"), "chrome")).rejects.toThrow(/absolute path/);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

@@ -12,6 +12,9 @@ This plan promotes `docs/ideas/backlog/evidence-backed-grocery-restocking.md`. I
 
 ## Progress
 
+- [x] 2026-07-28T02:42Z: Made the local runner require, persist, report, and install only an explicitly authorized browser backend. Safari and legacy implicit-Chrome configs now fail before OAuth, registration, or launch; the old LaunchAgent is stopped with its connection data preserved. All 41 runner tests, 61 focused web tests, 142 WebKit checks with 22 intentional skips, 422 application tests with 11 database-gated skips, lint, typecheck, build, docs, and ExecPlan verification pass.
+- [x] 2026-07-28T05:10Z: Extended the explicit backend contract to Safari after the user accepted the broader macOS Computer Use boundary. Safari now requires Codex plus the official Computer Use plugin, targets `com.apple.Safari`, omits the Chrome backend variable, and can migrate the preserved legacy device/link through `set-browser`; direct Computer Use launched Safari and returned its accessibility state without retailer mutation.
+- [x] 2026-07-28T05:23Z: Switched only the dedicated Fullwell Codex home to Computer Use, removed its stale Chrome-specific node-repl environment, migrated the preserved runner config to Safari, and restarted the original linked device. Install-time capability preflight, a foreground empty poll, LaunchAgent health, a fresh noninteractive Safari inspection, 42 runner tests, 98 web tests, and the complete repository verify gate pass.
 - [x] 2026-07-27T06:07Z: Removed only the five-day-old stale WhatsApp response, preserved and claimed the new restocking request, renewed the existing runner's expired OAuth grant, and confirmed the request stops before cart control because the live 3,456-file journal exceeds an obsolete 2,000-file runner snapshot cap.
 - [x] 2026-07-27T06:07Z: Aligned the runner manifest, Git adapter, and snapshot service to the supported 10,000-item plus 10,000-evidence journal capacity and three fixed compatibility files. One bounded Git object batch replaces per-file process fan-out; exact-limit contracts, the real 20,000-path repository test, runner tests, and server typecheck pass while the 1 MiB/file and 5 MiB total limits remain unchanged.
 - [x] 2026-07-27T06:23Z: The corrected live snapshot downloaded and atomically installed all 3,456 files, exposing a second scale boundary when 2,616 raw evidence documents expanded the host prompt to 3.13 MiB. The runner now retains and validates those immutable files locally but sends the host only the profile, recurring report, and all 837 item records with their evidence citations and exact product/store provenance.
@@ -61,9 +64,14 @@ This plan promotes `docs/ideas/backlog/evidence-backed-grocery-restocking.md`. I
 - [x] Milestone 5 - integrate follow-ups, idempotent add-to-cart behavior, the fake retailer, and full message-to-cart tests.
 - [ ] Milestone 6 - implement account/setup UX, operator surfaces, documentation, and visible workflow evidence.
 - [ ] Milestone 7 - complete staging, security, load, recovery, cost, privacy, cross-host, rollout, and rollback validation.
+- [x] Milestone 9 - require explicit supported background-browser authorization and remove implicit Chrome fallback.
 
 ## Surprises & Discoveries
 
+- 2026-07-28: The runner did not carry any browser authorization in `config.json`; `packages/local-runner/src/launchd.ts` silently emitted `BROWSER_USE_AVAILABLE_BACKENDS=chrome` for every installation. The installed Browser Use runtime accepts only `chrome`, `iab`, and `cdp` backend keys, and its signed local-browser registry has Chrome/Edge compatibility but no Safari backend.
+- 2026-07-28: Safari is available through a different official boundary: the Computer Use plugin drives `com.apple.Safari` through macOS accessibility and screenshots and does not consume `BROWSER_USE_AVAILABLE_BACKENDS`. A live read-only probe launched Safari and returned its accessibility tree plus screenshot. This path has broader app-control authority and no exact-origin enforcement equivalent to Browser Use.
+- 2026-07-28: Installing the official Computer Use plugin also contributes a plugin-owned `computer-use` MCP entry. The first install-time preflight correctly rejected it as unexpected; Safari's exact expected MCP set is therefore `computer-use` plus `node_repl`, while Chrome retains `node_repl` only.
+- 2026-07-28: macOS returned `launchctl bootstrap` error 5 when replacement booted out only the service label, even though the generated plist was valid and the service then appeared absent. Booting out the exact plist definition and bootstrapping that same path succeeded immediately; installation now uses that deterministic definition lifecycle instead of timing retries.
 - 2026-07-27: A valid live household contains 3,456 restocking files and 2.57 MiB of text, comfortably inside the supported onboarding and byte capacities but above the original 2,000-file runner cap. Raising only that cap exposed a second scale defect: one Git process per file exhausted descriptors, so snapshot materialization now uses one size-checked `git cat-file --batch` process.
 - 2026-07-27: The first corrected live snapshot proved that transport capacity and model-input capacity are separate boundaries. The complete snapshot must remain local for hash/evidence validation, but repeating 2,616 raw evidence documents in the model prompt adds no selection authority beyond the exact provenance already summarized in each item and the cited recurrence report.
 - 2026-07-27: A queued envelope at the 20-attempt cap remains visible in aggregate health but is intentionally ineligible to lease. Without an authenticated recovery operation, deploying the compatibility fix cannot resume it; one recovery bit on the first claim of a fresh trusted process preserves the cap during ordinary retries while removing that operator dead end.
@@ -105,6 +113,8 @@ This plan promotes `docs/ideas/backlog/evidence-backed-grocery-restocking.md`. I
 
 ## Decision Log
 
+- 2026-07-28: Support the user's explicit Safari choice through Codex Computer Use, not by adding an invalid Safari value to Browser Use. Require exactly the Computer Use plugin and its `computer-use` MCP entry alongside `node_repl` for Safari, omit the Chrome backend environment, bind the fixed prompt to `com.apple.Safari` and the configured retailer origin, disclose the broader macOS boundary, reject Safari with Claude Code, and preserve existing device/link state through `set-browser`.
+- 2026-07-28: Treat background retailer browser authorization as a separate, explicit runner capability rather than reusing or persisting the grocery-audit browser label in household data. Require `--browser chrome` for the current runner, save that exact semantic choice, derive the LaunchAgent backend from it, and reject Safari before side effects with an actionable unsupported message. Do not claim Safari support by relabeling Chrome or by weakening the isolated host boundary.
 - 2026-07-27: Bound a restocking snapshot to 20,003 files: the existing 10,000 onboarding evidence records, 10,000 grocery items, and three allowlisted fixed files. Retain independent 1 MiB per-file and 5 MiB total uncompressed bounds, validate sizes from the Git tree before reading blobs, and materialize all selected blobs through one bounded batch process.
 - 2026-07-27: Keep every purchase-evidence file in the authenticated local snapshot and validate it against the server manifest, but exclude raw evidence bodies from the host prompt. Provide the compatibility profile/report and every item record instead; item Markdown is already required to retain observed stores, exact product provenance, and evidence IDs, including for one-off items below the recurrence threshold.
 - 2026-07-27: Permit `recover_saturated: true` only on the first claim made by a fresh local-runner process. The server scopes recovery to queued envelopes on that authenticated device's confirmed, active link and resets attempt/failure counters before the normal capped lease; all later process claims send `false`.
@@ -200,6 +210,21 @@ The pre-implementation feature critique identified five must-fix details and fol
 - The reminder appears only after a verified addition or idempotent recovery, never on ambiguity, confirmation, blocked, or cancelled responses, and the completed message remains within the existing 480-character contract.
 - Automatic authority is USD-only in version 1. Missing or non-USD prices block safely; retailer-displayed item discounts count toward the incremental amount, while taxes, delivery, tips, memberships, subscriptions, and checkout fees remain outside cart-add authority.
 - Setting updates preserve unrelated profile prose, replace rather than duplicate the canonical setting, accept zero as automatic-add disablement, and reject negative, malformed, non-USD, or greater-than-`USD 10,000.00` values with a bounded explanation.
+
+### Browser Authorization Correction Framing
+
+The 2026-07-28 correction used UX, privacy/security, host-platform, reliability, and architecture lenses. The core problem is capability consent: a browser selected for a foreground grocery audit does not automatically authorize a distinct background runner, but the runner must never fill that gap with a hidden default.
+
+The critique's must-fix findings are folded into Milestone 9:
+
+- require the runner browser option before OAuth, executable discovery, device registration, or config writes;
+- persist one parsed semantic backend and derive both status output and LaunchAgent environment from it;
+- reject missing, arbitrary, and host-incompatible values without creating a partially linked runner;
+- reject legacy configs that have no explicit browser authorization rather than migrating them to Chrome;
+- require an explicit `set-browser` migration before preserving a legacy device/link;
+- distinguish Safari Computer Use's broader macOS authority from Chrome Browser Use's exact-origin policy.
+
+The scope deliberately excludes storing a browser label in household journal data or inferring background consent from an earlier foreground audit. Safari Computer Use is an intentional broader local capability accepted by the user; the runner narrows its prompt and plugin set but does not claim an operating-system origin sandbox that Computer Use does not provide.
 
 ## Context and Orientation
 
@@ -801,6 +826,54 @@ Exit criteria:
 - legacy unpriced receipts, duplicate delivery, host failure, stale HEAD, and changed cart quantity remain fail-closed and idempotent;
 - checkout, payment, subscription, fees, novel substitution, and unrelated cart edits remain impossible.
 
+### Milestone 9 - Explicit Background Browser Authorization
+
+Files:
+
+- `packages/local-runner/src/config.ts`
+- `packages/local-runner/src/config.test.ts`
+- `packages/local-runner/src/cli.ts`
+- `packages/local-runner/src/cli.test.ts`
+- `packages/local-runner/src/host/adapters.test.ts`
+- `packages/local-runner/src/host/codex-capabilities.ts`
+- `packages/local-runner/src/host/codex.ts`
+- `packages/local-runner/src/launchd.ts`
+- `packages/local-runner/src/launchd.test.ts`
+- `packages/local-runner/launchd/com.fullwell.local-runner.plist`
+- `packages/local-runner/README.md`
+- `packages/local-runner/CHANGELOG.md`
+- `apps/web/src/routes/guides.tsx`
+- `apps/web/src/test/app.test.tsx`
+- `docs/ARCHITECTURE.md`
+- `docs/product-specs/household-food-journal-client.md`
+- `docs/IMPLEMENTATION_LOG.md`
+
+Tasks:
+
+1. Add a required semantic browser backend to strict runner configuration and validate it before external connection side effects.
+2. Render the Chrome environment only for Chrome; omit it for Safari and select the browser-specific Codex plugin and prompt path.
+3. Prove missing, arbitrary, incompatible host/browser, and legacy configurations fail closed; prove Safari requires Computer Use and never falls through to Chrome.
+4. Add an explicit migration that preserves the existing device/link while recording the user's selected backend and stopping any old LaunchAgent.
+5. Update setup guidance, architecture, and normative behavior with the Safari Computer Use capability and its broader macOS authority.
+
+Verification:
+
+- `npm test --workspace @fullwell/local-runner`
+- `npm run typecheck --workspace @fullwell/local-runner`
+- `npm run test --workspace @hfj/web`
+- `npm run verify`
+- `npm run verify:docs`
+- `npm run verify:execplan`
+
+Exit criteria:
+
+- a runner cannot connect, install, or start from a configuration that lacks explicit browser authorization;
+- `--browser safari` is accepted only with Codex, requires the Computer Use plugin, targets Safari, and emits no Chrome backend variable;
+- `--browser chrome` is persisted, reported, and rendered exactly once into the LaunchAgent environment;
+- no code silently substitutes Chrome for another browser choice;
+- a legacy device/link can be migrated only through an explicit `set-browser` command;
+- documentation does not imply that a foreground grocery-audit browser selection authorizes the background runner.
+
 ## Acceptance / Verification
 
 The feature is accepted only when all of the following are true:
@@ -821,6 +894,7 @@ The feature is accepted only when all of the following are true:
 - WhatsApp text cannot turn the workflow into a general remote agent task, and instructions embedded in provider text, journal files, or retailer pages cannot broaden the snapshot, tools, approved retailer origin, or cart-only authority.
 - Server/runner/browser logs, metrics, screenshots, Git, and package artifacts contain no message bodies, phone/provider identifiers, link tokens, household titles, food/store/cart data, cookies, credentials, or payment details.
 - Runner installation and removal do not alter canonical server Git, and local cache deletion does not delete server data.
+- Local-runner connection requires a separate explicit supported background-browser choice. Missing, arbitrary, incompatible host/browser, and legacy implicit choices fail before launch; Safari never falls through to Chrome, and neither backend is inferred from a grocery-audit browser selection.
 - Codex desktop is supported through the Milestone 0-selected stable path. Claude Code is supported if its Milestone 0 proof passes. Cowork is labeled unsupported for webhook invocation unless an official API is proven.
 - The screencast, release matrix, privacy review, operator evidence, and exact commands are recorded.
 

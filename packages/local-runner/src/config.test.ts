@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { defaultApplicationRoot, parseRunnerConfig } from "./config.js";
+import { defaultApplicationRoot, parseRunnerConfig, setRunnerBrowserBackend } from "./config.js";
 
 const valid = {
   public_origin: "https://fullwell.example.test",
   household_id: "hsh_0000000000000001",
   device_id: "dev_0000000000000001",
   host: "claude",
+  browser_backend: "chrome",
   host_executable: "/usr/local/bin/claude",
   host_project_directory: null,
   retailer_origin: "https://retailer.example.test/",
@@ -25,5 +26,17 @@ describe("parseRunnerConfig", () => {
     expect(() => parseRunnerConfig({ ...valid, host: "codex" })).toThrow(/isolated host project/);
     expect(() => parseRunnerConfig({ ...valid, host_project_directory: "/tmp/codex" })).toThrow(/Claude does not use/);
     expect(() => parseRunnerConfig({ ...valid, extra: true })).toThrow();
+    expect(parseRunnerConfig({
+      ...valid,
+      host: "codex",
+      browser_backend: "safari",
+      host_executable: "/usr/local/bin/codex",
+      host_project_directory: "/tmp/codex",
+    })).toMatchObject({ browser_backend: "safari" });
+    expect(() => parseRunnerConfig({ ...valid, browser_backend: "safari" })).toThrow(/Codex Computer Use/);
+    const legacy = Object.fromEntries(Object.entries(valid).filter(([key]) => key !== "browser_backend"));
+    expect(() => parseRunnerConfig(legacy)).toThrow(/no explicit background browser authorization/);
+    expect(setRunnerBrowserBackend(legacy, "chrome")).toMatchObject({ browser_backend: "chrome" });
+    expect(() => setRunnerBrowserBackend(legacy, "safari")).toThrow(/Codex Computer Use/);
   });
 });

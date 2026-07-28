@@ -7,7 +7,7 @@ The Fullwell local runner receives fixed-purpose restocking requests from the Fu
 - macOS with Keychain and `launchd`;
 - Node.js 24 installed through a stable path;
 - Codex or Claude Code installed and signed in;
-- a supported browser integration with access limited to one approved retailer origin;
+- an explicitly authorized Codex Computer Use integration for Safari, or a Browser Use integration for Chrome;
 - an existing Fullwell household and current `journal:read` plus `runner:messages` consent.
 
 The runner never asks for a retailer password, MFA code, cookie, payment credential, Meta token, or Git credential. Sign into the retailer and approve browser/site permissions directly in the host application.
@@ -22,17 +22,22 @@ fullwell-runner connect \
   --origin https://fullwell.ai \
   --household <household-id> \
   --host codex \
+  --browser safari \
   --host-project "$HOME/Projects/fullwell-isolated-project-env" \
   --retailer https://<approved-retailer-origin>
 fullwell-runner install
 fullwell-runner status
 ```
 
-`connect` opens the browser for OAuth with PKCE and then opens Account for the two-sided WhatsApp link. Tokens remain in macOS Keychain. `config.json` contains only non-secret identifiers, absolute executable and isolated-project paths, the public origin, and the approved retailer origin. The Codex runner rejects any effective MCP server other than `node_repl` and requires the Browser and Chrome plugins before each host invocation. Apps, hooks, shell, search, and user rules remain disabled. The installed LaunchAgent contains no secret and selects a stable Node 24 executable.
+`connect` requires a separate background-browser authorization before it opens OAuth or registers a device. Codex supports `--browser safari` through the official Computer Use plugin and `--browser chrome` through Browser Use; Claude Code supports Chrome only. A browser selected for a foreground grocery-history audit does not authorize this background capability. Tokens remain in macOS Keychain. `config.json` contains only non-secret identifiers, absolute executable and isolated-project paths, the public origin, the approved retailer origin, and the exact supported browser backend.
+
+The dedicated Codex home must enable exactly the plugins for the selected backend: `computer-use@openai-bundled` for Safari, or `browser@openai-bundled` plus `chrome@openai-bundled` for Chrome. `install` and every host invocation preflight that set. Chrome permits only the `node_repl` MCP bridge; Safari requires the plugin-owned `computer-use` entry alongside `node_repl`. Safari Computer Use controls the signed-in `com.apple.Safari` app through macOS accessibility and screenshots. That operating-system capability is broader than Chrome's exact-origin Browser Use policy; the fixed prompt still limits work to the configured retailer origin and forbids other apps, checkout, payment, subscription, and unrelated cart changes. Apps, hooks, shell, search, and user rules remain disabled.
 
 An installation connected to `fullwell.souschefstudio.com` must run `fullwell-runner disconnect` and reconnect with `--origin https://fullwell.ai`. OAuth grants and Keychain tokens are bound to the old resource and are not rewritten or accepted at the new origin.
 
-The dedicated project isolates Codex configuration and action tools; it is not an operating-system account boundary. Its login must use macOS Keychain, and Browser Use must list only the approved exact origin in the isolated home's persistent `browser/config.toml`. A missing approval or capability drift returns a blocked result and must not be worked around with `never_ask` or a broad browser policy.
+The dedicated project isolates Codex configuration and action tools; it is not an operating-system account boundary. Its login must use macOS Keychain. Chrome Browser Use must list only the approved exact origin in the isolated home's persistent `browser/config.toml`; Safari Computer Use has no equivalent origin-level enforcement and relies on the fixed host policy plus visible Safari state. A missing approval or capability drift returns a blocked result.
+
+Existing configs without `browser_backend` fail closed. Preserve the existing WhatsApp link while authorizing a browser with `fullwell-runner set-browser --browser safari` or `--browser chrome`, configure the matching isolated plugin set, then run `fullwell-runner install`. Do not add the field by hand.
 
 Use `--host claude` for Claude Code. Cowork Dispatch may be used manually as a separate Claude product surface, but Fullwell does not treat it as a supported inbound runner API.
 

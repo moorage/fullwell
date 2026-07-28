@@ -1,13 +1,21 @@
 import { join } from "node:path";
+import type { RunnerBrowserBackend } from "../config.js";
 import type { ProcessRunner } from "./process.js";
 import { safeHostEnvironment } from "./process.js";
 
-const ALLOWED_MCP_SERVERS = new Set(["node_repl"]);
-const ALLOWED_PLUGINS = new Set(["browser@openai-bundled", "chrome@openai-bundled"]);
+const ALLOWED_MCP_SERVERS: Readonly<Record<RunnerBrowserBackend, ReadonlySet<string>>> = {
+  chrome: new Set(["node_repl"]),
+  safari: new Set(["computer-use", "node_repl"]),
+};
+const ALLOWED_PLUGINS: Readonly<Record<RunnerBrowserBackend, ReadonlySet<string>>> = {
+  chrome: new Set(["browser@openai-bundled", "chrome@openai-bundled"]),
+  safari: new Set(["computer-use@openai-bundled"]),
+};
 
 export async function verifyIsolatedCodexCapabilities(
   executable: string,
   projectDirectory: string,
+  browserBackend: RunnerBrowserBackend,
   processRunner: ProcessRunner,
   signal: AbortSignal,
 ): Promise<void> {
@@ -19,9 +27,9 @@ export async function verifyIsolatedCodexCapabilities(
     signal,
     timeoutMilliseconds: 30_000,
     maxOutputBytes: 1_048_576,
-    env: isolatedCodexEnvironment(projectDirectory),
+    env: isolatedCodexEnvironment(projectDirectory, browserBackend),
   });
-  assertExactCapabilitySet(enabledMcpServers(mcp.stdout), ALLOWED_MCP_SERVERS, "MCP servers");
+  assertExactCapabilitySet(enabledMcpServers(mcp.stdout), ALLOWED_MCP_SERVERS[browserBackend], "MCP servers");
 
   const plugins = await processRunner({
     command: executable,
@@ -31,13 +39,19 @@ export async function verifyIsolatedCodexCapabilities(
     signal,
     timeoutMilliseconds: 30_000,
     maxOutputBytes: 1_048_576,
-    env: isolatedCodexEnvironment(projectDirectory),
+    env: isolatedCodexEnvironment(projectDirectory, browserBackend),
   });
-  assertExactCapabilitySet(enabledPlugins(plugins.stdout), ALLOWED_PLUGINS, "plugins");
+  assertExactCapabilitySet(enabledPlugins(plugins.stdout), ALLOWED_PLUGINS[browserBackend], "plugins");
 }
 
-export function isolatedCodexEnvironment(projectDirectory: string): NodeJS.ProcessEnv {
-  return { ...safeHostEnvironment(), CODEX_HOME: join(projectDirectory, ".codex-home") };
+export function isolatedCodexEnvironment(projectDirectory: string, browserBackend: RunnerBrowserBackend): NodeJS.ProcessEnv {
+  const environment = safeHostEnvironment();
+  delete environment.BROWSER_USE_AVAILABLE_BACKENDS;
+  return {
+    ...environment,
+    ...(browserBackend === "chrome" ? { BROWSER_USE_AVAILABLE_BACKENDS: "chrome" } : {}),
+    CODEX_HOME: join(projectDirectory, ".codex-home"),
+  };
 }
 
 export function enabledMcpServers(output: string): ReadonlySet<string> {

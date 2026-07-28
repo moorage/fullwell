@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { buildDatabaseUrl, buildPostgresRunArgs, hasVolume, localPostgres, parseJsonArray, parsePostgresCredentials, validateBuildContainerVersion, validateManagedContainer } from "./apple-container.mjs";
+
+const dockerfile = readFileSync(new URL("../../Dockerfile", import.meta.url), "utf8");
+assert.ok(
+  dockerfile.indexOf("RUN npm run build --workspace @hfj/contracts") < dockerfile.indexOf("RUN npm run build\n"),
+  "The production image must build contracts before dependent workspaces.",
+);
 
 assert.deepEqual(parseJsonArray('[{"name":"volume"}]', "test source"), [{ name: "volume" }]);
 assert.throws(() => parseJsonArray("not-json", "test source"), /valid JSON/);

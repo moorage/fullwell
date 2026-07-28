@@ -8,6 +8,7 @@ COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/agent-client/package.json packages/agent-client/package.json
 RUN npm ci
 COPY . .
+RUN npm run build --workspace @hfj/contracts
 RUN npm run build
 RUN npm prune --omit=dev
 

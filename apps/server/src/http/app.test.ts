@@ -284,6 +284,8 @@ describe("Fastify application", () => {
     expect(nativeConsent.headers["content-security-policy"]).toContain("http://127.0.0.1:1455");
     const mergedDesktopConsent = await app.inject({ method: "GET", url: "/authorize?redirect_uri=http%3A%2F%2F127.0.0.1%3A65525%2Fcallback%2FIWD1EUkzXzJu" });
     expect(mergedDesktopConsent.headers["content-security-policy"]).toContain("http://127.0.0.1:65525");
+    const claudeConsent = await app.inject({ method: "GET", url: "/authorize?redirect_uri=http%3A%2F%2Flocalhost%3A3118%2Fcallback" });
+    expect(claudeConsent.headers["content-security-policy"]).toContain("http://localhost:3118");
     for (const redirectUri of [
       "http://127.0.0.1:65525/callback",
       "http://127.0.0.1:65525/callback/nonce/extra",
@@ -291,9 +293,15 @@ describe("Fastify application", () => {
       "http://127.0.0.1:65525/unrelated/nonce",
       "http://person@127.0.0.1:65525/callback/nonce",
       "http://localhost:65525/callback/nonce",
+      "http://localhost:3118/oauth/callback",
+      "http://localhost:3118/callback/extra",
+      "http://localhost:3118/callback?unexpected=true",
+      "http://localhost:3118/callback#unexpected",
+      "http://person@localhost:3118/callback",
+      "http://localhost/callback",
     ]) {
       const invalidConsent = await app.inject({ method: "GET", url: `/authorize?${new URLSearchParams({ redirect_uri: redirectUri })}` });
-      expect(invalidConsent.headers["content-security-policy"]).not.toContain("http://127.0.0.1:65525");
+      expect(invalidConsent.headers["content-security-policy"]).not.toContain(new URL(redirectUri).origin);
     }
     const remoteConsent = await app.inject({ method: "GET", url: "/authorize?redirect_uri=https%3A%2F%2Fattacker.example%2Foauth%2Fcallback" });
     expect(remoteConsent.headers["content-security-policy"]).not.toContain("attacker.example");

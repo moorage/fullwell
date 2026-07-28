@@ -21,6 +21,7 @@ This is an origin migration rather than a branding string replacement. Existing 
 - [x] 2026-07-28: Created and claimed Beads bug `fullwell-09f` after the merged ChatGPT desktop client's live reconnect exposed a blocked consent submission. Completed the feature-critic gate for the callback compatibility and remote MCP display-name change.
 - [x] 2026-07-28: Implemented the bounded merged-desktop callback compatibility and `fullwell-cloud` identity, prepared package `1.1.19`, and passed focused server, package, eval, full repository, security, browser E2E, docs, and ExecPlan gates. Publication, deployment, and a live merged-desktop reconnect remain outside this local change.
 - [x] 2026-07-28: Published checksum-matched `@fullwell/fullwell@1.1.19`, upgraded current Codex and Claude installations, deployed the exact pushed Linux/amd64 release to `fullwell.ai`, and completed the merged-desktop loopback redirect, Codex token exchange, authenticated `fullwell-cloud` read, readiness, deployment, and MCP discovery checks with the prior image and root-only environment backup retained.
+- [x] 2026-07-28: Added the exact `http://localhost:<explicit-port>/callback` consent-only CSP compatibility required by Claude while retaining the narrower `127.0.0.1` path shapes for Codex and the local runner; focused server checks and full repository verification with 423 passing application tests and 11 expected database skips pass.
 - [ ] Milestone 6: Automated production readiness, redirects, canonical metadata, OAuth metadata, MCP discovery, and messaging pass. A real Apple passkey authorization returns to a reload-persistent authenticated apex session; complete any required Fullwell passkey and installed-client reconnect evidence.
 
 ## Surprises & Discoveries
@@ -41,6 +42,7 @@ This is an origin migration rather than a branding string replacement. Existing 
 - 2026-07-27: The repository screencast helper assumes the Linux `x11grab` input. Homebrew FFmpeg 8.0.1 on macOS rejected that input with exit 234 before capture and left no partial artifact, so browser automation, live redirect checks, and authenticated callback evidence remain the visible acceptance record.
 - 2026-07-28: The merged ChatGPT desktop client registers native callbacks as `/callback/<nonce>`, while the consent CSP recognized only `/oauth/callback`. The OAuth request itself validated, but the missing exact loopback origin in `form-action` blocked the POST redirect before the client could receive its code.
 - 2026-07-28: A clean release archive exposed that the production Dockerfile invoked the unordered workspace build before `@hfj/contracts` emitted its compiled boundary. Building contracts first preserves the existing workspace build while making exact-source OCI builds reproducible; `scripts/local/apple-container.test.mjs` now locks that order.
+- 2026-07-28: Claude Code 2.1.215 dynamically registers `http://localhost:3118/callback`. OAuth validation already accepted that exact loopback URI, but the consent CSP intentionally recognized only the `127.0.0.1` client shapes, so Claude's POST returned to the unchanged consent page while its listener waited.
 
 ## Decision Log
 
@@ -56,6 +58,7 @@ This is an origin migration rather than a branding string replacement. Existing 
 - 2026-07-27: Keep the canonical-origin rollout and the WhatsApp verification-token rotation as separate recoverable changes. The origin switch retains the existing encrypted credential; `fullwell-z0t` will coordinate provider and server rotation after the new origin is stable.
 - 2026-07-28: Accept both the existing exact `/oauth/callback` path and the merged desktop client's bounded `/callback/<nonce>` shape when deriving the consent-only CSP exception. Continue to require uncredentialed HTTP on exact IPv4 loopback, an explicit port, and no query or fragment.
 - 2026-07-28: Rename only the hosted MCP's host-facing identity to `fullwell-cloud`. Preserve the `fullwell-local` MCP identity and all unrelated repository, package, deployment, service, and source-file names.
+- 2026-07-28: Permit Claude's exact `http://localhost:<explicit-port>/callback` origin only on the consent page. Do not extend `localhost` to the local-runner or nonce-bearing paths, and continue rejecting missing ports, credentials, queries, fragments, and extra segments.
 
 ## Context and Orientation
 

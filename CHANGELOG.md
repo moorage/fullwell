@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Fix merged ChatGPT desktop OAuth authorization by admitting its bounded nonce-bearing loopback callback origin to the consent page's CSP.
+- Fix merged ChatGPT desktop and Claude OAuth authorization by admitting only their exact supported loopback callback origins to the consent page's CSP.
 - Rename the hosted MCP identity from `household-food-journal` to `fullwell-cloud` while preserving `fullwell-local` and unrelated service/package names.
 - Correct every public support and privacy contact to `support@fullwell.ai` and `privacy@fullwell.ai`, including shared brand metadata, legal notices, rendered mail links, and regression coverage.
 - Add the supplied Fullwell household-assistant character to the public homepage hero and use its square face as the shared masthead mark, with exact-byte same-origin assets, stable intrinsic sizing, decorative semantics, and responsive 320-pixel coverage.

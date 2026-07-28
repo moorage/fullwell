@@ -297,13 +297,14 @@ function nativeOAuthLoopbackOrigin(request: FastifyRequest): string | null {
   if (value === null || !URL.canParse(value)) return null;
   const redirect = new URL(value);
   const port = Number(redirect.port);
-  const supportedPath = redirect.pathname === "/oauth/callback" ||
-    /^\/callback\/[A-Za-z0-9_-]{1,128}$/.test(redirect.pathname);
+  const supportedCallback = redirect.hostname === "127.0.0.1"
+    ? redirect.pathname === "/oauth/callback" || /^\/callback\/[A-Za-z0-9_-]{1,128}$/.test(redirect.pathname)
+    : redirect.hostname === "localhost" && redirect.pathname === "/callback";
   if (
-    redirect.protocol !== "http:" || redirect.hostname !== "127.0.0.1" ||
+    redirect.protocol !== "http:" || !supportedCallback ||
     !Number.isInteger(port) || port < 1 || port > 65_535 ||
     redirect.username !== "" || redirect.password !== "" ||
-    !supportedPath || redirect.search !== "" || redirect.hash !== ""
+    redirect.search !== "" || redirect.hash !== ""
   ) return null;
   return redirect.origin;
 }

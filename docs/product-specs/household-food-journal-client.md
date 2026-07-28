@@ -355,7 +355,7 @@ repo-root/
     `-- CHANGELOG.md
 ```
 
-The marketplace catalogs live at the repository paths discovered by their hosts: `.agents/plugins/marketplace.json` for Codex and `.claude-plugin/marketplace.json` for Claude. Both catalogs must reference the same immutable published npm package version. Codex and Claude expose the public selector `fullwell@fullwell`; both adapters use the same `@fullwell/fullwell` package and `household-food-journal` MCP service. Publishing the npm payload does not publish either host catalog; public catalog discovery requires a separately published repository or catalog source. The installed package contains the host manifests and shared implementation:
+The marketplace catalogs live at the repository paths discovered by their hosts: `.agents/plugins/marketplace.json` for Codex and `.claude-plugin/marketplace.json` for Claude. Both catalogs must reference the same immutable published npm package version. Codex and Claude expose the public selector `fullwell@fullwell`; both adapters use the same `@fullwell/fullwell` package, the `fullwell-local` MCP service for account-free data, and the `fullwell-cloud` MCP service for hosted data. Publishing the npm payload does not publish either host catalog; public catalog discovery requires a separately published repository or catalog source. The installed package contains the host manifests and shared implementation:
 
 ```text
 packages/agent-client/
@@ -402,7 +402,7 @@ The two host manifests and marketplace catalogs are packaging adapters. They mus
 
 Each `SKILL.md` must have only `name` and `description` in YAML frontmatter so the shared files satisfy both hosts. Keep each skill under 500 lines and link directly to relevant reference files rather than duplicating large contracts.
 
-The MCP config contains only the stable dependency-free `fullwell-local` stdio declaration and the public HTTPS cloud URL. The local server resolves `${CLAUDE_PLUGIN_ROOT}/runtime/local-household-mcp.mjs` to the installed plugin cache in both hosts instead of depending on the session working directory, inherits only the optional `CODEX_HOME`, performs no network access, and exposes separate read, update, and delete approval semantics. The config must not embed client secrets, bearer tokens, Apple credentials, household identifiers, absolute user paths, shell evaluation, or command allow rules.
+The MCP config contains only the stable dependency-free `fullwell-local` stdio declaration and the `fullwell-cloud` public HTTPS declaration. The local server resolves `${CLAUDE_PLUGIN_ROOT}/runtime/local-household-mcp.mjs` to the installed plugin cache in both hosts instead of depending on the session working directory, inherits only the optional `CODEX_HOME`, performs no network access, and exposes separate read, update, and delete approval semantics. The config must not embed client secrets, bearer tokens, Apple credentials, household identifiers, absolute user paths, shell evaluation, or command allow rules.
 
 ## 7. Skill responsibilities
 

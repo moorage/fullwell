@@ -556,7 +556,7 @@ Feature-critic constraints:
 - The local server accepts only newline-delimited JSON-RPC over stdio, bounds every inbound line before parsing, emits no journal data to stderr or logs, and returns domain failures as explicit tool errors.
 - Read and write operations cannot share a destructive annotation. Deletion must remain a separate tool so ordinary onboarding permission cannot authorize removal.
 - The server delegates semantic storage validation to `local-household.mjs`; it must not duplicate or weaken the forbidden-data, revision, path, or size boundary.
-- The remote `household-food-journal` server remains on-use and is never contacted by local tool startup or guest operations.
+- The remote `fullwell-cloud` server remains on-use and is never contacted by local tool startup or guest operations.
 - Codex and Claude must both install and discover the same local MCP declaration from an isolated package copy.
 
 Verification:

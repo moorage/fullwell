@@ -282,6 +282,19 @@ describe("Fastify application", () => {
     expect(ready.headers["content-security-policy"]).not.toContain("http://127.0.0.1");
     const nativeConsent = await app.inject({ method: "GET", url: "/authorize?redirect_uri=http%3A%2F%2F127.0.0.1%3A1455%2Foauth%2Fcallback" });
     expect(nativeConsent.headers["content-security-policy"]).toContain("http://127.0.0.1:1455");
+    const mergedDesktopConsent = await app.inject({ method: "GET", url: "/authorize?redirect_uri=http%3A%2F%2F127.0.0.1%3A65525%2Fcallback%2FIWD1EUkzXzJu" });
+    expect(mergedDesktopConsent.headers["content-security-policy"]).toContain("http://127.0.0.1:65525");
+    for (const redirectUri of [
+      "http://127.0.0.1:65525/callback",
+      "http://127.0.0.1:65525/callback/nonce/extra",
+      "http://127.0.0.1:65525/callback/nonce?unexpected=true",
+      "http://127.0.0.1:65525/unrelated/nonce",
+      "http://person@127.0.0.1:65525/callback/nonce",
+      "http://localhost:65525/callback/nonce",
+    ]) {
+      const invalidConsent = await app.inject({ method: "GET", url: `/authorize?${new URLSearchParams({ redirect_uri: redirectUri })}` });
+      expect(invalidConsent.headers["content-security-policy"]).not.toContain("http://127.0.0.1:65525");
+    }
     const remoteConsent = await app.inject({ method: "GET", url: "/authorize?redirect_uri=https%3A%2F%2Fattacker.example%2Foauth%2Fcallback" });
     expect(remoteConsent.headers["content-security-policy"]).not.toContain("attacker.example");
     expect((await app.inject({ method: "GET", url: "/health/operator" })).statusCode).toBe(503);
@@ -964,7 +977,7 @@ describe("Fastify application", () => {
     });
     expect(initialized.json().result).toMatchObject({
       protocolVersion: "2025-06-18",
-      serverInfo: { name: "household-food-journal" },
+      serverInfo: { name: "fullwell-cloud" },
     });
 
     const unsupported = await app.inject({

@@ -282,7 +282,7 @@ export const validatePackage = async () => {
   assert(codex.skills === "./skills/" && claude.skills === "./skills/", "Hosts must use shared skills");
   assert(codex.mcpServers === "./codex-mcp.json" && claude.mcpServers === "./.mcp.json", "Hosts must use their portable MCP adapters");
   for (const mcp of [codexMcp, claudeMcp]) {
-    assert(Object.keys(mcp).sort().join(",") === "fullwell-local,household-food-journal", "MCP config must declare only the local and hosted Fullwell services");
+    assert(Object.keys(mcp).sort().join(",") === "fullwell-cloud,fullwell-local", "MCP config must declare only the local and hosted Fullwell services");
   }
 
   const codexLocalEndpoint = codexMcp["fullwell-local"];
@@ -300,8 +300,8 @@ export const validatePackage = async () => {
   assert(claudeLocalEndpoint.startup_timeout_sec === 5, "Claude local Fullwell MCP must retain its bounded startup timeout");
   assert(Object.keys(claudeLocalEndpoint).sort().join(",") === "args,command,env_vars,startup_timeout_sec", "Claude local Fullwell MCP config contains unsupported authority");
 
-  const endpoint = codexMcp["household-food-journal"];
-  assert(JSON.stringify(endpoint) === JSON.stringify(claudeMcp["household-food-journal"]), "Host MCP adapters must share one hosted endpoint");
+  const endpoint = codexMcp["fullwell-cloud"];
+  assert(JSON.stringify(endpoint) === JSON.stringify(claudeMcp["fullwell-cloud"]), "Host MCP adapters must share one hosted endpoint");
   assert(endpoint?.type === "http", "MCP transport must be HTTP");
   assert(endpoint?.url === install.mcp_url, "Install metadata and MCP config URL differ");
   const endpointUrl = new URL(endpoint.url);

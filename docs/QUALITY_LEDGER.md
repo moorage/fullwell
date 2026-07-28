@@ -9,7 +9,7 @@ Scoring scale:
 - 2 = fragile or mostly unproven
 - 1 = absent or high risk
 
-Last refreshed: 2026-07-27
+Last refreshed: 2026-07-28
 Refresh owner: knowledge automation plus reviewer of affected changes
 
 ## Scorecard
@@ -30,7 +30,7 @@ Refresh owner: knowledge automation plus reviewer of affected changes
 - Contract, 182-case Codex/Claude eval catalog, local guest-household durability, isolated Codex CLI and Claude Code plugin lifecycle, live host OAuth revocation/reconnect, 11-test Apple Container PostgreSQL integration, seven-migration up/down/up, managed-Neon history evidence, account lifecycle, security-boundary, WebKit e2e, Git restore, local deployment, MCP discovery, OCI image, Caddy, Compose, and OpenTofu checks pass.
 - Native Safari 26.5 Touch ID passkey enrollment and passkey-only sign-in pass against the provisioned DigitalOcean/Neon staging origin through Computer Use.
 - Native Safari household creation plus the deployed Backblaze upload and isolated restore pass against the signed staging repository; Neon checkpoints and operator health confirm compliance retention, zero backup gaps, valid fsck/signatures, and a healthy restore drill.
-- The public immutable `@fullwell/fullwell@1.0.0` registry artifact matches the prepared integrity and passes clean Node 24 installation plus isolated Codex and Claude lifecycle tests; the prior package name is deprecated with a rename notice, while the host plugin and MCP service retain the stable `household-food-journal` identifier.
+- The public immutable `@fullwell/fullwell@1.0.0` registry artifact matches the prepared integrity and passes clean Node 24 installation plus isolated Codex and Claude lifecycle tests; the prior package name is deprecated with a rename notice. Prepared package `1.1.19` distinguishes the unchanged `fullwell-local` MCP from the hosted `fullwell-cloud` MCP.
 - `apps/`, `packages/`, `migrations/`, `infra/`, and `deploy/` contain the coordinated React 19.2, Fastify, Neon, Git, agent-package, and DigitalOcean foundation.
 - Direct WhatsApp transport, schema `0006`, the fixed-path runner snapshot, macOS Keychain/LaunchAgent lifecycle, Codex/Claude host adapters, closed-history restocking evals, fake-retailer WebKit tests, aggregate messaging operator metrics, and the dedicated Codex project/preflight are implemented. Encrypted provider credentials, publication, callback verification, the `messages` v25.0 subscription, one real signed inbound, and two-sided sender/device linking passed before every rollout gate was returned to disabled.
 - Conversational Fullwell onboarding, schema `0007`, one-read/local-checkpoint drafting, atomic finalization, per-user skip recovery, report-derived completion, the 24-tool contract, and truthful MCP annotations pass focused server, dual-host package, and eval gates. Public `@fullwell/fullwell@1.1.5` is npm `latest`, current Codex and Claude use it, the deployed server exposes the stable authenticated user ID, and fresh-session save/resume/delete/cleanup verification passes with zero Fullwell mutations.

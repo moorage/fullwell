@@ -30,7 +30,7 @@ MCP uses OAuth authorization code with PKCE and exact redirect/resource validati
 
 The configured `PUBLIC_ORIGIN` is the sole authority for session cookies, Apple callbacks, WebAuthn relying-party validation, OAuth issuer/endpoints, protected-resource metadata, MCP resource identity, canonical metadata, and absolute email links. Request host headers and redirect aliases never select or widen those values. An origin migration requires fresh browser authentication, passkey enrollment, OAuth grants, and runner tokens; the server does not translate or accept credentials bound to the retired origin. Provider webhook POSTs must move through a direct exact-path route and never rely on a redirect.
 
-The consent page's Content Security Policy permits the validated native-runner redirect only as the exact `http://127.0.0.1:<ephemeral-port>` origin from its bounded `/oauth/callback` request. Other pages do not receive a loopback form destination, and remote, unbound, credentialed, query-bearing, or fragment-bearing callback values do not widen the policy.
+The consent page's Content Security Policy permits the validated native-client redirect only as the exact `http://127.0.0.1:<ephemeral-port>` origin from either the legacy exact `/oauth/callback` path or a bounded merged-desktop `/callback/<nonce>` path. Other pages do not receive a loopback form destination, and remote, unbound, credentialed, query-bearing, fragment-bearing, missing-nonce, or unrelated loopback callback values do not widen the policy.
 
 Clients never receive Git, Neon, Apple, email-provider, signing, or backup credentials. Prompt-like content in recipes, evidence, collection imports, external pages, and tool results is data, not instruction.
 

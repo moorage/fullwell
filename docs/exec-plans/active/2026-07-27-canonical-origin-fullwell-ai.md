@@ -18,6 +18,8 @@ This is an origin migration rather than a branding string replacement. Existing 
 - [x] 2026-07-27T19:40Z: Milestone 3 complete. Focused tests, lint, typecheck, production build, coverage, security, WebKit E2E, accessibility, complete verification, docs verification, and active-ExecPlan verification pass. The standard screencast attempt failed before capture because Homebrew FFmpeg 8.0.1 lacks `x11grab`; it exited 234 and created no artifact.
 - [x] 2026-07-27T20:03Z: Milestone 4 complete. Apple retains the apex and legacy domains/callbacks; Meta saved and reloaded the direct apex webhook with mTLS off and only `messages` subscribed at Graph API v25.0; the bounded signed-delivery smoke passes.
 - [x] 2026-07-27T20:05Z: Milestone 5 complete. Release commit `48048ba` is pushed, public `@fullwell/fullwell@1.1.18` is checksum-matched, and the recoverable DigitalOcean rollout activated the exact reviewed Linux/amd64 image without a database migration.
+- [x] 2026-07-28: Created and claimed Beads bug `fullwell-09f` after the merged ChatGPT desktop client's live reconnect exposed a blocked consent submission. Completed the feature-critic gate for the callback compatibility and remote MCP display-name change.
+- [x] 2026-07-28: Implemented the bounded merged-desktop callback compatibility and `fullwell-cloud` identity, prepared package `1.1.19`, and passed focused server, package, eval, full repository, security, browser E2E, docs, and ExecPlan gates. Publication, deployment, and a live merged-desktop reconnect remain outside this local change.
 - [ ] Milestone 6: Automated production readiness, redirects, canonical metadata, OAuth metadata, MCP discovery, and messaging pass. A real Apple passkey authorization returns to a reload-persistent authenticated apex session; complete any required Fullwell passkey and installed-client reconnect evidence.
 
 ## Surprises & Discoveries
@@ -36,6 +38,7 @@ This is an origin migration rather than a branding string replacement. Existing 
 - 2026-07-27: The authorized provider UI exposed the masked verification-token field value through its accessibility representation. No value entered Git or release evidence; Beads bug `fullwell-z0t` tracks a coordinated post-migration rotation.
 - 2026-07-27: Apple's OCI export loaded as an index, so the reviewed Linux/amd64 manifest was normalized through a Docker-local tag before activation. Platform inspection and a Node runtime canary passed before Compose used the image.
 - 2026-07-27: The repository screencast helper assumes the Linux `x11grab` input. Homebrew FFmpeg 8.0.1 on macOS rejected that input with exit 234 before capture and left no partial artifact, so browser automation, live redirect checks, and authenticated callback evidence remain the visible acceptance record.
+- 2026-07-28: The merged ChatGPT desktop client registers native callbacks as `/callback/<nonce>`, while the consent CSP recognized only `/oauth/callback`. The OAuth request itself validated, but the missing exact loopback origin in `form-action` blocked the POST redirect before the client could receive its code.
 
 ## Decision Log
 
@@ -49,6 +52,8 @@ This is an origin migration rather than a branding string replacement. Existing 
 - 2026-07-27: Keep Meta configuration pending until the exact apex webhook route is live. The available Chrome profile reaches Meta's login page rather than an authenticated app dashboard, so the user may need to complete Meta login before the action-time callback confirmation.
 - 2026-07-27: Change no database schema or household Git content. Rollback restores the prior image, Caddy routing, `PUBLIC_DOMAIN`, and client package; Apple may retain both exact callbacks because that is additive and supports recovery.
 - 2026-07-27: Keep the canonical-origin rollout and the WhatsApp verification-token rotation as separate recoverable changes. The origin switch retains the existing encrypted credential; `fullwell-z0t` will coordinate provider and server rotation after the new origin is stable.
+- 2026-07-28: Accept both the existing exact `/oauth/callback` path and the merged desktop client's bounded `/callback/<nonce>` shape when deriving the consent-only CSP exception. Continue to require uncredentialed HTTP on exact IPv4 loopback, an explicit port, and no query or fragment.
+- 2026-07-28: Rename only the hosted MCP's host-facing identity to `fullwell-cloud`. Preserve the `fullwell-local` MCP identity and all unrelated repository, package, deployment, service, and source-file names.
 
 ## Context and Orientation
 
@@ -105,8 +110,11 @@ The brand URL and application URL disagree. The migration makes the memorable Fu
 #### Feature-critic gate
 
 - Must fix before implementation: include the Meta webhook callback and signed POST behavior; define a two-phase exact-path gateway transition; prove old-origin sessions, passkeys, OAuth grants, and runner tokens fail safely; retain Apple and Meta rollback paths; and test initial HTML plus OAuth metadata instead of relying on redirects alone.
+- Must fix before the desktop reconnect follow-up: bound the new callback nonce syntax and length; prove credentialed, remote, query-bearing, fragment-bearing, missing-nonce, and unrelated loopback paths do not widen CSP; and update both host manifests plus MCP initialize metadata to the same `fullwell-cloud` identity.
 - Should fix during implementation: account for an Apple authorization or magic-link transaction already in flight, preserve token-bearing invitation/share/email paths through the legacy redirect, verify the social image and all absolute mail links, and make reconnect guidance visible in package/runner documentation.
+- Should fix during the desktop reconnect follow-up: retain the old MCP name only in historical delivery records and add a changelog entry that makes the installed-name transition discoverable.
 - Monitor during rollout: provider dashboard propagation, OAuth error rate, old-host traffic, failed webhook deliveries, zero online runners, and support demand from passkey re-enrollment or client reconnects.
+- Monitor during the desktop reconnect follow-up: whether installed hosts retain duplicate old/new remote registrations after package update; remove or reconnect the obsolete registration explicitly rather than translating credentials.
 
 ## Milestones
 
@@ -196,6 +204,27 @@ Verification:
 
 Files:
 
+- `apps/server/src/http/app.ts`
+- `apps/server/src/http/app.test.ts`
+- `.agents/plugins/marketplace.json`
+- `.claude-plugin/marketplace.json`
+- `packages/agent-client/codex-mcp.json`
+- `packages/agent-client/.mcp.json`
+- `packages/agent-client/.codex-plugin/plugin.json`
+- `packages/agent-client/.claude-plugin/plugin.json`
+- `packages/agent-client/package.json`
+- `packages/agent-client/install-metadata.json`
+- `packages/agent-client/README.md`
+- `packages/agent-client/scripts/validate-package.mjs`
+- `packages/agent-client/tests/evals/matrix.test.mjs`
+- `packages/agent-client/tests/packaging/host-lifecycle.test.mjs`
+- `packages/agent-client/references/mcp-tool-contract.md`
+- `packages/agent-client/CHANGELOG.md`
+- `package-lock.json`
+- `docs/ARCHITECTURE.md`
+- `docs/SECURITY.md`
+- `docs/product-specs/household-food-journal-server.md`
+- `docs/product-specs/household-food-journal-client.md`
 - `docs/release/manual-matrix.md`
 - `docs/release/verification-evidence.md`
 - `docs/QUALITY_LEDGER.md`
@@ -299,11 +328,13 @@ Tasks:
 1. Prove `fullwell.ai` returns application HTML directly, while `www` and the legacy host permanently preserve a non-root path and query to the apex.
 2. Prove initial HTML canonical, Open Graph, JSON-LD application URL, install links, and public navigation all use the apex.
 3. Prove authorization-server and protected-resource metadata advertise only the apex; exercise dynamic registration, authorization, token exchange, initialize, initialized notification, and tool discovery through the exact new resource.
-4. Complete a real Apple sign-in on the new host, enroll and use a new passkey, and verify the old passkey is not represented as transferable.
-5. Upgrade a clean Codex and Claude install to the new immutable client package and complete OAuth reconnect with no pasted token.
-6. Disconnect/reconnect the local runner to the apex, verify its Keychain-backed grant and fixed-purpose preflight, and keep live cart mutation and paid-message boundaries unchanged.
-7. Observe readiness/operator health, logs, backups, signing, mounted volume, single-writer leadership, OAuth failures, and messaging gates through the decision window.
-8. Complete doc-drift review, refresh knowledge artifacts, close Beads only after acceptance, and move this plan to `docs/exec-plans/completed/`.
+4. Add the exact merged-desktop `/callback/<nonce>` loopback callback shape to the consent-only CSP derivation without accepting arbitrary localhost paths or widening any other response.
+5. Rename the hosted MCP configuration and initialize metadata to `fullwell-cloud` across Codex, Claude, package validation, lifecycle tests, evals, normative docs, and changelogs. Do not rename the local MCP or unrelated infrastructure/package identities.
+6. Complete a real Apple sign-in on the new host, enroll and use a new passkey, and verify the old passkey is not represented as transferable.
+7. Upgrade a clean Codex and Claude install to the new immutable client package and complete OAuth reconnect with no pasted token.
+8. Disconnect/reconnect the local runner to the apex, verify its Keychain-backed grant and fixed-purpose preflight, and keep live cart mutation and paid-message boundaries unchanged.
+9. Observe readiness/operator health, logs, backups, signing, mounted volume, single-writer leadership, OAuth failures, and messaging gates through the decision window.
+10. Complete doc-drift review, refresh knowledge artifacts, close Beads only after acceptance, and move this plan to `docs/exec-plans/completed/`.
 
 Verification:
 
@@ -322,6 +353,8 @@ Verification:
 - `PUBLIC_ORIGIN`, canonical metadata, Apple callback, passkey RP ID/origin, magic-link URLs, OAuth issuer/endpoints, MCP resource, install metadata, Codex/Claude manifests, and runner guidance all use `https://fullwell.ai`.
 - The existing Fullwell Apple Services ID and key are reused. Apple accepts the exact apex callback, and the transition retains the legacy callback for rollback without exposing credential material.
 - Meta's WhatsApp callback uses the apex directly, keeps only the required subscription, and receives signed webhook traffic without a cross-host redirect.
+- The consent page permits only the exact registered loopback origin for `/oauth/callback` or a bounded `/callback/<nonce>` path; invalid, remote, credentialed, query-bearing, fragment-bearing, missing-nonce, and unrelated loopback callback values do not widen `form-action`.
+- Codex and Claude expose the hosted MCP as `fullwell-cloud`, the remote server initializes with that name, and `fullwell-local` remains unchanged.
 - One real Apple sign-in, one email fallback sign-in, one new passkey enrollment/sign-in, one Codex OAuth reconnect, one Claude OAuth reconnect, and one local-runner reconnect pass on the apex.
 - Existing old-host sessions, passkeys, OAuth grants, and runner tokens are not silently accepted at the new origin. Durable accounts, memberships, household Git repositories, and Neon operational data remain intact.
 - Caddy, focused tests, packaging, E2E, accessibility, lint, typecheck, build, coverage, security, complete verification, docs, and ExecPlan gates pass.
@@ -356,9 +389,12 @@ The production switch is recovered as one origin/configuration unit. Before acti
 
 Client recovery is explicit reconnect, not token translation. Codex, Claude, and the local runner register or authorize against the new resource and receive new grants. Old grants can be revoked after the observation window. Passkeys are re-enrolled at the apex after Apple or email authentication. Browser sessions simply sign in again.
 
+The hosted MCP rename changes a host configuration key, not the OAuth resource URL or token contract. If a host retains both names after package update, remove the obsolete `household-food-journal` registration and authorize `fullwell-cloud`; do not copy or translate tokens. Rollback may restore the previous package/configuration key while the server continues to use the same MCP URL and protocol.
+
 ## Artifacts and Notes
 
 - Beads feature: `fullwell-jfo`
+- Desktop OAuth/MCP follow-up: `fullwell-09f`
 - Existing Fullwell Apple Services ID: `com.souschefstudio.fullwell.web`
 - Planned screencast: `artifacts/screencasts/fullwell-ai-origin-migration.mp4`
 - Historical prior art: `docs/exec-plans/completed/2026-07-27-public-brand-company-identity.md`

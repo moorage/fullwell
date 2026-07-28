@@ -6,7 +6,7 @@
     "env_vars": ["CODEX_HOME"],
     "startup_timeout_sec": 5
   },
-  "household-food-journal": {
+  "fullwell-cloud": {
     "type": "http",
     "url": "https://fullwell.ai/mcp"
   }

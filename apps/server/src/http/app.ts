@@ -233,7 +233,7 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
   app.post("/mcp", { bodyLimit: MCP_BODY_LIMIT_BYTES, config: { rateLimit: { max: 120, timeWindow: 60_000, groupId: "mcp" } } }, async (request, reply) => {
     const principal = await authenticate(request.headers.authorization, dependencies.authentication);
     const rpc = McpRequestSchema.parse(request.body);
-    if (rpc.method === "initialize") return reply.send({ jsonrpc: "2.0", id: rpc.id, result: { protocolVersion: "2025-06-18", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "household-food-journal", version: "0.1.0" } } });
+    if (rpc.method === "initialize") return reply.send({ jsonrpc: "2.0", id: rpc.id, result: { protocolVersion: "2025-06-18", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "fullwell-cloud", version: "0.1.0" } } });
     if (rpc.method === "notifications/initialized") return reply.code(202).send();
     if (rpc.method === "tools/list") return reply.send({ jsonrpc: "2.0", id: rpc.id, result: { tools: toolCatalog() } });
     const toolStartedAt = performance.now();
@@ -297,11 +297,13 @@ function nativeOAuthLoopbackOrigin(request: FastifyRequest): string | null {
   if (value === null || !URL.canParse(value)) return null;
   const redirect = new URL(value);
   const port = Number(redirect.port);
+  const supportedPath = redirect.pathname === "/oauth/callback" ||
+    /^\/callback\/[A-Za-z0-9_-]{1,128}$/.test(redirect.pathname);
   if (
     redirect.protocol !== "http:" || redirect.hostname !== "127.0.0.1" ||
     !Number.isInteger(port) || port < 1 || port > 65_535 ||
     redirect.username !== "" || redirect.password !== "" ||
-    redirect.pathname !== "/oauth/callback" || redirect.search !== "" || redirect.hash !== ""
+    !supportedPath || redirect.search !== "" || redirect.hash !== ""
   ) return null;
   return redirect.origin;
 }

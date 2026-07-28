@@ -17,6 +17,9 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-28 desktop OAuth/MCP follow-up accepts the merged ChatGPT client's bounded `/callback/<nonce>` IPv4-loopback redirect when deriving the consent-only CSP exception, rejects unrelated or malformed loopback paths, and renames only the hosted MCP identity to `fullwell-cloud`
+- server, dual-host package, lifecycle, eval, architecture, security, product-spec, and changelog surfaces now distinguish `fullwell-cloud` from the unchanged `fullwell-local`; package `1.1.19` is prepared but not published
+- focused server, 53-test dual-host packaging, 14-test eval, 14-test security, full repository verification with 423 passing application tests and 11 expected database skips, and WebKit E2E with 142 passes and 22 intentional skips all pass; deployment and a live merged-desktop reconnect remain pending
 - 2026-07-28 local-runner browser authorization now accepts explicit Safari through Codex Computer Use and Chrome through Browser Use, persists and reports the semantic backend, rejects Safari with Claude Code, and provides `set-browser` to migrate a legacy config without replacing its Fullwell device/link
 - Safari omits the Chrome-only Browser Use environment, requires exactly the official Computer Use plugin plus its `computer-use` MCP entry alongside `node_repl`, targets `com.apple.Safari` in the fixed prompt, and discloses that macOS accessibility/screenshot control is broader than Chrome's origin-scoped integration
 - the pre-existing legacy LaunchAgent remained stopped while its isolated plugin set switched from Browser/Chrome to Computer Use; direct Computer Use and a fresh noninteractive isolated `codex exec` both inspected Safari without navigating or changing retailer state, then the preserved runner config migrated to `safari` and the LaunchAgent restarted with its original device/link

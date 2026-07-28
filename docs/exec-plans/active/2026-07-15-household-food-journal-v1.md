@@ -143,6 +143,7 @@ Version 1 deploys one containerized service on one DigitalOcean Droplet. `/data/
 - 2026-07-22: Parse MCP `params._meta` as bounded JSON at the transport boundary and ignore it in domain logic. Keep the request envelope strict for every other field and preserve independent tool-input validation.
 - 2026-07-20: Keep public package publication and public host-catalog publication as separate release gates. Do not upload the repository merely to make the package discoverable; record the missing public catalog as a blocker until a reviewed publication destination exists.
 - 2026-07-20: Treat the npm package name as independent from host-facing identifiers. Publish the concise `@fullwell/fullwell` package name while retaining `household-food-journal` for installed plugin identity, MCP registration, OAuth clients, and server compatibility.
+- 2026-07-28: Supersede only the hosted MCP portion of the prior identifier decision: use `fullwell-cloud` for the packaged remote declaration and server initialize metadata, while preserving the package, plugin, infrastructure, and `fullwell-local` identities.
 
 ## Context and Orientation
 

@@ -394,7 +394,7 @@ test("each eval has a unique identity and targets both host matrices", async () 
   assert.ok(localRuntime.includes("PROHIBITED_LOCAL_DATA"));
   assert.equal(claudeMcpConfig["fullwell-local"].args[0], "${CLAUDE_PLUGIN_ROOT}/runtime/local-household-mcp.mjs");
   assert.equal(codexMcpConfig["fullwell-local"].args[0], "./runtime/local-household-mcp.mjs");
-  assert.deepEqual(claudeMcpConfig["household-food-journal"], codexMcpConfig["household-food-journal"]);
+  assert.deepEqual(claudeMcpConfig["fullwell-cloud"], codexMcpConfig["fullwell-cloud"]);
   assert.ok(localMcpRuntime.includes("fullwell_local_household_load"));
   assert.ok(localMcpRuntime.includes("fullwell_local_household_update"));
   assert.ok(localMcpRuntime.includes("fullwell_local_household_delete_collecting"));

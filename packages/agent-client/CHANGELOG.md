@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.1.19 - 2026-07-28
+
+- Rename the hosted MCP identity to `fullwell-cloud` so installed hosts distinguish it from the local Fullwell service.
+
 ## 1.1.18 - 2026-07-27
 
 - Move hosted MCP, OAuth handoff, install, privacy, and terms metadata to the canonical `https://fullwell.ai` origin and require existing old-origin installations to reconnect.

@@ -1,6 +1,6 @@
 # MCP Tool Contract
 
-Cloud household reads and mutations use the remote `household-food-journal` MCP server. An account-free guest household uses the plugin-provided `fullwell-local` MCP server and is authoritative only on the current computer until optional cloud promotion. The bundled authenticated onboarding helper may store one unconfirmed resumable checkpoint, but that checkpoint never becomes household state. Never clone a repository, call Git, ask for repository credentials, or write cloud household files locally.
+Cloud household reads and mutations use the remote `fullwell-cloud` MCP server. An account-free guest household uses the plugin-provided `fullwell-local` MCP server and is authoritative only on the current computer until optional cloud promotion. The bundled authenticated onboarding helper may store one unconfirmed resumable checkpoint, but that checkpoint never becomes household state. Never clone a repository, call Git, ask for repository credentials, or write cloud household files locally.
 
 ## Universal rules
 

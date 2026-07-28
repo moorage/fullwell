@@ -105,7 +105,7 @@ test("Codex CLI installs, reinstalls, and removes the shared package from an iso
     assert.equal(localMcp?.transport.command, "node");
     assert.deepEqual(localMcp?.transport.args, ["./runtime/local-household-mcp.mjs"]);
     assert.match(localMcp?.transport.cwd, /plugins[/\\]cache[/\\]fullwell[/\\]fullwell[/\\][^/\\]+[/\\]\.$/);
-    assert.ok(mcpServers.some((server) => server.name === "household-food-journal"));
+    assert.ok(mcpServers.some((server) => server.name === "fullwell-cloud"));
     await run("codex", ["plugin", "remove", `${codexPluginName}@${codexMarketplaceName}`, "--json"], env);
     assert.deepEqual(JSON.parse((await run("codex", ["plugin", "list", "--json"], env)).stdout).installed, []);
     await run("codex", ["plugin", "add", `${codexPluginName}@${codexMarketplaceName}`, "--json"], env);
@@ -149,7 +149,7 @@ test("Claude Code installs, disables, enables, updates, and uninstalls the share
     const mcpServers = (await runClaude(["mcp", "list"])).stdout;
     assert.match(mcpServers, /plugin:fullwell:fullwell-local:.*Connected/);
     assert.doesNotMatch(mcpServers, /tools fetch failed/);
-    assert.match(mcpServers, /household-food-journal/);
+    assert.match(mcpServers, /fullwell-cloud/);
     await runClaude(["plugin", "disable", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"]);
     assert.equal(installedPlugins((await runClaude(["plugin", "list", "--json"])).stdout)[0]?.enabled, false);
     await runClaude(["plugin", "enable", `${claudePluginName}@${claudeMarketplaceName}`, "--scope", "user"]);

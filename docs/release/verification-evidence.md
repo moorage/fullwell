@@ -1,5 +1,13 @@
 # Verification Evidence
 
+## Desktop starter prompts
+
+Date: 2026-07-29
+
+- Release commit `f0220460bfa0aabbb0e2a5f190e05395bfdb3142` is pushed to `origin/main`. The Codex manifest exposes exactly `Fullwell hi`, `Fullwell i'm out of cashews`, and `Fullwell reorder from Wanpo in stanford mall`; package validation locks the exact ordered list. Claude's strict manifest remains free of an unsupported starter-message field.
+- Public `@fullwell/fullwell@1.1.23` was published as `latest` at `2026-07-29T18:18:39.776Z`. Its prepared, registry, and clean-download artifacts match at SHA-1 `6620a9aa49d1b45f7e00c22e6687d538920cfb46` and SHA-512 `sha512-YLVIpr8hZmvRpQWLT5DzCkSqy4srOvyC5GQ7fyX93Z5eN59L79Nc0vntOJ6xSTVgAass42mEqAKYfq9fpH6HCA==`; both isolated host lifecycles pass against the clean registry download.
+- Full repository verification passes with 424 application tests and 12 expected database-gated skips, together with 53 package tests, 14 eval tests, and Claude strict validation. Codex and Claude both report enabled `1.1.23`; Codex resolves `fullwell-local` from the `1.1.23` cache and the installed manifest contains the exact three starters. Claude reports that an application restart is required before an already-running session applies the updated cache.
+
 ## Plugin and hero artwork
 
 Date: 2026-07-28

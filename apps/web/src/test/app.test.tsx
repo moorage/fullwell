@@ -725,7 +725,7 @@ describe("web experience", () => {
         title: "Fullwell",
         description: "Household food AI Agent. Snacks, groceries, meal planning in an agent environment you already use.",
         url: canonicalUrl,
-        imageUrl: new URL("/assets/fullwell-social-card.png", canonicalUrl).toString(),
+        imageUrl: new URL("/assets/fullwell-social-card.png?v=b126c3ef", canonicalUrl).toString(),
         imageAlt: "Fullwell household food AI Agent",
       },
     });

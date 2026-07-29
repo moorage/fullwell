@@ -76,7 +76,7 @@ test("serves crawlable Fullwell company and WhatsApp identity", async ({ page, r
     "Household food AI Agent. Snacks, groceries, meal planning in an agent environment you already use.",
   );
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary_large_image");
-  await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute("content", "http://127.0.0.1:4187/assets/fullwell-social-card.png");
+  await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute("content", "http://127.0.0.1:4187/assets/fullwell-social-card.png?v=b126c3ef");
   await expect(page.locator('link[rel="icon"][sizes="32x32"]')).toHaveAttribute("href", "/assets/fullwell-icon-32.png");
   await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", "/assets/fullwell-icon-180.png");
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href", "/site.webmanifest");

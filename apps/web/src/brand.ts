@@ -7,7 +7,7 @@ export type PublicBrandIdentity = {
   readonly supportEmail: "support@fullwell.ai";
   readonly privacyEmail: "privacy@fullwell.ai";
   readonly iconPath: "/assets/fullwell-icon.png";
-  readonly socialImagePath: "/assets/fullwell-social-card.png";
+  readonly socialImagePath: "/assets/fullwell-social-card.png?v=b126c3ef";
 };
 
 export const PUBLIC_BRAND: PublicBrandIdentity = {
@@ -19,7 +19,7 @@ export const PUBLIC_BRAND: PublicBrandIdentity = {
   supportEmail: "support@fullwell.ai",
   privacyEmail: "privacy@fullwell.ai",
   iconPath: "/assets/fullwell-icon.png",
-  socialImagePath: "/assets/fullwell-social-card.png",
+  socialImagePath: "/assets/fullwell-social-card.png?v=b126c3ef",
 };
 
 export const HOMEPAGE_DESCRIPTION =

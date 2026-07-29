@@ -408,7 +408,7 @@ describe("Fastify application", () => {
     expect(homepage.body).toContain('<meta property="og:description" content="Household food AI Agent. Snacks, groceries, meal planning in an agent environment you already use.">');
     expect(homepage.body).toContain('<meta property="og:image:type" content="image/png">');
     expect(homepage.body).toContain('<meta name="twitter:card" content="summary_large_image">');
-    expect(homepage.body).toContain('<meta name="twitter:image" content="https://example.test/assets/fullwell-social-card.png">');
+    expect(homepage.body).toContain('<meta name="twitter:image" content="https://example.test/assets/fullwell-social-card.png?v=b126c3ef">');
     const structuredDataMatch = /<script type="application\/ld\+json">([^<]+)<\/script>/.exec(homepage.body);
     if (structuredDataMatch?.[1] === undefined) throw new Error("homepage structured data is missing");
     const structuredData = z.object({

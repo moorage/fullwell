@@ -12,6 +12,7 @@ The source artwork is user-provided and must not be redrawn or semantically alte
 - [x] 2026-07-28T22:51Z: Added the byte-identical canonical icon, deterministic square PNG/ICO variants, manifest, and updated social-card rendering.
 - [x] 2026-07-28T22:54Z: Wired the masthead, browser head, Twitter metadata, and homepage structured data with focused web/server coverage.
 - [x] 2026-07-28T22:58Z: Passed responsive visual review, 142 browser checks, 73 focused tests, and the full repository gate with 424 application tests.
+- [x] 2026-07-28T23:49Z: Pushed release commits `7fef31b` and `0a8ebcb`, deployed the exact committed source as checksum-matched Linux/amd64 image `hfj-staging:personalized-icon-0a8ebcb-runtime`, and passed public readiness, smoke, metadata, exact-asset, visual, operator-health, warning-log, and mounted-volume checks with rollback retained.
 
 ## Surprises & Discoveries
 
@@ -138,4 +139,6 @@ The user-supplied source is now the canonical compact Fullwell icon. The checked
 
 Focused web/server coverage passed 73 tests. The full WebKit matrix passed 142 tests with 22 intentional project skips across desktop, iPhone 13, 320-pixel, and no-JavaScript configurations. Reviewed desktop and iPhone screenshots show a crisp proportional masthead icon, no clipping or horizontal overflow, and the full-body hero remains visually distinct. The 1200x630 social card was also inspected directly. `npm run verify` passed lint, typecheck, builds, 424 application tests with 12 expected database-gated skips, idea checks, documentation checks, and ExecPlan checks.
 
-The standard screencast command exited 234 because this macOS FFmpeg build has no `x11grab` input, so no screencast artifact is claimed. The work remains local and uncommitted; deployment and release are separate user-authorized steps. Rollback remains file-level with no database or operational migration.
+The standard screencast command exited 234 because this macOS FFmpeg build has no `x11grab` input, so no screencast artifact is claimed. Release commits `7fef31b` and `0a8ebcb` are on `origin/main`. DigitalOcean runs healthy Linux/amd64 image `hfj-staging:personalized-icon-0a8ebcb-runtime` at OCI index `sha256:bdc24619771043a8312967b69749a867ba7d13cf016ed4a79d0722200acbb495` and concrete manifest `sha256:4c17fc444aec5f1cd7b400c1916f152bd0e202ae9665f0c4bf6188104d66cf96`; its 84,642,816-byte transfer matched local and remote SHA-256 `1379ce5ff9dd27e51c95ee97b2e5cd04caa1aee2fa8a4553cd9502fc680cb9ab`.
+
+Public readiness, deployment and MCP discovery smokes, exact icon/favicon/social-card hashes, metadata, reviewed desktop rendering, zero-warning service logs, authenticated operator health, and a mounted-volume canary pass. `/etc/hfj/deploy.env.pre-personalized-icon-20260728-1` plus the prior Apple-link image retain rollback. No database, Caddy, provider, credential, or household Git migration ran, and temporary release artifacts were removed after verification.

@@ -16,6 +16,7 @@ The 2026-07-27 web iteration exposes that same owner-only, Git-authoritative hou
 
 ## Progress
 
+- [x] 2026-07-28T23:49Z: Pushed release commits `7fef31b` and `0a8ebcb` for preserved-name conversational cadence and explicit cloud-account wording; deployed checksum-matched Linux/amd64 image `hfj-staging:personalized-icon-0a8ebcb-runtime`; and passed public readiness, deployment/MCP, exact-asset, metadata, visual, operator-health, warning-log, and mounted-volume checks with rollback retained.
 - [x] 2026-07-28: Completed Bead `fullwell-gs8.16` across the shared skill, voice contract, cross-host evals, client specification, install guidance, changelog, and implementation log. The package validates 184 eval cases; all 14 eval tests, 53 packaging/lifecycle tests, lint, typecheck, production builds, 424 application tests, and repository/docs/ExecPlan verification pass, with 12 expected database-gated skips.
 - [x] Milestone 12 - expose owner household renaming on the web and document chat plus web naming.
 - [x] 2026-07-27: Created and claimed Bead `fullwell-46b`, confirmed the existing chat rename tool/eval already covers connected local and cloud authority, and framed the web integration with UX, accessibility, security, reliability, architecture, and eval lenses.
@@ -812,6 +813,8 @@ The exact schema uses unique section and profile lists so unchanged state is omi
 - Screencast command: `npm run capture:screencast -- --output artifacts/screencasts/approval-efficient-onboarding.mp4`.
 
 ## Outcomes & Retrospective
+
+Release commits `7fef31b` and `0a8ebcb` preserve the user's own display-name capitalization, greet a newly acquainted user warmly before asking about a cloud account, and use the name again only after a conversational lull. All account-facing package, site, guide, spec, test, and eval language now says cloud account where it distinguishes hosted identity from Fullwell's local no-account path. DigitalOcean runs healthy exact-source image `hfj-staging:personalized-icon-0a8ebcb-runtime`; schema `0008` readiness, deployment and MCP discovery smokes, warning logs, exact public icon metadata and hashes, operator health, and mounted-volume persistence pass with the prior deployment retained for rollback.
 
 Milestone 12 reuses the existing owner-only `hfj_update_household_name` authority instead of creating a browser-only naming path. The authenticated overview now carries the Git HEAD that rendered the title, reveals a pencil control through hover, focus, or touch, and opens a native dialog with the current name focused and selected. Editors and viewers receive no control and cannot forge the POST; stale pages, invalid input, CSRF failures, and changed roles return private plain-language recovery without a write. The same server-rendered page retains a no-JavaScript form, while `/guides/household-name` gives logged-out visitors directly crawlable chat and website instructions. Browser, unit, eval, build, documentation, and ExecPlan gates pass; the macOS screencast helper remains unable to use its Linux-only `x11grab` input, so no MP4 is claimed.
 

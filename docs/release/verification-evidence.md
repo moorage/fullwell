@@ -1,5 +1,16 @@
 # Verification Evidence
 
+## Personalized onboarding and canonical icon
+
+Date: 2026-07-28
+
+- Release commits `7fef31b` and `0a8ebcb` are pushed to `origin/main`. Fullwell now greets a newly named user with the preserved display name, reuses the name conversationally after a bounded lull, and consistently calls hosted identities cloud accounts so local no-account use remains distinct.
+- The exact user-supplied `1046x1044` icon is the canonical compact brand image. Source and deployed canonical bytes match SHA-256 `696d832540acdd66044a5cfe8273fe60018fa48855e961c6b71e1705cd007189`; deployed favicon and 1200x630 social-card hashes match `a9572c2e06d06c19ce9452d44ed1616b2c0fcd1b88e5595e911e8066ca83c97b` and `5a22ec1452c8af2d3a2cb251e8ec816f37255ef0e9a8e2c80bff1306fea13160`.
+- Local acceptance passes 73 focused web/server tests, 53 package/lifecycle tests, 14 agent eval tests, 42 local-runner tests, 142 WebKit checks with 22 intentional skips, a zero-finding production audit, and full repository verification with 424 application tests plus 12 expected database-gated skips. Reviewed desktop, iPhone, and social-card renders show the compact icon clearly while retaining the distinct full-body homepage character.
+- DigitalOcean runs healthy Linux/amd64 image `hfj-staging:personalized-icon-0a8ebcb-runtime` at OCI index `sha256:bdc24619771043a8312967b69749a867ba7d13cf016ed4a79d0722200acbb495` and concrete manifest `sha256:4c17fc444aec5f1cd7b400c1916f152bd0e202ae9665f0c4bf6188104d66cf96`. The transferred 84,642,816-byte archive matched locally and remotely at SHA-256 `1379ce5ff9dd27e51c95ee97b2e5cd04caa1aee2fa8a4553cd9502fc680cb9ab`, and both local and remote Node runtime canaries pass.
+- Public schema `0008` readiness, deployment smoke, MCP discovery smoke, active-image inspection, warning-log review, live asset and metadata hashes, and a mounted-volume canary pass. Authenticated operator health reports zero incomplete or reconciliation-required mutations, zero quarantines or backup gaps, healthy restore/repository/signature/volume checks, and the unchanged known degradation of four response-ready WhatsApp records while no runner is online.
+- `/etc/hfj/deploy.env.pre-personalized-icon-20260728-1` and `hfj-staging:apple-link-660dc60-runtime` retain rollback. No migration, Caddy, provider, credential, or household Git change ran; the transferred archive and persistence canary were removed after verification.
+
 ## Apple account-link callback
 
 Date: 2026-07-28

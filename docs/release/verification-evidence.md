@@ -1,5 +1,14 @@
 # Verification Evidence
 
+## Codex starter identity deduplication
+
+Date: 2026-07-29
+
+- Release commit `2bd919860f18c77ddb63b1a8497c006fd33a2e76` is pushed to `origin/main`. Public `@fullwell/fullwell@1.1.25` matches the prepared and clean registry artifacts at SHA-1 `22cbe29522551a99db6d940eed78d7dbb21e6534` and SHA-512 `sha512-nctrRPpucztRbHGSCkgdHdMHyXcwF1bMwcIrVhEgmBZcRvss2/Wz6VNLWQAmtFXga0h4XQcOwUjafOHFNo8gtg==`; the 34-file clean download passes isolated Codex and Claude host lifecycles.
+- Codex Desktop renders `interface.displayName` before every starter body. The installed `1.1.25` manifest therefore keeps `Fullwell` as the identity and exposes exactly `hi`, `i'm out of cashews`, and `reorder from Wanpo in stanford mall` as the three `defaultPrompt` bodies. Package validation rejects any future body that repeats the display name.
+- Full repository verification passes with 425 application tests and 12 expected database-gated skips, together with 53 package tests, 14 eval tests, zero production audit findings, and Claude strict validation. Codex and Claude both report installed `1.1.25`; the Codex-owned `fullwell-cloud` OAuth credential survives the reinstall.
+- No server source, deployment, schema, provider, credential, or household journal data changed.
+
 ## Codex chat cloud OAuth recovery
 
 Date: 2026-07-29

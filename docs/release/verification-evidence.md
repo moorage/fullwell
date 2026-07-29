@@ -1,5 +1,15 @@
 # Verification Evidence
 
+## Open Graph social preview
+
+Date: 2026-07-29
+
+- Source commits `74effe2005782b6fb387fb9af453317eb2aedb8a` and `268e347044849bf8a4040a7a9e419cce1e834cd7` are pushed to `origin/main`. The homepage now publishes Open Graph title `Fullwell`, description `Household food AI Agent. Snacks, groceries, meal planning in an agent environment you already use.`, and the content-versioned image URL `https://fullwell.ai/assets/fullwell-social-card.png?v=b126c3ef`.
+- The reviewed 1200x630 production card contains the exact requested three lines and gives the Fullwell face 35 pixels of both top and right padding. Source, local render, and live bytes match at SHA-256 `b126c3ef4f6be92a34607841ad976b09fb9f3cc8020c0f40ab54b244fda19795`; the live response is `image/png`, 136,472 bytes, and immutable only behind the new content-version query.
+- Production runs exact-source Linux/amd64 image `hfj-staging:og-social-268e347-runtime` at OCI index `sha256:5219f86a18e6626a13a7634f8381cacce80964349ac149bbd888109136ba1986` and concrete manifest `sha256:f878a801cce4a7cb314ce7f3eae674d97741ea898779ddacdc5da13467cddb35`. Its 85,637,632-byte transfer matched locally and remotely at SHA-256 `e2343ab2802f99929c0cdeefdfdcca6758a392fb389154120cd8a9ab2a984223`, and local plus remote Node runtime canaries pass.
+- Full repository verification passes with 425 application tests and 12 expected database-gated skips; the focused WebKit Open Graph check passes at desktop, mobile, narrow, and no-JavaScript viewports. Public deployment and MCP discovery smokes, schema `0008` readiness, reconciliation, backup, repository/signature, mounted-volume, exact metadata, asset hash, and post-restart log review pass. Aggregate operator status remains degraded only by the known offline WhatsApp runner queue.
+- `/etc/hfj/deploy.env.pre-og-social-20260729-2` and `hfj-staging:og-social-80cbe6c-runtime` retain immediate rollback; `/etc/hfj/deploy.env.pre-og-social-20260729-1` retains the earlier `hfj-staging:codex-oauth-51d6547-runtime` configuration. No migration, Caddy/provider, credential, npm package, or household journal mutation ran.
+
 ## Codex starter identity deduplication
 
 Date: 2026-07-29

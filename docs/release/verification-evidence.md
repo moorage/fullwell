@@ -1,5 +1,15 @@
 # Verification Evidence
 
+## Plugin and hero artwork
+
+Date: 2026-07-28
+
+- Source commit `c7eae4a0a308aa5fc33ea4082bd94672937f5ee4` is pushed to `origin/main`. The exact approved 1046x1044 RGBA artwork is packaged at `packages/agent-client/assets/fullwell-icon.png`, referenced through Codex's supported `interface.logo`, and served from the stable `/assets/fullwell-full-body-tall.png` path. All three source copies match SHA-256 `696d832540acdd66044a5cfe8273fe60018fa48855e961c6b71e1705cd007189`; Claude's strict manifest has no unsupported icon extension.
+- Local acceptance passes 53 package and clean-host lifecycle tests, 324 focused web/server tests with 12 expected database skips, 142 WebKit checks with 22 intentional project skips, and full repository verification with 424 application tests plus 12 expected database skips. In-app Browser QA confirms the 1046x1044 image, centered desktop composition, no overflow or console warnings, and a working ChatGPT-to-Claude host switch.
+- DigitalOcean runs healthy exact-source Linux/amd64 image `hfj-staging:plugin-artwork-c7eae4a-runtime` at OCI index `sha256:664d59f01bfbd6703e1c5dbb33a14c61cedb3dace5106bf1556c1a6ef6953d0c` and concrete manifest `sha256:5715c51ff326deadc8e755d80717686819d4351c11f06e5a67f385011e7f4657`. The 85,638,656-byte transfer matched local and remote SHA-256 `fbd3c307ea58b7d5c386b465c2915b0de0f0144f622f0e1e68fc440105deb8a4`, and local plus remote Node runtime canaries pass.
+- Public readiness, deployment smoke, MCP discovery smoke, active-image inspection, exact asset SHA-256/content length/content type, bounded revalidation header, content-versioned homepage reference, reviewed desktop rendering, authenticated operator health, and mounted-volume persistence pass. Service logs contain only the two expected `AUTH_REQUIRED` outcomes from unauthenticated MCP smoke requests and no unexpected warning or error events.
+- `/etc/hfj/deploy.env.pre-plugin-artwork-20260728-1` and `hfj-staging:personalized-icon-0a8ebcb-runtime` retain rollback. No migration, Caddy, provider, credential, or household Git change ran. Public npm 1.1.22 publication remains pending the account holder's WebAuthn completion.
+
 ## Personalized onboarding and canonical icon
 
 Date: 2026-07-28

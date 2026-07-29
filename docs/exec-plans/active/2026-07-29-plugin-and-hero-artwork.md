@@ -17,6 +17,8 @@ This is a narrowly scoped brand-asset follow-up. It does not change authenticati
 - [x] 2026-07-29T02:10Z: Refreshed generated knowledge and passed the complete repository gate: lint, typecheck, production builds, 424 application tests with 12 expected database skips, idea validation, documentation validation, and active-ExecPlan validation.
 - [x] 2026-07-29T02:20Z: Pushed commit `c7eae4a`, deployed checksum-matched exact-source image `hfj-staging:plugin-artwork-c7eae4a-runtime`, and passed public readiness, deployment/MCP, exact-asset/cache, rendered desktop, operator-health, log, and mounted-volume checks with the prior release retained for rollback.
 - [ ] Publish npm 1.1.22, verify registry integrity and clean-host lifecycles, update current installed clients, and complete release evidence. Two CLI attempts correctly published nothing while waiting for or expiring without the account holder's WebAuthn completion.
+- [ ] Remove the rejected `install-hero__character::before` treatment, verify desktop and mobile rendering without it, redeploy the exact committed revision, and retry npm 1.1.22 publication.
+- [x] 2026-07-29T04:45Z: Deleted the base and responsive `install-hero__character::before` rules, added an absence assertion, passed 98 web unit tests and 39 applicable focused WebKit checks with 9 intentional skips, and reviewed the direct artwork rendering in the in-app Browser with no overflow or console warnings.
 
 ## Surprises & Discoveries
 

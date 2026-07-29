@@ -23,6 +23,10 @@ test("serves a responsive, keyboard-usable install experience", async ({ page },
   await expect(page.locator(".install-hero__character-image")).toHaveAttribute("width", "1046");
   await expect(page.locator(".install-hero__character-image")).toHaveAttribute("height", "1044");
   await expect(page.locator(".install-hero__character-image")).toHaveAttribute("src", "/assets/fullwell-full-body-tall.png?v=696d8325");
+  expect(
+    await page.locator(".install-hero__character").evaluate((element) =>
+      getComputedStyle(element, "::before").content),
+  ).toBe("none");
   await expect(page.locator(".wordmark__face")).toBeVisible();
   await expect(page.locator(".wordmark__face")).toHaveAttribute("alt", "");
   await expect(page.locator(".wordmark")).toHaveAccessibleName("Fullwell");

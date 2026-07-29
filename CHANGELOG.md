@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Remove the decorative gradient oval from behind the canonical Fullwell homepage artwork.
 - Package the exact approved Fullwell artwork as the Codex plugin logo and serve those same bytes from the stable homepage hero asset URL.
 
 - Use the user-supplied Fullwell icon as the canonical compact brand image in the shared masthead, favicon, Apple touch and web-app icons, Open Graph/Twitter card, and Schema.org application identity.

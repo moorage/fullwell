@@ -1273,10 +1273,6 @@
                 {
                   "type": "file",
                   "name": "2026-07-27-canonical-origin-fullwell-ai.md"
-                },
-                {
-                  "type": "file",
-                  "name": "2026-07-29-plugin-and-hero-artwork.md"
                 }
               ]
             },
@@ -1335,6 +1331,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-28-release-atomic-cloud-recovery.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-29-plugin-and-hero-artwork.md"
                 }
               ]
             }

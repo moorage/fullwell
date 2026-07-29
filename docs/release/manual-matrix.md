@@ -10,7 +10,7 @@ Status values: `Not run`, `Pass`, `Fail`, `Blocked`, or `Not available`. A relea
 | Mobile WebKit | iPhone 13 | Canonical hero icon is capped above the chooser; masthead remains legible; no overflow | Pass |
 | Narrow WebKit | 320x568 | Single-column hero, bounded canonical artwork, readable install controls, and no horizontal overflow | Pass |
 | No-JavaScript WebKit | 390x844 | Canonical artwork renders in both placements with the complete progressive install flow | Pass |
-| Production HTTPS | fullwell.ai, 2026-07-28; desktop in-app Browser plus local iPhone 13 and 320x568 WebKit | Exact canonical PNG checksum/content type/revalidation pass; content-versioned hero and icon masthead render with install controls and no overflow | Pass |
+| Production HTTPS | fullwell.ai, 2026-07-28; desktop in-app Browser plus local iPhone 13 and 320x568 WebKit | Exact canonical PNG checksum/content type/revalidation pass; direct content-versioned hero has no synthetic gradient oval, and the icon masthead and install controls render without overflow | Pass |
 
 | Surface | Exact version/device | Install | OAuth | Setup | Invite | Share/revoke | Selective import | Upgrade/disable/uninstall | Evidence | Status |
 |---|---|---|---|---|---|---|---|---|---|---|

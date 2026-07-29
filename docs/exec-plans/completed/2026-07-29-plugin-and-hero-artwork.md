@@ -13,12 +13,14 @@ This is a narrowly scoped brand-asset follow-up. It does not change authenticati
 - [x] 2026-07-29T01:59Z: Added the byte-identical package and public assets, wired Codex's supported plugin metadata, bumped 1.1.22 metadata, and updated intrinsic dimensions.
 - [x] 2026-07-29T02:05Z: Added package/install/hash/cache, web, server, and browser assertions and synchronized product, reliability, release-matrix, changelog, and implementation guidance.
 - [x] 2026-07-29T02:08Z: Passed 53 package lifecycle tests, 324 focused web/server tests with 12 expected database skips, and 142 applicable WebKit checks with 22 intentional project skips. In-app Browser QA confirmed the canonical 1046x1044 artwork, no overflow or console warnings, and a working ChatGPT-to-Claude host switch.
-- [ ] Publish the immutable package, deploy the exact committed source, and record rollback evidence.
+- [x] Publish the immutable package, deploy the exact committed source, and record rollback evidence.
 - [x] 2026-07-29T02:10Z: Refreshed generated knowledge and passed the complete repository gate: lint, typecheck, production builds, 424 application tests with 12 expected database skips, idea validation, documentation validation, and active-ExecPlan validation.
 - [x] 2026-07-29T02:20Z: Pushed commit `c7eae4a`, deployed checksum-matched exact-source image `hfj-staging:plugin-artwork-c7eae4a-runtime`, and passed public readiness, deployment/MCP, exact-asset/cache, rendered desktop, operator-health, log, and mounted-volume checks with the prior release retained for rollback.
-- [ ] Publish npm 1.1.22, verify registry integrity and clean-host lifecycles, update current installed clients, and complete release evidence. Two CLI attempts correctly published nothing while waiting for or expiring without the account holder's WebAuthn completion.
-- [ ] Remove the rejected `install-hero__character::before` treatment, verify desktop and mobile rendering without it, redeploy the exact committed revision, and retry npm 1.1.22 publication.
+- [x] Publish npm 1.1.22, verify registry integrity and clean-host lifecycles, update current installed clients, and complete release evidence. Two earlier CLI attempts correctly published nothing while waiting for or expiring without the account holder's WebAuthn completion.
+- [x] Remove the rejected `install-hero__character::before` treatment, verify desktop and mobile rendering without it, redeploy the exact committed revision, and retry npm 1.1.22 publication.
 - [x] 2026-07-29T04:45Z: Deleted the base and responsive `install-hero__character::before` rules, added an absence assertion, passed 98 web unit tests and 39 applicable focused WebKit checks with 9 intentional skips, and reviewed the direct artwork rendering in the in-app Browser with no overflow or console warnings.
+- [x] 2026-07-29T04:54Z: Pushed exact commit `16235ac`, deployed healthy amd64 image `hfj-staging:hero-cleanup-16235ac-runtime`, and passed public readiness, deployment/MCP, live computed-style, rendered desktop, and expected-only log checks with the prior image retained for rollback.
+- [x] 2026-07-29T04:56Z: Published npm 1.1.22, matched prepared, registry, and clean-download checksums, passed isolated Codex and Claude lifecycles from the registry tarball, and updated both current hosts to enabled 1.1.22 with the approved installed icon hash.
 
 ## Surprises & Discoveries
 
@@ -142,4 +144,6 @@ Verification:
 
 ## Outcomes & Retrospective
 
-Pending implementation and release acceptance.
+The exact approved artwork now serves as the public hero asset and packaged Codex plugin logo. Claude remains strict-manifest-valid without an unsupported icon field. The stable hero path revalidates, while a content-version query bypasses older immutable responses.
+
+The rejected synthetic gradient oval was removed before final acceptance. Production renders the supplied artwork directly, with desktop and mobile browser coverage locking the pseudo-element's absence and responsive layout. npm 1.1.22, the clean registry download, and both current installed hosts all resolve the approved icon bytes at SHA-256 `696d832540acdd66044a5cfe8273fe60018fa48855e961c6b71e1705cd007189`.

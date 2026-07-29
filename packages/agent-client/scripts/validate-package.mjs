@@ -280,7 +280,14 @@ export const validatePackage = async () => {
   assert(packageJson.files?.includes("assets"), "Package must include plugin artwork");
   assert(codex.interface?.displayName === "Fullwell", "Codex must expose the Fullwell mention name");
   assert(codex.interface?.logo === "./assets/fullwell-icon.png", "Codex must expose the canonical Fullwell plugin logo");
-  assert(codex.interface?.defaultPrompt?.[0] === "Set up Fullwell.", "Codex must expose the conversational setup starter");
+  assert(
+    JSON.stringify(codex.interface?.defaultPrompt) === JSON.stringify([
+      "Fullwell hi",
+      "Fullwell i'm out of cashews",
+      "Fullwell reorder from Wanpo in stanford mall"
+    ]),
+    "Codex must expose the approved Fullwell starter prompts"
+  );
   assert(codex.interface.defaultPrompt.every((prompt) => !prompt.includes("@")), "Codex starter prompts must not contain mention syntax");
   assert(codex.skills === "./skills/" && claude.skills === "./skills/", "Hosts must use shared skills");
   assert(codex.mcpServers === "./codex-mcp.json" && claude.mcpServers === "./.mcp.json", "Hosts must use their portable MCP adapters");

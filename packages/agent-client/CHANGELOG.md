@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.1.23 - 2026-07-29
+
+- Replace the Codex and ChatGPT desktop plugin recommendations with three direct Fullwell starters for greeting, grocery restocking, and Wanpo delivery reordering.
+
 ## 1.1.22 - 2026-07-29
 
 - Package the approved Fullwell artwork and expose it through Codex's supported plugin logo metadata while keeping Claude's strict manifest free of unsupported extension fields.

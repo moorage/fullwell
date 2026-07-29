@@ -1,6 +1,6 @@
 {
   "name": "fullwell",
-  "version": "1.1.22",
+  "version": "1.1.23",
   "description": "Keep an evidence-backed family food and delivery journal with Codex.",
   "homepage": "https://fullwell.ai/install",
   "license": "UNLICENSED",
@@ -18,10 +18,9 @@
     "privacyPolicyURL": "https://fullwell.ai/privacy",
     "termsOfServiceURL": "https://fullwell.ai/terms",
     "defaultPrompt": [
-      "Set up Fullwell.",
-      "Learn the snacks, ingredients, condiments, and other groceries I buy.",
-      "Index my food-delivery order history.",
-      "Share a collection of our favorite recipes."
+      "Fullwell hi",
+      "Fullwell i'm out of cashews",
+      "Fullwell reorder from Wanpo in stanford mall"
     ],
     "brandColor": "#16745B",
     "logo": "./assets/fullwell-icon.png"

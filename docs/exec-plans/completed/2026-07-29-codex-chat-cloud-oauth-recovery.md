@@ -42,8 +42,13 @@ continues using its native protected-tool authentication path.
 - [x] 2026-07-29T19:43Z: Full verification passed with 425 application tests
   and 12 expected database-gated skips after correcting an unrelated
   empty-stdin child-process race exposed by the concurrent release gate.
-- [ ] Deploy the exact committed server source, publish the prepared package,
-  update both installed hosts, and record post-release proof.
+- [x] 2026-07-29T19:50Z: Pushed release commit `51d6547`, deployed its exact
+  Linux/amd64 server image with rollback retained, published the matching
+  34-file `@fullwell/fullwell@1.1.24` artifact, and updated Codex and Claude.
+- [x] 2026-07-29T19:54Z: Deliberately removed the Codex credential and proved
+  normal Fullwell thread `019faf70-31c3-7eb2-a0d0-286d7bcacc79` invoked
+  Codex-owned login; after browser consent, its next turn completed one
+  read-only `fullwell-cloud.hfj_get_context` call and restored the credential.
 
 ## Surprises & Discoveries
 
@@ -271,18 +276,29 @@ Rollback:
 
 ## Outcomes & Retrospective
 
-The source and currently installed Fullwell skill contain the same bounded
-recovery rule. A fresh logged-out app-server chat triggered
+Release commit `51d6547` is pushed. Public `@fullwell/fullwell@1.1.24`
+byte-matches the prepared and clean-download artifact at SHA-1
+`a5152ed5fbd18876aca45c5f80d62dd6cdf818e8`. Codex and Claude both run the
+enabled release, and Codex's installed managing skill byte-matches source.
+
+DigitalOcean runs exact-source Linux/amd64 image
+`hfj-staging:codex-oauth-51d6547-runtime` at OCI index
+`sha256:d499d63d1e333a72c23efe2f043ebdedc30775c7eaa211c07746a6c7f079adb8`.
+Public readiness, deployment/MCP smokes, exact anonymous OAuth redirect,
+warning logs, maintenance, reconciliation, backup, repository, signature, and
+quarantine checks pass. The prior image and environment retain rollback.
+
+Fresh logged-out thread `019faf70-31c3-7eb2-a0d0-286d7bcacc79` triggered
 `codex mcp login fullwell-cloud`, completed browser consent, and correctly
 waited for a new turn. The resumed turn exposed and successfully called
-`hfj_get_context`; Codex's keyring now contains the restored host-owned
-credential. No household was created or changed.
+`hfj_get_context`; Codex's keyring contains the restored host-owned credential.
+No household was created or changed.
 
 The first installed-host attempt also proved that a browser profile without a
 Fullwell web session can strand OAuth at a bare `401`. The server source now
 redirects that exact request through sign-in and has focused route coverage.
-That robustness fix will take effect when this source is released and deployed;
-the current Desktop reconnection itself is already verified.
+The deployed server now preserves that browser authorization request through
+sign-in and returns to the original OAuth flow.
 
 ## Rollback
 

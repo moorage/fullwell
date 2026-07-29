@@ -1,5 +1,16 @@
 # Verification Evidence
 
+## Codex chat cloud OAuth recovery
+
+Date: 2026-07-29
+
+- Release commit `51d6547178fe7fe1fd24a14fc888e5e3ddc8e28d` is pushed to `origin/main`. Public `@fullwell/fullwell@1.1.24` was published as `latest` at `2026-07-29T19:50:09.299Z`; its prepared, registry, and clean-download artifacts match at SHA-1 `a5152ed5fbd18876aca45c5f80d62dd6cdf818e8` and SHA-512 `sha512-RNB9YqHguj5SWdFFLmeQE0E7ywhvXTbAq5vPSAUmQED26MSU42NzR4xJ6PbHkEuihLyGdZlGRsk2/SH571k3zg==`. The 34-file artifact passes isolated Codex and Claude install/update lifecycles.
+- DigitalOcean runs exact-source Linux/amd64 image `hfj-staging:codex-oauth-51d6547-runtime` at OCI index `sha256:d499d63d1e333a72c23efe2f043ebdedc30775c7eaa211c07746a6c7f079adb8` and concrete manifest `sha256:a93e4d6651f9d832d69764e76c15a71737e8d1c8cf2accb631fb479b35fee34c`. Its 85,640,192-byte transfer matched locally and remotely at SHA-256 `9abad2fdbaeb32bacc7499d65b407ffcd75ce3af88f0654ea8aaf8086824539d`.
+- Public liveness, schema `0008` readiness, deployment and MCP discovery smokes, zero-warning service logs, and the exact unauthenticated `303 /sign-in?returnTo=...` OAuth redirect pass. Maintenance completed successfully; reconciliation, backup, repository, signature, and quarantine aggregates are healthy. Operator status remains degraded only by the known four response-ready WhatsApp records while no runner is online.
+- Codex and Claude both report enabled `1.1.24`; Codex's installed managing skill byte-matches the release and its prior host-owned OAuth credential survived reinstall. Claude strict validation and both local/cloud MCP connections pass.
+- Acceptance deliberately removed the Codex credential once. Normal Fullwell thread `019faf70-31c3-7eb2-a0d0-286d7bcacc79` then invoked Codex's supported MCP login command without asking the person to use a terminal. After browser consent, the next turn exposed `fullwell-cloud` and completed exactly one read-only `hfj_get_context` call. The keyring credential is restored, and no household journal mutation occurred.
+- `/etc/hfj/deploy.env.pre-codex-oauth-20260729-1` and `hfj-staging:hero-cleanup-16235ac-runtime` retain rollback. No schema migration, Caddy/provider change, direct database edit, or household Git write ran.
+
 ## Desktop starter prompts
 
 Date: 2026-07-29

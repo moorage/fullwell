@@ -5,8 +5,8 @@
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
   - `docs/exec-plans/active/2026-07-27-canonical-origin-fullwell-ai.md`
-  - `docs/exec-plans/active/2026-07-29-codex-chat-cloud-oauth-recovery.md`
 - completed ExecPlans:
+  - `docs/exec-plans/completed/2026-07-29-codex-chat-cloud-oauth-recovery.md`
   - `docs/exec-plans/completed/2026-07-29-plugin-and-hero-artwork.md`
   - `docs/exec-plans/completed/2026-07-28-fullwell-icon-surfaces.md`
   - `docs/exec-plans/completed/2026-07-28-release-atomic-cloud-recovery.md`
@@ -22,8 +22,11 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
-- 2026-07-29 Codex chat OAuth recovery release is in progress under Beads issue `fullwell-oxm` and `docs/exec-plans/active/2026-07-29-codex-chat-cloud-oauth-recovery.md`; local logs proved an explicit earlier `codex mcp logout fullwell-cloud`, not restart, removed the keyring credential while the old process retained an authenticated client until restart
+- 2026-07-29 Codex chat OAuth recovery completed under Beads issue `fullwell-oxm` and `docs/exec-plans/completed/2026-07-29-codex-chat-cloud-oauth-recovery.md`; local logs proved an explicit earlier `codex mcp logout fullwell-cloud`, not restart, removed the keyring credential while the old process retained an authenticated client until restart
 - the release gate also fixed an empty-stdin local-runner race so a child that closes stdin immediately reports its meaningful nonzero exit instead of a scheduling-dependent `EPIPE`; the existing non-empty-input pipe-failure assertion remains intact
+- release commit `51d6547` is pushed; public `@fullwell/fullwell@1.1.24` matches the prepared and clean registry artifact at SHA-1 `a5152ed5fbd18876aca45c5f80d62dd6cdf818e8`, and both current hosts run it enabled with the Codex-owned OAuth credential restored
+- DigitalOcean runs healthy exact-source image `hfj-staging:codex-oauth-51d6547-runtime`; public readiness, deployment/MCP discovery, exact anonymous OAuth sign-in redirect, zero-warning logs, maintenance, reconciliation, backup, repository, signature, and quarantine gates pass with the prior image and root-only environment retained for rollback
+- a deliberate logged-out acceptance run in normal Fullwell thread `019faf70-31c3-7eb2-a0d0-286d7bcacc79` triggered Codex-owned MCP login from chat and completed read-only `hfj_get_context` on the next turn without a terminal instruction, token handling, or household mutation
 - Codex 0.146.0 exposes native app-server OAuth login and runtime refresh to its Desktop client but not as model-callable chat tools; the bounded client recovery therefore uses the exact supported `codex mcp login fullwell-cloud` host command only after explicit cloud intent, keeps all credentials inside Codex, and requires next-turn `hfj_get_context` success before claiming reconnection
 - Fresh-chat verification found that a browser profile without a Fullwell web session received `401` from `/oauth/authorize`; the route now preserves the exact OAuth request through Fullwell sign-in instead of letting Codex's loopback callback expire
 - Fresh thread `019faf56-9ad4-7f23-bab0-ff60888315b7` triggered the browser login from chat without a user-entered command; its resumed turn called `fullwell-cloud.hfj_get_context` successfully, restored the Codex-owned keyring credential, changed no household, and full verification passed with 425 application tests plus 12 expected database-gated skips

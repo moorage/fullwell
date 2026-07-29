@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.1.26 - 2026-07-29
+
+- Keep an explicitly active Codex grocery-order audit running across automatic compaction and premature stops until it records a truthful terminal outcome.
+- Bind continuation to the exact session and turn with private aggregate-only metadata, so later restocking, delivery reordering, meal planning, and unrelated conversation remain unaffected.
+- Leave Claude's existing tool surface and durable checkpoint behavior unchanged; Codex users must review and trust the packaged hook definition before it can run.
+
 ## 1.1.25 - 2026-07-29
 
 - Remove the redundant `Fullwell` text from Codex starter prompt bodies because Codex Desktop already renders the plugin identity before each starter.

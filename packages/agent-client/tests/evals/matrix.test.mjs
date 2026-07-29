@@ -30,6 +30,11 @@ test("each eval has a unique identity and targets both host matrices", async () 
   const draftRuntime = await readFile(path.join(root, "runtime/onboarding-draft.mjs"), "utf8");
   const localRuntime = await readFile(path.join(root, "runtime/local-household.mjs"), "utf8");
   const localMcpRuntime = await readFile(path.join(root, "runtime/local-household-mcp.mjs"), "utf8");
+  const codexAuditHook = await readFile(
+    path.join(root, "hooks/codex-grocery-audit-lifecycle.mjs"),
+    "utf8",
+  );
+  const codexHooks = JSON.parse(await readFile(path.join(root, "hooks/hooks.json"), "utf8"));
   const claudeMcpConfig = JSON.parse(await readFile(path.join(root, ".mcp.json"), "utf8"));
   const codexMcpConfig = JSON.parse(await readFile(path.join(root, "codex-mcp.json"), "utf8"));
   const ids = matrix.cases.map((testCase) => testCase.id);
@@ -426,6 +431,46 @@ test("each eval has a unique identity and targets both host matrices", async () 
   const localResume = matrix.cases.find((testCase) => testCase.id === "local-onboarding-draft-resumes");
   assert.deepEqual(localResume?.required_tools, ["fullwell_local_household_load", "fullwell_local_household_update"]);
   assert.ok(localResume?.invariants.includes("load_local_guest_before_remote_context"));
+  const compactContinuation = matrix.cases.find((testCase) =>
+    testCase.id === "codex-grocery-audit-compaction-continues");
+  assert.deepEqual(
+    compactContinuation?.required_tools,
+    ["fullwell_local_codex_grocery_audit_lifecycle"],
+  );
+  assert.ok(compactContinuation?.invariants.includes("checkpoint_only_after_durable_order_save"));
+  assert.ok(compactContinuation?.invariants.includes("claude_checkpoint_behavior_unchanged"));
+  const terminalRelease = matrix.cases.find((testCase) =>
+    testCase.id === "codex-grocery-audit-terminal-releases");
+  assert.ok(terminalRelease?.invariants.includes("finish_before_user_visible_final_response"));
+  assert.ok(terminalRelease?.invariants.includes("terminal_transition_releases_stop_hook"));
+  const turnIsolation = matrix.cases.find((testCase) =>
+    testCase.id === "codex-grocery-audit-next-turn-isolation");
+  for (const invariant of [
+    "restock_turn_not_armed",
+    "delivery_reorder_turn_not_armed",
+    "meal_planning_turn_not_armed",
+    "unrelated_turn_not_armed",
+  ]) {
+    assert.ok(turnIsolation?.invariants.includes(invariant));
+  }
+  assert.ok(groceryAuditSkill.includes("Codex long-audit lifecycle"));
+  assert.ok(groceryAuditSkill.includes("Do not use it for a report generated from existing evidence"));
+  assert.ok(groceryAuditSkill.includes("A normal new user prompt disarms the old turn"));
+  assert.ok(codexMcpConfig["fullwell-local"].args.includes("--codex-audit-lifecycle"));
+  assert.ok(!claudeMcpConfig["fullwell-local"].args.includes("--codex-audit-lifecycle"));
+  assert.ok(codexHooks.hooks.Stop);
+  assert.ok(codexHooks.hooks.UserPromptSubmit);
+  assert.ok(codexAuditHook.includes("active_turn_id"));
+  assert.ok(!codexAuditHook.includes("transcript_path"));
+  for (const behavior of [
+    "stops_a_collecting_codex_grocery_audit_without_a_terminal_lifecycle_outcome",
+    "arms_grocery_audit_continuation_for_restock_reorder_meal_planning_or_unrelated_turn",
+    "stores_private_purchase_household_browser_credential_or_transcript_data_in_audit_hook_state",
+    "calls_codex_grocery_audit_lifecycle_from_claude",
+    "treats_hook_coordination_as_a_household_or_onboarding_checkpoint",
+  ]) {
+    assert.ok(expected.forbidden_behaviors.includes(behavior));
+  }
   const staleDraft = matrix.cases.find((testCase) => testCase.id === "stale-local-onboarding-draft-fails-closed");
   assert.ok(staleDraft?.invariants.includes("never_merge_stale_or_mismatched_draft"));
   assert.ok(expected.forbidden_behaviors.includes("stores_onboarding_credentials_cookies_tokens_browser_state_or_raw_pages_locally"));

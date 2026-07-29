@@ -66,6 +66,10 @@ export const requiredLocalTools = [
   "fullwell_local_whatsapp_runner_stop"
 ];
 
+export const requiredCodexLocalTools = [
+  "fullwell_local_codex_grocery_audit_lifecycle"
+];
+
 const requiredEvalIds = [
   "existing-account-setup-oauth",
   "codex-logged-out-cloud-chat-recovers-oauth",
@@ -79,6 +83,9 @@ const requiredEvalIds = [
   "explicit-setup-stop-does-not-advance",
   "skipped-onboarding-resumes",
   "local-onboarding-draft-resumes",
+  "codex-grocery-audit-compaction-continues",
+  "codex-grocery-audit-terminal-releases",
+  "codex-grocery-audit-next-turn-isolation",
   "stale-local-onboarding-draft-fails-closed",
   "invite-explicit-acceptance",
   "golden-vs-classic",
@@ -259,13 +266,14 @@ const validatePath = async (relativePath) => {
 };
 
 export const validatePackage = async () => {
-  const [packageJson, codex, claude, codexMcp, claudeMcp, codexMarket, claudeMarket, install, evals] =
+  const [packageJson, codex, claude, codexMcp, claudeMcp, codexHooks, codexMarket, claudeMarket, install, evals] =
     await Promise.all([
       readJson("package.json"),
       readJson(".codex-plugin/plugin.json"),
       readJson(".claude-plugin/plugin.json"),
       readJson("codex-mcp.json"),
       readJson(".mcp.json"),
+      readJson("hooks/hooks.json"),
       readWorkspaceJson(".agents/plugins/marketplace.json"),
       readWorkspaceJson(".claude-plugin/marketplace.json"),
       readJson("install-metadata.json"),
@@ -279,6 +287,7 @@ export const validatePackage = async () => {
   assert(install.release === packageJson.version, "Install metadata and package versions must match");
   assert(packageJson.files?.includes("runtime"), "Package must include the local onboarding runtime");
   assert(packageJson.files?.includes("assets"), "Package must include plugin artwork");
+  assert(packageJson.files?.includes("hooks"), "Package must include Codex lifecycle hooks");
   assert(codex.interface?.displayName === "Fullwell", "Codex must expose the Fullwell mention name");
   assert(codex.interface?.logo === "./assets/fullwell-icon.png", "Codex must expose the canonical Fullwell plugin logo");
   assert(
@@ -296,13 +305,41 @@ export const validatePackage = async () => {
   assert(codex.interface.defaultPrompt.every((prompt) => !prompt.includes("@")), "Codex starter prompts must not contain mention syntax");
   assert(codex.skills === "./skills/" && claude.skills === "./skills/", "Hosts must use shared skills");
   assert(codex.mcpServers === "./codex-mcp.json" && claude.mcpServers === "./.mcp.json", "Hosts must use their portable MCP adapters");
+  assert(codex.hooks === "./hooks/hooks.json", "Codex must load the packaged lifecycle hooks");
+  assert(!Object.hasOwn(claude, "hooks"), "Claude must not load Codex lifecycle hooks");
+  assert(
+    Object.keys(codexHooks.hooks ?? {}).sort().join(",") === "PostToolUse,SessionStart,Stop,UserPromptSubmit",
+    "Codex hooks must remain limited to the grocery-audit lifecycle events",
+  );
+  const hookCommands = Object.values(codexHooks.hooks)
+    .flatMap((groups) => groups)
+    .flatMap((group) => group.hooks)
+    .map((hook) => hook.command);
+  assert(
+    hookCommands.every((command) =>
+      command === "node \"${PLUGIN_ROOT}/hooks/codex-grocery-audit-lifecycle.mjs\""),
+    "Codex hooks must invoke only the packaged lifecycle script",
+  );
+  assert(
+    codexHooks.hooks.PostToolUse[0].matcher
+      === "^mcp__fullwell[_-]local__fullwell_local_codex_grocery_audit_lifecycle$",
+    "PostToolUse must match only the Codex grocery-audit lifecycle tool",
+  );
+  assert(
+    codexHooks.hooks.SessionStart[0].matcher === "^(compact|resume)$",
+    "SessionStart must remain limited to compaction and resume",
+  );
   for (const mcp of [codexMcp, claudeMcp]) {
     assert(Object.keys(mcp).sort().join(",") === "fullwell-cloud,fullwell-local", "MCP config must declare only the local and hosted Fullwell services");
   }
 
   const codexLocalEndpoint = codexMcp["fullwell-local"];
   assert(codexLocalEndpoint?.command === "node", "Codex local Fullwell MCP must use the packaged Node runtime");
-  assert(codexLocalEndpoint.args?.join(",") === "./runtime/local-household-mcp.mjs", "Codex local Fullwell MCP must use the packaged server entrypoint");
+  assert(
+    codexLocalEndpoint.args?.join(",")
+      === "./runtime/local-household-mcp.mjs,--codex-audit-lifecycle",
+    "Codex local Fullwell MCP must use the packaged server entrypoint and fixed lifecycle flag",
+  );
   assert(codexLocalEndpoint.cwd === ".", "Codex local Fullwell MCP must resolve from the plugin root");
   assert(codexLocalEndpoint.env_vars?.join(",") === "CODEX_HOME", "Codex local Fullwell MCP may inherit only CODEX_HOME");
   assert(codexLocalEndpoint.startup_timeout_sec === 5, "Codex local Fullwell MCP must retain its bounded startup timeout");
@@ -364,11 +401,15 @@ export const validatePackage = async () => {
     validatePath(codex.interface.logo),
     validatePath(codex.skills),
     validatePath(codex.mcpServers),
+    validatePath(codex.hooks),
     validatePath(claude.mcpServers),
     validatePath("runtime/onboarding-draft.mjs"),
     validatePath("runtime/local-household.mjs"),
     validatePath("runtime/local-household-mcp.mjs"),
+    validatePath("hooks/codex-grocery-audit-lifecycle.mjs"),
   ]);
+  const hookRuntime = await readFile(path.join(root, "hooks/codex-grocery-audit-lifecycle.mjs"), "utf8");
+  assert(!hookRuntime.includes("transcript_path"), "Codex audit hooks must not parse transcripts");
   const pluginLogo = await readFile(path.join(root, codex.interface.logo));
   assert(
     createHash("sha256").update(pluginLogo).digest("hex") === "696d832540acdd66044a5cfe8273fe60018fa48855e961c6b71e1705cd007189",
@@ -420,6 +461,10 @@ export const validatePackage = async () => {
     assert(contract.includes(`\`${tool}\``), `MCP reference omits ${tool}`);
     assert(combinedSkills.some((skill) => skill.includes(`\`${tool}\``)), `No skill uses ${tool}`);
   }
+  for (const tool of requiredCodexLocalTools) {
+    assert(contract.includes(`\`${tool}\``), `MCP reference omits ${tool}`);
+    assert(combinedSkills.some((skill) => skill.includes(`\`${tool}\``)), `No skill uses ${tool}`);
+  }
 
   assert(evals.hosts?.sort().join(",") === "claude,codex", "Evals must target Codex and Claude");
   const ids = new Set(evals.cases?.map((testCase) => testCase.id));
@@ -428,7 +473,10 @@ export const validatePackage = async () => {
     assert(testCase.invariants?.length > 0, `Eval ${testCase.id} has no invariants`);
     for (const skill of testCase.skills) assert(requiredSkills.includes(skill), `Eval ${testCase.id} uses unknown skill`);
     for (const tool of testCase.required_tools) {
-      assert([...requiredTools, ...requiredLocalTools].includes(tool), `Eval ${testCase.id} uses unknown tool`);
+      assert(
+        [...requiredTools, ...requiredLocalTools, ...requiredCodexLocalTools].includes(tool),
+        `Eval ${testCase.id} uses unknown tool`,
+      );
     }
   }
 
@@ -445,7 +493,7 @@ export const validatePackage = async () => {
     endpoint: endpoint.url,
     evalCount: evals.cases.length,
     skillCount: requiredSkills.length,
-    toolCount: requiredTools.length + requiredLocalTools.length
+    toolCount: requiredTools.length + requiredLocalTools.length + requiredCodexLocalTools.length
   };
 };
 

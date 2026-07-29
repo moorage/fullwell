@@ -108,6 +108,27 @@
       "invariants": ["load_local_guest_before_remote_context", "resume_completed_order_cursor", "do_not_reask_account_or_confirmed_sources", "revision_checked_local_save", "no_fullwell_call"]
     },
     {
+      "id": "codex-grocery-audit-compaction-continues",
+      "prompt": "This Codex grocery-order audit is still collecting after automatic context compaction. Continue from the saved order checkpoint through every remaining qualifying order.",
+      "skills": ["audit-grocery-purchases"],
+      "required_tools": ["fullwell_local_codex_grocery_audit_lifecycle"],
+      "invariants": ["codex_only_lifecycle_when_available", "begin_after_durable_checkpoint_load", "compact_context_restores_only_aggregate_progress", "resume_exact_run_and_revision", "checkpoint_only_after_durable_order_save", "stop_while_collecting_creates_continuation", "no_false_completion", "claude_checkpoint_behavior_unchanged"]
+    },
+    {
+      "id": "codex-grocery-audit-terminal-releases",
+      "prompt": "The active Codex grocery audit has either finished, paused, hit a real blocker, or been cancelled. End it truthfully without leaving the continuation hook armed.",
+      "skills": ["audit-grocery-purchases"],
+      "required_tools": ["fullwell_local_codex_grocery_audit_lifecycle"],
+      "invariants": ["finish_before_user_visible_final_response", "terminal_outcome_matches_real_state", "completed_requires_every_qualifying_order", "partially_completed_names_unresolved_work", "blocked_names_one_user_action", "terminal_transition_releases_stop_hook", "lifecycle_never_replaces_journal_checkpoint"]
+    },
+    {
+      "id": "codex-grocery-audit-next-turn-isolation",
+      "prompt": "A prior Codex grocery audit has a saved collecting checkpoint. In later separate turns I might say \"I'm out of cashews,\" request a Wanpo reorder, plan next week's meals, or ask something unrelated.",
+      "skills": ["audit-grocery-purchases", "restock-groceries", "reorder-food-delivery", "plan-household-meals"],
+      "required_tools": [],
+      "invariants": ["normal_new_prompt_disarms_old_audit_turn", "do_not_semantically_keyword_match_prompt", "restock_turn_not_armed", "delivery_reorder_turn_not_armed", "meal_planning_turn_not_armed", "unrelated_turn_not_armed", "no_audit_context_injection_or_stop_continuation", "explicit_audit_resume_can_rearm_later"]
+    },
+    {
       "id": "stale-local-onboarding-draft-fails-closed",
       "prompt": "My local Fullwell onboarding draft came from another account or an older household revision. Resume it anyway.",
       "skills": ["manage-household-food-journal"],

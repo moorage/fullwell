@@ -15,6 +15,10 @@ import { stopLocalWhatsAppRunner } from "./local-runner-control.mjs";
 const SERVER_NAME = "fullwell-local";
 const SERVER_VERSION = "1";
 const MAX_MESSAGE_BYTES = 20 * 1024 * 1024;
+const CODEX_AUDIT_LIFECYCLE_ARGUMENT = "--codex-audit-lifecycle";
+const CODEX_AUDIT_LIFECYCLE_TOOL = "fullwell_local_codex_grocery_audit_lifecycle";
+const AUDIT_RUN_ID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$";
+const MAX_AUDIT_ORDER_COUNT = 100_000;
 const UPDATE_OPERATIONS = new Set([
   "initialize",
   "repair_compatibility",
@@ -415,6 +419,81 @@ const localTools = [
   },
 ];
 
+const codexAuditLifecycleTool = {
+  name: CODEX_AUDIT_LIFECYCLE_TOOL,
+  title: "Coordinate one active Codex grocery-order audit",
+  description: "Signals the installed Codex lifecycle hooks when one grocery-order audit begins, resumes, reaches a durable checkpoint, or records a terminal outcome. It stores no food, store, order, household, browser, or credential data and does not mutate the household journal.",
+  inputSchema: {
+    type: "object",
+    oneOf: [
+      {
+        required: ["operation", "run_id", "completed_order_count", "remaining_order_count"],
+        properties: {
+          operation: { const: "begin" },
+          run_id: { type: "string", pattern: AUDIT_RUN_ID_PATTERN },
+          completed_order_count: { type: "integer", minimum: 0, maximum: MAX_AUDIT_ORDER_COUNT },
+          remaining_order_count: {
+            type: ["integer", "null"],
+            minimum: 0,
+            maximum: MAX_AUDIT_ORDER_COUNT,
+          },
+        },
+        additionalProperties: false,
+      },
+      {
+        required: ["operation", "run_id", "expected_revision"],
+        properties: {
+          operation: { const: "resume" },
+          run_id: { type: "string", pattern: AUDIT_RUN_ID_PATTERN },
+          expected_revision: revisionSchema,
+        },
+        additionalProperties: false,
+      },
+      {
+        required: [
+          "operation",
+          "run_id",
+          "expected_revision",
+          "completed_order_count",
+          "remaining_order_count",
+        ],
+        properties: {
+          operation: { const: "checkpoint" },
+          run_id: { type: "string", pattern: AUDIT_RUN_ID_PATTERN },
+          expected_revision: revisionSchema,
+          completed_order_count: { type: "integer", minimum: 0, maximum: MAX_AUDIT_ORDER_COUNT },
+          remaining_order_count: {
+            type: ["integer", "null"],
+            minimum: 0,
+            maximum: MAX_AUDIT_ORDER_COUNT,
+          },
+        },
+        additionalProperties: false,
+      },
+      {
+        required: ["operation", "run_id", "expected_revision", "outcome"],
+        properties: {
+          operation: { const: "finish" },
+          run_id: { type: "string", pattern: AUDIT_RUN_ID_PATTERN },
+          expected_revision: revisionSchema,
+          outcome: {
+            type: "string",
+            enum: ["completed", "partially_completed", "blocked", "cancelled"],
+          },
+        },
+        additionalProperties: false,
+      },
+    ],
+  },
+  annotations: {
+    title: "Coordinate Codex grocery audit",
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
+};
+
 function jsonRpcResult(id, result) {
   return { jsonrpc: "2.0", id, result };
 }
@@ -461,7 +540,96 @@ function assertEmptyArguments(value) {
   }
 }
 
-async function callLocalTool(root, name, input, controls) {
+function assertExactArguments(input, keys) {
+  const actual = Object.keys(input).sort();
+  const expected = [...keys].sort();
+  if (actual.join(",") !== expected.join(",")) {
+    throw new LocalHouseholdError("VALIDATION_FAILED", "audit lifecycle arguments are invalid");
+  }
+}
+
+function assertAuditRunId(value) {
+  if (typeof value !== "string" || !new RegExp(AUDIT_RUN_ID_PATTERN).test(value)) {
+    throw new LocalHouseholdError("VALIDATION_FAILED", "audit run_id must be opaque");
+  }
+}
+
+function assertAuditRevision(value) {
+  if (!Number.isInteger(value) || value < 1 || value >= Number.MAX_SAFE_INTEGER) {
+    throw new LocalHouseholdError("VALIDATION_FAILED", "audit revision is invalid");
+  }
+}
+
+function assertAuditCount(value, label) {
+  if (!Number.isInteger(value) || value < 0 || value > MAX_AUDIT_ORDER_COUNT) {
+    throw new LocalHouseholdError("VALIDATION_FAILED", `${label} is invalid`);
+  }
+}
+
+function normalizeCodexAuditLifecycle(value) {
+  const input = assertPlainObject(value, "arguments");
+  assertAuditRunId(input.run_id);
+  const base = {
+    workflow: "grocery_order_audit",
+    operation: input.operation,
+    run_id: input.run_id,
+  };
+  if (input.operation === "begin") {
+    assertExactArguments(input, ["operation", "run_id", "completed_order_count", "remaining_order_count"]);
+    assertAuditCount(input.completed_order_count, "completed_order_count");
+    if (input.remaining_order_count !== null) {
+      assertAuditCount(input.remaining_order_count, "remaining_order_count");
+    }
+    return {
+      ...base,
+      status: "collecting",
+      revision: 1,
+      completed_order_count: input.completed_order_count,
+      remaining_order_count: input.remaining_order_count,
+    };
+  }
+  if (input.operation === "resume") {
+    assertExactArguments(input, ["operation", "run_id", "expected_revision"]);
+    assertAuditRevision(input.expected_revision);
+    return { ...base, status: "collecting", revision: input.expected_revision };
+  }
+  if (input.operation === "checkpoint") {
+    assertExactArguments(input, [
+      "operation",
+      "run_id",
+      "expected_revision",
+      "completed_order_count",
+      "remaining_order_count",
+    ]);
+    assertAuditRevision(input.expected_revision);
+    assertAuditCount(input.completed_order_count, "completed_order_count");
+    if (input.remaining_order_count !== null) {
+      assertAuditCount(input.remaining_order_count, "remaining_order_count");
+    }
+    return {
+      ...base,
+      status: "collecting",
+      revision: input.expected_revision + 1,
+      completed_order_count: input.completed_order_count,
+      remaining_order_count: input.remaining_order_count,
+    };
+  }
+  if (input.operation === "finish") {
+    assertExactArguments(input, ["operation", "run_id", "expected_revision", "outcome"]);
+    assertAuditRevision(input.expected_revision);
+    if (!["completed", "partially_completed", "blocked", "cancelled"].includes(input.outcome)) {
+      throw new LocalHouseholdError("VALIDATION_FAILED", "audit outcome is invalid");
+    }
+    return {
+      ...base,
+      status: input.outcome,
+      revision: input.expected_revision + 1,
+    };
+  }
+  throw new LocalHouseholdError("VALIDATION_FAILED", "audit lifecycle operation is unsupported");
+}
+
+async function callLocalTool(root, name, input, controls, enableCodexAuditLifecycle) {
   try {
     if (name === "fullwell_local_profile_load") {
       assertEmptyArguments(input);
@@ -492,6 +660,9 @@ async function callLocalTool(root, name, input, controls) {
       assertEmptyArguments(input);
       return toolResult(await controls.stopRunner());
     }
+    if (enableCodexAuditLifecycle && name === CODEX_AUDIT_LIFECYCLE_TOOL) {
+      return toolResult(normalizeCodexAuditLifecycle(input));
+    }
     return null;
   } catch (error) {
     return toolError(error);
@@ -507,7 +678,10 @@ async function callLocalTool(root, name, input, controls) {
 export async function handleLocalHouseholdMcpMessage(
   root,
   message,
-  controls = { stopRunner: stopLocalWhatsAppRunner },
+  controls = {
+    stopRunner: stopLocalWhatsAppRunner,
+    enableCodexAuditLifecycle: false,
+  },
 ) {
   if (message === null || typeof message !== "object" || Array.isArray(message) || message.jsonrpc !== "2.0") {
     return jsonRpcError(null, -32600, "Invalid Request");
@@ -525,11 +699,23 @@ export async function handleLocalHouseholdMcpMessage(
     });
   }
   if (message.method === "ping") return jsonRpcResult(id, {});
-  if (message.method === "tools/list") return jsonRpcResult(id, { tools: localTools });
+  if (message.method === "tools/list") {
+    return jsonRpcResult(id, {
+      tools: controls.enableCodexAuditLifecycle
+        ? [...localTools, codexAuditLifecycleTool]
+        : localTools,
+    });
+  }
   if (message.method === "tools/call") {
     const name = message.params?.name;
     if (typeof name !== "string") return jsonRpcError(id, -32602, "Invalid params");
-    const result = await callLocalTool(root, name, message.params?.arguments ?? {}, controls);
+    const result = await callLocalTool(
+      root,
+      name,
+      message.params?.arguments ?? {},
+      controls,
+      controls.enableCodexAuditLifecycle === true,
+    );
     return result === null
       ? jsonRpcError(id, -32602, `Unknown local Fullwell tool: ${name}`)
       : jsonRpcResult(id, result);
@@ -543,6 +729,7 @@ export async function serveLocalHouseholdMcp({
   output = process.stdout,
   root = activeCodexHome(),
   maxMessageBytes = MAX_MESSAGE_BYTES,
+  enableCodexAuditLifecycle = false,
 } = {}) {
   input.setEncoding("utf8");
   let pending = "";
@@ -566,7 +753,10 @@ export async function serveLocalHouseholdMcp({
           newline = pending.indexOf("\n");
           continue;
         }
-        const response = await handleLocalHouseholdMcpMessage(root, message);
+        const response = await handleLocalHouseholdMcpMessage(root, message, {
+          stopRunner: stopLocalWhatsAppRunner,
+          enableCodexAuditLifecycle,
+        });
         if (response !== null) emit(response);
       }
       newline = pending.indexOf("\n");
@@ -581,5 +771,7 @@ export async function serveLocalHouseholdMcp({
 
 if (process.argv[1] !== undefined
   && await realpath(fileURLToPath(import.meta.url)) === await realpath(process.argv[1])) {
-  await serveLocalHouseholdMcp();
+  await serveLocalHouseholdMcp({
+    enableCodexAuditLifecycle: process.argv.includes(CODEX_AUDIT_LIFECYCLE_ARGUMENT),
+  });
 }

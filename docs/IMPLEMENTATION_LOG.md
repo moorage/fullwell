@@ -6,6 +6,7 @@
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
   - `docs/exec-plans/active/2026-07-27-canonical-origin-fullwell-ai.md`
 - completed ExecPlans:
+  - `docs/exec-plans/completed/2026-07-29-codex-grocery-audit-continuation.md`
   - `docs/exec-plans/completed/2026-07-29-codex-chat-cloud-oauth-recovery.md`
   - `docs/exec-plans/completed/2026-07-29-plugin-and-hero-artwork.md`
   - `docs/exec-plans/completed/2026-07-28-fullwell-icon-surfaces.md`
@@ -22,6 +23,7 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-29 package `1.1.26` implementation adds an exact-session, exact-turn Codex grocery-audit lifecycle: aggregate-only private hook state survives compaction and continues premature stops until an explicit terminal outcome, while every normal new prompt disarms the old turn so restock, delivery reorder, meal planning, and unrelated work remain inert; publication, hook trust, reinstall, and live Desktop acceptance remain rollout steps
 - 2026-07-29 source commits `74effe2` and `268e347` refresh the homepage Open Graph identity and use a content-versioned 1200x630 social card with the exact requested copy; its Fullwell face has equal 35-pixel top and right padding, and local plus live bytes match SHA-256 `b126c3ef4f6be92a34607841ad976b09fb9f3cc8020c0f40ab54b244fda19795`
 - production runs exact-source Linux/amd64 image `hfj-staging:og-social-268e347-runtime`; public deployment/MCP smokes, exact metadata and image checks, schema `0008` readiness, reconciliation, backup, repository/signature, volume, and expected-only log review pass, with `hfj-staging:og-social-80cbe6c-runtime` plus `/etc/hfj/deploy.env.pre-og-social-20260729-2` retaining rollback
 - 2026-07-29 Codex starter-label correction completed under Beads issue `fullwell-69u`; release commit `2bd9198` is pushed, public `@fullwell/fullwell@1.1.25` matches the prepared and clean registry artifact at SHA-1 `22cbe29522551a99db6d940eed78d7dbb21e6534`, and Codex plus Claude both report installed `1.1.25`

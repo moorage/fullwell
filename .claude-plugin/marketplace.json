@@ -5,18 +5,18 @@
     "name": "Fullwell"
   },
   "description": "Fullwell household tools",
-  "version": "1.1.25",
+  "version": "1.1.26",
   "plugins": [
     {
       "name": "fullwell",
       "source": {
         "source": "npm",
         "package": "@fullwell/fullwell",
-        "version": "1.1.25",
+        "version": "1.1.26",
         "registry": "https://registry.npmjs.org"
       },
       "description": "Keep an evidence-backed family food journal.",
-      "version": "1.1.25",
+      "version": "1.1.26",
       "category": "lifestyle",
       "tags": ["food", "recipes", "groceries", "family"],
       "strict": true

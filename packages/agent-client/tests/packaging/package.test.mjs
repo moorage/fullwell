@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  requiredCodexLocalTools,
   requiredLocalTools,
   requiredSkills,
   requiredTools,
@@ -11,7 +12,10 @@ import {
 test("the Codex and Claude package is complete and privacy-safe", async () => {
   const result = await validatePackage();
   assert.equal(result.skillCount, requiredSkills.length);
-  assert.equal(result.toolCount, requiredTools.length + requiredLocalTools.length);
+  assert.equal(
+    result.toolCount,
+    requiredTools.length + requiredLocalTools.length + requiredCodexLocalTools.length,
+  );
   assert.equal(result.endpoint, "https://fullwell.ai/mcp");
   assert.ok(result.evalCount >= 15);
   assert.ok(requiredSkills.includes("audit-food-delivery-orders"));

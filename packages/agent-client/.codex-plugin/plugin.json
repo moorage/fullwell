@@ -1,12 +1,13 @@
 {
   "name": "fullwell",
-  "version": "1.1.25",
+  "version": "1.1.26",
   "description": "Keep an evidence-backed family food and delivery journal with Codex.",
   "homepage": "https://fullwell.ai/install",
   "license": "UNLICENSED",
   "keywords": ["food", "recipes", "groceries", "family"],
   "skills": "./skills/",
   "mcpServers": "./codex-mcp.json",
+  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Fullwell",
     "shortDescription": "Audit groceries and delivery, remember recipes, and collaborate.",

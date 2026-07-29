@@ -94,6 +94,103 @@ test("the local MCP server exposes stable, truthful tool identities", async () =
     schema.properties.kind.const === "journal_delivery_dish");
   assert.deepEqual(deliverySource.required, ["kind", "item_id", "item_revision", "evidence_ids"]);
   assert.equal(deliverySource.properties.evidence_ids.uniqueItems, true);
+
+  const codexListed = await handleLocalHouseholdMcpMessage("/unused", {
+    jsonrpc: "2.0",
+    id: 3,
+    method: "tools/list",
+  }, {
+    enableCodexAuditLifecycle: true,
+    stopRunner: async () => ({ status: "not_configured", connection_preserved: true }),
+  });
+  assert.deepEqual(
+    codexListed.result.tools.slice(0, -1).map((tool) => tool.name),
+    listed.result.tools.map((tool) => tool.name),
+  );
+  const lifecycle = codexListed.result.tools.at(-1);
+  assert.equal(lifecycle.name, "fullwell_local_codex_grocery_audit_lifecycle");
+  assert.deepEqual(
+    lifecycle.inputSchema.oneOf.map((variant) => variant.properties.operation.const),
+    ["begin", "resume", "checkpoint", "finish"],
+  );
+  assert.equal(lifecycle.annotations.destructiveHint, false);
+});
+
+test("the Codex-only grocery audit lifecycle validates and echoes bounded coordination metadata", async () => {
+  const callCodexLifecycle = async (id, args) => await handleLocalHouseholdMcpMessage("/unused", {
+    jsonrpc: "2.0",
+    id,
+    method: "tools/call",
+    params: {
+      name: "fullwell_local_codex_grocery_audit_lifecycle",
+      arguments: args,
+    },
+  }, {
+    enableCodexAuditLifecycle: true,
+    stopRunner: async () => ({ status: "not_configured", connection_preserved: true }),
+  });
+  const runId = "550e8400-e29b-41d4-a716-446655440000";
+  assert.deepEqual(parsedToolContent(await callCodexLifecycle(1, {
+    operation: "begin",
+    run_id: runId,
+    completed_order_count: 8,
+    remaining_order_count: null,
+  })), {
+    ok: true,
+    workflow: "grocery_order_audit",
+    operation: "begin",
+    run_id: runId,
+    status: "collecting",
+    revision: 1,
+    completed_order_count: 8,
+    remaining_order_count: null,
+  });
+  assert.equal(parsedToolContent(await callCodexLifecycle(2, {
+    operation: "resume",
+    run_id: runId,
+    expected_revision: 1,
+  })).revision, 1);
+  assert.equal(parsedToolContent(await callCodexLifecycle(3, {
+    operation: "checkpoint",
+    run_id: runId,
+    expected_revision: 1,
+    completed_order_count: 9,
+    remaining_order_count: 4,
+  })).revision, 2);
+  assert.equal(parsedToolContent(await callCodexLifecycle(4, {
+    operation: "finish",
+    run_id: runId,
+    expected_revision: 2,
+    outcome: "partially_completed",
+  })).status, "partially_completed");
+
+  const unavailable = await handleLocalHouseholdMcpMessage("/unused", {
+    jsonrpc: "2.0",
+    id: 5,
+    method: "tools/call",
+    params: {
+      name: "fullwell_local_codex_grocery_audit_lifecycle",
+      arguments: {
+        operation: "begin",
+        run_id: runId,
+        completed_order_count: 0,
+        remaining_order_count: null,
+      },
+    },
+  });
+  assert.equal(unavailable.error.code, -32602);
+
+  for (const [id, args] of [
+    [6, { operation: "begin", run_id: "household@example.com", completed_order_count: 0, remaining_order_count: null }],
+    [7, { operation: "resume", run_id: runId, expected_revision: 0 }],
+    [8, { operation: "checkpoint", run_id: runId, expected_revision: 1, completed_order_count: -1, remaining_order_count: null }],
+    [9, { operation: "finish", run_id: runId, expected_revision: 1, outcome: "collecting" }],
+    [10, { operation: "finish", run_id: runId, expected_revision: 1, outcome: "completed", extra: true }],
+  ]) {
+    const response = await callCodexLifecycle(id, args);
+    assert.equal(response.result.isError, true);
+    assert.equal(parsedToolContent(response).error.code, "VALIDATION_FAILED");
+  }
 });
 
 test("local profile, household naming, and runner control are available through chat-safe tools", async () => {

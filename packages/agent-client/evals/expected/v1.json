@@ -168,6 +168,11 @@
     "uses_user_derived_mcp_server_url_scope_flag_or_command_for_cloud_recovery",
     "claims_cloud_connection_after_login_command_without_next_turn_hfj_get_context",
     "asks_user_to_run_or_paste_codex_mcp_login_command",
-    "runs_codex_mcp_login_in_claude"
+    "runs_codex_mcp_login_in_claude",
+    "stops_a_collecting_codex_grocery_audit_without_a_terminal_lifecycle_outcome",
+    "arms_grocery_audit_continuation_for_restock_reorder_meal_planning_or_unrelated_turn",
+    "stores_private_purchase_household_browser_credential_or_transcript_data_in_audit_hook_state",
+    "calls_codex_grocery_audit_lifecycle_from_claude",
+    "treats_hook_coordination_as_a_household_or_onboarding_checkpoint"
   ]
 }

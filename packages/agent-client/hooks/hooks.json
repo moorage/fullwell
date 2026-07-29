@@ -1,0 +1,53 @@
+{
+  "description": "Keep only an explicitly active Fullwell grocery-order audit running across Codex compaction and premature stops.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "^(compact|resume)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/codex-grocery-audit-lifecycle.mjs\"",
+            "timeout": 3,
+            "additionalContextLimit": 800
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/codex-grocery-audit-lifecycle.mjs\"",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^mcp__fullwell[_-]local__fullwell_local_codex_grocery_audit_lifecycle$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/codex-grocery-audit-lifecycle.mjs\"",
+            "timeout": 3,
+            "additionalContextLimit": 400
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/codex-grocery-audit-lifecycle.mjs\"",
+            "timeout": 3
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -56,6 +56,7 @@ The local tools store a private member profile at `fullwell/local/profile.json` 
 - `fullwell_local_household_delete_collecting` takes `expected_revision` and may remove only an unfinished guest household.
 - `fullwell_local_recipe_board_create` creates a bounded private visual snapshot after explicit user interest; it never opens a browser or changes the journal.
 - `fullwell_local_whatsapp_runner_stop` stops only the local macOS runner and preserves the cloud connection, credentials, snapshots, receipts, and journal.
+- In Codex only, `fullwell_local_codex_grocery_audit_lifecycle` coordinates an explicitly active long grocery-order traversal with the installed hooks. Only the grocery-audit skill calls it. It never replaces a local or cloud checkpoint, and restocking, delivery reordering, meal planning, recipes, other Fullwell operations, and unrelated conversation never call it.
 
 If the `fullwell-local` server or any of these tools is unavailable, stop local setup and ask the user to reload or reinstall the Fullwell plugin. Do not fall back to a version-specific shell command, edit the user's Codex rules, or call the hosted service without account or cloud-backup consent.
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -104,11 +104,23 @@ test("Codex CLI installs, reinstalls, and removes the shared package from an iso
     const mcpServers = JSON.parse((await run("codex", ["mcp", "list", "--json"], env)).stdout);
     const localMcp = mcpServers.find((server) => server.name === "fullwell-local");
     assert.equal(localMcp?.transport.command, "node");
-    assert.deepEqual(localMcp?.transport.args, ["./runtime/local-household-mcp.mjs"]);
+    assert.deepEqual(
+      localMcp?.transport.args,
+      ["./runtime/local-household-mcp.mjs", "--codex-audit-lifecycle"],
+    );
     assert.match(localMcp?.transport.cwd, /plugins[/\\]cache[/\\]fullwell[/\\]fullwell[/\\][^/\\]+[/\\]\.$/);
     const installedPluginRoot = path.resolve(localMcp.transport.cwd);
     const installedManifest = JSON.parse(await readFile(path.join(installedPluginRoot, ".codex-plugin/plugin.json"), "utf8"));
     assert.equal(installedManifest.interface?.logo, "./assets/fullwell-icon.png");
+    assert.equal(installedManifest.hooks, "./hooks/hooks.json");
+    const installedHooks = JSON.parse(
+      await readFile(path.join(installedPluginRoot, "hooks/hooks.json"), "utf8"),
+    );
+    assert.deepEqual(
+      Object.keys(installedHooks.hooks).sort(),
+      ["PostToolUse", "SessionStart", "Stop", "UserPromptSubmit"],
+    );
+    await access(path.join(installedPluginRoot, "hooks/codex-grocery-audit-lifecycle.mjs"));
     assert.equal(
       createHash("sha256").update(await readFile(path.join(installedPluginRoot, installedManifest.interface.logo))).digest("hex"),
       "696d832540acdd66044a5cfe8273fe60018fa48855e961c6b71e1705cd007189",

@@ -351,6 +351,7 @@ repo-root/
     |   `-- plugin.json
     |-- .mcp.json
     |-- codex-mcp.json
+    |-- hooks/
     |-- skills/
     |-- references/
     |-- evals/
@@ -369,6 +370,9 @@ packages/agent-client/
 |   `-- plugin.json
 |-- .mcp.json
 |-- codex-mcp.json
+|-- hooks/
+|   |-- hooks.json
+|   `-- codex-grocery-audit-lifecycle.mjs
 |-- runtime/
 |   |-- local-household.mjs
 |   |-- local-household-mcp.mjs
@@ -402,11 +406,13 @@ packages/agent-client/
 `-- CHANGELOG.md
 ```
 
-The two host manifests and marketplace catalogs are packaging adapters. They must resolve to the same `skills/` directory, stable local MCP server/tool identities, and remote MCP URL. Codex uses `codex-mcp.json` for its plugin-root working directory; Claude uses `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}` because it ignores that working-directory field. These files may differ only in host path resolution and must start the same packaged server. Do not fork the skill instructions by host.
+The two host manifests and marketplace catalogs are packaging adapters. They must resolve to the same `skills/` directory, stable shared local MCP server/tool identities, and remote MCP URL. Codex uses `codex-mcp.json` for its plugin-root working directory and passes the fixed `--codex-audit-lifecycle` argument; Claude uses `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}` because it ignores that working-directory field and does not pass the lifecycle argument. Both start the same packaged server. The shared skills branch only on whether the documented Codex-only lifecycle tool is present; do not otherwise fork the skill instructions by host.
 
 Each `SKILL.md` must have only `name` and `description` in YAML frontmatter so the shared files satisfy both hosts. Keep each skill under 500 lines and link directly to relevant reference files rather than duplicating large contracts.
 
-The MCP config contains only the stable dependency-free `fullwell-local` stdio declaration and the `fullwell-cloud` public HTTPS declaration. The local server resolves `${CLAUDE_PLUGIN_ROOT}/runtime/local-household-mcp.mjs` to the installed plugin cache in both hosts instead of depending on the session working directory, inherits only the optional `CODEX_HOME`, performs no network access, and exposes separate read, update, and delete approval semantics. The config must not embed client secrets, bearer tokens, Apple credentials, household identifiers, absolute user paths, shell evaluation, or command allow rules.
+The MCP config contains only the stable dependency-free `fullwell-local` stdio declaration and the `fullwell-cloud` public HTTPS declaration. The local server resolves `${CLAUDE_PLUGIN_ROOT}/runtime/local-household-mcp.mjs` to the installed plugin cache in both hosts instead of depending on the session working directory, inherits only the optional `CODEX_HOME`, performs no network access, and exposes separate read, update, and delete approval semantics. With the fixed Codex flag it additionally exposes one non-destructive lifecycle signal that writes no household data; without that flag Claude's tool list remains unchanged. The config must not embed client secrets, bearer tokens, Apple credentials, household identifiers, absolute user paths, shell evaluation, or command allow rules.
+
+Codex loads `hooks/hooks.json` from the plugin manifest only after the user reviews and trusts its exact definition. The four hook events invoke one packaged dependency-free Node script through `${PLUGIN_ROOT}`. Its private coordination record lives under `${PLUGIN_DATA}`, expires after 30 days, hashes the session for its filename, uses private atomic files, rejects symlinks and malformed state, and contains no user, household, store, order, food, URL, browser, credential, or transcript data. Disabling or untrusting the hook restores ordinary Codex behavior without changing any local or cloud journal or onboarding checkpoint.
 
 ## 7. Skill responsibilities
 
@@ -416,7 +422,7 @@ Trigger for every Fullwell greeting, including a bare `@Fullwell hi`, or setup s
 
 ### `audit-grocery-purchases`
 
-Trigger for purchase-history audits, recurring grocery reports, pantry comparisons, store changes, recurrence recalculation, and authorized image refresh. In one order-detail traversal, learn snacks, ingredients, condiments, and other groceries, including identities below the report threshold. Carry forward the full identity safeguards. When operating an authorized browser, treat order-history listings as discovery only: traverse the complete date window, open every qualifying delivered or completed order detail, expand every complete-item control, verify exact line items through the subtotal or order-total boundary, and capture exact visible safe image/page provenance when available. If hidden items cannot be exposed, identify the incomplete order and do not claim the audit or affected recurrence result is complete.
+Trigger for purchase-history audits, recurring grocery reports, pantry comparisons, store changes, recurrence recalculation, and authorized image refresh. In one order-detail traversal, learn snacks, ingredients, condiments, and other groceries, including identities below the report threshold. Carry forward the full identity safeguards. When operating an authorized browser, treat order-history listings as discovery only: traverse the complete date window, open every qualifying delivered or completed order detail, expand every complete-item control, verify exact line items through the subtotal or order-total boundary, and capture exact visible safe image/page provenance when available. If hidden items cannot be exposed, identify the incomplete order and do not claim the audit or affected recurrence result is complete. In Codex, an actual order traversal uses the lifecycle signal after loading its durable checkpoint, advances it only after each durable order save, and records a truthful terminal outcome before the final response. Existing-evidence reports, pantry comparisons, restock, delivery reorder, meal planning, recipes, other Fullwell operations, and unrelated chat never arm it.
 
 ### `audit-food-delivery-orders`
 
@@ -455,6 +461,7 @@ The client is coded against these stable tool names. Complete schemas and author
 | `fullwell_local_household_delete_collecting` | Delete only an unfinished guest household after explicit cancellation confirmation. |
 | `fullwell_local_recipe_board_create` | Create one bounded private static recipe-board snapshot without opening a browser or changing the journal. |
 | `fullwell_local_whatsapp_runner_stop` | Stop the local macOS WhatsApp runner while preserving connection and local data. |
+| `fullwell_local_codex_grocery_audit_lifecycle` | Codex only: coordinate one explicitly active grocery-order audit with private aggregate-only `begin`, `resume`, `checkpoint`, and `finish` signals; never store or replace household data. |
 | `hfj_get_context` | Read authenticated user and actor identity, households, pending intent, roles, current revisions, per-section onboarding state, both onboarding profiles, and a bounded item identity index. |
 | `hfj_update_user_display_name` | Update the authenticated user's cloud display name without household membership. |
 | `hfj_create_household` | Create a household and its Git repository. |
@@ -534,6 +541,8 @@ Every operation ends in one of these user-visible states:
 - blocked, with the single action the user must take;
 - cancelled, with confirmation that no mutation occurred.
 
+For an actual Codex grocery order-detail audit, the packaged hook treats `collecting` as non-terminal only for the exact session and armed turn. `SessionStart` after automatic compaction or app resume restores bounded aggregate progress before the next model request. `Stop` creates a continuation while the exact turn remains collecting. The hook's one-use nonce can re-arm only its own synthetic continuation; every normal new `UserPromptSubmit` disarms the old turn before the prompt is interpreted, so ordinary restock, delivery reorder, meal-planning, and unrelated responses stop normally. `completed`, `partially_completed`, `blocked`, and `cancelled` release the hook. The hook never invents an outcome, and no hook metadata substitutes for the durable local journal or authenticated onboarding checkpoint.
+
 ## 10. Public installation and handoff UX
 
 The server hosts a stable logged-out homepage at `/`, installation at `/install`, company identity pages at `/about` and `/company`, public advanced-agent guides under `/guides`, and collection pages under `/c/<opaque-token>`.
@@ -593,6 +602,8 @@ Do not expose stack traces, repository paths, commit-signing details, internal a
 - Assert both host packages reference the same skill files, stable local server identity, and MCP URL.
 - Assert packaged files contain no token-like secrets or household data.
 - Assert every referenced file is included in each installed plugin cache.
+- Assert Codex installs the exact hook definition and fixed local-server flag, while Claude exposes neither the hook nor the Codex lifecycle tool.
+- Simulate compaction, stop continuation, one-use nonce re-arming, normal-prompt disarming, terminal release, expiry, malformed state, symlinks, and failed or lookalike lifecycle calls.
 - Exercise marketplace discovery, installation, update or reinstallation, disable/re-enable where supported, removal, and marketplace cleanup in isolated host configuration directories when the current CLIs are available.
 - Require the isolated Claude lifecycle to report the packaged `fullwell-local` server as connected; discovery without successful MCP initialization is a release failure.
 - Run the current official Codex and Claude plugin validators where available.
@@ -603,7 +614,7 @@ Use a mock server generated from the server tool schemas. Cover successful resul
 
 ### 12.3 Agent eval cases
 
-At minimum, test these end-to-end prompts in both Codex and Claude:
+At minimum, test these end-to-end prompts in both Codex and Claude where the capability is shared. Host-specific cases must also prove the other host's behavior and tool surface remain unchanged:
 
 1. The exact bare greeting `@Fullwell hi` loads local state, asks for the preferred name when missing, then warmly acknowledges that name while asking whether the person already has a Fullwell cloud account; it makes no Fullwell call before the answer.
 2. A person without a cloud account initializes a local guest household, hears how one past-order pass learns snacks, ingredients, condiments, and more, and starts necessary grocery-source questions without OAuth, a generic greeting, or a setup-area choice.
@@ -649,6 +660,9 @@ At minimum, test these end-to-end prompts in both Codex and Claude:
 42. Grocery computer-use collection ignores listing thumbnails, stores an exact visible credential-free HTTPS image/page pair when available, and commits it with the grocery item.
 43. Recipe computer-use refresh rejects unsafe or unproven images, preserves a prior valid pair when no replacement is proven, and never blocks complete textual evidence for a missing image.
 44. Delivery computer-use refresh carries exact visible image/page provenance through local save and provider-scoped cloud commit without inspecting hidden network traffic or raw HTML.
+45. An explicitly active Codex grocery-order audit survives automatic compaction and a premature stop, resumes from its durable checkpoint, and records lifecycle progress only after each real order save.
+46. Every terminal grocery-audit response first records `completed`, `partially_completed`, `blocked`, or `cancelled`; `completed` requires every qualifying order.
+47. A later restock, delivery reorder, meal-planning request, or unrelated prompt disarms the old audit turn and receives no audit context or stop continuation.
 
 Maintain eval fixtures for LLM-involved identity, classification, privacy, and conflict-resolution paths. Target 100% coverage for deterministic packaging and adapter code.
 

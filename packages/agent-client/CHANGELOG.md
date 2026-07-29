@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.1.25 - 2026-07-29
+
+- Remove the redundant `Fullwell` text from Codex starter prompt bodies because Codex Desktop already renders the plugin identity before each starter.
+
 ## 1.1.24 - 2026-07-29
 
 - Let an explicitly authorized Fullwell chat recover a deliberately logged-out Codex cloud connection through Codex's fixed MCP login command, then prove the refreshed connection with `hfj_get_context` on the next turn without handling tokens or asking the person to use a terminal.

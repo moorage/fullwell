@@ -22,6 +22,7 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-29 Codex starter-label correction is in progress under Beads issue `fullwell-69u`; Desktop renders the plugin identity before each `defaultPrompt`, so package `1.1.25` removes the duplicated `Fullwell` text from the three prompt bodies and adds a structural guard against repeating the display name
 - 2026-07-29 Codex chat OAuth recovery completed under Beads issue `fullwell-oxm` and `docs/exec-plans/completed/2026-07-29-codex-chat-cloud-oauth-recovery.md`; local logs proved an explicit earlier `codex mcp logout fullwell-cloud`, not restart, removed the keyring credential while the old process retained an authenticated client until restart
 - the release gate also fixed an empty-stdin local-runner race so a child that closes stdin immediately reports its meaningful nonzero exit instead of a scheduling-dependent `EPIPE`; the existing non-empty-input pipe-failure assertion remains intact
 - release commit `51d6547` is pushed; public `@fullwell/fullwell@1.1.24` matches the prepared and clean registry artifact at SHA-1 `a5152ed5fbd18876aca45c5f80d62dd6cdf818e8`, and both current hosts run it enabled with the Codex-owned OAuth credential restored

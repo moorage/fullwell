@@ -283,11 +283,15 @@ export const validatePackage = async () => {
   assert(codex.interface?.logo === "./assets/fullwell-icon.png", "Codex must expose the canonical Fullwell plugin logo");
   assert(
     JSON.stringify(codex.interface?.defaultPrompt) === JSON.stringify([
-      "Fullwell hi",
-      "Fullwell i'm out of cashews",
-      "Fullwell reorder from Wanpo in stanford mall"
+      "hi",
+      "i'm out of cashews",
+      "reorder from Wanpo in stanford mall"
     ]),
-    "Codex must expose the approved Fullwell starter prompts"
+    "Codex must expose the approved starter prompt bodies"
+  );
+  assert(
+    codex.interface.defaultPrompt.every((prompt) => !prompt.toLowerCase().startsWith(`${codex.interface.displayName.toLowerCase()} `)),
+    "Codex starter prompt bodies must not repeat the host-rendered plugin identity"
   );
   assert(codex.interface.defaultPrompt.every((prompt) => !prompt.includes("@")), "Codex starter prompts must not contain mention syntax");
   assert(codex.skills === "./skills/" && claude.skills === "./skills/", "Hosts must use shared skills");

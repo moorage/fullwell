@@ -70,7 +70,11 @@ test("serves crawlable Fullwell company and WhatsApp identity", async ({ page, r
   await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "http://127.0.0.1:4187/");
   await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", "Fullwell");
-  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", "Fullwell Household Assistant");
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", "Fullwell");
+  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
+    "content",
+    "Household food AI Agent. Snacks, groceries, meal planning in an agent environment you already use.",
+  );
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary_large_image");
   await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute("content", "http://127.0.0.1:4187/assets/fullwell-social-card.png");
   await expect(page.locator('link[rel="icon"][sizes="32x32"]')).toHaveAttribute("href", "/assets/fullwell-icon-32.png");
@@ -118,7 +122,7 @@ test("serves crawlable Fullwell company and WhatsApp identity", async ({ page, r
     ["/assets/fullwell-icon-180.png", "3f71ff3935344e09e5be29a6b3956cd7117383d2a69727d0f952f6513aec09a8", 180, 180],
     ["/assets/fullwell-icon-192.png", "b2c23626a8f13cd74b60c2f124d68a467f8c80b5de5cc425a50dde7cbbd48734", 192, 192],
     ["/assets/fullwell-icon-512.png", "50a821d69d20ea588d7ef7bdc69ee0d5bd36b1a457b859775ae104b3b243bd5b", 512, 512],
-    ["/assets/fullwell-social-card.png", "5a22ec1452c8af2d3a2cb251e8ec816f37255ef0e9a8e2c80bff1306fea13160", 1200, 630],
+    ["/assets/fullwell-social-card.png", "b126c3ef4f6be92a34607841ad976b09fb9f3cc8020c0f40ab54b244fda19795", 1200, 630],
   ] as const;
   for (const [path, expectedSha256, width, height] of imageAssets) {
     const asset = await request.get(path);

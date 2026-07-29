@@ -23,7 +23,7 @@ export const PUBLIC_BRAND: PublicBrandIdentity = {
 };
 
 export const HOMEPAGE_DESCRIPTION =
-  "Fullwell is a household assistant by Sous Chef Studio that helps families organize groceries, meals, recipes, pantry needs, and household food tasks through AI agents and WhatsApp.";
+  "Household food AI Agent. Snacks, groceries, meal planning in an agent environment you already use.";
 
 export const FULLWELL_DESCRIPTION =
   "Fullwell is a household assistant developed and operated by Sous Chef Studio, Inc. for groceries, pantry needs, recipes, meals, and related household food tasks through AI agents and optional channels such as WhatsApp.";

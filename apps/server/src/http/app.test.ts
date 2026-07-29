@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { GitObjectIdSchema, HouseholdIdSchema, MealPlanEventIdSchema, MealProposalIdSchema, ToolInputSchemas } from "@hfj/contracts";
@@ -404,6 +404,8 @@ describe("Fastify application", () => {
     expect(homepage.body).toContain('<link rel="apple-touch-icon" sizes="180x180" href="/assets/fullwell-icon-180.png">');
     expect(homepage.body).toContain('<link rel="manifest" href="/site.webmanifest">');
     expect(homepage.body).toContain('<meta property="og:site_name" content="Fullwell">');
+    expect(homepage.body).toContain('<meta property="og:title" content="Fullwell">');
+    expect(homepage.body).toContain('<meta property="og:description" content="Household food AI Agent. Snacks, groceries, meal planning in an agent environment you already use.">');
     expect(homepage.body).toContain('<meta property="og:image:type" content="image/png">');
     expect(homepage.body).toContain('<meta name="twitter:card" content="summary_large_image">');
     expect(homepage.body).toContain('<meta name="twitter:image" content="https://example.test/assets/fullwell-social-card.png">');
@@ -440,6 +442,17 @@ describe("Fastify application", () => {
     expect(socialImage.statusCode).toBe(200);
     expect(socialImage.headers["content-type"]).toContain("image/png");
     expect(socialImage.headers["cache-control"]).toContain("immutable");
+    const socialCardSource = await readFile(
+      resolve(import.meta.dirname, "../../../web/public/assets/fullwell-social-card.svg"),
+      "utf8",
+    );
+    expect(socialCardSource).toContain(">Household food AI Agent</text>");
+    expect(socialCardSource).toContain(">Snacks, groceries, meal planning in an agent environment you already use.</text>");
+    const socialCardIcon = /<image href="fullwell-icon\.png" x="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)"/.exec(socialCardSource);
+    if (socialCardIcon?.[1] === undefined || socialCardIcon[2] === undefined || socialCardIcon[3] === undefined) {
+      throw new Error("social card icon geometry is missing");
+    }
+    expect(Number(socialCardIcon[2])).toBe(1200 - Number(socialCardIcon[1]) - Number(socialCardIcon[3]));
     const homepageArtwork = await app.inject({ method: "GET", url: "/assets/fullwell-full-body-tall.png" });
     expect(homepageArtwork.statusCode).toBe(200);
     expect(homepageArtwork.headers["content-type"]).toContain("image/png");

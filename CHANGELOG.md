@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Refresh the homepage Open Graph identity and social card with the approved household food AI Agent tagline, and give the Fullwell face equal top and right padding so Apple Messages does not crop it.
 - Remove the decorative gradient oval from behind the canonical Fullwell homepage artwork.
 - Package the exact approved Fullwell artwork as the Codex plugin logo and serve those same bytes from the stable homepage hero asset URL.
 

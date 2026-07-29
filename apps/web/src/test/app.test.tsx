@@ -718,12 +718,15 @@ describe("web experience", () => {
     const iconUrl = new URL("/assets/fullwell-icon.png", canonicalUrl).toString();
     expect(rendered.title).toBe("Fullwell Household Assistant | By Sous Chef Studio");
     expect(rendered.metadata).toMatchObject({
+      description: "Household food AI Agent. Snacks, groceries, meal planning in an agent environment you already use.",
       canonicalUrl,
       openGraph: {
         siteName: "Fullwell",
-        title: "Fullwell Household Assistant",
+        title: "Fullwell",
+        description: "Household food AI Agent. Snacks, groceries, meal planning in an agent environment you already use.",
         url: canonicalUrl,
         imageUrl: new URL("/assets/fullwell-social-card.png", canonicalUrl).toString(),
+        imageAlt: "Fullwell household food AI Agent",
       },
     });
     const structuredData = JSON.parse(rendered.metadata?.structuredDataJson ?? "");

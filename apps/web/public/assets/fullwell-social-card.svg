@@ -1,12 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
-  <title id="title">Fullwell household assistant</title>
-  <desc id="description">Fullwell by Sous Chef Studio</desc>
+  <title id="title">Fullwell</title>
+  <desc id="description">Household food AI Agent. Snacks, groceries, meal planning in an agent environment you already use.</desc>
   <rect width="1200" height="630" fill="#fbfaf6"/>
   <path d="M0 455C190 390 300 535 510 460s330-34 690 84v86H0z" fill="#dbe9df"/>
-  <circle cx="1015" cy="150" r="162" fill="#e8f2ef"/>
-  <image href="fullwell-icon.png" x="865" y="0" width="300" height="300" preserveAspectRatio="xMidYMid meet"/>
+  <circle cx="1015" cy="185" r="162" fill="#e8f2ef"/>
+  <image href="fullwell-icon.png" x="865" y="35" width="300" height="300" preserveAspectRatio="xMidYMid meet"/>
   <text x="90" y="250" fill="#1e2420" font-family="Georgia, 'Times New Roman', serif" font-size="98" font-weight="700">Fullwell</text>
-  <text x="94" y="325" fill="#2f6b4c" font-family="Arial, sans-serif" font-size="29" font-weight="700" letter-spacing="2">HOUSEHOLD ASSISTANT</text>
-  <text x="94" y="390" fill="#535e56" font-family="Arial, sans-serif" font-size="32">Groceries, meals, pantry needs, and WhatsApp</text>
-  <text x="94" y="540" fill="#535e56" font-family="Arial, sans-serif" font-size="24">By Sous Chef Studio</text>
+  <text x="94" y="325" fill="#2f6b4c" font-family="Arial, sans-serif" font-size="36" font-weight="700">Household food AI Agent</text>
+  <text x="94" y="390" fill="#535e56" font-family="Arial, sans-serif" font-size="25">Snacks, groceries, meal planning in an agent environment you already use.</text>
 </svg>

@@ -50,7 +50,7 @@ type PublicPageDescription = {
 const publicPageDescriptions: Record<string, PublicPageDescription> = {
   "/": {
     description: HOMEPAGE_DESCRIPTION,
-    openGraphTitle: "Fullwell Household Assistant",
+    openGraphTitle: "Fullwell",
   },
   "/install": {
     description: "Install Fullwell, the household assistant by Sous Chef Studio, for a supported AI agent and connect optional household features such as WhatsApp.",
@@ -136,7 +136,7 @@ function buildPublicMetadata(
       description: page.description,
       url: canonicalUrl,
       imageUrl,
-      imageAlt: "Fullwell household assistant by Sous Chef Studio",
+      imageAlt: "Fullwell household food AI Agent",
     },
     ...(pathname === "/" ? { structuredDataJson: fullwellStructuredDataJson(context) } : {}),
   };

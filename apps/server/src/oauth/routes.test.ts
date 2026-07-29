@@ -3,6 +3,7 @@ import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 import { ActorIdSchema, UserIdSchema } from "@hfj/contracts";
 import { DeterministicRandomSource, FixedClock, HmacTokenHasher } from "../adapters/providers.js";
+import { AppError } from "../core/errors.js";
 import type { Principal } from "../core/types.js";
 import { MemoryOAuthStore } from "./memory-store.js";
 import { registerOAuthRoutes } from "./routes.js";
@@ -14,6 +15,27 @@ const principal: Principal = {
 };
 
 describe("OAuth routes", () => {
+  it("returns an unauthenticated browser to the exact authorization request after sign-in", async () => {
+    const oauth = new OAuthService(new MemoryOAuthStore(), new FixedClock(new Date("2026-07-15T12:00:00.000Z")), new DeterministicRandomSource(), new HmacTokenHasher("route-test-pepper-long-enough"), new URL("https://journal.example.test/mcp"));
+    const app = Fastify();
+    await registerOAuthRoutes(app, {
+      oauth,
+      resolveBrowserPrincipal: async () => {
+        throw new AppError("AUTH_REQUIRED", "Sign in is required");
+      },
+      verifyCsrf: async () => undefined,
+    });
+    const authorizationPath = "/oauth/authorize?response_type=code&client_id=client_123&state=state-value-0001";
+
+    const response = await app.inject({ method: "GET", url: authorizationPath });
+
+    expect(response.statusCode).toBe(303);
+    const signIn = new URL(response.headers.location ?? "", "https://journal.example.test");
+    expect(signIn.pathname).toBe("/sign-in");
+    expect(signIn.searchParams.get("returnTo")).toBe(authorizationPath);
+    await app.close();
+  });
+
   it("registers a public client and completes the form-encoded authorization flow", async () => {
     const store = new MemoryOAuthStore();
     store.addIdentity({ userId: principal.userId, actorId: principal.actorId, displayName: principal.displayName });

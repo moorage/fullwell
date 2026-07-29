@@ -68,6 +68,7 @@ export const requiredLocalTools = [
 
 const requiredEvalIds = [
   "existing-account-setup-oauth",
+  "codex-logged-out-cloud-chat-recovers-oauth",
   "first-time-setup-asks-account-before-oauth",
   "first-time-no-account-starts-local-groceries",
   "bare-fullwell-greeting-asks-account",

@@ -38,10 +38,11 @@ These decisions are normative for version 1.
 7. Every person using hosted features has an individual cloud account. A household membership grants collaboration rights.
 8. Continue with Apple is the primary first-run sign-in. Existing passkeys are equally prominent. Email magic link is the fallback.
 9. MCP uses standards-based OAuth with no copied bearer tokens.
-10. Family invitations grant membership only after authenticated, explicit acceptance.
-11. Collection shares expose immutable public-safe snapshots, not live household data.
-12. Collection imports are copies with provenance, not subscriptions or two-way sync.
-13. Git history is signed and backed up outside the primary server.
+10. An MCP authorization request opened in a browser without a current Fullwell web session redirects through sign-in with the exact local authorization path as its pending intent, then resumes consent and the loopback callback.
+11. Family invitations grant membership only after authenticated, explicit acceptance.
+12. Collection shares expose immutable public-safe snapshots, not live household data.
+13. Collection imports are copies with provenance, not subscriptions or two-way sync.
+14. Git history is signed and backed up outside the primary server.
 14. Version 1 deploys one TypeScript application service and its React 19.2 web build on a DigitalOcean Droplet, with Neon PostgreSQL and DigitalOcean Block Storage. Avoid microservices.
 
 ## 3. Success criteria

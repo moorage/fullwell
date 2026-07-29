@@ -10,6 +10,13 @@
       "invariants": ["remember_name_before_oauth", "affirmative_account_choice_before_oauth", "browser_auth_only", "never_request_token", "save_cloud_display_name", "default_first_household_name", "one_household", "begin_guided_first_run", "no_intermediate_onboarding_write"]
     },
     {
+      "id": "codex-logged-out-cloud-chat-recovers-oauth",
+      "prompt": "I explicitly logged Fullwell cloud out, restarted Codex Desktop, and now the installed fullwell-cloud tools are absent. I want to reconnect my existing Fullwell cloud account from this chat.",
+      "skills": ["manage-household-food-journal"],
+      "required_tools": [],
+      "invariants": ["explicit_cloud_reconnect_before_oauth", "codex_only_fixed_mcp_login_command", "await_browser_auth_completion", "never_request_or_echo_token_url_code_or_raw_transcript", "do_not_claim_connected_after_command_only", "next_turn_hfj_get_context_proves_connection", "no_user_entered_terminal_command", "claude_uses_native_protected_tool_auth"]
+    },
+    {
       "id": "missing-local-state-resumes-cloud-recipe-save",
       "prompt": "I deleted ~/.codex/fullwell, but I already connected my existing cloud household. Add https://example.test/fishcake-hotpot to my saved recipes.",
       "skills": ["manage-household-food-journal", "track-recipe-history"],

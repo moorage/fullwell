@@ -49,6 +49,29 @@ test("each eval has a unique identity and targets both host matrices", async () 
   }
   assert.ok(expected.forbidden_behaviors.includes("narrates_fullwell_as_a_separate_assistant_tool_skill_or_plugin_for_work_the_agent_is_doing"));
   assert.ok(expected.forbidden_behaviors.includes("claims_to_be_human_instead_of_using_first_person_assistant_voice"));
+  const loggedOutCloudRecovery = matrix.cases.find((testCase) =>
+    testCase.id === "codex-logged-out-cloud-chat-recovers-oauth");
+  assert.deepEqual(loggedOutCloudRecovery?.required_tools, []);
+  assert.ok(loggedOutCloudRecovery?.invariants.includes("explicit_cloud_reconnect_before_oauth"));
+  assert.ok(loggedOutCloudRecovery?.invariants.includes("codex_only_fixed_mcp_login_command"));
+  assert.ok(loggedOutCloudRecovery?.invariants.includes("next_turn_hfj_get_context_proves_connection"));
+  assert.ok(loggedOutCloudRecovery?.invariants.includes("no_user_entered_terminal_command"));
+  assert.equal(managingSkill.match(/codex mcp login fullwell-cloud/g)?.length, 1);
+  assert.ok(managingSkill.includes("run exactly `codex mcp login fullwell-cloud` and wait for it to finish"));
+  assert.ok(managingSkill.includes("Do not add flags or substitute a server name, URL, scope, command, or any user-provided value"));
+  assert.ok(managingSkill.includes("Do not claim that the cloud household is connected yet"));
+  assert.ok(managingSkill.includes("On the next user turn, call `hfj_get_context` before any other hosted tool"));
+  assert.ok(managingSkill.includes("do not ask the person to paste or run the command themselves"));
+  assert.ok(managingSkill.includes("In Claude, never run the Codex command"));
+  for (const behavior of [
+    "runs_codex_mcp_login_before_explicit_cloud_connect_or_reconnect_consent",
+    "uses_user_derived_mcp_server_url_scope_flag_or_command_for_cloud_recovery",
+    "claims_cloud_connection_after_login_command_without_next_turn_hfj_get_context",
+    "asks_user_to_run_or_paste_codex_mcp_login_command",
+    "runs_codex_mcp_login_in_claude",
+  ]) {
+    assert.ok(expected.forbidden_behaviors.includes(behavior));
+  }
   const bareGreeting = matrix.cases.find((testCase) => testCase.id === "bare-fullwell-greeting-asks-account");
   assert.equal(bareGreeting?.prompt, "@Fullwell hi");
   assert.deepEqual(bareGreeting?.skills, ["manage-household-food-journal"]);

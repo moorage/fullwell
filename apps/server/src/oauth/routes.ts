@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { AppError } from "../core/errors.js";
 import type { Principal } from "../core/types.js";
 import { OAuthProtocolError } from "./errors.js";
 import type { OAuthService } from "./service.js";
@@ -67,7 +68,16 @@ export async function registerOAuthRoutes(app: FastifyInstance, dependencies: OA
   }));
 
   app.get("/oauth/authorize", { config: { rateLimit: OAUTH_AUTHORIZE_RATE_LIMIT } }, async (request, reply) => oauthReply(reply, async () => {
-    await dependencies.resolveBrowserPrincipal(request);
+    try {
+      await dependencies.resolveBrowserPrincipal(request);
+    } catch (error) {
+      if (error instanceof AppError && error.code === "AUTH_REQUIRED") {
+        const signIn = new URL("/sign-in", "https://local.invalid");
+        signIn.searchParams.set("returnTo", request.url);
+        return reply.redirect(signIn.pathname + signIn.search, 303);
+      }
+      throw error;
+    }
     const authorization = await dependencies.oauth.validateAuthorizationRequest(request.query);
     const consent = new URL("/authorize", "https://local.invalid");
     consent.search = new URLSearchParams({

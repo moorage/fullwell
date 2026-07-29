@@ -45,7 +45,9 @@ export async function runProcess(invocation: ProcessInvocation): Promise<Process
     child.stdout.on("data", (chunk: Buffer) => { stdout = append(stdout, chunk); });
     child.stderr.on("data", (chunk: Buffer) => { stderr = append(stderr, chunk); });
     child.once("error", (error) => { failure ??= error; });
-    child.stdin.once("error", (error) => terminate(error));
+    child.stdin.once("error", (error) => {
+      if (invocation.stdin.length > 0) terminate(error);
+    });
     const abort = () => terminate(new Error("Agent host invocation was cancelled"));
     invocation.signal.addEventListener("abort", abort, { once: true });
     const timeout = setTimeout(() => terminate(new Error("Agent host invocation timed out")), invocation.timeoutMilliseconds);

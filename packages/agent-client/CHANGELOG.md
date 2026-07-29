@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.1.24 - 2026-07-29
+
+- Let an explicitly authorized Fullwell chat recover a deliberately logged-out Codex cloud connection through Codex's fixed MCP login command, then prove the refreshed connection with `hfj_get_context` on the next turn without handling tokens or asking the person to use a terminal.
+- Preserve the Codex MCP authorization request through Fullwell web sign-in when the selected browser profile is not already authenticated.
+
 ## 1.1.23 - 2026-07-29
 
 - Replace the Codex and ChatGPT desktop plugin recommendations with three direct Fullwell starters for greeting, grocery restocking, and Wanpo delivery reordering.

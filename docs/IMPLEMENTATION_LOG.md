@@ -5,6 +5,7 @@
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
   - `docs/exec-plans/active/2026-07-27-canonical-origin-fullwell-ai.md`
+  - `docs/exec-plans/active/2026-07-29-codex-chat-cloud-oauth-recovery.md`
 - completed ExecPlans:
   - `docs/exec-plans/completed/2026-07-29-plugin-and-hero-artwork.md`
   - `docs/exec-plans/completed/2026-07-28-fullwell-icon-surfaces.md`
@@ -21,6 +22,11 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-29 Codex chat OAuth recovery release is in progress under Beads issue `fullwell-oxm` and `docs/exec-plans/active/2026-07-29-codex-chat-cloud-oauth-recovery.md`; local logs proved an explicit earlier `codex mcp logout fullwell-cloud`, not restart, removed the keyring credential while the old process retained an authenticated client until restart
+- the release gate also fixed an empty-stdin local-runner race so a child that closes stdin immediately reports its meaningful nonzero exit instead of a scheduling-dependent `EPIPE`; the existing non-empty-input pipe-failure assertion remains intact
+- Codex 0.146.0 exposes native app-server OAuth login and runtime refresh to its Desktop client but not as model-callable chat tools; the bounded client recovery therefore uses the exact supported `codex mcp login fullwell-cloud` host command only after explicit cloud intent, keeps all credentials inside Codex, and requires next-turn `hfj_get_context` success before claiming reconnection
+- Fresh-chat verification found that a browser profile without a Fullwell web session received `401` from `/oauth/authorize`; the route now preserves the exact OAuth request through Fullwell sign-in instead of letting Codex's loopback callback expire
+- Fresh thread `019faf56-9ad4-7f23-bab0-ff60888315b7` triggered the browser login from chat without a user-entered command; its resumed turn called `fullwell-cloud.hfj_get_context` successfully, restored the Codex-owned keyring credential, changed no household, and full verification passed with 425 application tests plus 12 expected database-gated skips
 - 2026-07-29 release commit `f022046` is pushed; public `@fullwell/fullwell@1.1.23` is npm `latest`, and its prepared, registry, and clean-download artifacts match at SHA-1 `6620a9aa49d1b45f7e00c22e6687d538920cfb46` and SHA-512 `sha512-YLVIpr8hZmvRpQWLT5DzCkSqy4srOvyC5GQ7fyX93Z5eN59L79Nc0vntOJ6xSTVgAass42mEqAKYfq9fpH6HCA==`
 - the installed Codex manifest exposes exactly `Fullwell hi`, `Fullwell i'm out of cashews`, and `Fullwell reorder from Wanpo in stanford mall`; exact-list validation, 53 package tests, 14 eval tests, clean registry lifecycles, Claude strict validation, and full repository verification with 424 application tests plus 12 expected database-gated skips pass
 - Codex and Claude both report enabled `1.1.23`; Codex runs `fullwell-local` from the new cache, while Claude requires an application restart before an already-running session applies the updated plugin

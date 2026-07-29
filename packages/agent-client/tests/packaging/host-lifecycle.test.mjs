@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -105,6 +106,13 @@ test("Codex CLI installs, reinstalls, and removes the shared package from an iso
     assert.equal(localMcp?.transport.command, "node");
     assert.deepEqual(localMcp?.transport.args, ["./runtime/local-household-mcp.mjs"]);
     assert.match(localMcp?.transport.cwd, /plugins[/\\]cache[/\\]fullwell[/\\]fullwell[/\\][^/\\]+[/\\]\.$/);
+    const installedPluginRoot = path.resolve(localMcp.transport.cwd);
+    const installedManifest = JSON.parse(await readFile(path.join(installedPluginRoot, ".codex-plugin/plugin.json"), "utf8"));
+    assert.equal(installedManifest.interface?.logo, "./assets/fullwell-icon.png");
+    assert.equal(
+      createHash("sha256").update(await readFile(path.join(installedPluginRoot, installedManifest.interface.logo))).digest("hex"),
+      "696d832540acdd66044a5cfe8273fe60018fa48855e961c6b71e1705cd007189",
+    );
     assert.ok(mcpServers.some((server) => server.name === "fullwell-cloud"));
     await run("codex", ["plugin", "remove", `${codexPluginName}@${codexMarketplaceName}`, "--json"], env);
     assert.deepEqual(JSON.parse((await run("codex", ["plugin", "list", "--json"], env)).stdout).installed, []);

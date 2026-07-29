@@ -1,6 +1,6 @@
 {
   "name": "fullwell",
-  "version": "1.1.21",
+  "version": "1.1.22",
   "description": "Keep an evidence-backed family food and delivery journal with Codex.",
   "homepage": "https://fullwell.ai/install",
   "license": "UNLICENSED",
@@ -23,6 +23,7 @@
       "Index my food-delivery order history.",
       "Share a collection of our favorite recipes."
     ],
-    "brandColor": "#16745B"
+    "brandColor": "#16745B",
+    "logo": "./assets/fullwell-icon.png"
   }
 }

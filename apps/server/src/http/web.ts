@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import fastifyStatic from "@fastify/static";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { renderWebRoute, type RenderedWebRoute } from "@hfj/web/server";
@@ -151,6 +151,11 @@ export async function registerWebExperience(app: FastifyInstance, experience: We
     decorateReply: false,
     immutable: true,
     maxAge: "1y",
+    setHeaders(reply, filePath) {
+      if (basename(filePath) === "fullwell-full-body-tall.png") {
+        reply.header("cache-control", "public, max-age=3600, must-revalidate");
+      }
+    },
   });
 
   app.get("/favicon.ico", async (_request, reply) => {

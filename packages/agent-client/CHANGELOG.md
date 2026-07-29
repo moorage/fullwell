@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.1.22 - 2026-07-29
+
+- Package the approved Fullwell artwork and expose it through Codex's supported plugin logo metadata while keeping Claude's strict manifest free of unsupported extension fields.
+
 ## 1.1.21 - 2026-07-28
 
 - Address a newly named person with `Hey <name>, nice to be acquainted` before asking about a Fullwell cloud account, reuse remembered names naturally after conversational gaps without repetition, and distinguish cloud accounts from account-free local use throughout onboarding.

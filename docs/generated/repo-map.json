@@ -1273,6 +1273,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-27-canonical-origin-fullwell-ai.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-29-plugin-and-hero-artwork.md"
                 }
               ]
             },
@@ -1673,6 +1677,16 @@
             {
               "type": "file",
               "name": "README.md"
+            },
+            {
+              "type": "dir",
+              "name": "assets",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "fullwell-icon.png"
+                }
+              ]
             },
             {
               "type": "file",

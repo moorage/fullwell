@@ -439,6 +439,11 @@ describe("Fastify application", () => {
     const socialImage = await app.inject({ method: "GET", url: "/assets/fullwell-social-card.png" });
     expect(socialImage.statusCode).toBe(200);
     expect(socialImage.headers["content-type"]).toContain("image/png");
+    expect(socialImage.headers["cache-control"]).toContain("immutable");
+    const homepageArtwork = await app.inject({ method: "GET", url: "/assets/fullwell-full-body-tall.png" });
+    expect(homepageArtwork.statusCode).toBe(200);
+    expect(homepageArtwork.headers["content-type"]).toContain("image/png");
+    expect(homepageArtwork.headers["cache-control"]).toBe("public, max-age=3600, must-revalidate");
     const favicon = await app.inject({ method: "GET", url: "/favicon.ico" });
     expect(favicon.statusCode).toBe(200);
     expect(favicon.headers["content-type"]).toContain("image/x-icon");

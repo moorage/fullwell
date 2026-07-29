@@ -5,6 +5,7 @@
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
   - `docs/exec-plans/active/2026-07-27-canonical-origin-fullwell-ai.md`
+  - `docs/exec-plans/active/2026-07-29-plugin-and-hero-artwork.md`
 - completed ExecPlans:
   - `docs/exec-plans/completed/2026-07-28-fullwell-icon-surfaces.md`
   - `docs/exec-plans/completed/2026-07-28-release-atomic-cloud-recovery.md`
@@ -21,6 +22,7 @@
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
 - 2026-07-28 release commits `7fef31b` and `0a8ebcb` are pushed; personalized onboarding preserves the user's display-name spelling, uses it conversationally after a bounded lull, and consistently distinguishes cloud accounts from local no-account use
+- 2026-07-29 implementation packages the exact approved 1046x1044 Fullwell artwork for Codex's supported plugin logo metadata and replaces the stable `/assets/fullwell-full-body-tall.png` bytes with that same canonical image; a content-version query bypasses the old immutable response, the stable URL now revalidates, and Claude's strict manifest remains free of unsupported icon fields
 - public `@fullwell/fullwell@1.1.21` matches prepared and clean-registry SHA-1 `04dca48d87080cfae1516cfc06364485bd0a6ff7`; isolated Codex and Claude lifecycles pass, both current hosts run enabled `1.1.21`, and their local and cloud MCP identities are configured or connected
 - DigitalOcean runs healthy Linux/amd64 image `hfj-staging:personalized-icon-0a8ebcb-runtime` at OCI index `sha256:bdc24619771043a8312967b69749a867ba7d13cf016ed4a79d0722200acbb495` and concrete manifest `sha256:4c17fc444aec5f1cd7b400c1916f152bd0e202ae9665f0c4bf6188104d66cf96` from checksum-matched 84,642,816-byte archive SHA-256 `1379ce5ff9dd27e51c95ee97b2e5cd04caa1aee2fa8a4553cd9502fc680cb9ab`
 - public readiness, deployment and MCP discovery smokes, exact live icon/favicon/social-card hashes, canonical metadata, reviewed production desktop rendering, zero-warning service logs, authenticated operator health, and a mounted-volume canary pass; `/etc/hfj/deploy.env.pre-personalized-icon-20260728-1` plus the prior Apple-link image retain rollback, and temporary release artifacts are removed

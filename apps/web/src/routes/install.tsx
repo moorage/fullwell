@@ -56,10 +56,10 @@ export function InstallRoute({ initialHost }: { initialHost: "codex" | "claude" 
           <figure className="install-hero__character" aria-hidden="true">
             <img
               className="install-hero__character-image"
-              src="/assets/fullwell-full-body-tall.png"
+              src="/assets/fullwell-full-body-tall.png?v=696d8325"
               alt=""
-              width="774"
-              height="1247"
+              width="1046"
+              height="1044"
               decoding="async"
               fetchPriority="high"
             />

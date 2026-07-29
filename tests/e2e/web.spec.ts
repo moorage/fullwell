@@ -20,8 +20,9 @@ test("serves a responsive, keyboard-usable install experience", async ({ page },
   await expect(page.getByText(/household-assistant product developed and operated by Sous Chef Studio, Inc/)).toBeVisible();
   await expect(page.locator(".install-hero__character-image")).toBeVisible();
   await expect(page.locator(".install-hero__character-image")).toHaveAttribute("alt", "");
-  await expect(page.locator(".install-hero__character-image")).toHaveAttribute("width", "774");
-  await expect(page.locator(".install-hero__character-image")).toHaveAttribute("height", "1247");
+  await expect(page.locator(".install-hero__character-image")).toHaveAttribute("width", "1046");
+  await expect(page.locator(".install-hero__character-image")).toHaveAttribute("height", "1044");
+  await expect(page.locator(".install-hero__character-image")).toHaveAttribute("src", "/assets/fullwell-full-body-tall.png?v=696d8325");
   await expect(page.locator(".wordmark__face")).toBeVisible();
   await expect(page.locator(".wordmark__face")).toHaveAttribute("alt", "");
   await expect(page.locator(".wordmark")).toHaveAccessibleName("Fullwell");
@@ -106,7 +107,7 @@ test("serves crawlable Fullwell company and WhatsApp identity", async ({ page, r
     await expect(page.locator('link[rel="canonical"]'), route).toHaveCount(1);
   }
   const imageAssets = [
-    ["/assets/fullwell-full-body-tall.png", "992d1d3a81d36a6d2b1a2e74a55d855557cdab3972fcb5cc1403f6ccc0c31219", 774, 1247],
+    ["/assets/fullwell-full-body-tall.png", "696d832540acdd66044a5cfe8273fe60018fa48855e961c6b71e1705cd007189", 1046, 1044],
     ["/assets/fullwell-icon.png", "696d832540acdd66044a5cfe8273fe60018fa48855e961c6b71e1705cd007189", 1046, 1044],
     ["/assets/fullwell-icon-16.png", "45512f1a7a52f9e1b224737bfdb9a5ca96efbd00cb855c1e2c90ccf7588bdd4a", 16, 16],
     ["/assets/fullwell-icon-32.png", "f74327507cacbb993fd78dce43b6b76a1178bf7086cdc5ac32d5ef37032020b4", 32, 32],
@@ -119,6 +120,9 @@ test("serves crawlable Fullwell company and WhatsApp identity", async ({ page, r
     const asset = await request.get(path);
     expect(asset.status(), path).toBe(200);
     expect(asset.headers()["content-type"], path).toContain("image/png");
+    if (path === "/assets/fullwell-full-body-tall.png") {
+      expect(asset.headers()["cache-control"], path).toBe("public, max-age=3600, must-revalidate");
+    }
     const body = await asset.body();
     expect(createHash("sha256").update(body).digest("hex"), path).toBe(expectedSha256);
     expect(body.readUInt32BE(16), `${path} width`).toBe(width);

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -276,7 +277,9 @@ export const validatePackage = async () => {
   assert(codex.version === packageJson.version, "Package and host versions must match");
   assert(install.release === packageJson.version, "Install metadata and package versions must match");
   assert(packageJson.files?.includes("runtime"), "Package must include the local onboarding runtime");
+  assert(packageJson.files?.includes("assets"), "Package must include plugin artwork");
   assert(codex.interface?.displayName === "Fullwell", "Codex must expose the Fullwell mention name");
+  assert(codex.interface?.logo === "./assets/fullwell-icon.png", "Codex must expose the canonical Fullwell plugin logo");
   assert(codex.interface?.defaultPrompt?.[0] === "Set up Fullwell.", "Codex must expose the conversational setup starter");
   assert(codex.interface.defaultPrompt.every((prompt) => !prompt.includes("@")), "Codex starter prompts must not contain mention syntax");
   assert(codex.skills === "./skills/" && claude.skills === "./skills/", "Hosts must use shared skills");
@@ -346,6 +349,7 @@ export const validatePackage = async () => {
   assert(codexMarketPlugin.policy?.authentication === "ON_USE", "Codex marketplace authentication policy must be ON_USE");
 
   await Promise.all([
+    validatePath(codex.interface.logo),
     validatePath(codex.skills),
     validatePath(codex.mcpServers),
     validatePath(claude.mcpServers),
@@ -353,6 +357,11 @@ export const validatePackage = async () => {
     validatePath("runtime/local-household.mjs"),
     validatePath("runtime/local-household-mcp.mjs"),
   ]);
+  const pluginLogo = await readFile(path.join(root, codex.interface.logo));
+  assert(
+    createHash("sha256").update(pluginLogo).digest("hex") === "696d832540acdd66044a5cfe8273fe60018fa48855e961c6b71e1705cd007189",
+    "Codex plugin logo must match the approved Fullwell artwork",
+  );
   const skillDirectories = (await readdir(path.join(root, "skills"), { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)

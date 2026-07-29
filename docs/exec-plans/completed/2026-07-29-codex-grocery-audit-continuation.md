@@ -11,6 +11,7 @@ Long grocery-order audits can cross Codex's automatic context-compaction boundar
 - [x] 2026-07-29T22:10Z: Implemented the lifecycle signal, private hook state machine, and Codex hook manifest.
 - [x] 2026-07-29T22:14Z: Updated skills, evals, package contracts, architecture, product specification, changelog, and immutable package metadata.
 - [x] 2026-07-29T22:20Z: Passed focused coverage, package, isolated host-lifecycle, documentation, ExecPlan, and full repository verification.
+- [x] 2026-07-29T22:36Z: Pushed release commit `f9d0700`, published checksum-matched npm `1.1.26`, passed clean-registry host lifecycles, and installed the release in current Codex and Claude homes.
 
 ## Surprises & Discoveries
 
@@ -191,4 +192,6 @@ Package `1.1.26` is prepared with one Codex-only lifecycle tool and four package
 
 The hook ledger is private, aggregate-only, atomic, session-hashed, symlink-resistant, and expires after 30 days. Failed, malformed, stale, lookalike, or replayed lifecycle transitions do not arm work. The journal or authenticated onboarding draft remains the sole durable checkpoint.
 
-Verification passed 63 package tests including isolated Codex and Claude installation lifecycles, 14 eval tests, 425 application tests with 12 expected database-gated skips, lint, typecheck, all builds, documentation validation, ExecPlan validation, and `npm pack --dry-run`. Focused Node coverage reports 94.52% lines and 100% functions for the new hook runtime; the uncovered lines are defensive filesystem-failure branches. Publication, installation into the user's active Codex home, restart, hook review/trust, and a live Desktop compaction acceptance run are intentionally separate rollout actions.
+Verification passed 63 package tests including isolated Codex and Claude installation lifecycles, 14 eval tests, 425 application tests with 12 expected database-gated skips, lint, typecheck, all builds, documentation validation, ExecPlan validation, and `npm pack`. Focused Node coverage reports 94.52% lines and 100% functions for the new hook runtime; the uncovered lines are defensive filesystem-failure branches.
+
+Release commit `f9d0700` is pushed and public `@fullwell/fullwell@1.1.26` matches the prepared and clean registry artifact at SHA-1 `4e4291cef3fe93a940d97d0142255fa369da8142`. Both current hosts report installed `1.1.26`. Codex exposes eight local tools including the lifecycle signal and carries all four hook events; Claude retains seven local tools and no hook. Codex's hosted OAuth connection and Claude's two Fullwell MCP connections survived reinstall. Codex Desktop restart, user review/trust of the exact hook definition, and one live compaction acceptance run remain user-controlled rollout actions.

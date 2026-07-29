@@ -1,5 +1,15 @@
 # Verification Evidence
 
+## Codex grocery-audit continuation
+
+Date: 2026-07-29
+
+- Release commit `f9d07009f7091a54606e99b8e90012323bf0d0f5` is pushed to `origin/main`. Public `@fullwell/fullwell@1.1.26` was published as `latest` at `2026-07-29T22:34:39.745Z`; its prepared, registry, and clean-download artifacts are byte-identical at SHA-1 `4e4291cef3fe93a940d97d0142255fa369da8142` and SHA-512 `sha512-Kb0ov/DjtGWj04OI1NGOZCZy0cWJFqZ/xADM7BsdG3Ws1iFBfjpXhH8g0RjCaXRMIM+L67csYu7hG23wx9JiUg==`. The 36-file clean registry package passes isolated Codex and Claude host lifecycles.
+- Codex and Claude both report enabled `1.1.26`. Codex resolves `fullwell-local` from the `1.1.26` cache with `--codex-audit-lifecycle`, exposes eight local tools including `fullwell_local_codex_grocery_audit_lifecycle`, and installs the four `SessionStart`, `UserPromptSubmit`, `PostToolUse`, and `Stop` hook events. Claude exposes its prior seven local tools without the lifecycle tool or hooks.
+- The installed Codex hook manifest, hook runtime, and local MCP runtime byte-match the clean registry install at SHA-256 `0ab622d8029eca4b942b95c80155768dff14702fd8c12de3a6785eee3d1ceb16`, `0d2d09667b004f042893619d7bc4fe4c15579de96363e75feafd49a49d69211b`, and `03e84b0af1bfa1381a91ff19d59288b0aa887b60365091a989a7f3ea28f3441e`. Codex still reports the hosted MCP with OAuth and Claude reports both Fullwell MCP servers connected, so reinstall did not remove the existing cloud connection.
+- Full repository verification passes with 425 application tests and 12 expected database-gated skips, together with 63 package tests and 14 eval tests. The lifecycle matrix covers compaction, repeated stops, terminal release, malformed/stale/replayed state, privacy bounds, and inert restock, delivery-reorder, meal-planning, and unrelated turns.
+- Codex deliberately requires a Desktop restart and user review/trust before a newly installed hook definition runs. Those steps and one live long-audit compaction ceremony remain user-controlled acceptance evidence; no server deployment, schema migration, provider change, credential write, or household journal mutation ran during this package release.
+
 ## Open Graph social preview
 
 Date: 2026-07-29

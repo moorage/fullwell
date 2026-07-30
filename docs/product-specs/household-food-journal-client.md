@@ -356,6 +356,7 @@ repo-root/
     |-- references/
     |-- evals/
     |-- tests/
+    |-- LICENSE
     |-- README.md
     `-- CHANGELOG.md
 ```
@@ -402,9 +403,12 @@ packages/agent-client/
 |   |-- cases/
 |   `-- expected/
 |-- tests/
+|-- LICENSE
 |-- README.md
 `-- CHANGELOG.md
 ```
+
+The repository and published package use the GNU Affero General Public License version 3 only. The root and packaged `LICENSE` files must contain the same complete canonical text, `package.json` and supported host metadata must declare `AGPL-3.0-only`, and every npm artifact must include its package-local license copy.
 
 The two host manifests and marketplace catalogs are packaging adapters. They must resolve to the same `skills/` directory, stable shared local MCP server/tool identities, and remote MCP URL. Codex uses `codex-mcp.json` for its plugin-root working directory and passes the fixed `--codex-audit-lifecycle` argument; Claude uses `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}` because it ignores that working-directory field and does not pass the lifecycle argument. Both start the same packaged server. The shared skills branch only on whether the documented Codex-only lifecycle tool is present; do not otherwise fork the skill instructions by host.
 

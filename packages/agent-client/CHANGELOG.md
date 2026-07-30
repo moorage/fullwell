@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.1.27 - 2026-07-30
+
+- License the published package under `AGPL-3.0-only` and include the complete
+  license text in every npm artifact.
+
 ## 1.1.26 - 2026-07-29
 
 - Keep an explicitly active Codex grocery-order audit running across automatic compaction and premature stops until it records a truthful terminal outcome.

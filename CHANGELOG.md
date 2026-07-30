@@ -4,7 +4,7 @@
 
 - Add one sensitive-content scanner to the pre-commit hook and repository verification, with regression coverage and agent-facing guidance that prevents credentials, private tracker exports, and author-specific paths from entering future commits; make clean-clone verification build workspace boundaries before linting their consumers.
 
-- Make repository licensing explicitly all-rights-reserved, detach private Beads exports and Dolt refs from the application remote, and remove local machine paths and exact infrastructure addresses before public visibility.
+- License Fullwell under `AGPL-3.0-only`, including synchronized workspace, plugin, lockfile, package, and public documentation metadata; detach private Beads exports and Dolt refs from the application remote; and remove local machine paths and exact infrastructure addresses before public visibility.
 - Upgrade ESLint, TypeScript ESLint, Vitest, and coverage tooling to releases without the development-only minimatch, brace-expansion, glob, and test-exclude advisories found during publication review.
 - Refresh the homepage Open Graph identity and content-versioned social card with the approved household food AI Agent tagline, and give the Fullwell face equal top and right padding so Apple Messages does not crop or retain the old card.
 - Remove the decorative gradient oval from behind the canonical Fullwell homepage artwork.

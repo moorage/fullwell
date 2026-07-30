@@ -1,8 +1,8 @@
 {
   "name": "@fullwell/fullwell",
-  "version": "1.1.26",
+  "version": "1.1.27",
   "private": false,
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-only",
   "description": "Shared Codex and Claude client for Fullwell",
   "type": "module",
   "files": [
@@ -16,6 +16,7 @@
     "references",
     "runtime",
     "install-metadata.json",
+    "LICENSE",
     "README.md",
     "CHANGELOG.md"
   ],

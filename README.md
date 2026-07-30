@@ -66,8 +66,12 @@ pass.
 
 ## License and private project data
 
-The source is publicly viewable but `UNLICENSED`; see `LICENSE`. Public
-visibility does not grant permission to reuse or redistribute it.
+Copyright (C) 2026 Matthew Moore.
+
+Fullwell is free software licensed under the GNU Affero General Public License
+version 3 only (`AGPL-3.0-only`); see `LICENSE`. If you modify Fullwell and let
+users interact with the modified version over a network, you must offer those
+users its Corresponding Source as required by section 13 of the license.
 
 Beads issue and interaction exports are private maintainer data. They are
 ignored, are not part of the application source, and must not be synced to this

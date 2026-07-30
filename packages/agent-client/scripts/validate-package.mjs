@@ -266,7 +266,7 @@ const validatePath = async (relativePath) => {
 };
 
 export const validatePackage = async () => {
-  const [packageJson, codex, claude, codexMcp, claudeMcp, codexHooks, codexMarket, claudeMarket, install, evals] =
+  const [packageJson, codex, claude, codexMcp, claudeMcp, codexHooks, codexMarket, claudeMarket, install, evals, license, rootLicense] =
     await Promise.all([
       readJson("package.json"),
       readJson(".codex-plugin/plugin.json"),
@@ -277,7 +277,9 @@ export const validatePackage = async () => {
       readWorkspaceJson(".agents/plugins/marketplace.json"),
       readWorkspaceJson(".claude-plugin/marketplace.json"),
       readJson("install-metadata.json"),
-      readJson("evals/cases/v1.json")
+      readJson("evals/cases/v1.json"),
+      readFile(path.join(root, "LICENSE"), "utf8"),
+      readFile(path.join(workspaceRoot, "LICENSE"), "utf8")
     ]);
 
   assert(codex.name === "fullwell", "Codex must expose the public fullwell plugin name");
@@ -285,6 +287,12 @@ export const validatePackage = async () => {
   assert(codex.version === claude.version, "Host manifests must share a version");
   assert(codex.version === packageJson.version, "Package and host versions must match");
   assert(install.release === packageJson.version, "Install metadata and package versions must match");
+  assert(packageJson.license === "AGPL-3.0-only", "Package must declare AGPL-3.0-only");
+  assert(codex.license === packageJson.license, "Codex and package licenses must match");
+  assert(packageJson.files?.includes("LICENSE"), "Package must include the license");
+  assert(license === rootLicense, "Packaged and repository license texts must match");
+  assert(license.includes("GNU AFFERO GENERAL PUBLIC LICENSE"), "Package must contain the AGPLv3 text");
+  assert(license.includes("13. Remote Network Interaction"), "Package license must contain the AGPL network-use terms");
   assert(packageJson.files?.includes("runtime"), "Package must include the local onboarding runtime");
   assert(packageJson.files?.includes("assets"), "Package must include plugin artwork");
   assert(packageJson.files?.includes("hooks"), "Package must include Codex lifecycle hooks");

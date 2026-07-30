@@ -39,3 +39,10 @@ Before removing or rolling back the meal-planning skill, pause or remove its nat
 - Official Codex and Claude validators remain part of the manual release matrix because their binaries and authenticated host surfaces are not CI prerequisites.
 
 The production MCP URL is `https://fullwell.ai/mcp`. OAuth occurs in the service-controlled browser flow; users never paste a token into a conversation. Existing installations connected to the legacy host must disconnect and reconnect so the host registers a fresh client and grant for the new OAuth resource.
+
+## License
+
+Copyright (C) 2026 Matthew Moore.
+
+This package is free software licensed under the GNU Affero General Public
+License version 3 only (`AGPL-3.0-only`). See `LICENSE` for the complete terms.

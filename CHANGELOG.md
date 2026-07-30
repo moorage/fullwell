@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Add one sensitive-content scanner to the pre-commit hook and repository verification, with regression coverage and agent-facing guidance that prevents credentials, private tracker exports, and author-specific paths from entering future commits; make clean-clone verification build the contracts boundary before linting its consumers.
+- Add one sensitive-content scanner to the pre-commit hook and repository verification, with regression coverage and agent-facing guidance that prevents credentials, private tracker exports, and author-specific paths from entering future commits; make clean-clone verification build workspace boundaries before linting their consumers.
 
 - Make repository licensing explicitly all-rights-reserved, detach private Beads exports and Dolt refs from the application remote, and remove local machine paths and exact infrastructure addresses before public visibility.
 - Upgrade ESLint, TypeScript ESLint, Vitest, and coverage tooling to releases without the development-only minimatch, brace-expansion, glob, and test-exclude advisories found during publication review.

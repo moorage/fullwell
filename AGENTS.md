@@ -174,6 +174,19 @@ Do not add a success-shaped placeholder for an application command. Add the comm
 - Comments should explain contracts, invariants, edge cases, tradeoffs, failure modes, and external coupling. Do not add comments that restate obvious code. Prefer better names, types, or structure over comments when possible.
 - Prioritize contract-first comments near public APIs, hardware/control boundaries, retries/timeouts, auth/privacy boundaries, state machines, concurrency, schema transformations, vendor/API assumptions, and code that looks weird but is intentional.
 
+## Private tracker boundary
+
+- The maintainer Beads database, issue/interaction exports, and Dolt history are private operational data.
+- Do not commit Beads exports or synchronize Beads refs to the application Git remote. The generic managed Beads text below does not override this repository-specific boundary.
+- A clone without the private maintainer store may initialize a new local-only Beads workspace. It must not configure this application repository as the Beads remote.
+
+## Sensitive repository content
+
+- Never commit credentials, tokens, private keys, production secret files, credential-bearing URLs, private operational evidence, author-specific absolute paths, or exact private infrastructure identifiers.
+- Keep secret values in ignored runtime files, operating-system credential stores, or the documented encrypted deployment store. Use placeholders, stable hostnames, and role names in code, documentation, Beads, ExecPlans, commands, and captured evidence.
+- Run `npm run verify:sensitive` before a publication commit. The pre-commit hook applies the same scanner to staged content; `npm run verify` applies it to the repository.
+- If a real credential reaches a worktree, index, commit, log, or tool output, remove it, rotate it, and sanitize reachable history. Never bypass or weaken the scanner merely to pass a gate.
+
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:970c3bf2 -->
 ## Beads Issue Tracker
 

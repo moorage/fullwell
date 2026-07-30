@@ -90,6 +90,19 @@ Application abuse controls use `@fastify/rate-limit` with a global per-client-IP
 
 Expected secret classes include Neon runtime and migration URLs, Apple credentials, OAuth signing/encryption keys, cookie keys, HMAC peppers, the dedicated operator bearer token, email-provider credentials, Git signing keys, DigitalOcean deployment credentials, backup encryption credentials, Meta app/access/webhook credentials, and the independent message-encryption key.
 
+Repository visibility does not widen the operational-data boundary. Beads issue
+and interaction exports, local Dolt history, and its custom refs are private
+maintainer state and must not be committed or synchronized to the application
+Git remote. Public source and documentation use stable role names or hostnames
+instead of author home paths and exact infrastructure addresses.
+
+The shared sensitive-content scanner runs against staged content in the
+pre-commit hook and against repository files in `npm run verify`. It rejects
+private tracker paths, credential-bearing file names, recognizable high-confidence
+credential formats, and author-specific home paths without printing matched
+values. This is defense in depth, not a replacement for provider-side secret
+rotation or a full reachable-history audit.
+
 The operator token is not an OAuth access token and grants no household or MCP access. It protects `/health/operator` and `/metrics`, is HMAC-compared, is rate limited, and must be rotated as an encrypted systemd credential. Public liveness/readiness never return tenant counts, storage paths, repository identifiers, or provider error bodies.
 
 On the Droplet, systemd decrypts the encrypted credential blobs into a root-only unit directory. Startup copies only the declared application credentials into a private tmpfs-backed runtime directory as `root:10001` with mode `0440`, allowing the unprivileged container process to read its bind-mounted secret files. Credential rotation replaces an encrypted blob and restarts the unit so systemd reacquires the source and Compose force recreates the containers; reload is intentionally unsupported. Staging currently uses systemd's host credential key on an unencrypted root disk; this protects credential files from casual at-rest disclosure but does not protect against host-root compromise. Production remains blocked on encrypted root storage, TPM-backed sealing, or an external runtime secret manager plus a completed rotation/recovery drill.

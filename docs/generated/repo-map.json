@@ -270,6 +270,10 @@
     },
     {
       "type": "file",
+      "name": "LICENSE"
+    },
+    {
+      "type": "file",
       "name": "README.md"
     },
     {
@@ -1273,6 +1277,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-27-canonical-origin-fullwell-ai.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-30-public-repository-sanitization.md"
                 }
               ]
             },
@@ -1335,6 +1343,10 @@
                 {
                   "type": "file",
                   "name": "2026-07-29-codex-chat-cloud-oauth-recovery.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-29-codex-grocery-audit-continuation.md"
                 },
                 {
                   "type": "file",
@@ -1723,6 +1735,20 @@
               ]
             },
             {
+              "type": "dir",
+              "name": "hooks",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "codex-grocery-audit-lifecycle.mjs"
+                },
+                {
+                  "type": "file",
+                  "name": "hooks.json"
+                }
+              ]
+            },
+            {
               "type": "file",
               "name": "install-metadata.json"
             },
@@ -1946,6 +1972,10 @@
                   "type": "dir",
                   "name": "packaging",
                   "children": [
+                    {
+                      "type": "file",
+                      "name": "codex-grocery-audit-hooks.test.mjs"
+                    },
                     {
                       "type": "file",
                       "name": "host-lifecycle.test.mjs"
@@ -2357,6 +2387,20 @@
             {
               "type": "file",
               "name": "apple-container.test.mjs"
+            }
+          ]
+        },
+        {
+          "type": "dir",
+          "name": "security",
+          "children": [
+            {
+              "type": "file",
+              "name": "check-sensitive-content.mjs"
+            },
+            {
+              "type": "file",
+              "name": "check-sensitive-content.test.mjs"
             }
           ]
         },

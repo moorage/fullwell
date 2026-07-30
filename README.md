@@ -48,3 +48,29 @@ AI-Model: gpt-5.5
 ```
 
 Use `AI-Model: none` when no AI model was used.
+
+## Sensitive repository content
+
+Never commit credentials, access or refresh tokens, private keys, production
+secret files, credential-bearing URLs, private tracker exports, author-specific
+absolute paths, or private operational evidence. Keep runtime credentials in the
+documented ignored files, operating-system credential stores, or encrypted
+deployment credential store; use placeholders, stable hostnames, and role names
+in source and documentation.
+
+Run `npm run verify:sensitive` before staging a publication change. The installed
+pre-commit hook checks the final staged content, and `npm run verify` checks the
+working repository. If either check finds a real credential, remove it from Git
+and rotate it immediately. Do not weaken or bypass the scanner to make a commit
+pass.
+
+## License and private project data
+
+The source is publicly viewable but `UNLICENSED`; see `LICENSE`. Public
+visibility does not grant permission to reuse or redistribute it.
+
+Beads issue and interaction exports are private maintainer data. They are
+ignored, are not part of the application source, and must not be synced to this
+repository through Git refs. A maintainer without the private local Beads store
+can initialize a new local-only store, but must not configure this repository as
+its Dolt remote.

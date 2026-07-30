@@ -34,4 +34,6 @@ tmp/
 .beads/proxieddb/
 .beads/context/
 .beads/plans/
+.beads/issues.jsonl
+.beads/interactions.jsonl
 apps/server/.data/

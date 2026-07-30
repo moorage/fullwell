@@ -20,7 +20,7 @@ assert.equal(
   "redacts env-style API keys",
 );
 assert.equal(
-  redactText("token ghp_123456789012345678901234567890123456"),
+  redactText(`token ${["ghp", "123456789012345678901234567890123456"].join("_")}`),
   "token [REDACTED_GITHUB_TOKEN]",
   "redacts GitHub tokens",
 );

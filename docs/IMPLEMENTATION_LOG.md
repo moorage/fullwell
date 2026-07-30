@@ -5,6 +5,7 @@
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
   - `docs/exec-plans/active/2026-07-27-canonical-origin-fullwell-ai.md`
+  - `docs/exec-plans/active/2026-07-30-public-repository-sanitization.md`
 - completed ExecPlans:
   - `docs/exec-plans/completed/2026-07-29-codex-grocery-audit-continuation.md`
   - `docs/exec-plans/completed/2026-07-29-codex-chat-cloud-oauth-recovery.md`
@@ -23,6 +24,7 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-30 publication hardening adds a shared sensitive-content scanner to the staged pre-commit boundary and aggregate verification, rejects private tracker exports, sensitive filenames, high-confidence credential formats, and author-specific home paths without echoing matched values, and documents the same no-sensitive-content contract in the README and both agent guides
 - 2026-07-29 package `1.1.26` completed under Beads issues `fullwell-y4p` and `fullwell-6xs`; release commit `f9d0700` is pushed, public `@fullwell/fullwell@1.1.26` matches the prepared and clean registry artifact at SHA-1 `4e4291cef3fe93a940d97d0142255fa369da8142`, and Codex plus Claude both report installed `1.1.26`
 - the exact-session, exact-turn Codex grocery-audit lifecycle keeps aggregate-only private hook state across compaction and continues premature stops until an explicit terminal outcome, while every normal new prompt disarms the old turn so restock, delivery reorder, meal planning, and unrelated work remain inert; the installed Codex server exposes the eighth lifecycle tool behind `--codex-audit-lifecycle`, Claude retains seven local tools, and the Codex-owned cloud OAuth credential survived reinstall
 - full repository verification passes with 425 application tests plus 12 expected database-gated skips, together with 63 package tests, 14 eval tests, exact clean-registry host lifecycles, and installed-byte checks; Codex Desktop restart, user review/trust of the exact hook definition, and one live compaction acceptance run remain user-controlled rollout steps
@@ -140,7 +142,7 @@
 - immutable public `@fullwell/fullwell@1.1.14` was published as npm `latest` at `2026-07-26T05:13:25.261Z`; registry SHA-1 `a1b7b7a59ca7b6d3fb9d3d7a209237d73e9aabd3` and SHA-512 `sha512-wanccwwIH7Ru6pkERPVlyt3uMOkoFrHV3259fJl38Y7GpssShPLq9idYUgfF1baTTxoEjD3+LXhcVHmmhszy5g==` match a clean 33-file download, whose isolated Codex and Claude install/update/disable/re-enable/removal lifecycles pass
 - DoorDash, Uber Eats, additional-provider, current installed-host live-provider, live alcohol age-step, and manual privacy/accessibility evidence remain release blockers for named-provider claims; those providers remain unsupported and no checkout proof is fabricated
 
-- current milestone: Namecheap A records for `fullwell.ai` and `www.fullwell.ai` point to the existing DigitalOcean gateway at `the application gateway address`; the email-forwarding TXT record remains untouched, Caddy 2.10 obtained valid certificates for both aliases, HTTP returns an HTTPS-preserving `308`, and HTTPS returns a canonical path-and-query-preserving `301`
+- current milestone: Namecheap A records for `fullwell.ai` and `www.fullwell.ai` point to the existing DigitalOcean application gateway; the email-forwarding TXT record remains untouched, Caddy 2.10 obtained valid certificates for both aliases, HTTP returns an HTTPS-preserving `308`, and HTTPS returns a canonical path-and-query-preserving `301`
 - gateway-only rollout evidence: `/opt/household-food-journal/deploy/Caddyfile.pre-fullwell-ai-20260724-1` remains the rollback; `PUBLIC_DOMAIN`, the app image, browser sessions, Apple, passkeys, OAuth, and MCP remain on `https://fullwell.souschefstudio.com`, whose deployment smoke, `/account` sign-in handoff, and OAuth issuer/endpoint metadata pass
 - current correction: the Account page now shows compact destructive action buttons for household leave, account deletion, and WhatsApp revoke/clear; each opens a plain-language native dialog with Cancel, Escape, backdrop dismissal, and focus restoration, supplies the unchanged server-validated literal only after Confirm, and retains an exact typed fallback for no-JavaScript browsers
 - implementation commit `10c635d` is pushed to `origin/main`; 83 web tests, 51 applicable WebKit checks with 13 intentional project skips, 348 deterministic application tests with 11 database-gated skips, lint, typecheck, production build, docs, and ExecPlan verification pass

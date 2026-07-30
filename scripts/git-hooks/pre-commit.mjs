@@ -40,3 +40,5 @@ run("python3", ["scripts/knowledge/suggest_doc_updates.py"]);
 
 stageIfChanged("docs/generated/repo-map.json");
 stageIfChanged("docs/QUALITY_LEDGER.md");
+
+run("node", ["scripts/security/check-sensitive-content.mjs", "--staged"]);

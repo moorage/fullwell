@@ -144,7 +144,10 @@ async function ensureCredentials(volumeExists) {
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
     if (volumeExists) {
-      throw new Error(`The ${localPostgres.volumeName} volume exists without ${localPostgres.envFile}; refusing to generate mismatched credentials.`);
+      throw new Error(
+        `The ${localPostgres.volumeName} volume exists without ${localPostgres.envFile}; refusing to generate mismatched credentials.`,
+        { cause: error },
+      );
     }
     const credentials = {
       database: localPostgres.database,

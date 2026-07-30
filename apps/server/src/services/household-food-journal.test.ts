@@ -180,7 +180,6 @@ describe("HouseholdFoodJournalService", () => {
       intended_email_hint: "member@example.test",
       expires_in_days: 7,
     });
-    head = invite.head;
     const inviteUrl = z.url().parse(invite.data.url);
     const inviteToken = new URL(inviteUrl).pathname.split("/").at(-1);
     expect(inviteToken).toBeTruthy();
@@ -508,7 +507,6 @@ describe("HouseholdFoodJournalService", () => {
         reviewed_at: "2026-07-20T16:00:00.000Z",
       },
     });
-    head = deliveryConstraints.head;
     const deliveryConstraintRevision = GitObjectIdSchema.parse(deliveryConstraints.data.constraint_revision);
     const deliveryReview = await call("hfj_review_meal_constraints", {
       household_id: householdId,
@@ -516,7 +514,6 @@ describe("HouseholdFoodJournalService", () => {
       constraint_revision: deliveryConstraintRevision,
       idempotency_key: "delivery-meal-review-0201",
     });
-    head = deliveryReview.head;
     const deliveryReviewEventId = z.string().parse(deliveryReview.data.event_id);
     const deliveryProposalInput = {
       household_id: householdId,
@@ -553,7 +550,6 @@ describe("HouseholdFoodJournalService", () => {
       call("hfj_add_meal_proposal", deliveryProposalInput),
       call("hfj_add_meal_proposal", alcoholProposalInput),
     ]);
-    head = await repository.head(householdId);
     expect(await call("hfj_add_meal_proposal", deliveryProposalInput)).toEqual(deliveryProposal);
     const deliveryWeek = z.object({
       proposals: z.array(z.object({

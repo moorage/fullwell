@@ -21,6 +21,11 @@ If that prints nothing, check whether the repository has an active Beads workspa
 bd where
 ```
 
+This repository keeps maintainer tracker data private. Do not commit issue or
+interaction exports and do not synchronize Dolt refs to the application Git
+remote. If a clone does not have the private maintainer workspace, initialize a
+new local-only workspace rather than attaching Beads to the application remote.
+
 ## Preferred Route
 
 Use the `bd` CLI when shell access is available. It is the most compact and direct Beads interface.

@@ -8,6 +8,8 @@ actions:
     run: npm run hooks:install
   verify:
     run: npm run verify
+  verify_sensitive:
+    run: npm run verify:sensitive
   verify_ideas:
     run: npm run verify:ideas
   verify_docs:

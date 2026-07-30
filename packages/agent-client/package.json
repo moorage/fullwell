@@ -2,6 +2,7 @@
   "name": "@fullwell/fullwell",
   "version": "1.1.26",
   "private": false,
+  "license": "UNLICENSED",
   "description": "Shared Codex and Claude client for Fullwell",
   "type": "module",
   "files": [

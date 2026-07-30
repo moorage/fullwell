@@ -5,8 +5,8 @@
   - `docs/exec-plans/active/2026-07-20-whatsapp-local-restocking.md`
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
   - `docs/exec-plans/active/2026-07-27-canonical-origin-fullwell-ai.md`
-  - `docs/exec-plans/active/2026-07-30-public-repository-sanitization.md`
 - completed ExecPlans:
+  - `docs/exec-plans/completed/2026-07-30-public-repository-sanitization.md`
   - `docs/exec-plans/completed/2026-07-29-codex-grocery-audit-continuation.md`
   - `docs/exec-plans/completed/2026-07-29-codex-chat-cloud-oauth-recovery.md`
   - `docs/exec-plans/completed/2026-07-29-plugin-and-hero-artwork.md`
@@ -24,6 +24,9 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-30 repository publication preparation completed under Beads issues `fullwell-bwv`, `fullwell-z0t`, `fullwell-9lk`, `fullwell-jt9`, and `fullwell-i7a`; GitHub `main` was atomically rewritten from `8a54b422a26dcb5bf3380696aed47028b8e9d6a2` to the 128-commit sanitized history at `257d90f91987dbd0a139ecc0ce870b5a2181a222`, both legacy Beads/Dolt refs were deleted, and the repository remains private
+- the owner-generated Meta verification token now lives in the encrypted production credential store; current challenge verification and signed webhook delivery pass, both prior values and unsigned delivery fail closed, readiness is healthy, and temporary plaintext, rollback, staged, and clipboard copies were removed
+- a fresh GitHub network clone passes strict Git integrity, zero-advisory install, 425 application tests with 12 expected database-gated skips, docs and ExecPlan validation, targeted full-history privacy checks, and the reviewed 23-finding synthetic Gitleaks 8.30.1 baseline; the private recovery bundle SHA-256 is `5543427a0bbe892cb0a035cc7acfabd2834a64497a8545507463d433c353173b`
 - 2026-07-30 publication hardening adds a shared sensitive-content scanner to the staged pre-commit boundary and aggregate verification, rejects private tracker exports, sensitive filenames, high-confidence credential formats, and author-specific home paths without echoing matched values, documents the same no-sensitive-content contract in the README and both agent guides, and builds workspace boundaries before clean-clone lint and typecheck consumers
 - 2026-07-29 package `1.1.26` completed under Beads issues `fullwell-y4p` and `fullwell-6xs`; release commit `f9d0700` is pushed, public `@fullwell/fullwell@1.1.26` matches the prepared and clean registry artifact at SHA-1 `4e4291cef3fe93a940d97d0142255fa369da8142`, and Codex plus Claude both report installed `1.1.26`
 - the exact-session, exact-turn Codex grocery-audit lifecycle keeps aggregate-only private hook state across compaction and continues premature stops until an explicit terminal outcome, while every normal new prompt disarms the old turn so restock, delivery reorder, meal planning, and unrelated work remain inert; the installed Codex server exposes the eighth lifecycle tool behind `--codex-audit-lifecycle`, Claude retains seven local tools, and the Codex-owned cloud OAuth credential survived reinstall

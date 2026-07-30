@@ -9,7 +9,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build --workspace @hfj/contracts && npm run build --workspaces --if-present",
     "dev": "npm run dev --workspace @hfj/server",
     "start": "npm run start --workspace @hfj/server",
     "lint": "eslint . --max-warnings 0",

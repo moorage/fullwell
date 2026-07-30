@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
+    "build:contracts": "npm run build --workspace @hfj/contracts",
     "dev": "npm run dev --workspace @hfj/server",
     "start": "npm run start --workspace @hfj/server",
     "lint": "eslint . --max-warnings 0",
@@ -33,7 +34,7 @@
     "test:migrations": "node scripts/ci/test-migrations.mjs",
     "test:mcp-smoke": "node scripts/ci/mcp-smoke.mjs",
     "migrate": "node scripts/ci/apply-migrations.mjs",
-    "verify": "npm run verify:sensitive && npm run lint && npm run typecheck && npm run build && npm run test:unit && npm run test:app && npm run verify:ideas && npm run verify:docs && npm run verify:execplan",
+    "verify": "npm run verify:sensitive && npm run build:contracts && npm run lint && npm run typecheck && npm run build && npm run test:unit && npm run test:app && npm run verify:ideas && npm run verify:docs && npm run verify:execplan",
     "verify:sensitive": "node scripts/security/check-sensitive-content.mjs",
     "verify:ideas": "python3 scripts/check_ideation.py",
     "verify:docs": "python3 scripts/knowledge/check_docs.py",

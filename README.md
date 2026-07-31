@@ -66,7 +66,7 @@ pass.
 
 ## License and private project data
 
-Copyright (C) 2026 Matthew Moore.
+Copyright (C) 2026 Sous Chef Studio, Inc.
 
 Fullwell is free software licensed under the GNU Affero General Public License
 version 3 only (`AGPL-3.0-only`); see `LICENSE`. If you modify Fullwell and let

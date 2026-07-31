@@ -42,7 +42,7 @@ The production MCP URL is `https://fullwell.ai/mcp`. OAuth occurs in the service
 
 ## License
 
-Copyright (C) 2026 Matthew Moore.
+Copyright (C) 2026 Sous Chef Studio, Inc.
 
 This package is free software licensed under the GNU Affero General Public
 License version 3 only (`AGPL-3.0-only`). See `LICENSE` for the complete terms.

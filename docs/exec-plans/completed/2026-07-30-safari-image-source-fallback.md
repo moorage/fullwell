@@ -15,7 +15,8 @@ This closes the concrete failure recorded in Bead `fullwell-3ou` and the scope c
 - [x] 2026-07-31T04:50Z: Extended the explicit fallback from recipes to grocery and takeout audit skills and normative product behavior.
 - [x] 2026-07-31T04:51Z: Added grocery and takeout Safari eval cases and generalized the false-null prohibition across journal items.
 - [x] 2026-07-31T04:52Z: Passed focused package/eval checks, documentation-drift review, and full repository verification.
-- [x] 2026-07-31T05:24Z: Prepared immutable package version `1.1.28` across npm and both host catalogs for publication.
+- [x] 2026-07-31T04:56Z: Prepared immutable package version `1.1.28` across npm and both host catalogs for publication.
+- [x] 2026-07-31T05:01Z: Pushed release commit `304956f`, published `@fullwell/fullwell@1.1.28`, verified byte-identical registry bytes, and passed clean Codex and Claude host lifecycles.
 
 ## Surprises & Discoveries
 
@@ -123,4 +124,6 @@ Verification passed:
 - `npm run build --workspace @fullwell/fullwell` - 9 skills, 43 tools, and 191 eval cases validated.
 - `npm run verify` - sensitive-content scan, builds, lint, typecheck, unit tests, 425 application tests with 12 expected database-gated skips, ideas, docs, and ExecPlan checks passed.
 
-The verified behavior is prepared as immutable `@fullwell/fullwell@1.1.28` for the Codex and Claude host catalogs. No household data, browser state, cloud journal, or server deployment changed. Rollback remains a source-only revert with no stored-data migration.
+The verified behavior is published as immutable `@fullwell/fullwell@1.1.28` for the Codex and Claude host catalogs. Release commit `304956fb3573d607639d2e6293527ac2c8e2d706` is pushed, and the prepared, registry, and clean-download artifacts match at SHA-1 `9df467884bef129c17eedf7e14fd451dfdfd2be9` and SHA-512 `sha512-70PqGCHEpsvJTjXvO7JTFDf0naoKIDlDGepa3lf2mU4VvpH1NZQoOvOYzPaXEG5jbP3M/vbibL21K7zKuKpz8g==`. The clean registry artifact passes isolated Codex and Claude host lifecycles.
+
+No household data, browser state, cloud journal, or server deployment changed. Rollback remains a source-only revert with no stored-data migration; the immutable npm release remains available as historical package content.

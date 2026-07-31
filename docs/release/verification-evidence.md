@@ -1,5 +1,15 @@
 # Verification Evidence
 
+## Safari image source fallback
+
+Date: 2026-07-30
+
+- Release commit `304956fb3573d607639d2e6293527ac2c8e2d706` is pushed to `origin/main`. Public `@fullwell/fullwell@1.1.28` was published as npm `latest` at `2026-07-31T05:01:02.993Z`.
+- The prepared, registry, and clean-download artifacts are byte-identical at SHA-1 `9df467884bef129c17eedf7e14fd451dfdfd2be9` and SHA-512 `sha512-70PqGCHEpsvJTjXvO7JTFDf0naoKIDlDGepa3lf2mU4VvpH1NZQoOvOYzPaXEG5jbP3M/vbibL21K7zKuKpz8g==`. The immutable public artifact contains 37 files.
+- Safari recipe, grocery, and takeout audits now attempt the exact visible image's context-menu action and temporary-tab HTTPS address read when Computer Use lacks DOM access. Accessibility-tree omissions and page image controls are not accepted as proof that an item has no image.
+- Full repository verification passes with builds, lint, typecheck, sensitive-content scanning, 425 application tests and 12 expected database-gated skips, documentation and ExecPlan checks, 63 package tests, and 14 agent eval tests. The clean registry artifact passes isolated Codex and Claude host lifecycles.
+- No server deployment, schema migration, provider change, credential write, browser-state mutation, or household journal mutation ran.
+
 ## AGPL-3.0-only license release
 
 Date: 2026-07-30

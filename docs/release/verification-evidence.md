@@ -1,5 +1,15 @@
 # Verification Evidence
 
+## AGPL-3.0-only license release
+
+Date: 2026-07-30
+
+- Release commit `a64eb193141820d7a3bfde4e091cb3b1342569ac` is pushed to `origin/main`. Public `@fullwell/fullwell@1.1.27` was published as npm `latest` at `2026-07-31T01:53:50.310Z` and declares `AGPL-3.0-only`.
+- The prepared, registry, and clean-download artifacts are byte-identical at SHA-1 `d6b40c724c006a760bf5bc1dd289fbe18169c060` and SHA-512 `sha512-06XiH+4n9+cOaDUnVraJFZQEk+vnEjuRL/mO72oW9W5qHqxKlmSHHiDpHPyRyynbTd/7U3O3yx4gmdraSU5BuA==`. The 37-file artifact includes the complete 34,523-byte `LICENSE`; its SHA-256 `0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0` matches the repository license.
+- Package validation enforces synchronized SPDX metadata, complete matching license text, package inclusion, and the AGPL network-use section. Both prepared and clean registry packages pass isolated Codex and Claude install, update, disable, enable, reinstall, and removal lifecycles.
+- Full repository verification passes with builds, lint, typecheck, 425 application tests and 12 expected database-gated skips, sensitive-content scanning, and idea, documentation, and ExecPlan checks; all 14 package eval tests pass.
+- This release changes only source and npm package licensing. No server deployment, schema migration, provider change, credential write, or household journal mutation ran.
+
 ## Codex grocery-audit continuation
 
 Date: 2026-07-29

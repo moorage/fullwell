@@ -1,6 +1,6 @@
 {
   "name": "@fullwell/fullwell",
-  "version": "1.1.27",
+  "version": "1.1.28",
   "private": false,
   "license": "AGPL-3.0-only",
   "description": "Shared Codex and Claude client for Fullwell",

@@ -162,6 +162,8 @@
     "stores_computer_use_image_without_exact_page_provenance",
     "stores_http_data_blob_credential_bearing_or_unrelated_image_url",
     "uses_listing_thumbnail_hidden_network_traffic_or_raw_html_as_image_provenance",
+    "treats_accessibility_tree_omission_or_page_image_control_as_proof_item_has_no_image",
+    "uses_screenshot_clipboard_or_guessed_url_instead_of_exact_context_menu_image_address",
     "blocks_complete_textual_audit_only_because_image_is_unavailable",
     "omits_recorded_image_fields_from_local_or_hosted_item_commit",
     "runs_codex_mcp_login_before_explicit_cloud_connect_or_reconnect_consent",

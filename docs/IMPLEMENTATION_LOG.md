@@ -6,6 +6,7 @@
   - `docs/exec-plans/active/2026-07-21-approval-efficient-onboarding.md`
   - `docs/exec-plans/active/2026-07-27-canonical-origin-fullwell-ai.md`
 - completed ExecPlans:
+  - `docs/exec-plans/completed/2026-07-30-safari-image-source-fallback.md`
   - `docs/exec-plans/completed/2026-07-30-public-repository-sanitization.md`
   - `docs/exec-plans/completed/2026-07-29-codex-grocery-audit-continuation.md`
   - `docs/exec-plans/completed/2026-07-29-codex-chat-cloud-oauth-recovery.md`
@@ -24,6 +25,7 @@
   - `docs/exec-plans/completed/2026-05-30-self-improvement-loop.md`
   - `docs/exec-plans/completed/2026-07-21-conversational-fullwell-onboarding.md`
 
+- 2026-07-30 Safari image fallback work under Beads `fullwell-3ou`, `fullwell-ulg`, and release issue `fullwell-46a` requires an exact visible-image context-menu action and temporary-tab HTTPS address read when Computer Use lacks DOM access across recipes, groceries, and takeout; accessibility-tree omissions and page image controls are not accepted as evidence that an item has no image, and immutable package `1.1.28` is prepared across npm and both host catalogs
 - 2026-07-30 AGPL licensing release completed under Beads issues `fullwell-9wm` and `fullwell-bxo`; release commit `a64eb19` is pushed, public `@fullwell/fullwell@1.1.27` is npm `latest`, and repository, workspace, plugin, lockfile, package, and public documentation metadata now declare `AGPL-3.0-only`
 - the prepared, registry, and clean-download artifacts match at SHA-1 `d6b40c724c006a760bf5bc1dd289fbe18169c060` and SHA-512 `sha512-06XiH+4n9+cOaDUnVraJFZQEk+vnEjuRL/mO72oW9W5qHqxKlmSHHiDpHPyRyynbTd/7U3O3yx4gmdraSU5BuA==`; the 37-file package includes the canonical 34,523-byte license at SHA-256 `0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0`
 - package validation, prepared and clean-registry Codex/Claude host lifecycles, 14 agent eval tests, sensitive-content scanning, and full repository verification with 425 application tests plus 12 expected database-gated skips pass; no server deployment, migration, provider, credential, or household journal mutation ran

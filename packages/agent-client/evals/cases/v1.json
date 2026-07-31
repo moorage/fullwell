@@ -1305,6 +1305,13 @@
       "invariants": ["listing_thumbnail_is_not_image_provenance", "capture_exact_visible_https_image_and_page", "commit_grocery_image_fields", "report_aggregate_image_counts_without_private_names_or_urls"]
     },
     {
+      "id": "grocery-safari-image-context-menu-fallback",
+      "prompt": "Audit my grocery orders in Safari. The exact product image is visible, but Computer Use exposes no DOM image source and its accessibility tree omits the image.",
+      "skills": ["audit-grocery-purchases"],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update"],
+      "invariants": ["accessibility_omission_is_not_no_image_proof", "open_exact_visible_product_image_in_temporary_tab", "read_credential_free_https_image_from_address_field", "retain_original_product_page_as_image_page_url", "close_temporary_image_tab_and_return_to_product_page", "fail_closed_when_context_menu_image_action_is_unavailable_or_ambiguous", "listing_thumbnail_remains_invalid"]
+    },
+    {
       "id": "recipe-computer-use-image-provenance",
       "prompt": "Refresh my recipe history. Keep exact page images, but one recipe only exposes a data URL and another has no image.",
       "skills": ["track-recipe-history"],
@@ -1312,11 +1319,25 @@
       "invariants": ["capture_exact_visible_https_image_and_page", "reject_data_or_unprovenanced_image", "preserve_prior_valid_image_when_no_replacement", "missing_image_does_not_block_textual_recipe"]
     },
     {
+      "id": "recipe-safari-image-context-menu-fallback",
+      "prompt": "Refresh my recipes in Safari. A recipe image is visibly rendered, but Computer Use exposes no DOM image source and its accessibility tree omits the image.",
+      "skills": ["track-recipe-history"],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update"],
+      "invariants": ["accessibility_omission_is_not_no_image_proof", "open_exact_visible_image_in_temporary_tab", "read_credential_free_https_image_from_address_field", "retain_original_recipe_page_as_image_page_url", "close_temporary_image_tab_and_return_to_recipe_page", "fail_closed_when_context_menu_image_action_is_unavailable_or_ambiguous", "do_not_use_add_image_control_as_absence_signal"]
+    },
+    {
       "id": "delivery-computer-use-image-cloud-roundtrip",
       "prompt": "Refresh my DoorDash history, collect the visible exact dish images, and sync the refreshed dishes to my household.",
       "skills": ["audit-food-delivery-orders"],
       "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update", "hfj_commit_delivery_index"],
       "invariants": ["capture_exact_visible_https_image_and_page", "do_not_inspect_hidden_network_or_raw_html", "commit_history_delivery_image_fields", "preserve_image_provenance_through_cloud_commit"]
+    },
+    {
+      "id": "delivery-safari-image-context-menu-fallback",
+      "prompt": "Refresh my takeout history in Safari. The exact dish image is visible, but Computer Use exposes no DOM image source and its accessibility tree omits the image.",
+      "skills": ["audit-food-delivery-orders"],
+      "required_tools": ["fullwell_local_household_load", "fullwell_local_household_update"],
+      "invariants": ["accessibility_omission_is_not_no_image_proof", "open_exact_visible_dish_image_in_temporary_tab", "read_credential_free_https_image_from_address_field", "retain_original_dish_page_as_image_page_url", "close_temporary_image_tab_and_return_to_dish_page", "fail_closed_when_context_menu_image_action_is_unavailable_or_ambiguous", "order_listing_thumbnail_remains_invalid"]
     }
   ]
 }

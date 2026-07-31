@@ -2,10 +2,6 @@
   "root": "household-food-journal",
   "tree": [
     {
-      "type": "file",
-      "name": ".DS_Store"
-    },
-    {
       "type": "dir",
       "name": ".agents",
       "children": [
@@ -208,10 +204,6 @@
       "name": ".env.example"
     },
     {
-      "type": "file",
-      "name": ".env.local"
-    },
-    {
       "type": "dir",
       "name": ".githooks",
       "children": [
@@ -228,17 +220,6 @@
     {
       "type": "file",
       "name": ".gitignore"
-    },
-    {
-      "type": "dir",
-      "name": ".local",
-      "children": [
-        {
-          "type": "dir",
-          "name": "households",
-          "children": []
-        }
-      ]
     },
     {
       "type": "file",
@@ -1277,10 +1258,6 @@
                 {
                   "type": "file",
                   "name": "2026-07-27-canonical-origin-fullwell-ai.md"
-                },
-                {
-                  "type": "file",
-                  "name": "2026-07-30-public-repository-sanitization.md"
                 }
               ]
             },
@@ -1351,6 +1328,14 @@
                 {
                   "type": "file",
                   "name": "2026-07-29-plugin-and-hero-artwork.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-30-public-repository-sanitization.md"
+                },
+                {
+                  "type": "file",
+                  "name": "2026-07-30-safari-image-source-fallback.md"
                 }
               ]
             }
@@ -1689,6 +1674,10 @@
             {
               "type": "file",
               "name": "CHANGELOG.md"
+            },
+            {
+              "type": "file",
+              "name": "LICENSE"
             },
             {
               "type": "file",
@@ -2425,11 +2414,6 @@
               "name": "update-context-ledger.mjs"
             }
           ]
-        },
-        {
-          "type": "dir",
-          "name": "smoke",
-          "children": []
         },
         {
           "type": "dir",

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.1.28 - 2026-07-30
+
+- When Safari recipe, grocery, and takeout audits lack DOM access, recover an exact visible image through the image context menu and a temporary image tab instead of treating an accessibility-tree omission or page image control as proof that no image exists.
+
 ## 1.1.27 - 2026-07-30
 
 - License the published package under `AGPL-3.0-only` and include the complete

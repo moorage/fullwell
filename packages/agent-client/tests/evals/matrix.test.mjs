@@ -138,14 +138,39 @@ test("each eval has a unique identity and targets both host matrices", async () 
   assert.ok(groceryAuditSkill.includes("even when it appears in only one order"));
   const groceryImage = matrix.cases.find((testCase) =>
     testCase.id === "grocery-computer-use-image-provenance");
+  const grocerySafariImage = matrix.cases.find((testCase) =>
+    testCase.id === "grocery-safari-image-context-menu-fallback");
   const recipeImage = matrix.cases.find((testCase) =>
     testCase.id === "recipe-computer-use-image-provenance");
+  const recipeSafariImage = matrix.cases.find((testCase) =>
+    testCase.id === "recipe-safari-image-context-menu-fallback");
   const deliveryImage = matrix.cases.find((testCase) =>
     testCase.id === "delivery-computer-use-image-cloud-roundtrip");
+  const deliverySafariImage = matrix.cases.find((testCase) =>
+    testCase.id === "delivery-safari-image-context-menu-fallback");
   assert.ok(groceryImage?.invariants.includes("commit_grocery_image_fields"));
+  assert.ok(grocerySafariImage?.invariants.includes("open_exact_visible_product_image_in_temporary_tab"));
+  assert.ok(grocerySafariImage?.invariants.includes("retain_original_product_page_as_image_page_url"));
+  assert.ok(grocerySafariImage?.invariants.includes("close_temporary_image_tab_and_return_to_product_page"));
   assert.ok(recipeImage?.invariants.includes("preserve_prior_valid_image_when_no_replacement"));
+  assert.ok(recipeSafariImage?.invariants.includes("accessibility_omission_is_not_no_image_proof"));
+  assert.ok(recipeSafariImage?.invariants.includes("open_exact_visible_image_in_temporary_tab"));
+  assert.ok(recipeSafariImage?.invariants.includes("read_credential_free_https_image_from_address_field"));
+  assert.ok(recipeSafariImage?.invariants.includes("close_temporary_image_tab_and_return_to_recipe_page"));
   assert.ok(deliveryImage?.required_tools.includes("hfj_commit_delivery_index"));
   assert.ok(deliveryImage?.invariants.includes("preserve_image_provenance_through_cloud_commit"));
+  assert.ok(deliverySafariImage?.invariants.includes("open_exact_visible_dish_image_in_temporary_tab"));
+  assert.ok(deliverySafariImage?.invariants.includes("retain_original_dish_page_as_image_page_url"));
+  assert.ok(deliverySafariImage?.invariants.includes("close_temporary_image_tab_and_return_to_dish_page"));
+  assert.ok(recipeHistorySkill.includes("temporary image tab"));
+  assert.ok(recipeHistorySkill.includes("Add image"));
+  for (const skill of [groceryAuditSkill, recipeHistorySkill, deliveryAuditSkill]) {
+    assert.ok(skill.includes("When Safari Computer Use has no DOM access"));
+    assert.ok(skill.includes("Open Image in New Tab"));
+    assert.ok(skill.includes("close the temporary"));
+  }
+  assert.ok(privacyReference.includes("When Safari Computer Use has no DOM access"));
+  assert.ok(privacyReference.includes("close the temporary tab"));
   for (const skill of [groceryAuditSkill, recipeHistorySkill, deliveryAuditSkill]) {
     assert.ok(skill.includes("credential-free HTTPS"));
     assert.ok(skill.includes("hidden network traffic"));
@@ -157,6 +182,8 @@ test("each eval has a unique identity and targets both host matrices", async () 
     "stores_computer_use_image_without_exact_page_provenance",
     "stores_http_data_blob_credential_bearing_or_unrelated_image_url",
     "uses_listing_thumbnail_hidden_network_traffic_or_raw_html_as_image_provenance",
+    "treats_accessibility_tree_omission_or_page_image_control_as_proof_item_has_no_image",
+    "uses_screenshot_clipboard_or_guessed_url_instead_of_exact_context_menu_image_address",
     "blocks_complete_textual_audit_only_because_image_is_unavailable",
     "omits_recorded_image_fields_from_local_or_hosted_item_commit",
   ]) {

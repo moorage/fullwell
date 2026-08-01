@@ -638,6 +638,12 @@ export class NeonOperationalStore implements OperationalStorePort, SessionStoreP
           WHEN EXISTS (
             SELECT 1
             FROM pg_constraint
+            WHERE conname = 'external_identities_provider_check'
+              AND pg_get_constraintdef(oid) LIKE '%reviewer%'
+          ) THEN '0009'
+          WHEN EXISTS (
+            SELECT 1
+            FROM pg_constraint
             WHERE conname = 'search_items_kind_check'
               AND pg_get_constraintdef(oid) LIKE '%delivery_dish%'
           ) THEN '0008'

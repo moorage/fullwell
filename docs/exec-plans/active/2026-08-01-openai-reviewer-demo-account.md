@@ -19,6 +19,7 @@ Success is visible when the supplied reviewer credentials can sign in at `https:
 - [x] 2026-08-01T08:23Z: Milestone 4 complete. Focused checks and `npm run verify` pass with 430 application tests and 12 expected database-gated skips; the sensitive, docs, and ExecPlan gates pass. A separate disposable Apple Container proves migration up/down/up for all nine migrations without touching the orphaned local volume.
 - [ ] 2026-08-01T08:27Z: Milestone 5 resumed with explicit commit/push/deployment authority. The later OAuth grant still requires action-time Computer Use confirmation before the sanitized journal mutation can be exercised through the hosted MCP.
 - [x] 2026-08-01T08:48Z: Added the submission-required OpenAI ownership challenge as a fixed uncached route backed by the encrypted credential boundary; the verification value remains outside source control and logs.
+- [x] 2026-08-01T09:09Z: Production migration `0009` applied, the exact release activated with review access disabled, and the ownership challenge verified. Live readiness exposed and prompted a focused fix for the schema detector's stale `0008` ceiling.
 
 ## Surprises & Discoveries
 

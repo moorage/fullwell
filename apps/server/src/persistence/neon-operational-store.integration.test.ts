@@ -527,7 +527,7 @@ describeDatabase("NeonOperationalStore", () => {
       signatureFailureCount: 0,
       lastRestoreDrillAt: "2026-07-15T12:07:00.000Z",
       lastRestoreDrillSucceeded: true,
-      schemaVersion: "0008",
+      schemaVersion: "0009",
     });
     await store.transitionMutation(pending.requestId, "failed_before_commit", { failure: "test_cleanup" });
     expect((await store.operatorHealth()).incompleteMutationCount).toBe(0);

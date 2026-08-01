@@ -5,6 +5,7 @@
 - Add a disabled-by-default, encrypted OpenAI reviewer sign-in adapter that preserves pending OAuth authorization while leaving ordinary Fullwell sign-in passwordless.
 - Add the reversible reviewer identity migration, deployment credential wiring, same-origin and rate-limit controls, and focused auth/config/web coverage.
 - Serve OpenAI's app ownership challenge from a fixed uncached well-known route backed by an encrypted deployment credential.
+- Recognize the reviewer identity constraint as schema `0009` in deployment readiness.
 
 ## Unreleased
 

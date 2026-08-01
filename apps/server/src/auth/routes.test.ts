@@ -115,7 +115,7 @@ describe("browser auth routes", () => {
     const signedIn = await app.inject({
       method: "POST",
       url: "/auth/reviewer",
-      headers: { accept: "text/html", origin: "https://journal.example.test" },
+      headers: { accept: "text/html", "sec-fetch-site": "same-origin", "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" },
       payload: { username: "openai-reviewer", password: "review-password-with-at-least-32-characters", pending_intent: "/authorize?client_id=review" },
     });
     expect(signedIn.statusCode).toBe(303);
@@ -125,7 +125,7 @@ describe("browser auth routes", () => {
     const crossOrigin = await app.inject({
       method: "POST",
       url: "/auth/reviewer",
-      headers: { origin: "https://attacker.example" },
+      headers: { origin: "https://attacker.example", "sec-fetch-site": "cross-site", "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" },
       payload: { username: "openai-reviewer", password: "review-password-with-at-least-32-characters" },
     });
     expect(crossOrigin.json().error.code).toBe("FORBIDDEN");

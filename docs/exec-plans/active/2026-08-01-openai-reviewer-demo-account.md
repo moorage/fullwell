@@ -20,6 +20,7 @@ Success is visible when the supplied reviewer credentials can sign in at `https:
 - [ ] 2026-08-01T08:27Z: Milestone 5 resumed with explicit commit/push/deployment authority. The later OAuth grant still requires action-time Computer Use confirmation before the sanitized journal mutation can be exercised through the hosted MCP.
 - [x] 2026-08-01T08:48Z: Added the submission-required OpenAI ownership challenge as a fixed uncached route backed by the encrypted credential boundary; the verification value remains outside source control and logs.
 - [x] 2026-08-01T09:09Z: Production migration `0009` applied, the exact release activated with review access disabled, and the ownership challenge verified. Live readiness exposed and prompted a focused fix for the schema detector's stale `0008` ceiling.
+- [x] 2026-08-01T09:23Z: A real private-window reviewer login proved the global `no-referrer` response suppresses the form `Origin`; no account was created. Added same-origin document-navigation metadata acceptance while retaining explicit cross-site rejection.
 
 ## Surprises & Discoveries
 

@@ -42,7 +42,10 @@ export async function registerBrowserAuthRoutes(app: FastifyInstance, dependenci
   if (dependencies.reviewerAccessEnabled === true) {
     if (dependencies.publicOrigin === undefined) throw new Error("Reviewer access requires the public origin");
     app.post("/auth/reviewer", { config: { rateLimit: { max: 5, timeWindow: 15 * 60_000, groupId: "reviewer-auth" } } }, async (request, reply) => {
-      if (request.headers.origin !== dependencies.publicOrigin?.origin) throw new AppError("FORBIDDEN", "The review sign-in request is invalid");
+      const sameOriginNavigation = request.headers["sec-fetch-site"] === "same-origin"
+        && request.headers["sec-fetch-mode"] === "navigate"
+        && request.headers["sec-fetch-dest"] === "document";
+      if (request.headers.origin !== dependencies.publicOrigin?.origin && !sameOriginNavigation) throw new AppError("FORBIDDEN", "The review sign-in request is invalid");
       const body = ReviewerSignInSchema.parse(request.body);
       try {
         const session = await dependencies.auth.completeReviewerSignIn({

@@ -459,4 +459,5 @@
 - Implemented a hidden, disabled-by-default reviewer identity with encrypted deployment configuration, constant-time credential verification, same-origin form handling, strict rate limiting, normal session issuance, and pending OAuth continuation.
 - Added the fixed uncached OpenAI app ownership challenge endpoint with its value sourced from the encrypted deployment credential boundary.
 - Corrected readiness schema detection to recognize the deployed reviewer identity constraint as schema `0009`.
+- Corrected real-browser reviewer sign-in to honor the global no-referrer policy through strict same-origin navigation metadata without weakening cross-site rejection.
 - Added the reversible `0009` provider migration plus focused service, route, configuration, and React sign-in tests. Production provisioning, sanitized sampling, deployment, and external submission remain gated on explicit commit/push/deployment authority and action-time OAuth confirmation.

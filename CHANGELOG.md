@@ -7,6 +7,7 @@
 - Serve OpenAI's app ownership challenge from a fixed uncached well-known route backed by an encrypted deployment credential.
 - Recognize the reviewer identity constraint as schema `0009` in deployment readiness.
 - Accept reviewer sign-in from a same-origin browser navigation when the global no-referrer policy suppresses `Origin`, while rejecting cross-site Fetch Metadata.
+- Mark public collection-share creation and revocation as open-world MCP actions for accurate ChatGPT review metadata.
 
 ## Unreleased
 

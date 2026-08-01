@@ -344,13 +344,17 @@ const DestructiveToolNames = new Set<ToolName>([
   "hfj_revoke_collection_share",
   "hfj_withdraw_meal_proposal",
 ]);
+const OpenWorldToolNames = new Set<ToolName>([
+  "hfj_create_collection_share",
+  "hfj_revoke_collection_share",
+]);
 function annotations(toolName: ToolName): ToolAnnotations {
   const changesState = MutatingToolNames.has(toolName) || toolName === "hfj_select_household";
   return {
     readOnlyHint: !changesState,
     destructiveHint: DestructiveToolNames.has(toolName),
     idempotentHint: MutatingToolNames.has(toolName) || toolName === "hfj_select_household",
-    openWorldHint: false,
+    openWorldHint: OpenWorldToolNames.has(toolName),
   };
 }
 function toolCatalog(): Array<{ name: ToolName; description: string; inputSchema: object; annotations: ToolAnnotations }> {

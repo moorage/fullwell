@@ -136,6 +136,18 @@ describe("Fastify application", () => {
       idempotentHint: true,
       openWorldHint: false,
     });
+    expect(tools.find(({ name }) => name === "hfj_create_collection_share")?.annotations).toEqual({
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    });
+    expect(tools.find(({ name }) => name === "hfj_revoke_collection_share")?.annotations).toEqual({
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    });
 
     const create = await app.inject({ method: "POST", url: "/mcp", headers: { authorization: "Bearer test-owner-token" }, payload: { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "hfj_create_household", arguments: { name: "Our Kitchen", idempotency_key: "household-key-1" } } } });
     expect(create.statusCode).toBe(200);

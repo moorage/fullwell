@@ -201,6 +201,7 @@ export type WebRenderContext = {
   install: { hosts: Record<"codex" | "claude", InstallHost> };
   auth: {
     passkeysEnabled: boolean;
+    reviewerAccessEnabled: boolean;
     passkeys: readonly PasskeySummary[];
     methods: readonly SignInMethodSummary[];
     grants: readonly ConnectedGrantSummary[];
@@ -222,6 +223,7 @@ export type WebRenderContext = {
   };
   collectionState: CollectionState;
   emailSent: boolean;
+  reviewerError: boolean;
 };
 
 export type OAuthAuthorizationRequest = {

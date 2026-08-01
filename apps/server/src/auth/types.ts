@@ -31,6 +31,7 @@ export interface WebSession {
 
 export type PasskeyTransport = "ble" | "cable" | "hybrid" | "internal" | "nfc" | "smart-card" | "usb";
 export type IdentityMethodProvider = "apple" | "magic_link";
+export type ExternalIdentityProvider = IdentityMethodProvider | "reviewer";
 export type MethodRemovalResult = "removed" | "not_found" | "last_method";
 export type IdentityLinkResult = "linked" | "already_linked" | "identity_in_use" | "user_not_found";
 
@@ -56,7 +57,7 @@ export interface AuthStore {
     readonly consumedAt: string;
   }): Promise<AuthChallenge | null>;
   resolveOrCreateUser(input: {
-    readonly provider: "apple" | "magic_link";
+    readonly provider: ExternalIdentityProvider;
     readonly subjectHash: string;
     readonly displayName: string;
     readonly candidateUserId: UserId;

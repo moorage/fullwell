@@ -34,6 +34,9 @@ const ConfigSchema = z.object({
   APPLE_PRIVATE_KEY: z.string().min(1).optional(),
   MAIL_PROVIDER_API_KEY: z.string().min(1).optional(),
   MAIL_FROM: z.string().min(3).optional(),
+  OPENAI_REVIEW_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+  OPENAI_REVIEW_USERNAME: z.string().min(8).max(320).optional(),
+  OPENAI_REVIEW_PASSWORD: z.string().min(32).max(512).optional(),
   WHATSAPP_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   WHATSAPP_WEBHOOK_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   WHATSAPP_LINKING_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
@@ -87,6 +90,9 @@ export function parseConfig(env: NodeJS.ProcessEnv): AppConfig {
     APPLE_PRIVATE_KEY: secret(env, "APPLE_PRIVATE_KEY"),
     MAIL_PROVIDER_API_KEY: secret(env, "MAIL_PROVIDER_API_KEY"),
     MAIL_FROM: env.MAIL_FROM,
+    OPENAI_REVIEW_ENABLED: env.OPENAI_REVIEW_ENABLED,
+    OPENAI_REVIEW_USERNAME: secret(env, "OPENAI_REVIEW_USERNAME"),
+    OPENAI_REVIEW_PASSWORD: secret(env, "OPENAI_REVIEW_PASSWORD"),
     WHATSAPP_ENABLED: env.WHATSAPP_ENABLED,
     WHATSAPP_WEBHOOK_ENABLED: env.WHATSAPP_WEBHOOK_ENABLED,
     WHATSAPP_LINKING_ENABLED: env.WHATSAPP_LINKING_ENABLED,
@@ -118,6 +124,12 @@ export function parseConfig(env: NodeJS.ProcessEnv): AppConfig {
   }
   if ((config.DATABASE_URL === undefined) !== (config.DATABASE_DIRECT_URL === undefined)) {
     throw new Error("DATABASE_URL and DATABASE_DIRECT_URL must be configured together");
+  }
+  if ((config.OPENAI_REVIEW_USERNAME === undefined) !== (config.OPENAI_REVIEW_PASSWORD === undefined)) {
+    throw new Error("OpenAI reviewer credentials must be configured together");
+  }
+  if (config.OPENAI_REVIEW_ENABLED && config.OPENAI_REVIEW_USERNAME === undefined) {
+    throw new Error("OPENAI_REVIEW_ENABLED requires reviewer credentials");
   }
   const backupKeys = [
     "OBJECT_STORAGE_ENDPOINT", "OBJECT_STORAGE_REGION", "OBJECT_STORAGE_BUCKET", "OBJECT_STORAGE_ACCESS_KEY_ID", "OBJECT_STORAGE_SECRET_ACCESS_KEY",

@@ -3,9 +3,16 @@ import { z } from "zod";
 import type { Clock, IdentityProviderPort, MailPort, RandomSource, TokenHasher } from "../core/ports.js";
 import { AppError } from "../core/errors.js";
 import type { Principal } from "../core/types.js";
-import type { AuthChallengeKind, AuthStore, AuthUser, IssuedWebSession, PasskeyCredential, PasskeyProvider } from "./types.js";
+import type { AuthChallengeKind, AuthStore, AuthUser, ExternalIdentityProvider, IssuedWebSession, PasskeyCredential, PasskeyProvider } from "./types.js";
 
 const PendingIntentSchema = z.string().max(2048).refine((value) => value.startsWith("/"), "Pending intents must be local paths");
+
+export interface ReviewerAccessConfig {
+  readonly enabled: boolean;
+  readonly usernameHash: string;
+  readonly passwordHash: string;
+  readonly subjectHash: string;
+}
 
 export class BrowserAuthService {
   constructor(
@@ -17,7 +24,28 @@ export class BrowserAuthService {
     private readonly apple: IdentityProviderPort,
     private readonly passkeys: PasskeyProvider,
     private readonly publicOrigin: URL,
+    private readonly reviewerAccess?: ReviewerAccessConfig,
   ) {}
+
+  async completeReviewerSignIn(input: {
+    readonly username: string;
+    readonly password: string;
+    readonly pendingIntent?: string;
+  }): Promise<IssuedWebSession> {
+    const pendingIntent = input.pendingIntent === undefined ? null : PendingIntentSchema.parse(input.pendingIntent);
+    const disabledHash = this.hasher.hash("reviewer-access-disabled");
+    const usernameMatches = this.hasher.matches(input.username, this.reviewerAccess?.usernameHash ?? disabledHash);
+    const passwordMatches = this.hasher.matches(input.password, this.reviewerAccess?.passwordHash ?? disabledHash);
+    if (this.reviewerAccess?.enabled !== true || !usernameMatches || !passwordMatches) {
+      throw new AppError("AUTH_REQUIRED", "The reviewer credentials are invalid");
+    }
+    return this.issueSession(await this.ensureReviewerUser(), pendingIntent);
+  }
+
+  async ensureReviewerUser(): Promise<AuthUser> {
+    if (this.reviewerAccess === undefined) throw new AppError("PROVIDER_UNAVAILABLE", "Reviewer access is not configured");
+    return this.resolveOrCreateUser("reviewer", this.reviewerAccess.subjectHash, "OpenAI reviewer");
+  }
 
   async requestMagicLink(emailInput: string, pendingIntentInput?: string): Promise<void> {
     const email = z.email().parse(emailInput).trim().toLowerCase();
@@ -289,7 +317,7 @@ export class BrowserAuthService {
     return { sessionToken, csrfToken, expiresAt, pendingIntent, user };
   }
 
-  private async resolveOrCreateUser(provider: "apple" | "magic_link", subjectHash: string, displayName: string) {
+  private async resolveOrCreateUser(provider: ExternalIdentityProvider, subjectHash: string, displayName: string) {
     return this.store.resolveOrCreateUser({
       provider,
       subjectHash,

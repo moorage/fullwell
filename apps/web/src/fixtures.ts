@@ -326,6 +326,7 @@ export const demoWebContext: WebRenderContext = {
   },
   auth: {
     passkeysEnabled: false,
+    reviewerAccessEnabled: false,
     passkeys: [],
     methods: [{ provider: "magic_link", label: "Email magic link" }],
     grants: [{ id: "grant-codex", clientName: "Codex", scopes: ["Read journal", "Update journal"] }],
@@ -400,4 +401,5 @@ export const demoWebContext: WebRenderContext = {
   },
   collectionState: "ready",
   emailSent: false,
+  reviewerError: false,
 };

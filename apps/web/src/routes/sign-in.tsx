@@ -5,7 +5,7 @@ import { PasskeySignInButton } from "../components/passkey-actions.js";
 import { Button, Field, PageHeader, StatusNotice, TextInput } from "../components/ui.js";
 import { useWebContext } from "../context.js";
 
-export function SignInRoute({ emailSent, returnTo }: { emailSent: boolean; returnTo?: string | undefined }) {
+export function SignInRoute({ emailSent, reviewerError, returnTo }: { emailSent: boolean; reviewerError: boolean; returnTo?: string | undefined }) {
   const { auth } = useWebContext();
   return (
     <AppShell context="focused">
@@ -20,6 +20,11 @@ export function SignInRoute({ emailSent, returnTo }: { emailSent: boolean; retur
           {emailSent ? (
             <StatusNotice tone="success" title="Check your email">
               <p>If the address can sign in, a one-time link is on its way. It expires in 15 minutes.</p>
+            </StatusNotice>
+          ) : null}
+          {reviewerError ? (
+            <StatusNotice tone="error" title="Review sign-in failed">
+              <p>Check the supplied review credentials and try again.</p>
             </StatusNotice>
           ) : null}
           <form action="/auth/apple/start" method="post">
@@ -41,6 +46,21 @@ export function SignInRoute({ emailSent, returnTo }: { emailSent: boolean; retur
               <Mail aria-hidden="true" size={19} /> Email me a sign-in link
             </Button>
           </form>
+          {auth.reviewerAccessEnabled ? (
+            <>
+              <div className="auth-divider"><span>review access</span></div>
+              <form action="/auth/reviewer" method="post" className="stack-form">
+                {returnTo ? <input type="hidden" name="pending_intent" value={returnTo} /> : null}
+                <Field label="Review username">
+                  <TextInput name="username" type="text" autoComplete="username" required />
+                </Field>
+                <Field label="Review password">
+                  <TextInput name="password" type="password" autoComplete="current-password" required />
+                </Field>
+                <Button type="submit" variant="secondary">Continue with review access</Button>
+              </form>
+            </>
+          ) : null}
           <p className="fine-print">By continuing, you agree to the <a href="/terms">Terms</a> and acknowledge the <a href="/privacy">Privacy Policy</a>.</p>
         </div>
       </section>

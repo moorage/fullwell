@@ -197,6 +197,8 @@ Present these choices in order:
 
 Do not offer a service-specific password in version 1.
 
+The sole exception is a temporary OpenAI review adapter for one operator-provisioned, isolated demo identity. It is not an ordinary-user password feature: it has no public enrollment, recovery, account selection, or account-linking surface; it is hidden and unavailable unless a complete encrypted credential pair and an independent enable gate are present. The same-origin POST is strictly rate limited, performs constant-time credential comparison, stores only a keyed external subject, preserves a validated pending OAuth intent, and issues the ordinary browser session. Provision and seed the reviewer household while the gate is disabled, then enable it only after isolation and data-minimization checks pass.
+
 Continue with Apple must use the web Services ID flow and validate authorization codes and identity tokens server-side. Treat Apple's stable subject as the external identity key. The user's name and email may be available only during the first authorization; store only what is needed for account display, invitations, security notices, and recovery.
 
 Apple's cross-site `form_post` callback must use a short-lived `Secure; SameSite=None` browser-binding cookie. When linking Apple to an existing cloud account, the single-use challenge also binds a hashed reference to the initiating session so the callback can revalidate that session without depending on the browser sending its `SameSite=Lax` session cookie on a cross-site POST. The sign-in page's Content Security Policy may allow form navigation only to the service origin and `https://appleid.apple.com`; every other form destination remains blocked.

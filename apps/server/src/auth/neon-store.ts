@@ -1,7 +1,7 @@
 import { ActorIdSchema, UserIdSchema, type UserId } from "@hfj/contracts";
 import { z } from "zod";
 import type { NeonConnection } from "../persistence/neon.js";
-import type { AuthChallenge, AuthStore, AuthUser, IdentityLinkResult, IdentityMethodProvider, MethodRemovalResult, PasskeyCredential, WebSession } from "./types.js";
+import type { AuthChallenge, AuthStore, AuthUser, ExternalIdentityProvider, IdentityLinkResult, IdentityMethodProvider, MethodRemovalResult, PasskeyCredential, WebSession } from "./types.js";
 
 const TimestampSchema = z.union([z.date(), z.string()]).transform((value) => new Date(value).toISOString());
 const NullableTimestampSchema = z.union([z.date(), z.string()]).nullable().transform((value) => value === null ? null : new Date(value).toISOString());
@@ -63,7 +63,7 @@ export class NeonAuthStore implements AuthStore {
     };
   }
 
-  async resolveOrCreateUser(input: { readonly provider: "apple" | "magic_link"; readonly subjectHash: string; readonly displayName: string; readonly candidateUserId: UserId; readonly candidateActorId: string }): Promise<AuthUser> {
+  async resolveOrCreateUser(input: { readonly provider: ExternalIdentityProvider; readonly subjectHash: string; readonly displayName: string; readonly candidateUserId: UserId; readonly candidateActorId: string }): Promise<AuthUser> {
     return await this.connection.pooled.begin(async (sql) => {
       await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${input.provider}:${input.subjectHash}`}, 0))`;
       const existing = await sql<Record<string, unknown>[]>`

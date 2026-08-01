@@ -17,6 +17,8 @@ for credential in \
   operator-token \
   apple-private-key \
   mail-provider-api-key \
+  openai-review-username \
+  openai-review-password \
   git-signing-key \
   git-allowed-signers \
   object-storage-access-key-id \

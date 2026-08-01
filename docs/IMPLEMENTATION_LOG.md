@@ -453,3 +453,8 @@
   - `core.hooksPath` is configured as `.githooks`
   - docs and ExecPlan verification passed
 - open risks or blockers:
+## 2026-08-01 - OpenAI reviewer demo account
+
+- Created `fullwell-zzc.1` and the active reviewer-account ExecPlan after confirming the plugin review requires immediate credentials and the local snapshot contains four non-delivery categories.
+- Implemented a hidden, disabled-by-default reviewer identity with encrypted deployment configuration, constant-time credential verification, same-origin form handling, strict rate limiting, normal session issuance, and pending OAuth continuation.
+- Added the reversible `0009` provider migration plus focused service, route, configuration, and React sign-in tests. Production provisioning, sanitized sampling, deployment, and external submission remain gated on explicit commit/push/deployment authority and action-time OAuth confirmation.

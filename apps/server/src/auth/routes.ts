@@ -22,16 +22,46 @@ const PasskeyCredentialParamsSchema = z.object({ credentialId: z.string().min(1)
 const LinkMagicSchema = z.object({ csrf: z.string().min(32).max(512), email: z.email().max(320) }).strict();
 const LinkMagicCompleteSchema = z.object({ token: z.string().min(32).max(512) }).strict();
 const CsrfSchema = z.object({ csrf: z.string().min(32).max(512) }).strict();
+const ReviewerSignInSchema = z.object({
+  username: z.string().min(1).max(320),
+  password: z.string().min(1).max(512),
+  pending_intent: z.string().max(2048).optional(),
+}).strict();
 const AUTH_START_RATE_LIMIT = { max: 10, timeWindow: 15 * 60_000, groupId: "auth-start" } as const;
 const AUTH_COMPLETE_RATE_LIMIT = { max: 20, timeWindow: 15 * 60_000, groupId: "auth-complete" } as const;
 
 export interface BrowserAuthRouteDependencies {
   readonly auth: BrowserAuthService;
   readonly secureCookies: boolean;
+  readonly reviewerAccessEnabled?: boolean;
+  readonly publicOrigin?: URL;
   readonly appleAuthorization?: { readonly clientId: string; readonly redirectUri: string };
 }
 
 export async function registerBrowserAuthRoutes(app: FastifyInstance, dependencies: BrowserAuthRouteDependencies): Promise<void> {
+  if (dependencies.reviewerAccessEnabled === true) {
+    if (dependencies.publicOrigin === undefined) throw new Error("Reviewer access requires the public origin");
+    app.post("/auth/reviewer", { config: { rateLimit: { max: 5, timeWindow: 15 * 60_000, groupId: "reviewer-auth" } } }, async (request, reply) => {
+      if (request.headers.origin !== dependencies.publicOrigin?.origin) throw new AppError("FORBIDDEN", "The review sign-in request is invalid");
+      const body = ReviewerSignInSchema.parse(request.body);
+      try {
+        const session = await dependencies.auth.completeReviewerSignIn({
+          username: body.username,
+          password: body.password,
+          ...(body.pending_intent === undefined ? {} : { pendingIntent: body.pending_intent }),
+        });
+        setSessionCookie(reply, session.sessionToken, dependencies.secureCookies);
+        setCsrfCookie(reply, session.csrfToken, dependencies.secureCookies);
+        return reply.header("cache-control", "no-store").redirect(session.pendingIntent ?? "/households", 303);
+      } catch (error) {
+        if (!(error instanceof AppError) || error.code !== "AUTH_REQUIRED" || !request.headers.accept?.includes("text/html")) throw error;
+        const query = new URLSearchParams({ reviewerError: "1" });
+        if (body.pending_intent !== undefined) query.set("returnTo", body.pending_intent);
+        return reply.header("cache-control", "no-store").redirect(`/sign-in?${query.toString()}`, 303);
+      }
+    });
+  }
+
   app.post("/auth/magic-link", { config: { rateLimit: AUTH_START_RATE_LIMIT } }, async (request, reply) => {
     const body = MagicLinkRequestSchema.parse(request.body);
     await dependencies.auth.requestMagicLink(body.email, body.pending_intent);

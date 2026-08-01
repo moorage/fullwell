@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-08-01
+
+- Add a disabled-by-default, encrypted OpenAI reviewer sign-in adapter that preserves pending OAuth authorization while leaving ordinary Fullwell sign-in passwordless.
+- Add the reversible reviewer identity migration, deployment credential wiring, same-origin and rate-limit controls, and focused auth/config/web coverage.
+
 ## Unreleased
 
 - Add one sensitive-content scanner to the pre-commit hook and repository verification, with regression coverage and agent-facing guidance that prevents credentials, private tracker exports, and author-specific paths from entering future commits; make clean-clone verification build workspace boundaries before linting their consumers.

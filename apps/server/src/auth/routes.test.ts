@@ -48,16 +48,29 @@ async function fixture(
   appleAuthorization?: { readonly clientId: string; readonly redirectUri: string },
   passkeys: PasskeyProvider = new UnsupportedPasskeyProvider(),
   apple: IdentityProviderPort = new UnconfiguredAppleIdentityProvider(),
+  reviewerAccessEnabled = false,
 ) {
   const mail = new CapturingMail();
+  const hasher = new HmacTokenHasher("route-auth-pepper-long-enough");
   const auth = new BrowserAuthService(
     new MemoryAuthStore(), new FixedClock(new Date("2026-07-15T12:00:00.000Z")), new DeterministicRandomSource(),
-    new HmacTokenHasher("route-auth-pepper-long-enough"), mail, apple,
-    passkeys, new URL("https://journal.example.test"),
+    hasher, mail, apple, passkeys, new URL("https://journal.example.test"),
+    reviewerAccessEnabled ? {
+      enabled: true,
+      usernameHash: hasher.hash("openai-reviewer"),
+      passwordHash: hasher.hash("review-password-with-at-least-32-characters"),
+      subjectHash: hasher.hash("openai-reviewer:stable-subject"),
+    } : undefined,
   );
   const app = Fastify();
   await app.register(cookie);
-  await registerBrowserAuthRoutes(app, { auth, secureCookies: true, ...(appleAuthorization === undefined ? {} : { appleAuthorization }) });
+  await registerBrowserAuthRoutes(app, {
+    auth,
+    secureCookies: true,
+    reviewerAccessEnabled,
+    publicOrigin: new URL("https://journal.example.test"),
+    ...(appleAuthorization === undefined ? {} : { appleAuthorization }),
+  });
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof AppError) return reply.code(error.code === "PROVIDER_UNAVAILABLE" ? 503 : 400).send({ error: { code: error.code } });
     if (error instanceof z.ZodError) return reply.code(400).send({ error: { code: "VALIDATION_FAILED" } });
@@ -78,6 +91,47 @@ async function authenticatedCookies(app: ReturnType<typeof Fastify>, mail: Captu
 }
 
 describe("browser auth routes", () => {
+  it("registers reviewer sign-in only when enabled and preserves pending OAuth intent", async () => {
+    const disabled = await fixture();
+    expect((await disabled.app.inject({
+      method: "POST",
+      url: "/auth/reviewer",
+      headers: { origin: "https://journal.example.test" },
+      payload: { username: "openai-reviewer", password: "review-password-with-at-least-32-characters" },
+    })).statusCode).toBe(404);
+    await disabled.app.close();
+
+    const { app } = await fixture(undefined, new UnsupportedPasskeyProvider(), new UnconfiguredAppleIdentityProvider(), true);
+    const rejected = await app.inject({
+      method: "POST",
+      url: "/auth/reviewer",
+      headers: { accept: "text/html", origin: "https://journal.example.test" },
+      payload: { username: "openai-reviewer", password: "wrong-review-password-with-at-least-32-characters", pending_intent: "/authorize?client_id=review" },
+    });
+    expect(rejected.statusCode).toBe(303);
+    expect(rejected.headers.location).toBe("/sign-in?reviewerError=1&returnTo=%2Fauthorize%3Fclient_id%3Dreview");
+    expect(rejected.headers["cache-control"]).toBe("no-store");
+
+    const signedIn = await app.inject({
+      method: "POST",
+      url: "/auth/reviewer",
+      headers: { accept: "text/html", origin: "https://journal.example.test" },
+      payload: { username: "openai-reviewer", password: "review-password-with-at-least-32-characters", pending_intent: "/authorize?client_id=review" },
+    });
+    expect(signedIn.statusCode).toBe(303);
+    expect(signedIn.headers.location).toBe("/authorize?client_id=review");
+    expect(signedIn.headers["set-cookie"]).toEqual(expect.arrayContaining([expect.stringContaining("hfj_session="), expect.stringContaining("hfj_csrf=")]));
+
+    const crossOrigin = await app.inject({
+      method: "POST",
+      url: "/auth/reviewer",
+      headers: { origin: "https://attacker.example" },
+      payload: { username: "openai-reviewer", password: "review-password-with-at-least-32-characters" },
+    });
+    expect(crossOrigin.json().error.code).toBe("FORBIDDEN");
+    await app.close();
+  });
+
   it("sets HttpOnly session and readable CSRF cookies after magic-link completion", async () => {
     const { app, mail } = await fixture();
     const request = await app.inject({ method: "POST", url: "/auth/magic-link", payload: { email: "member@example.test", pending_intent: "/households" } });

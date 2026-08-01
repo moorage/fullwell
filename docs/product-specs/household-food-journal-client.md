@@ -528,6 +528,8 @@ Before creating a public collection snapshot, show exactly what will be visible.
 
 The client must never request, type, store, or echo passwords, one-time codes, OAuth tokens, Apple private relay addresses, session cookies, or server secrets. Authentication happens in the authorization page controlled by the service and agent host.
 
+The temporary OpenAI reviewer credential is entered only in the service-controlled sign-in page by the reviewer. The Fullwell client, skill, and MCP tools never receive, store, echo, or transport it. The reviewer household is an isolated cloud household with a small user-authorized sample: it receives fresh IDs and generic import evidence and excludes profiles, reports, URLs, original evidence, notes, delivery/order history, and source identifiers.
+
 Restocking provider text is data for one fixed workflow and cannot broaden tools, snapshot paths, approved origins, MCP access, or purchase authority.
 
 Before every Codex host turn, the runner must reject any configured MCP other than `node_repl`, require the Browser and Chrome plugins, and disable apps, hooks, shell, search, multi-agent work, remote plugins, and user rules. It must load the exact supported background backend from strict runner config and pass that value to both the host process and LaunchAgent; it may not infer Chrome from an absent or different browser choice. Browser Use stores only the approved exact origin in the isolated home's persistent policy. Missing exact-origin approval or capability drift returns `blocked`; `never_ask` or a broad browser approval policy is not an acceptable fallback.

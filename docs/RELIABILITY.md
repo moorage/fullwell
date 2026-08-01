@@ -50,6 +50,8 @@ Errors are propagated only after the transaction containing `git_committed`, `re
 
 WebAuthn challenges are consumed exactly once and expire after five minutes. Authentication issues a session only after cryptographic verification and an atomic credential-counter update; a stale or regressing counter fails the ceremony rather than producing a success-shaped fallback. Counterless authenticators may remain at zero but cannot reset a nonzero stored counter.
 
+OpenAI reviewer provisioning is sequenced: install the encrypted credential pair with review access disabled, resolve the reviewer identity, create and verify its isolated demo household through ordinary idempotent journal mutations, and only then enable the route in a separate service restart. A failed credential rotation or seed leaves access disabled. Rollback disables the gate and revokes the reviewer's browser and OAuth sessions before removing its identity; the `0009` down migration refuses to run while a reviewer identity remains.
+
 Browser household leave and account deletion use the same transaction-scoped household lock and Git membership document as MCP membership changes. The account is not deleted while it solely owns a household. Once eligible, deletion revokes connected OAuth access and browser credentials; any post-commit projection failure surfaces reconciliation-required rather than reporting success.
 
 ## Startup and health

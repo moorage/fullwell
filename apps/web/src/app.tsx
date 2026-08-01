@@ -28,7 +28,7 @@ export function App({ url, context }: { url: string; context: WebRenderContext }
       case "install": return <InstallRoute initialHost={route.host} />;
       case "guides": return <GuidesRoute />;
       case "guide-detail": return <GuideDetailRoute slug={route.slug} />;
-      case "sign-in": return <SignInRoute emailSent={context.emailSent} returnTo={route.returnTo} />;
+      case "sign-in": return <SignInRoute emailSent={context.emailSent} reviewerError={context.reviewerError} returnTo={route.returnTo} />;
       case "authorize": return <AuthorizeRoute authorization={route.authorization} />;
       case "invite": return <InviteRoute token={route.token} state={context.invite.state} />;
       case "collection": return <CollectionPreviewRoute token={route.token} state={context.collectionState} />;

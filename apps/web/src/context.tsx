@@ -185,6 +185,7 @@ const webRenderContextSchema: z.ZodType<WebRenderContext> = z.object({
   install: z.object({ hosts: z.object({ codex: installHostSchema, claude: installHostSchema }) }),
   auth: z.object({
     passkeysEnabled: z.boolean(),
+    reviewerAccessEnabled: z.boolean(),
     passkeys: z.array(z.object({
       id: z.string().min(1),
       name: z.string().min(1),
@@ -220,4 +221,5 @@ const webRenderContextSchema: z.ZodType<WebRenderContext> = z.object({
   }),
   collectionState: z.enum(["ready", "expired", "revoked", "unavailable"]),
   emailSent: z.boolean(),
+  reviewerError: z.boolean(),
 });

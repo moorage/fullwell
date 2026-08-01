@@ -27,6 +27,7 @@ services:
       OBJECT_STORAGE_PREFIX: ${OBJECT_STORAGE_PREFIX:-household-food-journal/v1}
       BACKUP_KEY_ID: ${BACKUP_KEY_ID:?set backup key identifier}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-35}
+      OPENAI_REVIEW_ENABLED: ${OPENAI_REVIEW_ENABLED:-false}
       WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}
       WHATSAPP_WEBHOOK_ENABLED: ${WHATSAPP_WEBHOOK_ENABLED:-false}
       WHATSAPP_LINKING_ENABLED: ${WHATSAPP_LINKING_ENABLED:-false}
@@ -42,6 +43,8 @@ services:
       OPERATOR_TOKEN_FILE: /run/secrets/operator_token
       APPLE_PRIVATE_KEY_FILE: /run/secrets/apple_private_key
       MAIL_PROVIDER_API_KEY_FILE: /run/secrets/mail_provider_api_key
+      OPENAI_REVIEW_USERNAME_FILE: /run/secrets/openai_review_username
+      OPENAI_REVIEW_PASSWORD_FILE: /run/secrets/openai_review_password
       GIT_SIGNING_KEY_FILE: /run/secrets/git_signing_key
       GIT_ALLOWED_SIGNERS_FILE: /run/secrets/git_allowed_signers
       OBJECT_STORAGE_ACCESS_KEY_ID_FILE: /run/secrets/object_storage_access_key_id
@@ -64,6 +67,8 @@ services:
       - operator_token
       - apple_private_key
       - mail_provider_api_key
+      - openai_review_username
+      - openai_review_password
       - git_signing_key
       - git_allowed_signers
       - object_storage_access_key_id
@@ -142,6 +147,10 @@ secrets:
     file: ${DEPLOY_CREDENTIALS_DIRECTORY}/apple-private-key
   mail_provider_api_key:
     file: ${DEPLOY_CREDENTIALS_DIRECTORY}/mail-provider-api-key
+  openai_review_username:
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/openai-review-username
+  openai_review_password:
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/openai-review-password
   git_signing_key:
     file: ${DEPLOY_CREDENTIALS_DIRECTORY}/git-signing-key
   git_allowed_signers:

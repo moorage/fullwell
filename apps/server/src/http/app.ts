@@ -435,6 +435,7 @@ function observeOperatorHealth(observability: ObservabilityPort | undefined, rep
 }
 
 export function authenticationCategory(route: string): string | null {
+  if (route.startsWith("/auth/reviewer")) return "reviewer";
   if (route.startsWith("/auth/magic-link")) return "magic_link";
   if (route.startsWith("/auth/apple")) return "apple";
   if (route.startsWith("/auth/passkey")) return "passkey";

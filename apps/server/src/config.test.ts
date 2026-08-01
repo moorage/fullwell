@@ -17,8 +17,21 @@ describe("parseConfig", () => {
       AUTH_MODE: "test",
       EXPORT_ROOT: "./.data/exports",
       BACKUP_RETENTION_DAYS: 35,
+      OPENAI_REVIEW_ENABLED: false,
     });
     expect(() => parseConfig({ NODE_ENV: "test", OBJECT_STORAGE_BUCKET: "backup" })).toThrow(/must be complete/);
+  });
+
+  it("requires complete reviewer credentials before enabling review access", () => {
+    expect(() => parseConfig({ NODE_ENV: "test", OPENAI_REVIEW_USERNAME: "openai-reviewer" })).toThrow(/configured together/);
+    expect(() => parseConfig({ NODE_ENV: "test", OPENAI_REVIEW_PASSWORD: "p".repeat(32) })).toThrow(/configured together/);
+    expect(() => parseConfig({ NODE_ENV: "test", OPENAI_REVIEW_ENABLED: "true" })).toThrow(/requires reviewer credentials/);
+    expect(parseConfig({
+      NODE_ENV: "test",
+      OPENAI_REVIEW_ENABLED: "true",
+      OPENAI_REVIEW_USERNAME: "openai-reviewer",
+      OPENAI_REVIEW_PASSWORD: "p".repeat(32),
+    })).toMatchObject({ OPENAI_REVIEW_ENABLED: true, OPENAI_REVIEW_USERNAME: "openai-reviewer" });
   });
 
   it("loads secrets from systemd credential files", () => {

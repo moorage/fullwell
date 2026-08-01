@@ -447,6 +447,24 @@ describe("web experience", () => {
     expect(screen.getByRole("heading", { name: "This collection is no longer shared" })).toBeVisible();
   });
 
+  it("renders restricted review access only when the server enables it", () => {
+    const disabled = renderApp("/sign-in", demoWebContext);
+    expect(screen.queryByRole("button", { name: "Continue with review access" })).not.toBeInTheDocument();
+    disabled.unmount();
+
+    renderApp("/sign-in?returnTo=%2Fauthorize", {
+      ...demoWebContext,
+      reviewerError: true,
+      auth: { ...demoWebContext.auth, reviewerAccessEnabled: true },
+    });
+    expect(screen.getByRole("button", { name: "Continue with review access" })).toBeVisible();
+    expect(screen.getByLabelText("Review username")).toHaveAttribute("autocomplete", "username");
+    expect(screen.getByLabelText("Review password")).toHaveAttribute("autocomplete", "current-password");
+    expect(screen.getByText("Review sign-in failed")).toBeVisible();
+    expect(screen.getAllByDisplayValue("/authorize")).toHaveLength(3);
+  });
+
+
   it("discloses the WhatsApp transport and local restocking boundary", () => {
     renderApp("/privacy");
     expect(screen.getByRole("heading", { name: "WhatsApp restocking" })).toBeVisible();

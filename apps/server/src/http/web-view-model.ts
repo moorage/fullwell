@@ -96,6 +96,7 @@ export class WebViewModelService {
     private readonly listPasskeys: ((userId: Principal["userId"]) => Promise<readonly PasskeyCredential[]>) | undefined,
     private readonly accountSummary: ((userId: Principal["userId"]) => Promise<{ readonly methods: readonly IdentityMethodProvider[]; readonly grants: readonly OAuthGrantSummary[] }>) | undefined,
     private readonly messagingStatus: ((principal: Principal, setup: { readonly deviceId?: string; readonly householdId?: string }) => Promise<MessagingAccountStatus>) | undefined,
+    private readonly reviewerAccessEnabled: boolean,
   ) {}
 
   static async create(options: {
@@ -112,6 +113,7 @@ export class WebViewModelService {
     listPasskeys?: (userId: Principal["userId"]) => Promise<readonly PasskeyCredential[]>;
     accountSummary?: (userId: Principal["userId"]) => Promise<{ readonly methods: readonly IdentityMethodProvider[]; readonly grants: readonly OAuthGrantSummary[] }>;
     messagingStatus?: (principal: Principal, setup: { readonly deviceId?: string; readonly householdId?: string }) => Promise<MessagingAccountStatus>;
+    reviewerAccessEnabled?: boolean;
   }): Promise<WebViewModelService> {
     const metadata = InstallMetadataSchema.parse(JSON.parse(await readFile(options.installMetadataPath, "utf8")));
     return new WebViewModelService(
@@ -128,6 +130,7 @@ export class WebViewModelService {
       options.listPasskeys,
       options.accountSummary,
       options.messagingStatus,
+      options.reviewerAccessEnabled ?? false,
     );
   }
 
@@ -324,6 +327,7 @@ export class WebViewModelService {
       } },
       auth: {
         passkeysEnabled: this.listPasskeys !== undefined,
+        reviewerAccessEnabled: this.reviewerAccessEnabled,
         passkeys: passkeys.map((credential) => ({
           id: credential.credentialId,
           name: credential.name,
@@ -344,6 +348,7 @@ export class WebViewModelService {
       invite,
       collectionState: collection.state,
       emailSent: requestUrl.searchParams.get("emailSent") === "1",
+      reviewerError: requestUrl.searchParams.get("reviewerError") === "1",
     };
   }
 

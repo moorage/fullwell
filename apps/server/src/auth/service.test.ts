@@ -9,7 +9,7 @@ import {
 import type { IdentityProviderPort, MailPort } from "../core/ports.js";
 import { MemoryAuthStore } from "./memory-store.js";
 import { UnsupportedPasskeyProvider } from "./providers.js";
-import { BrowserAuthService } from "./service.js";
+import { BrowserAuthService, type ReviewerAccessConfig } from "./service.js";
 import type { PasskeyCredential, PasskeyProvider } from "./types.js";
 
 class CapturingMail implements MailPort {
@@ -50,13 +50,17 @@ class DeterministicAppleProvider implements IdentityProviderPort {
   async exchangeAppleCode() { return { subject: "apple-subject", email: "member@icloud.test", name: "Apple Member" }; }
 }
 
-function fixture(passkeys: PasskeyProvider = new UnsupportedPasskeyProvider(), apple: IdentityProviderPort = new UnconfiguredAppleIdentityProvider()) {
+function fixture(
+  passkeys: PasskeyProvider = new UnsupportedPasskeyProvider(),
+  apple: IdentityProviderPort = new UnconfiguredAppleIdentityProvider(),
+  reviewerAccess?: ReviewerAccessConfig,
+) {
   const mail = new CapturingMail();
   const clock = new FixedClock(new Date("2026-07-15T12:00:00.000Z"));
   const store = new MemoryAuthStore();
   const auth = new BrowserAuthService(
     store, clock, new DeterministicRandomSource(), new HmacTokenHasher("auth-test-pepper-long-enough"),
-    mail, apple, passkeys, new URL("https://journal.example.test"),
+    mail, apple, passkeys, new URL("https://journal.example.test"), reviewerAccess,
   );
   return { auth, mail, clock, store };
 }
@@ -70,6 +74,52 @@ async function magicLinkSession(auth: BrowserAuthService, mail: CapturingMail) {
 }
 
 describe("BrowserAuthService", () => {
+  it("provisions a hidden reviewer identity and signs it in only with the configured credential", async () => {
+    const hasher = new HmacTokenHasher("auth-test-pepper-long-enough");
+    const reviewerAccess = {
+      enabled: true,
+      usernameHash: hasher.hash("openai-reviewer"),
+      passwordHash: hasher.hash("review-password-with-at-least-32-characters"),
+      subjectHash: hasher.hash("openai-reviewer:stable-subject"),
+    };
+    const { auth, store } = fixture(new UnsupportedPasskeyProvider(), new UnconfiguredAppleIdentityProvider(), reviewerAccess);
+
+    await expect(auth.completeReviewerSignIn({
+      username: "openai-reviewer",
+      password: "wrong-review-password-with-at-least-32-characters",
+    })).rejects.toMatchObject({ code: "AUTH_REQUIRED" });
+    const first = await auth.completeReviewerSignIn({
+      username: "openai-reviewer",
+      password: "review-password-with-at-least-32-characters",
+      pendingIntent: "/authorize?client_id=review-client",
+    });
+    const second = await auth.completeReviewerSignIn({
+      username: "openai-reviewer",
+      password: "review-password-with-at-least-32-characters",
+    });
+
+    expect(second.user.id).toBe(first.user.id);
+    expect(first.pendingIntent).toBe("/authorize?client_id=review-client");
+    expect(await store.listIdentityMethods(first.user.id)).toEqual([]);
+    expect((await auth.authenticateSession(first.sessionToken)).userId).toBe(first.user.id);
+  });
+
+  it("allows disabled reviewer provisioning without allowing sign-in", async () => {
+    const hasher = new HmacTokenHasher("auth-test-pepper-long-enough");
+    const { auth } = fixture(new UnsupportedPasskeyProvider(), new UnconfiguredAppleIdentityProvider(), {
+      enabled: false,
+      usernameHash: hasher.hash("openai-reviewer"),
+      passwordHash: hasher.hash("review-password-with-at-least-32-characters"),
+      subjectHash: hasher.hash("openai-reviewer:stable-subject"),
+    });
+    const user = await auth.ensureReviewerUser();
+    expect(user.displayName).toBe("OpenAI reviewer");
+    await expect(auth.completeReviewerSignIn({
+      username: "openai-reviewer",
+      password: "review-password-with-at-least-32-characters",
+    })).rejects.toMatchObject({ code: "AUTH_REQUIRED" });
+  });
+
   it("issues one-time magic links bound to the browser transaction", async () => {
     const { auth, mail } = fixture();
     await auth.requestMagicLink("MEMBER@example.test", "/invite/family/example");

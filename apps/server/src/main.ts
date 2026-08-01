@@ -72,7 +72,15 @@ const identity = config.APPLE_CLIENT_ID === undefined || config.APPLE_TEAM_ID ==
 const exportArtifacts = new FileExportArtifactStore(config.EXPORT_ROOT);
 const service = new HouseholdFoodJournalService(store, repository, clock, random, hasher, telemetry, publicOrigin, exportArtifacts, authStore);
 const passkeys = new WebAuthnPasskeyProvider({ rpName: "Fullwell", rpId: publicOrigin.hostname, origin: publicOrigin.origin });
-const browserAuth = new BrowserAuthService(authStore, clock, random, hasher, mail, identity, passkeys, publicOrigin);
+const reviewerAccess = config.OPENAI_REVIEW_USERNAME === undefined || config.OPENAI_REVIEW_PASSWORD === undefined
+  ? undefined
+  : {
+    enabled: config.OPENAI_REVIEW_ENABLED,
+    usernameHash: hasher.hash(config.OPENAI_REVIEW_USERNAME),
+    passwordHash: hasher.hash(config.OPENAI_REVIEW_PASSWORD),
+    subjectHash: hasher.hash(`openai-reviewer:${config.OPENAI_REVIEW_USERNAME}`),
+  };
+const browserAuth = new BrowserAuthService(authStore, clock, random, hasher, mail, identity, passkeys, publicOrigin, reviewerAccess);
 const oauth = new OAuthService(oauthStore, clock, random, hasher, new URL("/mcp", publicOrigin));
 const accounts = new AccountService(authStore, store, oauthStore, clock, repository, random);
 const backupCryptography = config.BACKUP_ENCRYPTION_KEY === undefined || config.BACKUP_MANIFEST_PRIVATE_KEY === undefined || config.BACKUP_MANIFEST_PUBLIC_KEY === undefined || config.BACKUP_KEY_ID === undefined
@@ -80,7 +88,7 @@ const backupCryptography = config.BACKUP_ENCRYPTION_KEY === undefined || config.
   : new BackupCryptography(config.BACKUP_ENCRYPTION_KEY, config.BACKUP_MANIFEST_PRIVATE_KEY, config.BACKUP_MANIFEST_PUBLIC_KEY, config.BACKUP_KEY_ID);
 const health = new HealthService(store, repository, {
   clock,
-  expectedSchemaVersion: "0008",
+  expectedSchemaVersion: "0009",
   repositoryRoot: config.HOUSEHOLD_REPOSITORY_ROOT,
   signingConfigured: config.GIT_SIGNING_KEY !== undefined && config.GIT_ALLOWED_SIGNERS_FILE !== undefined && backupCryptography !== null,
 });
@@ -136,6 +144,7 @@ const webViewModels = await WebViewModelService.create({
   verifyCsrf: verifyWebCsrf,
   listPasskeys: (userId) => browserAuth.listPasskeys(userId),
   accountSummary: (userId) => accounts.summary(userId),
+  reviewerAccessEnabled: reviewerAccess?.enabled ?? false,
   ...(messaging === undefined ? {} : { messagingStatus: (principal, setup) => messaging.service.accountStatus(principal, setup) }),
 });
 const app = await buildApp({
@@ -153,6 +162,8 @@ const app = await buildApp({
   browserAuth: {
     auth: browserAuth,
     secureCookies: config.NODE_ENV === "production",
+    reviewerAccessEnabled: reviewerAccess?.enabled ?? false,
+    publicOrigin,
     ...(config.APPLE_CLIENT_ID === undefined ? {} : { appleAuthorization: { clientId: config.APPLE_CLIENT_ID, redirectUri: new URL("/auth/apple/callback", publicOrigin).toString() } }),
   },
   account: { auth: browserAuth, accounts, journal: service },

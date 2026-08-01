@@ -1,6 +1,6 @@
 import type { UserId } from "@hfj/contracts";
 import { ActorIdSchema, UserIdSchema } from "@hfj/contracts";
-import type { AuthChallenge, AuthStore, AuthUser, IdentityLinkResult, IdentityMethodProvider, MethodRemovalResult, PasskeyCredential, WebSession } from "./types.js";
+import type { AuthChallenge, AuthStore, AuthUser, ExternalIdentityProvider, IdentityLinkResult, IdentityMethodProvider, MethodRemovalResult, PasskeyCredential, WebSession } from "./types.js";
 
 export class MemoryAuthStore implements AuthStore {
   private readonly challenges = new Map<string, AuthChallenge>();
@@ -21,7 +21,7 @@ export class MemoryAuthStore implements AuthStore {
     return challenge;
   }
 
-  async resolveOrCreateUser(input: { readonly provider: "apple" | "magic_link"; readonly subjectHash: string; readonly displayName: string; readonly candidateUserId: UserId; readonly candidateActorId: string }): Promise<AuthUser> {
+  async resolveOrCreateUser(input: { readonly provider: ExternalIdentityProvider; readonly subjectHash: string; readonly displayName: string; readonly candidateUserId: UserId; readonly candidateActorId: string }): Promise<AuthUser> {
     const key = `${input.provider}:${input.subjectHash}`;
     const found = this.identities.get(key);
     if (found !== undefined) return found;
@@ -47,7 +47,8 @@ export class MemoryAuthStore implements AuthStore {
   async listIdentityMethods(userId: UserId): Promise<readonly IdentityMethodProvider[]> {
     return [...new Set([...this.identities.entries()]
       .filter(([, user]) => user.id === userId)
-      .map(([key]) => key.slice(0, key.indexOf(":")) as IdentityMethodProvider))].sort();
+      .map(([key]) => key.slice(0, key.indexOf(":")))
+      .filter((provider): provider is IdentityMethodProvider => provider === "apple" || provider === "magic_link"))].sort();
   }
 
   async linkIdentityMethod(userId: UserId, provider: IdentityMethodProvider, subjectHash: string): Promise<IdentityLinkResult> {

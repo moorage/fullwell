@@ -54,10 +54,10 @@ async function fixture(options: FixtureOptions = {}) {
 describe("Fastify application", () => {
   it("classifies bounded authentication telemetry categories", () => {
     expect([
-      "/auth/magic-link", "/auth/apple/start", "/auth/passkey/options", "/account/sign-in-methods/apple/start",
+      "/auth/reviewer", "/auth/magic-link", "/auth/apple/start", "/auth/passkey/options", "/account/sign-in-methods/apple/start",
       "/oauth/register", "/oauth/authorize", "/oauth/token", "/oauth/revoke", "/households",
     ].map(authenticationCategory)).toEqual([
-      "magic_link", "apple", "passkey", "identity_management",
+      "reviewer", "magic_link", "apple", "passkey", "identity_management",
       "oauth_registration", "oauth_authorization", "oauth_token", "oauth_revocation", null,
     ]);
   });

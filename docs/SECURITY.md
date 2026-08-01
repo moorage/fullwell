@@ -86,9 +86,11 @@ Export links are separate requester-bound capabilities. Neon stores only their H
 
 Application abuse controls use `@fastify/rate-limit` with a global per-client-IP ceiling and stricter grouped limits for authentication, OAuth, MCP, public capabilities, imports, exports, and destructive account actions. Fastify trusts exactly one proxy hop because Caddy is the only public ingress and the app container is not published. Rate-limit labels use route templates only, never raw URLs or tokens.
 
+The temporary OpenAI reviewer adapter is absent unless a complete encrypted username and password are configured and its independent enable gate is true. Its same-origin form is limited to five attempts per client address per 15 minutes, compares both submitted values through the constant-time HMAC boundary, stores only a keyed reviewer subject in the identity table, returns one generic failure, and issues the ordinary browser session after success. Reviewer credentials, their digests, and the isolated reviewer account identifiers are excluded from Git, logs, metrics, screenshots, Beads, and operator output. Disablement hides the form and route; credential rotation also revokes the reviewer's browser and OAuth sessions.
+
 ## Secrets and credentials
 
-Expected secret classes include Neon runtime and migration URLs, Apple credentials, OAuth signing/encryption keys, cookie keys, HMAC peppers, the dedicated operator bearer token, email-provider credentials, Git signing keys, DigitalOcean deployment credentials, backup encryption credentials, Meta app/access/webhook credentials, and the independent message-encryption key.
+Expected secret classes include Neon runtime and migration URLs, Apple credentials, OAuth signing/encryption keys, cookie keys, HMAC peppers, the dedicated operator bearer token, email-provider credentials, the temporary OpenAI reviewer username and password, Git signing keys, DigitalOcean deployment credentials, backup encryption credentials, Meta app/access/webhook credentials, and the independent message-encryption key.
 
 Repository visibility does not widen the operational-data boundary. Beads issue
 and interaction exports, local Dolt history, and its custom refs are private

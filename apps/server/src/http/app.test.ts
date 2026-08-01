@@ -22,7 +22,7 @@ import { ServiceObservability } from "../telemetry/observability.js";
 import { createOperatorAuthenticator, HealthService } from "../health/health.js";
 import { AppError } from "../core/errors.js";
 
-type FixtureOptions = Pick<AppDependencies, "observability" | "operatorAuthentication" | "rateLimit"> & {
+type FixtureOptions = Pick<AppDependencies, "observability" | "operatorAuthentication" | "rateLimit" | "openAiAppsChallenge"> & {
   readonly publicOrigin?: URL;
 };
 
@@ -86,6 +86,17 @@ describe("Fastify application", () => {
       authorization_servers: ["https://fullwell.ai/"],
     });
     expect(`${authorization.body}${resource.body}`).not.toContain("attacker.example");
+    await app.close();
+  });
+
+  it("serves the configured OpenAI ownership challenge as uncached plain text", async () => {
+    const challenge = "openai-app-challenge-value-1234567890";
+    const { app } = await fixture({ openAiAppsChallenge: challenge });
+    const response = await app.inject({ method: "GET", url: "/.well-known/openai-apps-challenge" });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toBe(challenge);
+    expect(response.headers["content-type"]).toContain("text/plain");
+    expect(response.headers["cache-control"]).toBe("no-store");
     await app.close();
   });
 

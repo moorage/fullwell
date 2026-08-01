@@ -22,6 +22,7 @@ LoadCredentialEncrypted=apple-private-key:/etc/credstore.encrypted/hfj-apple-pri
 LoadCredentialEncrypted=mail-provider-api-key:/etc/credstore.encrypted/hfj-mail-provider-api-key
 LoadCredentialEncrypted=openai-review-username:/etc/credstore.encrypted/hfj-openai-review-username
 LoadCredentialEncrypted=openai-review-password:/etc/credstore.encrypted/hfj-openai-review-password
+LoadCredentialEncrypted=openai-apps-challenge:/etc/credstore.encrypted/hfj-openai-apps-challenge
 LoadCredentialEncrypted=git-signing-key:/etc/credstore.encrypted/hfj-git-signing-key
 LoadCredentialEncrypted=git-allowed-signers:/etc/credstore.encrypted/hfj-git-allowed-signers
 LoadCredentialEncrypted=object-storage-access-key-id:/etc/credstore.encrypted/hfj-object-storage-access-key-id

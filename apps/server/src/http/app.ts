@@ -82,6 +82,7 @@ export interface AppDependencies {
   };
   readonly messaging?: MessagingRouteDependencies;
   readonly runner?: RunnerRouteDependencies;
+  readonly openAiAppsChallenge?: string;
 }
 
 export async function buildApp(dependencies: AppDependencies): Promise<FastifyInstance> {
@@ -225,6 +226,12 @@ export async function buildApp(dependencies: AppDependencies): Promise<FastifyIn
 
   app.get("/.well-known/oauth-protected-resource", async () => ({ resource: new URL("/mcp", dependencies.publicOrigin).toString(), authorization_servers: [dependencies.publicOrigin.toString()], scopes_supported: ["journal:read", "journal:write", "household:manage", "collection:share", "journal:export", "runner:messages"] }));
   app.get("/.well-known/oauth-authorization-server", async () => ({ issuer: dependencies.publicOrigin.toString(), authorization_endpoint: new URL("/oauth/authorize", dependencies.publicOrigin), token_endpoint: new URL("/oauth/token", dependencies.publicOrigin), revocation_endpoint: new URL("/oauth/revoke", dependencies.publicOrigin), registration_endpoint: new URL("/oauth/register", dependencies.publicOrigin), response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], token_endpoint_auth_methods_supported: ["none"], code_challenge_methods_supported: ["S256"] }));
+  if (dependencies.openAiAppsChallenge !== undefined) {
+    app.get("/.well-known/openai-apps-challenge", { config: { rateLimit: false } }, async (_request, reply) => reply
+      .header("cache-control", "no-store")
+      .type("text/plain; charset=utf-8")
+      .send(dependencies.openAiAppsChallenge));
+  }
   app.get("/mcp", { config: { rateLimit: { max: 120, timeWindow: 60_000, groupId: "mcp" } } }, async (request) => {
     await authenticate(request.headers.authorization, dependencies.authentication);
     throw new AppError("VALIDATION_FAILED", "MCP requests must use POST");

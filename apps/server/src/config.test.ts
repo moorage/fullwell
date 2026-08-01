@@ -18,8 +18,15 @@ describe("parseConfig", () => {
       EXPORT_ROOT: "./.data/exports",
       BACKUP_RETENTION_DAYS: 35,
       OPENAI_REVIEW_ENABLED: false,
+      OPENAI_APPS_CHALLENGE: undefined,
     });
     expect(() => parseConfig({ NODE_ENV: "test", OBJECT_STORAGE_BUCKET: "backup" })).toThrow(/must be complete/);
+  });
+
+  it("loads and validates the OpenAI app ownership challenge", () => {
+    const challenge = "openai-app-challenge-value-1234567890";
+    expect(parseConfig({ NODE_ENV: "test", OPENAI_APPS_CHALLENGE: challenge }).OPENAI_APPS_CHALLENGE).toBe(challenge);
+    expect(() => parseConfig({ NODE_ENV: "test", OPENAI_APPS_CHALLENGE: "invalid value" })).toThrow();
   });
 
   it("requires complete reviewer credentials before enabling review access", () => {

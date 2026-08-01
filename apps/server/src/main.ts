@@ -158,6 +158,7 @@ const app = await buildApp({
   publicOrigin,
   health,
   observability: telemetry,
+  ...(config.OPENAI_APPS_CHALLENGE === undefined ? {} : { openAiAppsChallenge: config.OPENAI_APPS_CHALLENGE }),
   ...(config.OPERATOR_TOKEN === undefined ? {} : { operatorAuthentication: createOperatorAuthenticator(config.OPERATOR_TOKEN, hasher) }),
   browserAuth: {
     auth: browserAuth,

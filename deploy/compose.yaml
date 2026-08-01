@@ -45,6 +45,7 @@ services:
       MAIL_PROVIDER_API_KEY_FILE: /run/secrets/mail_provider_api_key
       OPENAI_REVIEW_USERNAME_FILE: /run/secrets/openai_review_username
       OPENAI_REVIEW_PASSWORD_FILE: /run/secrets/openai_review_password
+      OPENAI_APPS_CHALLENGE_FILE: /run/secrets/openai_apps_challenge
       GIT_SIGNING_KEY_FILE: /run/secrets/git_signing_key
       GIT_ALLOWED_SIGNERS_FILE: /run/secrets/git_allowed_signers
       OBJECT_STORAGE_ACCESS_KEY_ID_FILE: /run/secrets/object_storage_access_key_id
@@ -69,6 +70,7 @@ services:
       - mail_provider_api_key
       - openai_review_username
       - openai_review_password
+      - openai_apps_challenge
       - git_signing_key
       - git_allowed_signers
       - object_storage_access_key_id
@@ -151,6 +153,8 @@ secrets:
     file: ${DEPLOY_CREDENTIALS_DIRECTORY}/openai-review-username
   openai_review_password:
     file: ${DEPLOY_CREDENTIALS_DIRECTORY}/openai-review-password
+  openai_apps_challenge:
+    file: ${DEPLOY_CREDENTIALS_DIRECTORY}/openai-apps-challenge
   git_signing_key:
     file: ${DEPLOY_CREDENTIALS_DIRECTORY}/git-signing-key
   git_allowed_signers:
